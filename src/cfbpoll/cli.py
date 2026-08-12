@@ -74,6 +74,23 @@ def _stub(what: str, spec: str) -> None:
     )
 
 
+def _parse_seasons(spec: str) -> list[int]:
+    """'2021-2023' or '2021,2022' -> [2021, 2022, 2023]. Sorted, deduplicated."""
+    out: set[int] = set()
+    for chunk in spec.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        if "-" in chunk:
+            lo, hi = (int(x) for x in chunk.split("-", 1))
+            out.update(range(lo, hi + 1))
+        else:
+            out.add(int(chunk))
+    if not out:
+        raise typer.BadParameter(f"no seasons parsed from {spec!r}")
+    return sorted(out)
+
+
 def _sha256_or_none(path: Path) -> str | None:
     """sha256 of a file for the run record, or None when it is not there."""
     import hashlib
@@ -288,6 +305,82 @@ def rank(
             f"  ({row['wins']}-{row['losses']})"
         )
     typer.echo("wrote: " + ", ".join(p.name for p in written))
+
+
+@app.command()
+def backtest(
+    config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
+    systems: Annotated[
+        str, typer.Option(help="Comma-separated systems, e.g. l2,colley,srs,elo,walker,winpct.")
+    ] = "l2,colley,srs,elo,walker,winpct",
+    seasons: Annotated[
+        str, typer.Option(help="Seasons: '2021-2023' or '2021,2022,2023'.")
+    ] = "2021-2023",
+    out: Annotated[Path, typer.Option(help="Output directory.")] = Path("out"),
+    unlock_holdout: Annotated[
+        bool,
+        typer.Option(
+            "--unlock-holdout",
+            help="Score the held-out season. SINGLE SHOT. Do not use casually.",
+        ),
+    ] = False,
+) -> None:
+    """Strict walk-forward backtest against every baseline. Writes backtest_metrics.json.
+
+    To predict bucket N of a season the harness fits through bucket N-1 of the
+    SAME season and nothing else - no prior seasons, no future games (report 02
+    §5.1). The FBS-vs-FBS universe is the headline; FBS-vs-FCS, non-CFP bowls and
+    CFP games are reported separately because they measure different things.
+
+    The home-team-always-wins floor is always included, whether or not it is
+    named in --systems: a table without its floor is not a table.
+
+    2025 IS HELD OUT. The harness refuses to score it unless --unlock-holdout is
+    passed by a human who has read report 02 §5.1 and accepts that it is a
+    single-shot test.
+    """
+    import json
+
+    from cfbpoll.backtest import walkforward
+    from cfbpoll.config import load_config
+
+    cfg = load_config(config)
+    wanted = [s for s in (x.strip() for x in systems.split(",")) if s]
+    if "home_team" not in wanted and "home" not in wanted:
+        wanted.append("home_team")
+
+    result = walkforward.run_backtest(
+        seasons=_parse_seasons(seasons),
+        systems=wanted,
+        config=cfg,
+        unlock_holdout=unlock_holdout,
+    )
+
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / "backtest_metrics.json"
+    path.write_text(json.dumps(result, indent=2, sort_keys=True, default=float) + "\n")
+
+    headline_week = result["protocol"]["headline_start_week"]
+    typer.echo(
+        f"walk-forward {result['protocol']['seasons']} - FBS-vs-FBS, "
+        f"weeks >= {headline_week} (the published window)"
+    )
+    typer.echo(
+        f"{'system':<14}{'n':>6}{'SU%':>8}{'MAE':>8}{'RMSE':>8}{'Brier':>8}{'logloss':>9}{'viol%':>8}{'churn':>8}"
+    )
+    for name, block in result["systems"].items():
+        s = block["segments_from_headline_week"].get("fbs_vs_fbs")
+        if not s:
+            continue
+        viol = block["retrodictive_violation_rate"]
+        churn = block["rank_churn"]["mean_all"]
+        typer.echo(
+            f"{name:<14}{s['n_games']:>6}{s['su_accuracy'] * 100:>8.2f}{s['mae']:>8.3f}"
+            f"{s['rmse']:>8.3f}{s['brier']:>8.4f}{s['log_loss']:>9.4f}"
+            f"{(viol * 100 if viol is not None else float('nan')):>8.2f}"
+            f"{(churn if churn is not None else float('nan')):>8.2f}"
+        )
+    typer.echo(f"wrote: {path}")
 
 
 @app.command()

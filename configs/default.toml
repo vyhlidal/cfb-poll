@@ -243,14 +243,26 @@ first_eval_week = 2
 min_training_games = 20                     # below this a week is scored but flagged
 
 # Every system's ratings are mapped onto the points scale by ONE walk-forward
-# OLS per system per week: margin ~ a * (r_home - r_away) + h * site, fit on the
-# training window only. Without it the baselines cannot be compared on MAE at
-# all - Elo lives on a 400-point logit scale, win percentage on [0, 1], Colley on
-# [0, 1] around 0.5 - and even L2's own ratings are in compressed-response units,
-# not points, because the tanh response is not the identity. SU accuracy is
-# invariant to a positive affine map, so this changes no straight-up number.
+# OLS per system per week: margin ~ a + b * (r_home - r_away) + h * site.
+# Without it the baselines cannot be compared on MAE at all - Elo lives on a
+# 400-point logit scale, win percentage on [0, 1], Colley on [0, 1] around 0.5 -
+# and even L2's own ratings are in compressed-response units, not points,
+# because the tanh response is not the identity. SU accuracy is invariant to a
+# positive affine map, so this changes no straight-up number.
 calibrate_ratings_to_points = true
 sigma_source = "resume.sigma"               # win prob = Phi(margin / sigma), §3.4
+
+# The calibration is fitted on OUT-OF-SAMPLE games - the walk-forward
+# predictions already accumulated earlier in the same season - exactly as report
+# 02 §3.3 prescribes for the L3 blend weights, and for the same reason. Fitting
+# it on the training window instead reads the slope off games the rater was fit
+# on, which flatters whichever system fits its training data hardest and
+# systematically over-disperses its out-of-sample predictions. Measured on
+# 2021-2023: in-sample calibration costs L2 0.44 points of MAE and inverts the
+# ordering against Elo. Until this many out-of-sample games have accumulated,
+# the training window is used as a fallback.
+calibration_out_of_sample = true
+calibration_min_out_of_sample_games = 40
 
 ####################################################################################
 # Backtest baseline constants — report 02 §5.3. These belong to the COMPETITION,

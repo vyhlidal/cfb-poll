@@ -7,13 +7,18 @@ No human polls. No recruiting rankings. No reputation. No black boxes. Every
 number on every page recomputable by a stranger with no API key, no account, and
 no permission from anyone.
 
-> ## ⚠️ Status: scaffold. Nothing computes yet.
+> ## ⚠️ Status: the results core works. The finished poll does not exist yet.
 >
-> This repository currently contains the structure, the configuration, the
-> licenses, the decision records and the CI specification — **and no working
-> model.** Every CLI command raises `NotImplementedError`. Every `make` target
-> except `.venv` prints what it will do. The workflows are committed as the spec
-> and will fail until the pipeline is real.
+> **What runs today:** the games loader over the MIT archive, the L2 results core
+> (ridge on compressed scoring margin), `cfbpoll rank`, and the full walk-forward
+> backtest against every baseline — `cfbpoll backtest`. Real output is committed
+> under [`demo/`](demo/).
+>
+> **What does not:** L1 efficiency, the L3 blend, the L4 résumé rating, the
+> bootstrap intervals, publishing, and the site. The headline layer named in
+> `configs/default.toml` is L4 résumé and **that is not what `rank` publishes**;
+> every artifact it writes says so in `model_params.json`. Those commands still
+> raise `NotImplementedError` rather than pretending.
 >
 > See [Status](#status) for what exists versus what is coming.
 
@@ -159,13 +164,14 @@ Decisions and why: [`docs/adr/`](docs/adr/).
 
 ## Commands
 
-Every `make` target maps to `cfbpoll` CLI verbs. Both are stubs today.
+Every `make` target maps to `cfbpoll` CLI verbs.
 
-| Target | What it will do |
+| Target | What it does |
 |---|---|
 | `make .venv` | **Works now.** `uv sync --locked` — installs Python 3.12 and every pinned wheel |
+| `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
+| `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
 | `make rankings` | Sync the archive, fit L1–L4, bootstrap intervals, build the static site |
-| `make backtest` | Full walk-forward 2021–2024 against all eight baselines |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
 | `make grid` | The 5 seasons × 15 weeks × 15 windows retroactive grid |
 | `make site` | Build the static site into `site/_build` |

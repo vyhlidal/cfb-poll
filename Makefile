@@ -1,8 +1,8 @@
 # cfb-poll — the one-command fork story (research report 03 §9.1).
 #
-# SCAFFOLD: only the `.venv` target does real work today. Every other target
-# prints exactly what it will do and exits 0, so the contract is readable before
-# the pipeline exists. Each stub maps 1:1 to a `cfbpoll` CLI verb.
+# `.venv`, `backtest`, `demos`, `test` and `lint` do real work. The rest print
+# exactly what they will do and exit 0, so the contract is readable before the
+# rest of the pipeline exists. Each stub maps 1:1 to a `cfbpoll` CLI verb.
 
 UV ?= uv
 CONFIG ?= configs/default.toml
@@ -11,15 +11,16 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive backtest replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive backtest demos replay replay-tolerant grid site test lint clean
 
 help:
-	@echo "cfb-poll — SCAFFOLD BUILD. Only '.venv' currently does real work."
+	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'demos', 'test', 'lint' work."
 	@echo
 	@echo "  make .venv            uv sync --locked  (installs Python 3.12 + pinned wheels)"
 	@echo "  make rankings         archive sync -> rank -> bootstrap -> site  [stub]"
 	@echo "  make archive          fetch + sha256-verify the MIT archive       [stub]"
-	@echo "  make backtest         walk-forward vs all eight baselines         [stub]"
+	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
+	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
 	@echo "  make grid             the 5 x 15 x 15 retroactive grid            [stub]"
@@ -47,12 +48,21 @@ archive: .venv
 	@echo "       against data/manifests/sportsdataverse.lock.json before use."
 	@echo "NOT IMPLEMENTED — and the manifest does not exist yet either."
 
+# Real. Single-threaded BLAS is not optional: multi-threaded reductions sum in a
+# nondeterministic order and the replay job asserts byte-equality (report 03 §9.3).
 backtest: .venv
-	@echo "[stub] walk-forward 2021-2023 (tune) and 2024 (validate), FBS-vs-FBS,"
-	@echo "       against all eight baselines: home-team, win%, Colley, SRS,"
-	@echo "       random-walker, Elo, closing line, CFP committee."
-	@echo "       2025 is HELD OUT. Single shot. Do not touch it here."
-	@echo "NOT IMPLEMENTED — report 02 §5, Appendix B step 2 (build this second)."
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run cfbpoll backtest --config $(CONFIG) \
+	    --systems l2,colley,srs,elo,walker,winpct \
+	    --seasons 2021-2023 --out $(OUT)
+	@echo
+	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"
+	@echo "single-shot test and the harness refuses it without --unlock-holdout."
+
+# Real. Regenerates the committed demo/ artifacts from the local archive.
+demos: .venv
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run python scripts/make_demos.py
 
 replay: .venv
 	@echo "[stub] uv run --frozen --offline cfbpoll rank --season 2023 --through-week 10 \\"

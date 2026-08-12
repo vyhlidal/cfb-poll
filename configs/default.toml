@@ -253,6 +253,52 @@ calibrate_ratings_to_points = true
 sigma_source = "resume.sigma"               # win prob = Phi(margin / sigma), §3.4
 
 ####################################################################################
+# Backtest baseline constants — report 02 §5.3. These belong to the COMPETITION,
+# not to our model: nothing here may ever reach a cfbpoll design matrix.
+####################################################################################
+[baselines.colley]
+# Laplace's rule of succession: every team starts 1-1 at 0.500. The +2 is the
+# ridge penalty in disguise (report 02 §2.1, Colley = Massey + 2I) and without it
+# the matrix is singular and the method does not work at all.
+pseudo_games = 2.0
+
+[baselines.srs]
+# The Sports-Reference college football convention exactly, from their published
+# calculation details (report 02 §2.2): margin capped at 24 and floored at +/-7,
+# so a 1-point win is treated the same as a 7-point win. That floor is the direct
+# precedent for our beta_w. Non-major opponents are LUMPED into one team, which
+# we reject for our own model (report 02 §3.7) and keep here so the baseline is
+# the real thing rather than a flattering variant of it.
+mov_cap = 24.0
+mov_floor = 7.0
+lump_non_fbs = true
+
+[baselines.elo]
+# K and the initial ratings are the published CollegeFootballData CFB tutorial's
+# (report 02 §2.7). The MOV multiplier and the home-field constant are Neil
+# Paine's NFL Elo values, because report 02 §2.7 records that 538's
+# COLLEGE-football constants are unrecoverable from any retrievable source and
+# must not be stated as though they were: fivethirtyeight.com now 301s to
+# abcnews.com/politics. Using the NFL numbers is a stated approximation.
+k_factor = 25.0
+initial_fbs = 1500.0
+initial_non_fbs = 1200.0
+home_field_elo = 65.0                       # ~2.6 points; era-dependent, §2.7
+mov_autocorrelation_denominator = 2.2       # ln(|PD|+1) * 2.2/((dElo)*0.001+2.2)
+
+[baselines.random_walker]
+# Callaghan/Mucha/Porter (report 02 §2.11): voters random-walk the schedule graph
+# and vote for the winner of a game they examine with probability p. Report 02
+# does not pin p and the paper requires only p in (1/2, 1); 0.75 is the midpoint
+# of that interval. Ranking is the stationary distribution of the resulting
+# Markov chain, reached by power iteration from a uniform start (deterministic).
+# THIS IS THE BASELINE THAT MIGHT GENUINELY BEAT US - Barrow et al. found it
+# statistically tied with least squares over 56 NCAAF seasons.
+p = 0.75
+max_iterations = 10000
+tolerance = 1e-12
+
+####################################################################################
 # Publication gate — report 02 §5.4, on held-out 2025, FBS-vs-FBS, walk-forward
 ####################################################################################
 [gate]

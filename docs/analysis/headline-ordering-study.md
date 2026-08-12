@@ -1,10 +1,30 @@
 # Which ordering should be the headline poll?
 
-**Status: evidence, not a decision.** Nothing in `configs/default.toml` changed
-except the addition of a `[schedule_odds]` block that no live path reads.
-`[publication].headline_layer` is still `L4_resume` and
-`[resume].saturation_tiebreak` is still `margin`. The owner decides after reading
-this; the study exists so that the decision is made on numbers.
+> **DECIDED, 2026-08-12: candidate C, schedule odds, is the headline ordering.**
+> See [`docs/adr/0005-headline-ordering.md`](../adr/0005-headline-ordering.md) for
+> the decision, the rationale and what was rejected.
+> `[publication].headline_ordering = "schedule_odds"`.
+>
+> **Not one number in this document changed when that happened, and none may.**
+> This file is the evidence as it stood at commit `784ab50`, when nothing on the
+> live path read `[schedule_odds]` and the recommendation below was still a
+> recommendation. It is deliberately left in that voice: a decision record whose
+> evidence has been quietly edited afterwards to agree with the decision is not
+> evidence. Everything below still reproduces from the command in the next
+> section, and the demos under `demo/` are regenerated from the live pipeline and
+> must agree with §5c, §7 and §7a — if they ever stop agreeing, this file is
+> right and the pipeline has a bug.
+>
+> Two statements below are now history rather than fact, and are left standing for
+> the same reason: `[publication].headline_layer` was `L4_resume` at the time (it
+> is now `C_schedule_odds`), and §11's "nothing in the model package imports it"
+> described the state before adoption. `[resume].saturation_tiebreak` is still
+> `margin` and still governs the résumé column.
+
+**Status when written: evidence, not a decision.** Nothing in
+`configs/default.toml` changed except the addition of a `[schedule_odds]` block
+that no live path read. The owner decides after reading this; the study exists so
+that the decision is made on numbers.
 
 **Reproduce every table in this document:**
 

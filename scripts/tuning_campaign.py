@@ -1022,24 +1022,6 @@ def _gate_table(gate: dict[str, Any]) -> list[str]:
     ]
 
 
-def _decile_rows(table: list[dict[str, float]]) -> list[str]:
-    lines = [
-        "| Predicted decile | n | Mean predicted | Observed | Deviation |",
-        "|---|---:|---:|---:|---:|",
-    ]
-    for row in table:
-        if not row["n"]:
-            continue
-        dev = (row["observed_rate"] - row["mean_predicted"]) * 100.0
-        thin = "" if row["counted"] else " *(uncounted, n < 20)*"
-        lines.append(
-            f"| {row['bin_low']:.1f}–{row['bin_high']:.1f} | {int(row['n'])} "
-            f"| {row['mean_predicted']:.3f} | {row['observed_rate']:.3f} "
-            f"| {dev:+.2f} pp{thin} |"
-        )
-    return lines
-
-
 def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
     grid, modes = store["grid"], store["modes"]
     val, diag = store["validation"], store["calibration_diagnosis"]
@@ -1110,8 +1092,9 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         f"| **{base_cell['c']:g}** | **{base_cell['beta_w']:g}** | **{base_cell['mae']:.4f}** "
         f"| **{base_cell['rmse']:.4f}** | **{base_cell['su_accuracy'] * 100:.2f}** "
         f"| **{base_cell['brier']:.5f}** "
-        f"| **{base_cell['max_calibration_deviation_pp']:.2f} pp** | *(the incumbent, "
-        f"rank {rank} of {grid['n_cells']})*",
+        f"| **{base_cell['max_calibration_deviation_pp']:.2f} pp** |",
+        "",
+        f"The bold row is the incumbent (C, β_w) — **rank {rank} of {grid['n_cells']}**.",
         "",
         f"**The whole grid spans {spread:.3f} points of MAE.** The best cell "
         f"(C = {best['c']:g}, β_w = {best['beta_w']:g}) beats the incumbent "
@@ -1435,7 +1418,8 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         "",
         "| Quantity | Value |",
         "|---|---:|",
-        f"| Slope (variance per point of |m̂|) | {t2['variance_on_abs_predicted']['slope']:+.4f} |",  # noqa: E501
+        f"| Slope (variance per point of \\|m̂\\|) "
+        f"| {t2['variance_on_abs_predicted']['slope']:+.4f} |",
         f"| Standard error | {t2['variance_on_abs_predicted']['stderr']:.4f} |",
         f"| p | {t2['variance_on_abs_predicted']['p_value']:.4g} |",
         "",

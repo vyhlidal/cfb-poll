@@ -91,9 +91,21 @@ The résumé root-solve, which is where retroactive re-ranking comes from:
 
 ```
 μ_g(q) = q − Power_{o_g} + h·s_g
-P_g(q) = Φ( μ_g(q) / σ )                σ = 15.3
+P_g(q) = Φ( μ_g(q) / σ )                σ = ESTIMATED, see below
 Résumé_t = the unique q* with Σ_g P_g(q*) = actual wins
 ```
+
+`σ` is **not the constant 15.3**. Since 2026-08-12 it is the root-mean-square
+walk-forward residual of this system's own margin predictions over the
+out-of-sample games accumulated so far in the season, published every week beside
+the number of games it came from (`[resume].sigma_estimator`). 15.3 — the
+Prediction Tracker band for good public models — survives as the thin-window
+fallback and as a floor, which is what it is actually good for. The reason is the
+independent review's S6: 15.3 is the residual SD around a *good public model's*
+prediction, and using it as the denominator of every probability this poll
+publishes asserts a precision this system has not demonstrated. Estimating it did
+**not** fix the calibration criterion — it made it worse, for reasons diagnosed in
+[`docs/analysis/tuning-campaign.md`](analysis/tuning-campaign.md) §5.
 
 Both desert layers depend on opponent quality **only** through `Power_{o_g}` (and,
 for schedule odds, through `q_ref`, which is itself read off Power). Substitute

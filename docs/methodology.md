@@ -5,10 +5,12 @@
 > is a map to the research that specifies it.
 >
 > **Built so far:** all four layers — L1 efficiency, L2 results, the L3 blend and
-> the **L4 résumé rating (the headline poll)** — plus our own expected-points
-> model (`model/ep.py`) and the R(N, K) retroactive surface. Opponent quality
-> inside the résumé is L3 (`power_source = "L3"`, `power_version = "v1"`), with L2
-> kept available and stamped on the artifact whenever it is what actually ran.
+> the L4 résumé rating — plus the **schedule-odds ordering, which is the headline
+> poll** (`model/schedule_odds.py`, adopted 2026-08-12, see
+> [ADR 0005](adr/0005-headline-ordering.md)), our own expected-points model
+> (`model/ep.py`) and the R(N, K) retroactive surface. Opponent quality inside
+> both desert layers is L3 (`power_source = "L3"`, `power_version = "v1"`), with
+> L2 kept available and stamped on the artifact whenever it is what actually ran.
 > **Not built:** the block bootstrap and its rank intervals. Real output, with the
 > reasoning written out, is under [`demo/`](../demo/).
 
@@ -37,9 +39,39 @@ Four layers, all batch refits, all regularized (report 02 §1):
 | **L2 — Results core** | Ridge on game-level compressed scoring margin (`tanh` cap plus explicit win premium) | Opponent-adjusted team rating in points |
 | **L3 — Power rating** | Walk-forward stacked blend of L1 (rescaled to points) and L2 | Predictive: expected margin vs an average team on a neutral field |
 | **L4 — Résumé rating** | Root-solve for the quality `q` whose *expected* results against this exact schedule equal the *actual* results, using L3 for opponent quality | Retrodictive: "these results are what a +18.4 team would produce against this schedule" |
+| **Schedule odds** | The exact Poisson-binomial tail `P(W ≥ W_t)` for a team of published reference quality `q_ref` against this exact schedule, using the same L3 opponent quality | Retrodictive: "a top-25-calibre team would have gone this well about 9 times in 100" |
 
-**The headline poll is L4 (Résumé). L3 (Power) is published beside it, always,
-with the gap shown.** Résumé is the poll; Power is the engine.
+**The headline poll is ordered by schedule odds, on `−log10 P(W ≥ W_t)`.** The
+promise is *the harder it was to do what you did, the higher you go — measured,
+never assumed*. **L4 (Résumé) and L3 (Power) are published beside it on every row,
+always, with the résumé-minus-power gap shown.**
+
+The résumé was the headline from commit `50f4058` until 2026-08-12 and the change
+is recorded, with the evidence and the price, in
+[ADR 0005](adr/0005-headline-ordering.md) and
+[the headline-ordering study](analysis/headline-ordering-study.md). The one-line
+reason: an undefeated team's résumé saturates at the published bracket, which is
+not a function of the schedule and therefore not a function of the data window, so
+the retroactive re-ranking of constraint 4 could not move an unbeaten team at all.
+`[publication].headline_ordering` still accepts `"L4_resume"`, and switching it
+regenerates the whole pipeline under the old ordering.
+
+Schedule odds is the poll; Power is the engine; the résumé is the same accomplishment
+stated on the points scale.
+
+The schedule-odds key, which is where the poll's order comes from:
+
+```
+p_g   = Φ( (q_ref − Power_{o_g} + h·s_g) / σ )          per game
+P_t   = P(W ≥ W_t),  W ~ PoissonBinomial(p_1 … p_n)     exact convolution, O(n²)
+key_t = −log10(P_t)                                     higher is better
+```
+
+`q_ref` is the one free constant: the Power rating of the 25th-ranked Power team
+that week, published every week together with **the name of the team it came from**,
+so a reader can check it against the same week's table. Margin never enters this key
+— not as a tie-break, not anywhere — and the module carries no margin column to leak
+from.
 
 The response transform, which is where the two most contested numbers live:
 
@@ -61,10 +93,20 @@ P_g(q) = Φ( μ_g(q) / σ )                σ = 15.3
 Résumé_t = the unique q* with Σ_g P_g(q*) = actual wins
 ```
 
-Résumé depends on opponent quality **only** through `Power_{o_g}`. Substitute
+Both desert layers depend on opponent quality **only** through `Power_{o_g}` (and,
+for schedule odds, through `q_ref`, which is itself read off Power). Substitute
 through-week-N Power ratings for the live ranking `R(N,N)`; substitute
 end-of-season Power ratings for the hindsight ranking `R(N,final)`. Nothing else
 changes. That is constraint 4 in one substitution.
+
+**With one exception, and it is the exception that moved the headline.** `Σ_g P_g(q)`
+approaches `n` from below, so an undefeated team has no finite root and lands on the
+published bracket `q_bounds = [−60, +60]`. `+60` is not a function of the schedule,
+so the substitution above has nothing to act on and an unbeaten team's résumé rank
+cannot move between the two surfaces. A tail probability has no such degeneracy:
+`P(W ≥ n) = Π_g p_g` is finite, strictly positive and strictly ordered by schedule
+difficulty. Measured on 2023, over the last five published weeks: the résumé ordering
+moved 0 of 26 unbeaten-team rows; schedule odds moved 7.
 
 ## Why the estimator is what it is
 

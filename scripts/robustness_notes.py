@@ -306,6 +306,14 @@ def report(data: dict[str, Any]) -> str:
         "variance - the thing its §4b concluded was the real threat once it had measured",
         "that connectivity was not.",
         "",
+        "> **PROVENANCE.** Every number below was computed against `configs/default.toml`",
+        "> as of the run recorded in the sibling `.json` (`provenance.config_sha256`). The",
+        "> constants moved on 2026-08-12 when the hyperparameter campaign fitted C, beta_w",
+        "> and both mode switches ([ADR 0007](../adr/0007-tuned-constants.md)), so these",
+        "> numbers reproduce under *that* config and not under today's. They are left exactly",
+        "> as they were: evidence quietly edited to agree with a later decision is not",
+        "> evidence.",
+        "",
         "Conference membership appears here as an **audit lens and never as a feature**.",
         "`conference` is on the banned-pattern list in `validate/leakage.py`, the schedule",
         "frame's `conference_game` column is proved unconsumed by every design matrix on",
@@ -466,10 +474,11 @@ def report(data: dict[str, Any]) -> str:
             f"γ = {best_calib['recency_gamma']} gives "
             f"{best_calib['max_calibration_deviation_pp']:.2f}pp against the default's "
             f"{base['max_calibration_deviation_pp']:.2f}pp, and it is still nowhere near the "
-            "5.0pp gate. Worth recording next to the finding in demo/backtest-2021-2023.md "
-            "that the calibration miss is an asymmetry nobody has diagnosed: two unrelated "
-            "knobs both nudge it and neither closes it, which is what you would expect if the "
-            "cause is neither of them."
+            "5.0pp gate. Worth recording next to the calibration section of "
+            "demo/backtest-2021-2023.md: two unrelated knobs both nudge the deviation and "
+            "neither closes it, which is what you would expect if the cause is neither of "
+            "them - and it is not. docs/analysis/tuning-campaign.md SS5.8 diagnoses it as "
+            "under-dispersion of the point forecast, which no knob in this file controls."
             if best_calib["recency_gamma"] != 1.0
             else "Calibration does not improve either."
         ),

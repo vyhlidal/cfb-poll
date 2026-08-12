@@ -7,6 +7,14 @@ Both sections answer questions the
 variance - the thing its §4b concluded was the real threat once it had measured
 that connectivity was not.
 
+> **PROVENANCE.** Every number below was computed against `configs/default.toml`
+> as of the run recorded in the sibling `.json` (`provenance.config_sha256`). The
+> constants moved on 2026-08-12 when the hyperparameter campaign fitted C, beta_w
+> and both mode switches ([ADR 0007](../adr/0007-tuned-constants.md)), so these
+> numbers reproduce under *that* config and not under today's. They are left exactly
+> as they were: evidence quietly edited to agree with a later decision is not
+> evidence.
+
 Conference membership appears here as an **audit lens and never as a feature**.
 `conference` is on the banned-pattern list in `validate/leakage.py`, the schedule
 frame's `conference_game` column is proved unconsumed by every design matrix on
@@ -135,7 +143,7 @@ and the violations column is the headline ordering's:
 
 **No value of γ improves out-of-sample margin error.** The default is already the best of the three on MAE, on RMSE, on Brier and on retrodictive violations; decaying at 0.95 costs +0.024 points of MAE and +0.0027 on violations.
 
-The one column that moves in γ's favour is **calibration**: γ = 0.95 gives 11.88pp against the default's 13.67pp, and it is still nowhere near the 5.0pp gate. Worth recording next to the finding in demo/backtest-2021-2023.md that the calibration miss is an asymmetry nobody has diagnosed: two unrelated knobs both nudge it and neither closes it, which is what you would expect if the cause is neither of them.
+The one column that moves in γ's favour is **calibration**: γ = 0.95 gives 11.88pp against the default's 13.67pp, and it is still nowhere near the 5.0pp gate. Worth recording next to the calibration section of demo/backtest-2021-2023.md: two unrelated knobs both nudge the deviation and neither closes it, which is what you would expect if the cause is neither of them - and it is not. docs/analysis/tuning-campaign.md §5.8 diagnoses it as under-dispersion of the point forecast, which no knob in this file controls.
 
 **THE DEFAULT DOES NOT CHANGE, and the reason is not that the number is small.**
 `recency_gamma` is a fairness knob before it is an accuracy knob. The config states

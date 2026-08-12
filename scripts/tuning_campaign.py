@@ -397,6 +397,109 @@ def stage_validate(store: dict[str, Any], workers: int) -> None:
 
 
 # ----------------------------------------------------------------------------
+# stage 3b - what the frozen choice does to the POLL, not just to the forecast
+# ----------------------------------------------------------------------------
+#: The q_ref sweep's worst Kendall tau (headline-ordering study §9). This
+#: project's own published standard: a parameter whose tau against the incumbent
+#: falls below this is a DIAL and must be labelled as one (ADR 0006).
+Q_REF_TAU_FLOOR = 0.985
+
+RANK_SEASONS = (2021, 2022, 2023)
+
+
+def _headline_ranks(cfg: dict[str, Any], season: int, plays: pl.DataFrame) -> dict[str, int]:
+    """The final pre-postseason headline poll under one config."""
+    from cfbpoll.ingest import windows
+    from cfbpoll.model import retro, schedule_odds
+    from cfbpoll.publish import poll as poll_mod
+
+    games = load_games([season], universe=str(cfg["model"]["fit_universe"]))
+    buckets = windows.season_buckets(games, season)
+    regular = [b for b in buckets if b.season_type == "regular"]
+    evaluated = max(regular, key=lambda b: b.order)
+    powers = retro.season_power(games, season, cfg, plays=plays, buckets=buckets)
+    window = windows.games_through(
+        games, season=season, week=evaluated.week, season_type="regular"
+    )
+    classes = poll_mod.team_classes(games)
+    odds = schedule_odds.fit(window, cfg, power=powers[evaluated.order], classes=classes)
+    return {
+        team: i + 1
+        for i, team in enumerate(
+            sorted((t for t in odds.tail if classes.get(t) == "fbs"), key=odds.order_key)
+        )
+    }
+
+
+def _movement(base: dict[str, int], other: dict[str, int]) -> dict[str, Any]:
+    """§9's exact machinery, reused rather than reimplemented (ADR 0006's standard)."""
+    from scipy.stats import kendalltau
+
+    common = sorted(set(base) & set(other))
+    if not common:
+        return {"n_teams": 0}
+    delta = np.array([other[t] - base[t] for t in common], dtype=np.float64)
+    tau = float(kendalltau([base[t] for t in common], [other[t] for t in common]).statistic)
+    top_base = {t for t in common if base[t] <= 25}
+    top_other = {t for t in common if other[t] <= 25}
+    biggest = sorted(
+        ((abs(other[t] - base[t]), t, base[t], other[t]) for t in common), reverse=True
+    )[:8]
+    return {
+        "n_teams": len(common),
+        "kendall_tau": tau,
+        "mean_abs_rank_delta": float(np.abs(delta).mean()),
+        "max_abs_rank_delta": int(np.abs(delta).max()),
+        "top25_membership_changes": len(top_base ^ top_other) // 2,
+        "entered_top25": sorted(top_other - top_base),
+        "left_top25": sorted(top_base - top_other),
+        "biggest_movers": [
+            {"team": t, "incumbent": a, "frozen": b} for _, t, a, b in biggest
+        ],
+        "is_a_dial": tau < Q_REF_TAU_FLOOR,
+    }
+
+
+def stage_ranking(store: dict[str, Any], workers: int) -> None:
+    """Does the frozen choice move the POLL? Measured by the project's own rule.
+
+    THE OBJECTIVE IS PREDICTIVE AND beta_w IS NOT. The config calls beta_w "the
+    single most contested value in the system" because it is the discontinuity
+    that makes this a football ranking rather than a scoring-margin ranking - a
+    statement about DESERT. A search that optimises margin MAE has no opinion
+    about desert at all, so the ranking consequence of whatever it picks has to be
+    measured separately and published beside the MAE gain, or the campaign is
+    quietly buying a change to the poll with a number that was never about the
+    poll.
+    """
+    del workers
+    base_cfg = _cell_config(load_config(), **_starting_values())
+    frozen_cfg = _cell_config(load_config(), **store["frozen_choice"])
+    rows: dict[str, Any] = {}
+    for season in RANK_SEASONS:
+        plays = load_plays([season])
+        base = _headline_ranks(base_cfg, season, plays)
+        other = _headline_ranks(frozen_cfg, season, plays)
+        rows[str(season)] = {
+            "movement": _movement(base, other),
+            "top10_incumbent": [t for t, r in sorted(base.items(), key=lambda kv: kv[1])[:10]],
+            "top10_frozen": [t for t, r in sorted(other.items(), key=lambda kv: kv[1])[:10]],
+        }
+    taus = [rows[s]["movement"]["kendall_tau"] for s in rows]
+    store["ranking_impact"] = {
+        "tau_floor": Q_REF_TAU_FLOOR,
+        "by_season": rows,
+        "min_kendall_tau": float(min(taus)),
+        "is_a_dial": bool(min(taus) < Q_REF_TAU_FLOOR),
+        "standard": (
+            "docs/analysis/headline-ordering-study.md §9 and ADR 0006: a parameter "
+            "whose Kendall tau against the incumbent falls below the 0.985 that "
+            "q_ref achieves is a DIAL, not a convention, and must be labelled as one"
+        ),
+    }
+
+
+# ----------------------------------------------------------------------------
 # stage 4 - the calibration diagnosis
 # ----------------------------------------------------------------------------
 def _decile_table(prob: np.ndarray, won: np.ndarray) -> list[dict[str, float]]:
@@ -1437,8 +1540,8 @@ def main() -> None:
     parser.add_argument(
         "stages",
         nargs="*",
-        default=["grid", "modes", "validate", "calibration", "render"],
-        help="grid | modes | full | validate | calibration | render",
+        default=["grid", "modes", "full", "validate", "ranking", "calibration", "render"],
+        help="grid | modes | full | validate | ranking | calibration | render",
     )
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
@@ -1459,6 +1562,9 @@ def main() -> None:
             stage_validate(store, args.workers)
             print("  frozen:", store["frozen_choice"], flush=True)
             print("  validation:", store["validation"]["validate_mae_delta"], flush=True)
+        elif stage == "ranking":
+            stage_ranking(store, args.workers)
+            print("  min tau:", store["ranking_impact"]["min_kendall_tau"], flush=True)
         elif stage == "calibration":
             stage_calibration(store, args.workers)
             dev = store["calibration_diagnosis"]["baseline"]["max_deviation_pp"]

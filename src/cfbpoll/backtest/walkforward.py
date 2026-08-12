@@ -480,6 +480,13 @@ def run_backtest(
                                 "season": season,
                                 "week": bucket.week,
                                 "season_type": bucket.season_type,
+                                # The AUTHORITATIVE ordering of buckets within a
+                                # season, by first kickoff (ingest/windows.py).
+                                # A consumer that re-derived it from (week,
+                                # season_type) would reintroduce the 2023
+                                # postseason's week-1-and-11-15 collision.
+                                "bucket": bucket.label,
+                                "bucket_order": bucket.order,
                                 "segment": segment,
                                 "in_headline_window": in_headline,
                                 "game_id": int(gid),

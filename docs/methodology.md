@@ -1,8 +1,14 @@
 # Methodology
 
-> **PLACEHOLDER.** The model is not implemented yet. This page will carry the
-> published math — every equation, every constant, every week — because constraint
-> 5 requires it. Until then, this is a map to the research that specifies it.
+> **PLACEHOLDER.** This page will carry the published math — every equation,
+> every constant, every week — because constraint 5 requires it. Until then, this
+> is a map to the research that specifies it.
+>
+> **Built so far:** the L2 results core, the **L4 résumé rating (the headline
+> poll)**, and the R(N, K) retroactive surface. **Not built:** L1 efficiency and
+> the L3 blend, so opponent quality inside the résumé is L2 rescaled to points and
+> every artifact says so (`power_source = "L2"`, `power_version = "v0"`). Real
+> output, with the reasoning written out, is under [`demo/`](../demo/).
 
 ## Where the real specification lives
 

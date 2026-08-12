@@ -11,8 +11,12 @@ Headline poll = L4 Resume. L3 Power is published beside it, always, with the gap
 shown (report 02 §3.5). Build order is report 02 Appendix B: L2 first, then the
 backtest harness, then L4, then L1, then L3, then bootstrap.
 
-STATUS: SCAFFOLD. No math is implemented. Signatures are fixed here so that the
-challenge harness (report 03 §7.3) has a contract to compile against.
+STATUS: L2 and L4 are real, and L4 is what `cfbpoll rank` publishes. L1 and L3
+are still scaffolds, so opponent quality in the résumé is L2 rescaled to points
+and every artifact stamps `power_source = "L2"`, `power_version = "v0"`. The two
+argument surface R(N, K) that makes retroactive re-ranking definitional lives in
+retro.py. Signatures for the unbuilt layers are fixed here so that the challenge
+harness (report 03 §7.3) has a contract to compile against.
 """
 
 from __future__ import annotations

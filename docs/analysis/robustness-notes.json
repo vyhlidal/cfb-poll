@@ -1,0 +1,88 @@
+{
+  "bridge_inventory_full_season": {
+    "at_g5_site": 25,
+    "at_neutral_site": 2,
+    "at_p4_site": 82,
+    "bridges_per_g5_team": 1.7301587301587302,
+    "n_bridges": 109,
+    "n_fbs_vs_fbs_games": 750,
+    "n_g5_teams": 63,
+    "share_at_p4_site": 0.7663551401869159,
+    "share_of_all_fbs_games": 0.14533333333333334
+  },
+  "bridge_inventory_through_week": {
+    "at_g5_site": 23,
+    "at_neutral_site": 2,
+    "at_p4_site": 75,
+    "bridges_per_g5_team": 1.5873015873015872,
+    "n_bridges": 100,
+    "n_fbs_vs_fbs_games": 546,
+    "n_g5_teams": 63,
+    "share_at_p4_site": 0.7653061224489796,
+    "share_of_all_fbs_games": 0.18315018315018314
+  },
+  "confound": {
+    "contrast_p4_minus_g5": 3.2157861901287466,
+    "contrast_se": 0.3754266625827255,
+    "correlation_site_with_contrast": -0.03280402782258894,
+    "estimated_h": 4.687869962538372,
+    "gap_shift_per_point_of_h_error": 0.12105655795606118,
+    "gap_under_forced_h": {
+      "+0.0": 3.215786190128747,
+      "+1.0": 3.094729632172685,
+      "+2.0": 2.9736730742166233,
+      "-1.0": 3.3368427480848073,
+      "-2.0": 3.457899306040868
+    },
+    "lambda": 8.0,
+    "n_teams": 301,
+    "site_coefficient": 4.687869962538372,
+    "site_se": 0.3948270053299399
+  },
+  "live_home_field_points": 2.4945175228020253,
+  "median_rating_se_points": 1.8759386704961232,
+  "n_g5_teams": 63,
+  "n_p4_teams": 70,
+  "provenance": {
+    "config_sha256": "a197e7f5dbab6aa01e47b924758cddac6f2d407d3c652a197d0c2c431c50f8e7",
+    "generated_at": "2026-08-12",
+    "git_sha": "959bbe1"
+  },
+  "recency": [
+    {
+      "brier": 0.19804029616369845,
+      "mae": 13.018796962702652,
+      "max_calibration_deviation_pp": 13.670847484225982,
+      "n_games": 1585,
+      "recency_gamma": 1.0,
+      "rmse": 16.54941132224072,
+      "su_accuracy": 0.6921135646687697,
+      "violations_headline": 0.20150575730735165,
+      "violations_l3": 0.22763507528786536
+    },
+    {
+      "brier": 0.1981437767229504,
+      "mae": 13.02284128301382,
+      "max_calibration_deviation_pp": 13.592585028123688,
+      "n_games": 1585,
+      "recency_gamma": 0.98,
+      "rmse": 16.551304620802192,
+      "su_accuracy": 0.6902208201892744,
+      "violations_headline": 0.20239149689991143,
+      "violations_l3": 0.22586359610274578
+    },
+    {
+      "brier": 0.1984765619568535,
+      "mae": 13.042456913473483,
+      "max_calibration_deviation_pp": 11.876440928489508,
+      "n_games": 1585,
+      "recency_gamma": 0.95,
+      "rmse": 16.556404573300306,
+      "su_accuracy": 0.6908517350157729,
+      "violations_headline": 0.204162976085031,
+      "violations_l3": 0.22940655447298494
+    }
+  ],
+  "season": 2023,
+  "through_week": 10
+}

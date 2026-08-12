@@ -25,3 +25,6 @@ __pycache__/
 
 # OS noise
 .DS_Store
+
+# Scratch outputs from multi-week fixture generation (regenerable; see Makefile)
+.cache/

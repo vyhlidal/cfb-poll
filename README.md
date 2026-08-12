@@ -285,6 +285,12 @@ cfbpoll site build                      build the static site
 - **R(N, K) and retroactive re-ranking** — `cfbpoll grid` writes the full
   upper-triangular surface, the live and hindsight surfaces, and the biggest
   retroactive movers
+- **The feature audit** (`validate/leakage.py`, `cfbpoll audit-features
+  --fail-on-banned`). Not a docstring: every design matrix is rebuilt from the
+  frame *restricted to that layer's allow-list* and required to be bit-identical,
+  so "no banned input reached a fit" is a measurement recomputed before every
+  poll rather than a promise. `conference_game` is in the schedule frame on every
+  run and is proved unconsumed on every run. `cfbpoll rank` runs it pre-fit
 - The strict walk-forward backtest and all five computed baselines
 - `configs/default.toml` — every model constant with its starting value, its
   backtest grid, and a citation to the research section that fixed it

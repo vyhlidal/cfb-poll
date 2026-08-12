@@ -192,17 +192,52 @@ weekly workflow and the reproducibility workflow.
 
 ## The complete allowed feature list
 
-Nothing else may enter a design matrix (report 02 §3.10):
+Nothing else may enter a design matrix (report 02 §3.10). The live table is
+`LAYERS` in `src/cfbpoll/validate/leakage.py`, with a stated reason for every
+single column, and `tests/unit/test_leakage.py` asserts this prose and that table
+agree:
 
+- **Games loader:** the canonical schedule projection — ids, the window triple,
+  kickoff, site, teams, the scoreboard, and the division classes.
+- **Plays loader:** the canonical play projection. Never the shipped
+  `EPA`/`ppa`/`wpa`/`ep_*`/`wp_*` block.
 - **EP (our expected-points model):** down, distance, yards to goal, points
-  scored on a play, and the scoring segment. Nothing else — not the clock, not
-  the score, not the teams.
+  scored on a play, and the scoring segment — plus the two possession labels,
+  which sign the next score to the side with the ball. Not the clock, not the
+  score, and no team dimension in the fitted table, which the audit asserts
+  separately. (Report 02 §3.10's summary sentence says "not the teams"; the
+  implementation reads the labels and the report's sentence is the loose one.
+  The distinction that matters is that `EPModel.table` is indexed
+  `(down, distance bucket, yards to goal)` and by nothing else.)
 - **L1:** **our** play value from that model, offense team ID, defense team ID,
   home/away/neutral, quarter, score margin, clock *(the last three only for
   garbage-time filtering)*
-- **L2:** final score, team IDs, home/away/neutral, game type
-- **L3:** L1 and L2 outputs, home/away/neutral
+- **L2:** final score, team IDs, home/away/neutral, game type, kickoff date
+  *(the last only for the recency weight, and inert while `recency_gamma = 1.0`)*
+- **L3:** L1 and L2 outputs, team IDs, home/away/neutral, final score *(the blend
+  regression's response is actual margin)*
 - **L4:** L3 outputs, win/loss, schedule
+- **Schedule odds (the headline):** L3 outputs, win/loss, schedule, and the
+  division class, which selects the FBS-only q_ref pool. The scoreboard enters
+  only through `sign(home_points − away_points)`.
+
+## How the audit knows, rather than assumes
+
+`cfbpoll audit-features` does not read the code and take its word for it. For
+every layer it **rebuilds that layer's design matrix from the frame restricted to
+the allow-list above, and requires the result to be bit-identical** to the one the
+unrestricted frame produced. If a layer consumes anything else, the restricted
+rebuild either raises (the column is required) or disagrees (the column is used),
+and the audit names the culprit by adding each non-allow-listed column back on its
+own until the unrestricted answer returns.
+
+The consequence is worth stating plainly, because it is the difference between a
+promise and a measurement. `conference_game` **is in the schedule frame on every
+run** — the 2021 structural conference-championship fallback needs it — and every
+run of the audit rebuilds all seven design matrices without it and gets the same
+bytes. "We do not use conference identity" is therefore not a claim in this
+repository. It is a result, recomputed before every poll is fitted, and published
+on `model_params.json` under `feature_audit`.
 
 ## The trap this is really guarding
 

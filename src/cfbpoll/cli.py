@@ -6,13 +6,15 @@ fork story) and §9.2 (the byte-match replay job). Every verb invoked by
 here, so that the workflows are a readable specification of the pipeline even
 before the pipeline exists.
 
-STATUS: PARTIAL. `rank`, `grid` and `backtest` are real and run offline against
-the local MIT archive. `rank` publishes the L4 résumé as the headline, per report
-02 §3.5, with opponent quality from the L3 blend of L1 efficiency and L2 results
-(`[resume].power_source`); a season with no play archive falls back to L2 and
-says so on every artifact. The bootstrap rank intervals and everything else are
-still stubs that raise NotImplementedError when invoked - `--help` is accurate
-about what each verb WILL do, and no command silently pretends to have worked.
+STATUS: PARTIAL. `rank`, `grid`, `backtest` and `audit-features` are real and run
+offline against the local MIT archive. `rank` publishes the schedule-odds
+ordering as the headline (ADR 0005), with opponent quality from the L3 blend of
+L1 efficiency and L2 results (`[resume].power_source`); a season with no play
+archive falls back to L2 and says so on every artifact. `rank` runs the feature
+audit BEFORE it fits anything, so no poll is published from a fit that was not
+audited (report 02 §3.10). The remaining verbs are still stubs that raise
+NotImplementedError when invoked - `--help` is accurate about what each verb WILL
+do, and no command silently pretends to have worked.
 
 Season/week options are typed as strings rather than integers on purpose: GitHub
 Actions passes an empty string for an omitted workflow input, and blank means
@@ -34,10 +36,10 @@ app = typer.Typer(
     name="cfbpoll",
     help=(
         "An open, bias-free college football ranking. "
-        "PARTIAL BUILD: `rank`, `grid` and `backtest` work. The headline poll is "
-        "the L4 resume rating; opponent quality is the L3 blend of L1 efficiency "
-        "and L2 results. The bootstrap and every other command are stubs and "
-        "raise NotImplementedError."
+        "PARTIAL BUILD: `rank`, `grid`, `backtest` and `audit-features` work. The "
+        "headline poll is the schedule-odds ordering; opponent quality is the L3 "
+        "blend of L1 efficiency and L2 results, and the resume is published beside "
+        "every team. The remaining commands are stubs and raise NotImplementedError."
     ),
     epilog=_EPILOG,
     no_args_is_help=True,
@@ -227,21 +229,102 @@ def validate(
 @app.command("audit-features")
 def audit_features(
     season: Annotated[str | None, typer.Option(help="Season to audit; blank = all.")] = None,
+    through_week: Annotated[
+        str | None, typer.Option(help="Audit the window through this week; blank = the season.")
+    ] = None,
     fail_on_banned: Annotated[
         bool, typer.Option(help="Exit non-zero if a banned column reached a model matrix.")
     ] = False,
+    out: Annotated[
+        Path | None, typer.Option(help="Write the full report as JSON to this path.")
+    ] = None,
 ) -> None:
     """Poll-input leakage audit. Constraint 1 is easy to violate by accident.
 
-    WILL DO: assert that the columns entering every design matrix are exactly the
-    allowed list in report 02 §3.10 (L1: play EPA, offense/defense team id,
-    site, quarter, score margin, clock; L2: final score, team ids, site, game
-    type; L3: L1+L2 outputs; L4: L3 outputs, win/loss, schedule) and that no
-    banned input appears - AP/Coaches/CFP rankings, recruiting or talent
-    composites, returning production, prior-season ratings, SP+/FPI, Vegas lines,
-    or conference identity. The banned table is reproduced in docs/constraints.md.
+    Asserts that the columns entering every design matrix are exactly the allowed
+    list in report 02 §3.10 (L1: OUR play value, offense/defense team id, site,
+    quarter, score margin, clock; L2: final score, team ids, site, game type; L3:
+    L1+L2 outputs; L4: L3 outputs, win/loss, schedule; schedule odds: the same
+    plus division class for the q_ref pool) and that no banned input appears -
+    AP/Coaches/CFP rankings, recruiting or talent composites, returning
+    production, prior-season ratings, SP+/FPI, third-party EPA/WPA/Elo, Vegas
+    lines, or conference identity. The banned table is reproduced in
+    docs/constraints.md.
+
+    HOW IT KNOWS, rather than assumes: every design matrix is rebuilt from the
+    frame RESTRICTED to its layer's allow-list and required to be bit-identical
+    to the one the unrestricted frame produced (src/cfbpoll/validate/leakage.py).
+    A column outside the allow-list that changes or breaks the rebuild is named
+    by ablation. `conference_game` is in the schedule frame every single run, and
+    every single run proves no fit consumed it.
+
+    `--fail-on-banned` exits non-zero on any violation. Both weekly.yml and
+    reproducibility.yml pass it, and `cfbpoll rank` runs this audit before it
+    fits anything whenever `[constraints].fail_build_on_banned_feature` is true.
     """
-    _stub("audit-features", "report 02 §3.10")
+    import json
+
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.plays import DEFAULT_ARCHIVE as PLAY_ARCHIVE
+    from cfbpoll.ingest.plays import load_plays
+    from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
+    from cfbpoll.validate import leakage
+
+    cfg = load_config()
+    if season is None or str(season).strip() == "":
+        seasons = sorted(
+            int(p.stem.rsplit("_", 1)[-1])
+            for p in (DEFAULT_ARCHIVE / "schedules").glob("*.parquet")
+        )
+    else:
+        seasons = _parse_seasons(str(season))
+    if not seasons:
+        raise typer.BadParameter("no seasons found in the archive; run `cfbpoll archive sync`")
+
+    reports: list[dict[str, Any]] = []
+    failed = False
+    for one in seasons:
+        games = load_games([one], universe=str(cfg["model"]["fit_universe"]))
+        if through_week is not None and str(through_week).strip() != "":
+            games = windows.games_through(
+                games, season=one, week=int(through_week), season_type="regular"
+            )
+        plays = None
+        if (PLAY_ARCHIVE / "pbp" / f"play_by_play_{one}.parquet").exists():
+            plays = load_plays([one])
+        report = leakage.audit(games, plays, cfg, fail_on_banned=False)
+        reports.append({"season": one, **report.as_dict()})
+        failed = failed or not report.passed
+        typer.echo(
+            f"{one}: {'PASS' if report.passed else 'FAIL'} - "
+            f"{len(report.layers)} layers, {report.context['n_games']} games, "
+            f"{report.context['n_plays']} plays"
+        )
+        for layer in report.layers:
+            mark = "ok " if layer.ok else "FAIL"
+            skip = f"  SKIPPED: {layer.skipped}" if layer.skipped else ""
+            banned = (
+                f"  banned-pattern columns present and proved unconsumed: "
+                f"{list(layer.banned_present)}"
+                if layer.banned_present and layer.ok
+                else ""
+            )
+            typer.echo(
+                f"  {mark} {layer.layer:<14} {len(layer.allowed):>2} allowed, "
+                f"{len(layer.extra_present):>2} other column(s) present, "
+                f"{len(layer.consumed_outside_allow_list)} consumed{skip}{banned}"
+            )
+        for violation in report.violations:
+            typer.echo(f"  VIOLATION: {violation}")
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(reports, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        typer.echo(f"wrote: {out}")
+
+    if failed and fail_on_banned:
+        raise typer.Exit(code=1)
 
 
 @app.command()
@@ -294,6 +377,7 @@ def rank(
     from cfbpoll.model import l4_resume, retro, schedule_odds
     from cfbpoll.publish import files
     from cfbpoll.publish import poll as poll_mod
+    from cfbpoll.validate import leakage
 
     if season is None or str(season).strip() == "":
         raise typer.BadParameter(
@@ -316,6 +400,25 @@ def rank(
     final = buckets[-1]
 
     window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
+
+    # THE PRE-FIT AUDIT (report 02 §3.10). Every design matrix this run is about
+    # to build is rebuilt from the allow-list projection of this exact window and
+    # required to be bit-identical, BEFORE a single rating is fitted. It costs
+    # about a second and it is the difference between "the constitution is
+    # enforced" and "the constitution is asserted".
+    audit_report = leakage.audit(
+        window,
+        plays,
+        cfg,
+        fail_on_banned=bool(cfg["constraints"]["fail_build_on_banned_feature"]),
+    )
+    typer.echo(
+        f"feature audit: {'PASS' if audit_report.passed else 'FAIL'} - "
+        f"{len(audit_report.layers)} layers rebuilt from their allow-lists; "
+        f"banned-pattern columns present and proved unconsumed: "
+        f"{sorted({c for lay in audit_report.layers for c in lay.banned_present}) or 'none'}"
+    )
+
     powers = retro.season_power(games, season_i, cfg, plays=plays, buckets=buckets)
     power = powers[evaluated.order]
     classes = poll_mod.team_classes(games)
@@ -354,6 +457,21 @@ def rank(
         "layers_implemented": (["L1", "L2", "L3", "L4"] if plays is not None else ["L2", "L4"]),
         "layers_missing": ["bootstrap"],
         "seed": seed if seed is not None else cfg["bootstrap"]["seed"],
+        # Constraint 5: the audit that licensed this run is published with it,
+        # not merely run and forgotten.
+        "feature_audit": {
+            "passed": audit_report.passed,
+            "spec": "report 02 §3.10",
+            "method": "allow-list rebuild, bit-identity required",
+            "layers": [layer.layer for layer in audit_report.layers],
+            "layers_skipped": sorted(
+                layer.layer for layer in audit_report.layers if layer.skipped
+            ),
+            "banned_pattern_columns_present_and_unconsumed": sorted(
+                {c for layer in audit_report.layers for c in layer.banned_present}
+            ),
+            "violations": list(audit_report.violations),
+        },
     }
     run = {
         "season": season_i,

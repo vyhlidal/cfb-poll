@@ -37,9 +37,17 @@ N with data that stops before week N would mean scoring games the rater has not
 seen, which is not hindsight, it is nonsense. `grid` enforces it rather than
 trusting callers.
 
-COST. One L2 fit per COLUMN of the grid, not one per cell - the Power fit
-depends on K alone. A full 2023 season (19 buckets, 190 cells) is a few seconds
-on a laptop, which is what report 02 §3.11 predicted.
+COST. One POWER fit per COLUMN of the grid, not one per cell - the Power fit
+depends on K alone. With Power = L3 that is one L1 + one L2 + one blend per
+column, and the whole 2023 grid (19 buckets, 190 cells) runs in well under a
+minute on a laptop, which is what report 02 §3.11 predicted.
+
+THE BLEND WEIGHTS ARE WALK-FORWARD HERE TOO. Power at column K is the L3 fit
+that was live at K, with blend weights fitted on games predicted BEFORE K -
+`l3_power.season_power` walks the season once and hands back one fit per bucket.
+Fitting the weights on the K window itself would be in-sample, which report 02
+§3.3 forbids, and it would quietly make the hindsight surface better than any
+live surface could ever have been.
 
 DETERMINISM. Every frame is sorted on an explicit key before it is returned, no
 dict or group-by iteration order reaches a file, and there is no RNG anywhere on
@@ -65,6 +73,7 @@ __all__ = [
     "hindsight_surface",
     "divergence",
     "live_surface",
+    "season_power",
     "movers",
     "movers_by_week",
     "surfaces",
@@ -135,6 +144,7 @@ def cell(
     power: l4_resume.PowerSource | None = None,
     classes: dict[str, str] | None = None,
     final_order: int | None = None,
+    plays: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """One R(N, K). `games` is the whole season; this function does the slicing.
 
@@ -153,7 +163,10 @@ def cell(
     power_window = _through(season_games, data)
     resume_window = _through(season_games, evaluated)
     if power is None:
-        power = l4_resume.power_from_l2(power_window, cfg)
+        from cfbpoll.ingest.plays import plays_for
+
+        window_plays = None if plays is None else plays_for(plays, power_window)
+        power = l4_resume.power_source(power_window, cfg, plays=window_plays)
     fitted = l4_resume.fit(power_window, cfg, power=power, resume_games=resume_window)
     table = l4_resume.resume_frame(fitted, classes or poll_mod.team_classes(season_games))
     if final_order is None:
@@ -165,11 +178,42 @@ def _season_buckets(games: pl.DataFrame, season: int) -> list[windows.Bucket]:
     return windows.season_buckets(games.filter(pl.col("season") == season), season)
 
 
+def season_power(
+    games: pl.DataFrame,
+    season: int,
+    config: dict[str, Any] | None = None,
+    plays: pl.DataFrame | None = None,
+    buckets: list[windows.Bucket] | None = None,
+) -> dict[int, l4_resume.PowerSource]:
+    """bucket.order -> opponent quality for that data window K.
+
+    One entry per COLUMN of the grid. With `[resume].power_source = "L3"` this is
+    the walk-forward blend (see the module docstring); with "L2", or with no play
+    archive, it is the L2 rating rescaled to points. Either way the résumé math
+    downstream is identical - that is report 02 §3.4's whole construction.
+    """
+    cfg = config if config is not None else load_config()
+    all_buckets = buckets if buckets is not None else _season_buckets(games, season)
+    season_games = games.filter(pl.col("season") == season)
+
+    if plays is not None and str(cfg["resume"]["power_source"]).upper() == "L3":
+        from cfbpoll.model import l3_power
+
+        walk = l3_power.season_power(season_games, plays, season, cfg, buckets=all_buckets)
+        return {order: l3_power.power_source_for(f) for order, f in walk.items()}
+
+    return {
+        b.order: l4_resume.power_from_l2(_through(season_games, b), cfg) for b in all_buckets
+    }
+
+
 def live_surface(
     games: pl.DataFrame,
     season: int,
     config: dict[str, Any] | None = None,
     buckets: list[windows.Bucket] | None = None,
+    plays: pl.DataFrame | None = None,
+    powers: dict[int, l4_resume.PowerSource] | None = None,
 ) -> pl.DataFrame:
     """R(N, N) for every N: the poll as it was published, week by week."""
     cfg = config if config is not None else load_config()
@@ -177,8 +221,19 @@ def live_surface(
     season_games = games.filter(pl.col("season") == season)
     classes = poll_mod.team_classes(season_games)
     final_order = all_buckets[-1].order
+    if powers is None:
+        powers = season_power(games, season, cfg, plays=plays, buckets=all_buckets)
     frames = [
-        cell(season_games, b, b, cfg, classes=classes, final_order=final_order) for b in all_buckets
+        cell(
+            season_games,
+            b,
+            b,
+            cfg,
+            power=powers[b.order],
+            classes=classes,
+            final_order=final_order,
+        )
+        for b in all_buckets
     ]
     return _finalize(pl.concat(frames, how="vertical"))
 
@@ -188,6 +243,8 @@ def hindsight_surface(
     season: int,
     config: dict[str, Any] | None = None,
     buckets: list[windows.Bucket] | None = None,
+    plays: pl.DataFrame | None = None,
+    powers: dict[int, l4_resume.PowerSource] | None = None,
 ) -> pl.DataFrame:
     """R(N, final) for every N: the same weeks, re-scored with the season's answers.
 
@@ -203,7 +260,9 @@ def hindsight_surface(
     season_games = games.filter(pl.col("season") == season)
     classes = poll_mod.team_classes(season_games)
     final = all_buckets[-1]
-    power = l4_resume.power_from_l2(_through(season_games, final), cfg)
+    if powers is None:
+        powers = season_power(games, season, cfg, plays=plays, buckets=all_buckets)
+    power = powers[final.order]
     frames = [
         cell(season_games, b, final, cfg, power=power, classes=classes, final_order=final.order)
         for b in all_buckets
@@ -216,6 +275,8 @@ def grid(
     season: int,
     config: dict[str, Any] | None = None,
     buckets: list[windows.Bucket] | None = None,
+    plays: pl.DataFrame | None = None,
+    powers: dict[int, l4_resume.PowerSource] | None = None,
 ) -> pl.DataFrame:
     """The full upper-triangular N x K surface, K >= N. One L2 fit per column.
 
@@ -229,9 +290,12 @@ def grid(
     season_games = games.filter(pl.col("season") == season)
     classes = poll_mod.team_classes(season_games)
 
+    if powers is None:
+        powers = season_power(games, season, cfg, plays=plays, buckets=all_buckets)
+
     frames: list[pl.DataFrame] = []
     for data in all_buckets:
-        power = l4_resume.power_from_l2(_through(season_games, data), cfg)
+        power = powers[data.order]
         for evaluated in all_buckets:
             if evaluated.order > data.order:
                 continue

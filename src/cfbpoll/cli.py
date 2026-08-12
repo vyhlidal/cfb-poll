@@ -8,9 +8,10 @@ before the pipeline exists.
 
 STATUS: PARTIAL. `rank`, `grid` and `backtest` are real and run offline against
 the local MIT archive. `rank` publishes the L4 résumé as the headline, per report
-02 §3.5 - but opponent quality is L2 rather than the L3 blend, because L1 and L3
-do not exist, and every artifact says `power_source = "L2"`. Everything else is
-still a stub that raises NotImplementedError when invoked - `--help` is accurate
+02 §3.5, with opponent quality from the L3 blend of L1 efficiency and L2 results
+(`[resume].power_source`); a season with no play archive falls back to L2 and
+says so on every artifact. The bootstrap rank intervals and everything else are
+still stubs that raise NotImplementedError when invoked - `--help` is accurate
 about what each verb WILL do, and no command silently pretends to have worked.
 
 Season/week options are typed as strings rather than integers on purpose: GitHub
@@ -21,7 +22,7 @@ Actions passes an empty string for an omitted workflow input, and blank means
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -34,9 +35,9 @@ app = typer.Typer(
     help=(
         "An open, bias-free college football ranking. "
         "PARTIAL BUILD: `rank`, `grid` and `backtest` work. The headline poll is "
-        "the L4 resume rating; opponent quality is L2 (power_source=L2, v0) "
-        "because L1 and L3 are not built. Every other command is a stub and "
-        "raises NotImplementedError."
+        "the L4 resume rating; opponent quality is the L3 blend of L1 efficiency "
+        "and L2 results. The bootstrap and every other command are stubs and "
+        "raise NotImplementedError."
     ),
     epilog=_EPILOG,
     no_args_is_help=True,
@@ -102,6 +103,27 @@ def _sha256_or_none(path: Path) -> str | None:
     if not path.exists():
         return None
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _plays_if_needed(cfg: dict, seasons: list[int]) -> Any:
+    """The play archive, when opponent quality is L3 and the files are there.
+
+    Returns None otherwise, and every downstream layer falls back to L2 and says
+    so on the artifact. A missing play file is a degraded run, not a failed one:
+    a Power rating from the results core is a real answer.
+    """
+    if str(cfg["resume"]["power_source"]).upper() != "L3":
+        return None
+    from cfbpoll.ingest.plays import DEFAULT_ARCHIVE as PLAY_ARCHIVE
+    from cfbpoll.ingest.plays import load_plays
+
+    if not all((PLAY_ARCHIVE / "pbp" / f"play_by_play_{s}.parquet").exists() for s in seasons):
+        typer.echo(
+            "note: play-by-play parquet missing for one or more seasons; "
+            "Power falls back to L2 and every artifact will say so."
+        )
+        return None
+    return load_plays(seasons)
 
 
 # --------------------------------------------------------------------------- ingest
@@ -241,11 +263,13 @@ def rank(
     (wins-based and margin-aware) and both surfaces (live R(N,N) and hindsight
     R(N,final)) reach poll.json and poll.csv.
 
-    WHAT IS NOT FINISHED, said plainly on every artifact: opponent quality
-    should be L3, the blend of L1 efficiency and L2 results. L1 and L3 do not
-    exist, so Power is L2 rescaled to points, and `power_source` = "L2" /
-    `power_version` = "v0" is stamped on model_params.json, poll.json and every
-    ratings row. The bootstrap rank intervals are not built either.
+    OPPONENT QUALITY IS L3, the walk-forward blend of L1 efficiency and L2
+    results, whenever `[resume].power_source` says so and the play archive is
+    present; the blend weights come from a forward walk of the season, so they
+    are fitted only on games already predicted (report 02 §3.3). A season with no
+    play feed falls back to L2 rescaled to points. Whichever ran is stamped as
+    `power_source` / `power_version` on model_params.json, poll.json and every
+    ratings row. The bootstrap rank intervals are still not built.
 
     Writes ratings_live.parquet, ratings_hindsight.parquet (+ .csv),
     poll.json/poll.csv, model_params.json and _run.json to --out. Report 03 §5.3
@@ -273,6 +297,7 @@ def rank(
     cfg = load_config(config)
 
     games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
+    plays = _plays_if_needed(cfg, [season_i])
     buckets = windows.season_buckets(games, season_i)
     regular = [b for b in buckets if b.season_type == "regular"]
     if through_week is None or str(through_week).strip() == "":
@@ -284,11 +309,12 @@ def rank(
     final = buckets[-1]
 
     window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
-    power = l4_resume.power_from_l2(window, cfg)
+    powers = retro.season_power(games, season_i, cfg, plays=plays, buckets=buckets)
+    power = powers[evaluated.order]
     fitted = l4_resume.fit(window, cfg, power=power)
 
     live = retro.cell(games, evaluated, evaluated, cfg, power=power)
-    hindsight = retro.cell(games, evaluated, final, cfg)
+    hindsight = retro.cell(games, evaluated, final, cfg, power=powers[final.order])
     table = poll_mod.headline_frame(live, hindsight)
     provisional, label = poll_mod.publication_status(week_i, cfg)
 
@@ -307,8 +333,8 @@ def rank(
         "hindsight_variant": retro.HINDSIGHT_VARIANT,
         "hindsight_data_bucket": final.label,
         "hindsight_is_live": final.order == evaluated.order,
-        "layers_implemented": ["L2", "L4"],
-        "layers_missing": ["L1", "L3", "bootstrap"],
+        "layers_implemented": (["L1", "L2", "L3", "L4"] if plays is not None else ["L2", "L4"]),
+        "layers_missing": ["bootstrap"],
         "seed": seed if seed is not None else cfg["bootstrap"]["seed"],
     }
     run = {
@@ -327,7 +353,7 @@ def rank(
         f"L4 resume v0 (Power = {params['power_source']} {params['power_version']}) - "
         f"{season_i} through {evaluated.label}: {window.height} games, "
         f"{live.height} teams, {table.height} ranked, "
-        f"lambda={l2.lam:g} b={power.scale:.3f} h={power.home_field:.3f}"
+        f"lambda_l2={l2.lam:g} h={power.home_field:.3f}"
         if l2 is not None
         else f"L4 resume v0 - {season_i} through {evaluated.label}"
     )
@@ -352,8 +378,10 @@ def backtest(
     config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
     systems: Annotated[
         str,
-        typer.Option(help="Comma-separated systems, e.g. resume,l2,colley,srs,elo,walker,winpct."),
-    ] = "resume,l2,colley,srs,elo,walker,winpct",
+        typer.Option(
+            help="Comma-separated systems, e.g. resume,l3,l2,l1,colley,srs,elo,walker,winpct."
+        ),
+    ] = "resume,l3,l2,l1,colley,srs,elo,walker,winpct",
     seasons: Annotated[
         str, typer.Option(help="Seasons: '2021-2023' or '2021,2022,2023'.")
     ] = "2021-2023",
@@ -377,9 +405,15 @@ def backtest(
     named in --systems: a table without its floor is not a table.
 
     `resume` is the headline layer and is a RETRODICTIVE rating, so it is scored
-    on violations and predicts margins through its Power source (L2 today). Its
-    predictive columns are therefore L2's by construction, and the violations
-    column is the one that is about L4 (report 02 §3.5, §5.4).
+    on violations and predicts margins through its Power source - which is
+    `[resume].power_source`, so its predictive columns are L3's (or L2's) by
+    construction, and the violations column is the one that is about L4
+    (report 02 §3.5, §5.4).
+
+    THE CLAIM UNDER TEST is report 02 §3.3: the L3 blend beats the L2 results
+    core. Both are in the default --systems list, scored by the same code on the
+    same games, and `blend` in backtest_metrics.json carries the w1/w2/k
+    trajectory that produced the L3 row.
 
     2025 IS HELD OUT. The harness refuses to score it unless --unlock-holdout is
     passed by a human who has read report 02 §5.1 and accepts that it is a
@@ -426,6 +460,16 @@ def backtest(
             f"{(viol * 100 if viol is not None else float('nan')):>8.2f}"
             f"{(churn if churn is not None else float('nan')):>8.2f}"
         )
+    blend = result.get("blend") or []
+    if blend:
+        last = blend[-1]
+        typer.echo(
+            f"L3 blend, last bucket ({last['bucket']}): w1={last['w1']:.4f} "
+            f"w2={last['w2']:.4f} k={last['k']:.2f} h={last['h_points']:.2f} "
+            f"({last['weight_source']}, n={last['n_blend_games']}); "
+            f"contribution SD efficiency={last['efficiency_contribution_sd']:.2f} "
+            f"results={last['results_contribution_sd']:.2f}"
+        )
     typer.echo(f"wrote: {path}")
 
 
@@ -465,8 +509,10 @@ def grid(
     cfg = load_config(config)
 
     games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
+    plays = _plays_if_needed(cfg, [season_i])
     buckets = windows.season_buckets(games, season_i)
-    triangle = retro.grid(games, season_i, cfg, buckets)
+    powers = retro.season_power(games, season_i, cfg, plays=plays, buckets=buckets)
+    triangle = retro.grid(games, season_i, cfg, buckets, powers=powers)
     live, hindsight = retro.surfaces(triangle)
 
     movers = retro.movers_by_week(live, hindsight, buckets, top_n=movers_top)
@@ -495,6 +541,7 @@ def grid(
         "headline_layer": cfg["publication"]["headline_layer"],
         "companion_layer": cfg["publication"]["companion_layer"],
         **{k: v for k, v in cfg["resume"].items()},
+        **powers[final.order].as_params(),
     }
     run = {
         "season": season_i,

@@ -57,7 +57,9 @@ import polars as pl
 from cfbpoll.backtest import baselines, metrics
 from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
+from cfbpoll.ingest.plays import load_plays, plays_for
 from cfbpoll.ingest.sportsdataverse import load_games
+from cfbpoll.model import l3_power
 
 __all__ = ["HoldoutLocked", "calibrate", "run_backtest", "segment_games", "slice_through"]
 
@@ -179,14 +181,20 @@ def _predict(
 def _cached_ratings(
     name: str,
     train: pl.DataFrame,
+    train_plays: pl.DataFrame | None,
     week: int,
     cache: dict[str, dict[str, float]],
+    state: l3_power.SeasonState | None = None,
 ) -> dict[str, float]:
     """One fit per system per bucket, memoised so a system that predicts through
-    another (baselines.PREDICTION_SOURCE) does not refit it. The cache is
-    per-bucket and every rater receives the identical already-truncated frame."""
+    another (baselines.prediction_source) does not refit it. The cache is
+    per-bucket and every rater receives the identical already-truncated frames.
+
+    `state` is the per-season L3 cache and out-of-sample blend accumulator. It is
+    passed to every rater and ignored by every rater that does not need it, which
+    keeps one code path rather than a special case for our own layers."""
     if name not in cache:
-        cache[name] = baselines.RATERS[name](train, None, week)
+        cache[name] = baselines.RATERS[name](train, train_plays, week, state=state)
     return cache[name]
 
 
@@ -208,6 +216,7 @@ def run_backtest(
     games: pl.DataFrame | None = None,
     unlock_holdout: bool = False,
     first_eval_week: int | None = None,
+    plays: pl.DataFrame | None = None,
 ) -> dict[str, Any]:
     """Walk every season forward and score every system. Returns the metrics tree.
 
@@ -237,6 +246,14 @@ def run_backtest(
         games = load_games(seasons, universe=str(cfg["model"]["fit_universe"]))
     games = segment_games(games)
 
+    # The play archive is loaded only when a system asks for it. `resume` asks
+    # for it whenever its Power source is L3, because the résumé is only as
+    # good as the opponent quality it reads (report 02 §3.4).
+    sources = {baselines.prediction_source(name, cfg) for name in canonical}
+    needs_plays = bool((set(canonical) | sources) & baselines.PLAY_LEVEL_SYSTEMS)
+    if needs_plays and plays is None:
+        plays = load_plays(seasons)
+
     use_oos = bool(bt.get("calibration_out_of_sample", True))
     min_oos = int(bt.get("calibration_min_out_of_sample_games", 40))
     headline_week = int(cfg["publication"]["headline_start_week"])
@@ -244,6 +261,7 @@ def run_backtest(
     rows: list[dict[str, Any]] = []
     pooled: dict[tuple[str, str, str], _Accumulator] = {}
     churn_rows: list[dict[str, Any]] = []
+    blend_rows: list[dict[str, Any]] = []
     final_violations: dict[str, list[dict[str, Any]]] = {s: [] for s in canonical}
     connectivity: list[dict[str, Any]] = []
 
@@ -252,6 +270,14 @@ def run_backtest(
         buckets = windows.season_buckets(season_games, season)
         previous_rank: dict[str, dict[str, int]] = {}
         calibration: dict[str, _Calibration] = {name: _Calibration() for name in canonical}
+        # ONE blend accumulator per season. Report 02 §3.3 pools the
+        # out-of-sample games "across the training seasons", but pooling across
+        # seasons inside a walk-forward run would carry information from season
+        # S-1 into season S's weights, and constraint 2 forbids prior seasons
+        # reaching anything the model uses. Per-season is the strict reading and
+        # it is the one implemented; the weights converge within four weeks
+        # anyway (see the trajectory in demo/backtest-2021-2023.md).
+        blend = l3_power.SeasonState() if needs_plays else None
 
         for bucket in buckets:
             if bucket.order == 0:
@@ -270,6 +296,11 @@ def run_backtest(
             train_fbs = train.filter(pl.col("segment") == "fbs_vs_fbs")
             if train_fbs.height < MIN_CALIBRATION_GAMES:
                 continue
+
+            # The play-level walk-forward slice. `plays_for` inner-joins on the
+            # already-truncated game frame, so a play belonging to a future game
+            # cannot arrive - tests/property plants one and asserts it does not.
+            train_plays = None if plays is None else plays_for(plays, train)
 
             fbs_now = set(train.filter(pl.col("home_class") == "fbs")["home_team"].to_list()) | set(
                 train.filter(pl.col("away_class") == "fbs")["away_team"].to_list()
@@ -291,10 +322,53 @@ def run_backtest(
             # frame other than `train`.
             fits: dict[str, dict[str, float]] = {"home_team": {}}
 
+            # ONE L1+L2+L3 computation per bucket, seeded into the cache for all
+            # three names plus the résumé's Power source. Without this the same
+            # ridge would be refitted up to four times per week, and - worse -
+            # `l3_power.rate` would reach for the default config while this
+            # function holds a possibly different one.
+            l3fit = None
+            if blend is not None and train_plays is not None:
+                l3fit = l3_power.fit(train, train_plays, cfg, state=blend)
+                fits["l3"] = l3fit.ratings
+                fits["l2"] = l3fit.l2.ratings
+                fits["l1"] = l3fit.l1.point_ratings
+                # report 02 §3.3: publish w1, w2 and k EVERY week. This is that
+                # trajectory, and it is what makes "efficiency dominates late"
+                # a falsifiable claim rather than a story.
+                eff, res, _ = l3fit.features(train_fbs)
+                blend_rows.append(
+                    {
+                        "season": season,
+                        "bucket": bucket.label,
+                        "week": bucket.week,
+                        "season_type": bucket.season_type,
+                        "w1": l3fit.w1,
+                        "w2": l3fit.w2,
+                        "k": l3fit.k,
+                        "h_points": l3fit.home_field,
+                        "lambda_l1": l3fit.l1.lam,
+                        "lambda_l2": l3fit.l2.lam,
+                        "weight_source": l3fit.weights.source,
+                        "n_blend_games": l3fit.weights.n_games,
+                        # The two weights are on different feature scales, so
+                        # comparing them directly says nothing. These are the
+                        # standard deviations each term actually contributes to a
+                        # predicted margin, which is the comparable quantity.
+                        "efficiency_contribution_sd": float(np.std(l3fit.w1 * eff)),
+                        "results_contribution_sd": float(np.std(l3fit.w2 * res)),
+                    }
+                )
+
             for name in canonical:
-                ratings = _cached_ratings(name, train, bucket.week, fits)
+                ratings = _cached_ratings(name, train, train_plays, bucket.week, fits, blend)
                 predict_with = _cached_ratings(
-                    baselines.PREDICTION_SOURCE.get(name, name), train, bucket.week, fits
+                    baselines.prediction_source(name, cfg),
+                    train,
+                    train_plays,
+                    bucket.week,
+                    fits,
+                    blend,
                 )
 
                 pool = calibration[name]
@@ -345,6 +419,14 @@ def run_backtest(
                 )
                 previous_rank[name] = current_rank
 
+            # THE OUT-OF-SAMPLE GUARANTEE, in one statement and its position.
+            # This bucket's games join the blend sample only AFTER they have been
+            # predicted, using the features of the fit that predicted them. Move
+            # this line above the loop and w1/w2 become in-sample, which is
+            # precisely the failure report 02 §3.3 legislates against.
+            if l3fit is not None:
+                blend.add(l3fit, test.filter(pl.col("segment") == "fbs_vs_fbs"))
+
         # Retrodictive pass: fit on the whole season, then count violations over
         # every FBS-vs-FBS game it was fit on (report 02 §2.12, §5.2).
         full = season_games
@@ -369,10 +451,11 @@ def run_backtest(
                 strict=True,
             )
         ]
+        full_plays = None if plays is None else plays_for(plays, full)
         for name in canonical:
             if name == "home_team":
                 continue
-            ratings = baselines.RATERS[name](full, None, None)
+            ratings = baselines.RATERS[name](full, full_plays, None, state=None)
             final_violations[name].append(
                 {"season": season, **metrics.violations(ratings, winners, losers)}
             )
@@ -446,8 +529,11 @@ def run_backtest(
             ),
             "calibration_out_of_sample": use_oos,
             "prediction_sources": {
-                name: baselines.PREDICTION_SOURCE.get(name, name) for name in canonical
+                name: baselines.prediction_source(name, cfg) for name in canonical
             },
+            "power_source": str(cfg["resume"]["power_source"]),
+            "plays_loaded": bool(plays is not None),
+            "blend_weights_pooled_over": "one season, never across seasons (constraint 2)",
             "prediction_source_note": (
                 "a system whose prediction source is not itself is a RETRODICTIVE "
                 "rating scored on violations, and predicts through the rating it "
@@ -457,6 +543,7 @@ def run_backtest(
         },
         "systems": per_system,
         "weekly": rows,
+        "blend": blend_rows,
         "connectivity": connectivity,
     }
 

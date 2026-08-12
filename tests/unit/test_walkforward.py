@@ -267,19 +267,24 @@ def test_resume_is_scored_and_predicts_through_its_power_source() -> None:
     """report 02 §3.5: the résumé is a DESERT measure, not a forecast. It is
     scored on violations and predicts margins through the Power rating it was
     built on, so its predictive columns are that source's by construction."""
-    result = walkforward.run_backtest([2023], ["resume", "l2"])
-    assert result["protocol"]["prediction_sources"]["resume"] == "l2"
+    result = walkforward.run_backtest([2023], ["resume", "l3", "l2"])
+    # ADAPTED when L3 landed: the résumé's Power source is [resume].power_source,
+    # so its prediction proxy moved from l2 to l3 with it. The invariant under
+    # test is unchanged - the résumé predicts through the layer it was built on -
+    # and it is now checked against whichever layer that is.
+    source = result["protocol"]["prediction_sources"]["resume"]
+    assert source == ("l3" if result["protocol"]["power_source"].upper() == "L3" else "l2")
     assert result["protocol"]["prediction_sources"]["l2"] == "l2"
 
     resume = result["systems"]["resume"]["segments"]["fbs_vs_fbs"]
-    l2 = result["systems"]["l2"]["segments"]["fbs_vs_fbs"]
-    assert resume["su_accuracy"] == l2["su_accuracy"]
-    assert resume["mae"] == pytest.approx(l2["mae"], abs=1e-12)
+    proxy = result["systems"][source]["segments"]["fbs_vs_fbs"]
+    assert resume["su_accuracy"] == proxy["su_accuracy"]
+    assert resume["mae"] == pytest.approx(proxy["mae"], abs=1e-12)
 
     # ...and the number that IS about L4 is a different number
     assert (
         result["systems"]["resume"]["retrodictive_violation_rate"]
-        != result["systems"]["l2"]["retrodictive_violation_rate"]
+        != result["systems"][source]["retrodictive_violation_rate"]
     )
 
 
@@ -336,3 +341,120 @@ def test_the_violations_gate_is_at_or_below_every_named_baseline() -> None:
     )
     assert unknown["violations_vs_baselines"] is None
     assert "violations_vs_baselines" in unknown["undecided"]
+
+
+# ------------------------------------------- the leakage guarantee, at play level
+
+
+def _planted_future_game() -> pl.DataFrame:
+    """2023 Kent State 99, Georgia 0, in week 15. Absurd on purpose."""
+    games = load_games([2023], universe="model")
+    return games.head(1).with_columns(
+        game_id=pl.Series([999_999_999], dtype=pl.Int64),
+        week=pl.Series([15], dtype=pl.Int32),
+        season_type=pl.Series(["regular"]),
+        start_date=pl.Series(["2023-12-09T00:00:00.000Z"]).str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.3fZ", time_zone="UTC"
+        ),
+        home_team=pl.Series(["Kent State"]),
+        away_team=pl.Series(["Georgia"]),
+        home_points=pl.Series([99], dtype=pl.Int32),
+        away_points=pl.Series([0], dtype=pl.Int32),
+        game_type=pl.Series(["regular"]),
+    )
+
+
+def _planted_future_plays(n: int = 60) -> pl.DataFrame:
+    """Sixty absurd plays belonging to that game, in the play frame's schema."""
+    from cfbpoll.ingest.plays import load_plays
+
+    template = load_plays([2023]).head(n)
+    return template.with_columns(
+        game_id=pl.Series([999_999_999] * n, dtype=pl.Int64),
+        play_index=pl.Series(list(range(1, n + 1)), dtype=pl.Int32),
+        offense=pl.Series(["Kent State"] * n),
+        defense=pl.Series(["Georgia"] * n),
+        play_type=pl.Series(["Rush"] * n),
+        play_class=pl.Series(["rush"] * n),
+        down=pl.Series([1] * n, dtype=pl.Int32),
+        distance=pl.Series([10] * n, dtype=pl.Int32),
+        yards_to_goal=pl.Series([5] * n, dtype=pl.Int32),
+        period=pl.Series([1] * n, dtype=pl.Int32),
+        is_snap=pl.Series([True] * n),
+        offense_score_after=pl.Series(list(range(0, 7 * n, 7)), dtype=pl.Int32),
+        defense_score_after=pl.Series([0] * n, dtype=pl.Int32),
+    )
+
+
+@needs_archive
+def test_walk_forward_never_sees_a_planted_future_PLAY() -> None:
+    """The play-level twin of the planted-future-game test, and the reason L1 is
+    allowed to exist at all.
+
+    L1 reads 170,000 rows per season instead of 1,200, so a slicing mistake there
+    is both more likely and harder to spot. The guard is the same one: plays are
+    joined to an ALREADY-TRUNCATED game frame with an inner join, so a play whose
+    game is not in the window cannot arrive. Nothing about L1 selects its own rows.
+    """
+    from cfbpoll.ingest.plays import load_plays, plays_for
+
+    poisoned_games = pl.concat([load_games([2023], universe="model"), _planted_future_game()]).sort(
+        "game_id"
+    )
+    poisoned_plays = pl.concat([load_plays([2023]), _planted_future_plays()]).sort(
+        ["game_id", "play_index"]
+    )
+
+    buckets = windows.season_buckets(poisoned_games, 2023)
+    week15 = next(b for b in buckets if b.season_type == "regular" and b.week == 15)
+    for bucket in buckets:
+        if bucket.order > week15.order:
+            continue
+        train = windows.games_before(poisoned_games, bucket, buckets)
+        train_plays = plays_for(poisoned_plays, train)
+        assert 999_999_999 not in set(train_plays["game_id"].to_list()), bucket.label
+        assert train_plays.filter(pl.col("game_id") == 999_999_999).is_empty(), bucket.label
+
+    clean = windows.games_through(poisoned_games, season=2023, week=10, season_type="regular")
+    assert plays_for(poisoned_plays, clean).filter(pl.col("game_id") == 999_999_999).is_empty()
+
+
+@needs_archive
+def test_the_planted_plays_do_change_L1_once_they_are_in_the_window() -> None:
+    """The mirror of the guard, and an accidental demonstration of garbage time.
+
+    Sixty first-and-goal touchdowns move Kent State's efficiency rating - so the
+    guard above is doing real work rather than testing nothing. But they move it
+    only a little, and the reason is worth recording: a 420-0 scoreboard is in
+    garbage time from the second play on, so 52 of the 60 planted plays are
+    zero-weighted before the ridge ever sees them. Report 02 §3.1's filter is not
+    decoration; it is the thing standing between this layer and every blowout in
+    the archive.
+    """
+    from cfbpoll.ingest.plays import load_plays, plays_for
+    from cfbpoll.model import l1_efficiency
+
+    games = load_games([2023], universe="model")
+    plays = load_plays([2023])
+    window = windows.games_through(games, season=2023, week=10, season_type="regular")
+
+    honest = l1_efficiency.fit(plays_for(plays, window), window, CONFIG)
+    poisoned_games = pl.concat([games, _planted_future_game().with_columns(
+        week=pl.Series([9], dtype=pl.Int32),
+        start_date=pl.Series(["2023-10-28T00:00:00.000Z"]).str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.3fZ", time_zone="UTC"
+        ),
+    )]).sort("game_id")
+    poisoned_window = windows.games_through(
+        poisoned_games, season=2023, week=10, season_type="regular"
+    )
+    poisoned_plays = pl.concat([plays, _planted_future_plays()]).sort(["game_id", "play_index"])
+    poisoned = l1_efficiency.fit(
+        plays_for(poisoned_plays, poisoned_window), poisoned_window, CONFIG
+    )
+    assert poisoned.net("Kent State") > honest.net("Kent State") + 0.015
+    zeroed = (
+        poisoned.params["garbage_time_plays_dropped"]
+        - honest.params["garbage_time_plays_dropped"]
+    )
+    assert zeroed >= 45, f"garbage time zeroed only {zeroed} of 60 planted blowout plays"

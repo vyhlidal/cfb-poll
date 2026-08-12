@@ -16,6 +16,7 @@ from cfbpoll.backtest import baselines
 from cfbpoll.backtest.baselines import colley, elo, random_walker, srs, winpct
 from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
+from cfbpoll.ingest.plays import load_plays, plays_for
 from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
 
 CONFIG = load_config()
@@ -69,12 +70,21 @@ def test_registry_resolves_the_names_the_cli_accepts() -> None:
 
 
 def test_every_rater_honours_the_challenger_protocol() -> None:
+    """Every rater takes (games, plays, through_week, state) and returns floats.
+
+    `l1` and `l3` need plays and return an empty mapping without them, which the
+    harness reads as "league average for everyone" - the correct answer for a
+    play-level system handed no plays, and the reason they are listed in
+    PLAY_LEVEL_SYSTEMS so the harness knows to load the archive for them.
+    """
     games = toy(ROUND_ROBIN)
     for name, rater in sorted(baselines.RATERS.items()):
-        out = rater(games, None, 6)
+        out = rater(games, None, 6, state=None)
         assert isinstance(out, dict), name
-        assert set(out) >= {"A", "B", "C", "D"}, name
         assert all(isinstance(v, float) for v in out.values()), name
+        if name in baselines.PLAY_LEVEL_SYSTEMS:
+            continue
+        assert set(out) >= {"A", "B", "C", "D"}, name
 
 
 # ------------------------------------------------------------------------ winpct
@@ -222,8 +232,10 @@ def test_all_baselines_agree_that_2023_was_michigan_and_ohio_state() -> None:
     games = windows.games_through(
         load_games([2023], universe="model"), season=2023, week=10, season_type="regular"
     )
+    plays = plays_for(load_plays([2023]), games)
     for name, rater in sorted(baselines.RATERS.items()):
-        ranking = sorted(rater(games), key=lambda t: -rater(games)[t])[:12]
+        ratings = rater(games, plays, 10, state=None)
+        ranking = sorted(ratings, key=lambda t: -ratings[t])[:12]
         assert "Ohio State" in ranking or "Michigan" in ranking, name
 
 

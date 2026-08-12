@@ -69,6 +69,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     config: dict | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """Elo after replaying games in order (challenger protocol, report 03 §7.3).
 
@@ -82,7 +83,7 @@ def rate(
     the walk-forward protocol requires, since the harness never hands a system
     games from a previous season.
     """
-    del plays, through_week
+    del plays, through_week, state
     cfg = config if config is not None else load_config()
     e = cfg["baselines"]["elo"]
     k = float(e["k_factor"])

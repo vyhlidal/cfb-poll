@@ -80,6 +80,7 @@ from cfbpoll.model import design, ep, ridge
 __all__ = [
     "L1Fit",
     "UnitFit",
+    "empty_fit",
     "efficiency_to_points",
     "fit",
     "net_efficiency_differential",
@@ -168,6 +169,28 @@ class L1Fit:
             **self.ep_model.as_params(),
             **self.params,
         }
+
+
+def empty_fit(config: dict[str, Any] | None = None) -> L1Fit:
+    """A neutral L1: every team at league average, no plays behind it.
+
+    This is what a scores-only run gets - a challenger that declares no play
+    dependency, a season with no play feed, a week before any game has been
+    played. It is a real answer (alpha = beta = 0 IS "we know nothing yet, so
+    league average") rather than a crash, and it makes the L3 blend degrade to
+    the L2 results core instead of falling over.
+    """
+    cfg = config if config is not None else load_config()
+    return _empty(cfg, ep.EPModel(
+        table=np.zeros((4, len(cfg["ep"]["distance_buckets"]) + 2, ep.MAX_YARDS_TO_GOAL)),
+        counts=np.zeros((4, len(cfg["ep"]["distance_buckets"]) + 2, ep.MAX_YARDS_TO_GOAL)),
+        edges=tuple(int(e) for e in cfg["ep"]["distance_buckets"]),
+        bandwidth=float(cfg["ep"]["kernel_bandwidth_yards"]),
+        shrinkage=float(cfg["ep"]["shrinkage_prior_plays"]),
+        n_plays=0,
+        scope=str(cfg["ep"]["fit_scope"]),
+        seasons=(),
+    ))
 
 
 def _empty(cfg: dict[str, Any], model: ep.EPModel) -> L1Fit:

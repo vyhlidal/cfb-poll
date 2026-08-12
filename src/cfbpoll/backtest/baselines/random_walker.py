@@ -41,6 +41,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     config: dict | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """Random-walker ratings (challenger protocol, report 03 §7.3).
 
@@ -58,7 +59,7 @@ def rate(
     Power iteration from a uniform start, so the answer is a pure function of the
     frame with no RNG involved.
     """
-    del plays, through_week
+    del plays, through_week, state
     cfg = config if config is not None else load_config()
     rw = cfg["baselines"]["random_walker"]
     p = float(rw["p"])

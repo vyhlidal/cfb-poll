@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 from cfbpoll.cli import app
 from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
+from cfbpoll.ingest.plays import load_plays
 from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
 from cfbpoll.model import l4_resume, retro
 from cfbpoll.publish import files
@@ -47,20 +48,31 @@ def test_writes_the_documented_file_set(ranked: Path) -> None:
 
 def test_the_headline_is_the_resume_and_the_power_source_is_declared(ranked: Path) -> None:
     """Report 02 §3.5 makes the résumé the poll. Report 02 §3.4 reads opponent
-    quality off L3, which does not exist - so Power is L2, and no artifact is
-    allowed to be coy about that."""
+    quality off L3, which now exists - so Power is the blend, and no artifact is
+    allowed to be coy about which one produced it.
+
+    ADAPTED when L1/L3 landed: this test previously asserted power_source == "L2"
+    and layers_missing == ["L1", "L3", "bootstrap"], which were true statements
+    about a build in which those layers were scaffolds. They are not scaffolds
+    now. The shape of the assertion - every artifact declares its Power source -
+    is unchanged, and that is the part that was ever load-bearing."""
     params = json.loads((ranked / "model_params.json").read_text())
     assert params["layer"] == "L4 resume rating"
     assert params["version"] == "v0"
     assert params["headline_layer"] == "L4_resume"
-    assert params["layers_implemented"] == ["L2", "L4"]
-    assert params["layers_missing"] == ["L1", "L3", "bootstrap"]
-    assert params["power_source"] == "L2"
-    assert params["power_version"] == "v0"
+    assert params["layers_implemented"] == ["L1", "L2", "L3", "L4"]
+    assert params["layers_missing"] == ["bootstrap"]
+    assert params["power_source"] == "L3"
+    assert params["power_version"] == "v1"
     assert params["provisional"] is False  # week 10 >= headline_start_week
+    # report 02 §3.3: w1, w2 and k are published EVERY week
+    assert params["w1_efficiency"] > 0.0
+    assert params["w2_results"] > 0.0
+    assert 55.0 < params["k_points_per_unit"] < 85.0
+    assert params["blend_weight_source"] == "out_of_sample"
 
     poll = json.loads((ranked / "poll.json").read_text())
-    assert poll["power_source"] == "L2" and poll["power_version"] == "v0"
+    assert poll["power_source"] == "L3" and poll["power_version"] == "v1"
     assert poll["hindsight_variant"] == retro.HINDSIGHT_VARIANT
 
 
@@ -76,8 +88,10 @@ def test_params_carry_every_published_constant(ranked: Path) -> None:
     assert params["sigma"] == cfg["resume"]["sigma"]
     assert params["q_bounds"] == cfg["resume"]["q_bounds"]
     assert params["saturation_tiebreak"] == cfg["resume"]["saturation_tiebreak"]
-    # the units bridge between the two layers, published rather than implicit
-    assert params["power_scale_b"] > 0.0
+    # The units bridge, published rather than implicit. With Power = L3 there is
+    # nothing to rescale - the blend regression's response IS actual margin - so
+    # the scale is exactly 1.0 and the home field is the blend's own h.
+    assert params["power_scale_b"] == 1.0
     assert params["power_home_field_points"] > 0.0
 
 
@@ -123,9 +137,21 @@ def test_both_surfaces_are_published(ranked: Path) -> None:
 
 
 def test_published_numbers_match_a_direct_fit(ranked: Path) -> None:
+    """The published number reproduces from the library, not just from the CLI.
+
+    ADAPTED when L3 landed: the direct fit now has to walk the season forward to
+    get the same out-of-sample blend weights the CLI used, because that is what
+    "the Power rating live at week 10" means (report 02 §3.3). Fitting the blend
+    on the week-10 window instead would be in-sample and would not - and should
+    not - reproduce."""
+    cfg = load_config()
     games = load_games([2023], universe="model")
+    plays = load_plays([2023])
+    buckets = windows.season_buckets(games, 2023)
+    evaluated = next(b for b in buckets if b.season_type == "regular" and b.week == 10)
+    powers = retro.season_power(games, 2023, cfg, plays=plays, buckets=buckets)
     window = windows.games_through(games, season=2023, week=10, season_type="regular")
-    fitted = l4_resume.fit(window, load_config())
+    fitted = l4_resume.fit(window, cfg, power=powers[evaluated.order])
     poll = pl.read_csv(ranked / "poll.csv")
     top = poll.row(0, named=True)
     assert top["resume"] == pytest.approx(fitted.resume[top["team"]], abs=1e-9)

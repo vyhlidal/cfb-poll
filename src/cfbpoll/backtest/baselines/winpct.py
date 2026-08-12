@@ -22,6 +22,7 @@ def rate(
     games: pl.DataFrame,
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """Win percentage as a rating (challenger protocol, report 03 §7.3).
 
@@ -29,7 +30,7 @@ def rate(
     A team with no games is absent from the mapping, and the harness treats an
     absent team as the neutral rating for the system.
     """
-    del plays, through_week
+    del plays, through_week, state
     wins: dict[str, float] = {}
     played: dict[str, float] = {}
     for home, away, hp, ap in zip(

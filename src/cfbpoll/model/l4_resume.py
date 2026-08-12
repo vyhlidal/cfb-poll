@@ -115,6 +115,7 @@ from cfbpoll.model import design, l2_results
 __all__ = [
     "L4Fit",
     "PowerSource",
+    "power_source",
     "expected_compressed_margin",
     "expected_wins",
     "fit",
@@ -128,6 +129,15 @@ __all__ = [
 
 LAYER = "L4 resume rating"
 VERSION = "v0"
+
+#: The version of the L2-as-Power path. A LAYER DECLARES ITS OWN VERSION rather
+#: than reading one out of the config, because "which code produced this number"
+#: is a fact about the code and not a methodology choice a user may set. Before
+#: L3 existed the config carried `power_version` and `power_from_l2` stamped it;
+#: once two Power sources exist that arrangement can only lie, because the config
+#: holds one string and the run may take either path (a season with no play feed
+#: falls back to L2 whatever the config says).
+POWER_L2_VERSION = "v0"
 
 #: Saturation codes, written to every artifact as `saturated`.
 SATURATED_NONE = 0
@@ -159,6 +169,7 @@ class PowerSource:
     scale_universe: str
     n_scale_games: int
     l2: l2_results.L2Fit | None = None
+    l3: Any = None  # l3_power.L3Fit, typed loosely to keep the import one-way
 
     def rating(self, team: str) -> float:
         """Unseen teams sit at 0.0 - the league-average prior, not a guess."""
@@ -166,7 +177,7 @@ class PowerSource:
 
     def as_params(self) -> dict[str, Any]:
         """The model_params.json block for the opponent-quality source."""
-        return {
+        params = {
             "power_source": self.source,
             "power_version": self.version,
             "power_scale_b": self.scale,
@@ -174,6 +185,40 @@ class PowerSource:
             "power_scale_universe": self.scale_universe,
             "power_scale_n_games": self.n_scale_games,
         }
+        if self.l3 is not None:
+            params.update(self.l3.as_params())
+        return params
+
+
+def power_source(
+    games: pl.DataFrame,
+    config: dict[str, Any] | None = None,
+    plays: pl.DataFrame | None = None,
+    state: Any = None,
+    l2fit: l2_results.L2Fit | None = None,
+) -> PowerSource:
+    """Opponent quality, from whichever layer `[resume].power_source` names.
+
+    THIS FUNCTION IS THE WHOLE OF THE L2 -> L3 SWITCH. Report 02 §3.4 constructs
+    the résumé so that it depends on opponent quality ONLY through Power, which
+    means changing the source changes one call and no arithmetic anywhere else.
+    Both remain available so the backtest can score them against each other
+    rather than the choice being asserted.
+
+    Falls back to L2 when `power_source = "L3"` but no plays are available - a
+    season with no play feed, or a caller that has none - because a Power rating
+    from the results core is a real answer and a crash is not. The returned
+    `source` says which one it is, and every artifact stamps it.
+    """
+    cfg = config if config is not None else load_config()
+    requested = str(cfg["resume"]["power_source"]).upper()
+    if requested == "L3" and plays is not None:
+        from cfbpoll.model import l3_power
+
+        return l3_power.power_from_l3(games, plays, cfg, state=state, l2fit=l2fit)
+    if requested not in ("L2", "L3"):
+        raise ValueError(f"unknown resume.power_source {requested!r}; expected L2 | L3")
+    return power_from_l2(games, cfg, l2fit=l2fit)
 
 
 def _fit_points_scale(games: pl.DataFrame, ratings: dict[str, float]) -> tuple[float, float, int]:
@@ -230,8 +275,8 @@ def power_from_l2(
         ratings={team: b * value for team, value in sorted(fitted.ratings.items())},
         home_field=h_points,
         scale=b,
-        source=str(res["power_source"]),
-        version=str(res["power_version"]),
+        source="L2",
+        version=POWER_L2_VERSION,
         scale_universe=universe,
         n_scale_games=n,
         l2=fitted,
@@ -507,6 +552,8 @@ def fit(
     power: PowerSource | None = None,
     resume_games: pl.DataFrame | None = None,
     through: tuple[int, str, int] | None = None,
+    plays: pl.DataFrame | None = None,
+    state: Any = None,
 ) -> L4Fit:
     """Solve the resume for every team. Pure function of its arguments.
 
@@ -534,7 +581,7 @@ def fit(
 
     games = games.sort("game_id")
     if power is None:
-        power = power_from_l2(games, cfg)
+        power = power_source(games, cfg, plays=plays, state=state)
 
     window = games if resume_games is None else resume_games.sort("game_id")
     if window.is_empty():
@@ -642,16 +689,17 @@ def rate(
     games: pl.DataFrame,
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
+    state: Any = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3): the incumbent headline poll.
 
-    `games` arrives ALREADY truncated by the harness - no system selects its own
-    rows - and `through_week` is informational. Returns the wins-based resume,
-    which is the headline number; the margin-aware variant and the Power rating
-    are on `fit()` for callers that want the whole picture.
+    `games` and `plays` arrive ALREADY truncated by the harness - no system
+    selects its own rows - and `through_week` is informational. Returns the
+    wins-based resume, which is the headline number; the margin-aware variant and
+    the Power rating are on `fit()` for callers that want the whole picture.
     """
-    del plays, through_week
-    return fit(games).resume
+    del through_week
+    return fit(games, plays=plays, state=state).resume
 
 
 def rate_hindsight(

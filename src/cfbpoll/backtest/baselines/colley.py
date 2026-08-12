@@ -38,13 +38,14 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     config: dict | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """Colley ratings (challenger protocol, report 03 §7.3). `plays` unused.
 
     `games` arrives ALREADY truncated by the harness. Wins and losses only: the
     scores are read solely to decide who won.
     """
-    del plays, through_week
+    del plays, through_week, state
     cfg = config if config is not None else load_config()
     pseudo = float(cfg["baselines"]["colley"]["pseudo_games"])
 

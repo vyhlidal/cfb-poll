@@ -82,13 +82,18 @@ q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §
 bisection_max_iter = 60                     # ~40 gets machine precision
 gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
 
-# Opponent quality is the POWER rating (report 02 §3.4). L1 and L3 do not exist
-# yet — Appendix B builds them fourth and fifth — so Power is L2 today, and that
-# is recorded in model_params.json, in poll.json and in every row of the
-# retroactive grid. When L3 lands, this one value changes and the résumé math
-# does not: the résumé depends on opponent quality ONLY through Power.
-power_source = "L2"
-power_version = "v0"
+# Opponent quality is the POWER rating (report 02 §3.4), and as of the L1/L3
+# build that is the BLEND: w1*k*(alpha_t - beta_t) + w2*rho_t, already on the
+# points scale because the blend regression's response is actual game margin.
+# "L2" remains available and is what every artifact stamped before L3 existed;
+# switching this one value is the whole change, because the résumé depends on
+# opponent quality ONLY through Power. Backtest both and publish the comparison.
+power_source = "L3"                         # L3 | L2
+# There is deliberately no `power_version` here. Which code produced a number is
+# a fact about the code, not a methodology choice a user may set, and once two
+# Power sources exist a single config string can only lie - a season with no play
+# feed falls back to L2 whatever this file says. Each layer declares its own
+# version and every artifact stamps the one that actually ran.
 
 # L2 ratings are in COMPRESSED-RESPONSE units, not points — the tanh response is
 # not the identity, so a rating difference of 1.0 is not one point — and sigma is
@@ -291,6 +296,13 @@ k_scale_min_games = 40
 estimator = "ols"                           # ridge or OLS on out-of-sample games
 fit_out_of_sample_only = true
 # No starting values: any number here would be a thumb on the scale.
+
+# Before this many out-of-sample games have accumulated in a season there is
+# nothing to fit on, and the training window is the documented fallback — the
+# same rule, the same number and the same reasoning as
+# [backtest].calibration_min_out_of_sample_games. Every artifact records
+# blend_weight_source so a reader always knows which one produced the number.
+min_out_of_sample_games = 40
 
 ####################################################################################
 # FCS handling — report 02 §3.7

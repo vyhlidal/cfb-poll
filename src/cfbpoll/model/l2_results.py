@@ -175,13 +175,14 @@ def rate(
     games: pl.DataFrame,
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3). `plays` is unused by L2.
 
     `games` arrives ALREADY truncated by the harness - no system is allowed to
     select its own rows - and `through_week` is informational.
     """
-    del plays, through_week
+    del plays, through_week, state
     return fit(games).ratings
 
 

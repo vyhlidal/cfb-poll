@@ -44,6 +44,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     config: dict | None = None,
+    state: object = None,
 ) -> dict[str, float]:
     """SRS ratings (challenger protocol, report 03 §7.3). `plays` unused.
 
@@ -61,7 +62,7 @@ def rate(
     lambda > 0 (report 02 §3.2). That contrast is the point of running this
     baseline at all, so it is stated rather than hidden.
     """
-    del plays, through_week
+    del plays, through_week, state
     cfg = config if config is not None else load_config()
     srs = cfg["baselines"]["srs"]
     cap = float(srs["mov_cap"])

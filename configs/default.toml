@@ -115,6 +115,59 @@ power_scale_min_games = 40
 saturation_tiebreak = "margin"              # margin | none
 
 ####################################################################################
+# Expected points — OUR model, not anyone else's. src/cfbpoll/model/ep.py
+#
+# Report 02 §3.1 specifies L1 as a ridge on play-level EPA, and the archive ships
+# an `EPA` column that would make this section unnecessary. That column is a
+# third party's fitted model and report 01 §5.6 bans black-box inputs, so we fit
+# our own from the scoreboard and publish every constant of it here. The shipped
+# column survives only as a DIAGNOSTIC (ep.shipped_epa_correlation), never as an
+# input.
+####################################################################################
+[ep]
+# The Carter (1971) / Romer (2006) / Burke next-score construction: the value of
+# a state is the expected value of the next score in the same scoring segment,
+# signed to the team in possession. Oldest and most-published EP formulation
+# there is, which is exactly why it is the one to reimplement.
+method = "next_score_in_half"
+
+# Point values a scoring event is snapped to. A touchdown is 7 - the score plus
+# its expected point-after - so that a missed extra point does not come out of an
+# offense's efficiency rating. Rule: |delta| >= 5.5 -> touchdown, >= 2.5 -> field
+# goal, > 0 -> safety.
+touchdown_points = 7.0
+field_goal_points = 3.0
+safety_points = 2.0
+
+# State = (down, distance bucket, yards to goal). NOT the clock and NOT the
+# score: those effects are real and they are handled in [garbage_time], where
+# report 02 §3.1 puts them, rather than smuggled into the value of a play.
+# Buckets are goal-to-go (decided by the state, not a flag), then these edges.
+distance_buckets = [3, 6, 10]
+
+# Gaussian kernel half-width in yards, for smoothing each cell's mean along the
+# field. 5 yards keeps the first-and-10 curve smooth without flattening the
+# genuine kink inside the 10.
+kernel_bandwidth_yards = 5.0
+
+# The shrinkage pseudo-count m: a thin (down, distance, yardline) cell is pulled
+# toward the down-level curve, and a thin down-level cell toward the league-wide
+# field-position curve, by n/(n+m). Same object as the ridge penalty and Colley's
+# +2 - a statement about how little a thin cell tells us, identical for every
+# cell, carrying no team information.
+shrinkage_prior_plays = 200.0
+
+# WALK-FORWARD SCOPE. "training_window" fits the EP table on exactly the plays
+# the harness has already truncated to weeks <= N-1, so there is NO leakage, not
+# even into the tune seasons. "frozen" fits once on frozen_seasons and reuses it,
+# which is simpler and is what report 02 Appendix B sketches - but it means a
+# 2021-2023 backtest is scored with a table that saw the weeks being predicted.
+# That is real leakage, small but not zero, and any number produced under it must
+# say so. Offered so the choice is visible; not the default.
+fit_scope = "training_window"               # training_window | frozen
+frozen_seasons = [2021, 2022, 2023]
+
+####################################################################################
 # Garbage-time filtering — report 02 §3.1, thresholds from §2.3 (Connelly)
 ####################################################################################
 [garbage_time]

@@ -51,6 +51,7 @@ OUTPUT_FILENAMES: tuple[str, ...] = (
     "ratings_live.parquet",
     "ratings_hindsight.parquet",
     "ratings_grid.parquet",
+    "retro_movers.csv",
     "rank_intervals.parquet",
     "model_params.json",
     "predictions.parquet",
@@ -68,6 +69,23 @@ L2_OUTPUTS: tuple[str, ...] = (
     "ratings_live.csv",
     "poll.json",
     "poll.csv",
+    "model_params.json",
+    "_run.json",
+)
+
+#: Written by `cfbpoll grid`: every evaluation week N of a season, against every
+#: data window K >= N. `ratings_live` and `ratings_hindsight` carry the SAME
+#: schema `rank` writes, with more rows - the diagonal and the last column of the
+#: same triangle - so running `grid` after `rank` into one directory is strictly
+#: more complete rather than a conflict.
+GRID_OUTPUTS: tuple[str, ...] = (
+    "ratings_grid.parquet",
+    "ratings_grid.csv",
+    "ratings_live.parquet",
+    "ratings_live.csv",
+    "ratings_hindsight.parquet",
+    "ratings_hindsight.csv",
+    "retro_movers.csv",
     "model_params.json",
     "_run.json",
 )
@@ -133,6 +151,47 @@ def write_rank_outputs(
         },
     )
     return sorted((out / name) for name in L2_OUTPUTS)
+
+
+def write_grid_outputs(
+    out: Path,
+    grid: pl.DataFrame,
+    live: pl.DataFrame,
+    hindsight: pl.DataFrame,
+    movers: pl.DataFrame,
+    params: dict[str, Any],
+    run: dict[str, Any],
+    config_path: Path | None = None,
+) -> list[Path]:
+    """Write the retroactive artifact set: the N x K triangle and its two surfaces.
+
+    Every frame arrives already sorted by `model/retro.py`'s single ordering
+    rule; nothing here re-sorts, so the file bytes are a pure function of the
+    computation (report 03 §9.3).
+    """
+    out.mkdir(parents=True, exist_ok=True)
+
+    grid.write_parquet(out / "ratings_grid.parquet")
+    grid.write_csv(out / "ratings_grid.csv")
+    live.write_parquet(out / "ratings_live.parquet")
+    live.write_csv(out / "ratings_live.csv")
+    hindsight.write_parquet(out / "ratings_hindsight.parquet")
+    hindsight.write_csv(out / "ratings_hindsight.csv")
+    movers.write_csv(out / "retro_movers.csv")
+
+    _json_dump(out / "model_params.json", params)
+    _json_dump(
+        out / "_run.json",
+        {
+            **run,
+            "git_sha": _git_sha(),
+            "config_hash": config_hash(config_path or DEFAULT_CONFIG_PATH),
+            "config_path": str(config_path or DEFAULT_CONFIG_PATH),
+            "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "files": sorted(GRID_OUTPUTS),
+        },
+    )
+    return sorted((out / name) for name in GRID_OUTPUTS)
 
 
 def canonicalize(src: Path, dest: Path) -> Path:

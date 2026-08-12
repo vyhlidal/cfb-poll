@@ -384,6 +384,97 @@ def backtest(
 
 
 @app.command()
+def grid(
+    config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
+    season: Annotated[str | None, typer.Option(help="Season to compute the triangle for.")] = None,
+    out: Annotated[Path, typer.Option(help="Output directory.")] = Path("out"),
+    movers_top: Annotated[int, typer.Option(help="Rows kept in retro_movers.csv per week.")] = 25,
+) -> None:
+    """Compute the full R(N, K) retroactive triangle for a season.
+
+    R(N, K) is the ratings for evaluation week N computed from data through week
+    K (report 02 §3.6). K >= N always. The diagonal R(N, N) is the poll as it was
+    published; the last column R(N, final) is the same weeks re-scored with the
+    season's answers - hindsight variant A, frozen form: Power from the full
+    season, resume from each team's games through week N.
+
+    Writes ratings_grid.parquet (+ .csv), ratings_live.parquet, ratings_hindsight
+    .parquet, retro_movers.csv, model_params.json and _run.json to --out.
+
+    N and K are BUCKETS ordered by first kickoff, not bare week numbers: week
+    numbering inside a season is neither monotone nor unique (docs/data-findings
+    .md §1). For 2021 and 2022 the archive carries NO postseason rows at all, so
+    "final" in those seasons means through conference championships - state that
+    caveat anywhere those seasons are shown.
+    """
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
+    from cfbpoll.model import retro
+    from cfbpoll.publish import files
+
+    if season is None or str(season).strip() == "":
+        raise typer.BadParameter("--season is required. Try --season 2023.")
+    season_i = int(season)
+    cfg = load_config(config)
+
+    games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
+    buckets = windows.season_buckets(games, season_i)
+    triangle = retro.grid(games, season_i, cfg, buckets)
+    live, hindsight = retro.surfaces(triangle)
+
+    movers = retro.movers_by_week(live, hindsight, buckets, top_n=movers_top)
+
+    final = buckets[-1]
+    has_postseason = any(b.season_type == "postseason" for b in buckets)
+    params = {
+        "layer": "L4 resume rating",
+        "version": "v0",
+        "season": season_i,
+        "hindsight_variant": retro.HINDSIGHT_VARIANT,
+        "n_buckets": len(buckets),
+        "n_cells": len(buckets) * (len(buckets) + 1) // 2,
+        "buckets": [
+            {"order": b.order, "season_type": b.season_type, "week": b.week, "label": b.label}
+            for b in buckets
+        ],
+        "final_bucket": final.label,
+        "season_has_postseason_rows": has_postseason,
+        "final_means": (
+            "through the postseason in the archive"
+            if has_postseason
+            else "through conference championships - this season carries NO "
+            "postseason rows in cfb_schedules (docs/data-findings.md)"
+        ),
+        "headline_layer": cfg["publication"]["headline_layer"],
+        "companion_layer": cfg["publication"]["companion_layer"],
+        **{k: v for k, v in cfg["resume"].items()},
+    }
+    run = {
+        "season": season_i,
+        "archive": str(DEFAULT_ARCHIVE),
+        "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
+        "n_games_in_season": int(games.height),
+        "n_grid_rows": int(triangle.height),
+    }
+    written = files.write_grid_outputs(
+        out, triangle, live, hindsight, movers, params, run, config_path=config
+    )
+
+    typer.echo(
+        f"R(N, K) for {season_i}: {len(buckets)} buckets, "
+        f"{len(buckets) * (len(buckets) + 1) // 2} cells, {triangle.height:,} rows "
+        f"(hindsight variant {retro.HINDSIGHT_VARIANT}, final = {final.label})"
+    )
+    if not has_postseason:
+        typer.echo(
+            f"  NOTE: {season_i} carries no postseason rows in the archive; "
+            '"final" means through conference championships.'
+        )
+    typer.echo("wrote: " + ", ".join(p.name for p in written))
+
+
+@app.command()
 def bootstrap(
     draws: Annotated[int, typer.Option(help="Block-bootstrap resamples.")] = 1000,
     jobs: Annotated[int, typer.Option(help="Parallel workers.")] = 4,

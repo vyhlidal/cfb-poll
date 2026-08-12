@@ -23,6 +23,7 @@ EXPECTED_COMMANDS = {
     "validate",
     "audit-features",
     "rank",
+    "grid",
     "bootstrap",
     "guard",
     "canonicalize",
@@ -63,5 +64,11 @@ def test_stubs_fail_loudly() -> None:
 
 def test_rank_requires_a_season_until_the_calendar_resolver_exists() -> None:
     result = runner.invoke(app, ["rank"])
+    assert result.exit_code != 0
+    assert "--season is required" in result.output
+
+
+def test_grid_requires_a_season() -> None:
+    result = runner.invoke(app, ["grid"])
     assert result.exit_code != 0
     assert "--season is required" in result.output

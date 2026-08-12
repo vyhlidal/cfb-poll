@@ -424,15 +424,29 @@ def run_backtest(
     }
 
 
-def retro_grid(rater: Any, seasons: list[int], config: dict[str, Any]) -> Any:
-    """Compute the full R(N, K) grid: live R(N,N), hindsight R(N,final), and deltas.
+def retro_grid(
+    seasons: list[int],
+    config: dict[str, Any] | None = None,
+    games: pl.DataFrame | None = None,
+) -> pl.DataFrame:
+    """The full R(N, K) grid for each season, stacked (report 02 §3.6).
 
     The "biggest retroactive movers" view - who the model was wrong about, in its
     own words, with the number quantified - is the most differentiated thing this
-    project can ship, and it costs nothing extra once the grid exists
-    (report 02 §3.6). It needs L4, so it is still a stub.
+    project can ship, and it costs nothing extra once the grid exists. The
+    estimator itself lives in `model/retro.py`; this is the harness-side entry
+    point that loads seasons and stacks them.
     """
-    raise NotImplementedError("backtest.walkforward.retro_grid - needs L4; report 02 §3.6")
+    from cfbpoll.model import retro
+
+    cfg = config if config is not None else load_config()
+    seasons = sorted(int(s) for s in seasons)
+    if games is None:
+        games = load_games(seasons, universe=str(cfg["model"]["fit_universe"]))
+    return pl.concat([retro.grid(games, season, cfg) for season in seasons], how="vertical").sort(
+        ["season", "eval_order", "data_order", "resume", "resume_margin", "team"],
+        descending=[False, False, False, True, True, False],
+    )
 
 
 def run(rater: Callable[..., Any], seasons: list[int], config: dict[str, Any]) -> Any:

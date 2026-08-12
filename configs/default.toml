@@ -17,6 +17,9 @@
 #   MEASURED ON THIS DATA   [margin].c, [margin].beta_w,
 #                           [margin.prediction_compression].enabled,
 #                           [garbage_time].mode          — ADR 0007, 2026-08-12
+#                           [resume].sigma_trailing_buckets,
+#                           [backtest].calibration_trailing_buckets
+#                                                        — ADR 0009, 2026-08-12
 #                           [model].fit_universe          — ADR 0006
 #                           [publication].headline_ordering — ADR 0005
 #                           [resume].sigma_estimator, [blend] weights, [ridge]
@@ -37,9 +40,9 @@
 ####################################################################################
 
 [meta]
-config_version = "0.1.0"
+config_version = "0.2.0"
 frozen = false                  # true only for files under configs/frozen/
-description = "C, beta_w and both mode switches fitted on 2021-2023, validated once on 2024 (ADR 0007). Remaining constants inherited; see the header."
+description = "C, beta_w and both mode switches fitted on 2021-2023 and validated once on 2024 (ADR 0007); both accumulation windows fitted the same way (ADR 0009). Remaining constants inherited; see the header."
 
 ####################################################################################
 # Publication policy — report 02 §4 (recommendation: Option B) and §3.5
@@ -258,7 +261,12 @@ sigma_min_out_of_sample_games = 40
 # what is being relaxed here - only the shape of the window is changing - and the
 # thin-window fallback is to the FULL accumulation rather than to the training
 # window, so a trailing arm can never see a game the cumulative estimator could not.
-sigma_trailing_buckets = 0                  # SEE docs/analysis/campaign-2.md, lead 2
+#
+# FITTED 2026-08-12 (ADR 0009). Mean sigma over the published window falls from
+# 18.46 to 17.12 against a realised RMSE of 16.55, and the maximum decile
+# calibration deviation falls from 11.28 pp to 7.37 pp on the tune seasons and from
+# 15.82 pp to 8.12 pp on 2024. THE GATE STILL FAILS IT: the threshold is 5.0 pp.
+sigma_trailing_buckets = 3                  # FITTED 2026-08-12, ADR 0009 (was 0)
 q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §3.4
 bisection_max_iter = 60                     # ~40 gets machine precision
 gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
@@ -757,7 +765,18 @@ calibration_min_out_of_sample_games = 40
 # improving. This is NOT a relaxation of `calibration_out_of_sample` above - which
 # would cost L2 0.44 points of MAE and is a different question entirely - it is a
 # change to which out-of-sample games the fit sees.
-calibration_trailing_buckets = 0            # SEE docs/analysis/campaign-2.md, lead 2
+#
+# FITTED 2026-08-12 (ADR 0009), AND THIS IS THE KEY THAT FIXED THE UNDER-DISPERSION.
+# The slope of actual on predicted margin goes from 1.1492 +/- 0.0437 to 1.0329 +/-
+# 0.0398 on the tune seasons - from 3.4 standard errors above one to 0.8, which is
+# indistinguishable from one - and from 1.2428 to 1.0222 on 2024. The intercept
+# halves on both. Campaign 1 diagnosed the cumulative window and declined to act on
+# a fix it had not pre-registered; campaign 2 pre-registered it and it worked.
+#
+# THE HONEST COST: tune MAE rises 0.028 points and straight-up accuracy falls 0.56
+# pp (nine games in 1,585). The rule fixed in advance allowed MAE to move up to
+# 0.055 and said nothing about SU, so the cost is published rather than traded away.
+calibration_trailing_buckets = 5            # FITTED 2026-08-12, ADR 0009 (was 0)
 
 ####################################################################################
 # Backtest baseline constants — report 02 §5.3. These belong to the COMPETITION,

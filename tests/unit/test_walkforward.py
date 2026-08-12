@@ -743,12 +743,18 @@ def test_the_harness_gives_every_system_its_own_walk_forward_sigma() -> None:
     by_system = {
         name: [r for r in weekly if r["system"] == name] for name in ("l3", "colley", "winpct")
     }
+    floor = float(CONFIG["resume"]["sigma"])
     for rows in by_system.values():
         assert rows[0]["sigma_source"] == "config_fallback_thin_window"
         assert rows[-1]["sigma_source"] == "walk_forward_residuals"
-        # it settles rather than wandering: the last three buckets agree closely
-        tail = [r["sigma"] for r in rows[-3:]]
-        assert max(tail) - min(tail) < 1.0
+        # Never below the floor, and never absurd. THIS ASSERTION USED TO BE "the
+        # last three buckets agree within 1.0 point", and that was a property of the
+        # CUMULATIVE window rather than of sigma: a cumulative mean settles because
+        # each new bucket is a small fraction of everything accumulated. Campaign 2
+        # made the window TRAILING on purpose (ADR 0009), and a trailing estimator
+        # is supposed to move - that responsiveness is the whole of what it buys, and
+        # the test below measures it rather than forbidding it.
+        assert all(floor <= r["sigma"] <= 2.5 * floor for r in rows)
 
     # and the systems genuinely differ, which is the point of doing it per system
     finals = {name: rows[-1]["sigma"] for name, rows in by_system.items()}
@@ -757,6 +763,43 @@ def test_the_harness_gives_every_system_its_own_walk_forward_sigma() -> None:
 
     assert "PER SYSTEM, PER BUCKET" in result["protocol"]["sigma"]
     assert result["protocol"]["sigma_fallback"] == CONFIG["resume"]["sigma"]
+    assert result["protocol"]["sigma_trailing_buckets"] == CONFIG["resume"][
+        "sigma_trailing_buckets"
+    ]
+
+
+@needs_archive
+def test_the_trailing_window_is_what_makes_sigma_track_the_season() -> None:
+    """The property the previous test used to assert, measured rather than assumed.
+
+    A cumulative sigma settles: by week 12 it is an average over ten weeks and one
+    more bucket barely moves it. That is exactly the defect campaign 1 diagnosed -
+    over the published window the cumulative estimate averaged 18.46 while the
+    realised RMSE of those same games was 16.55, because the estimate still carried
+    the near-noise weeks the poll declines to publish. A trailing window is supposed
+    to move, and this asserts the direction of that difference on the live config
+    rather than pinning a magnitude that a future search may legitimately change.
+    """
+    import copy
+
+    trailing = CONFIG
+    cumulative = copy.deepcopy(CONFIG)
+    cumulative["resume"]["sigma_trailing_buckets"] = 0
+
+    def _tail_spread(config: dict) -> float:
+        rows = [
+            r
+            for r in walkforward.run_backtest([2023], ["l3"], config=config)["weekly"]
+            if r["system"] == "l3"
+        ]
+        tail = [r["sigma"] for r in rows[-4:]]
+        return max(tail) - min(tail)
+
+    assert int(trailing["resume"]["sigma_trailing_buckets"]) > 0, (
+        "this test is about the trailing window; if the live config goes back to "
+        "cumulative it should be deleted rather than made to pass"
+    )
+    assert _tail_spread(trailing) > _tail_spread(cumulative)
 
 
 @needs_archive
@@ -859,6 +902,7 @@ def test_a_trailing_sigma_reads_the_same_window(monkeypatch: pytest.MonkeyPatch)
         )
     cfg = copy.deepcopy(CONFIG)
     cfg["resume"]["sigma_min_out_of_sample_games"] = 1
+    cfg["resume"]["sigma_trailing_buckets"] = 0  # the cumulative window, set explicitly
     assert pool.sigma(cfg).value == pytest.approx(np.sqrt((3 * 1600 + 400) / 4))
     cfg["resume"]["sigma_trailing_buckets"] = 1
     assert pool.sigma(cfg).value == pytest.approx(20.0)

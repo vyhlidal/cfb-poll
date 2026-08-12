@@ -162,13 +162,24 @@ def test_sigma_is_measured_rather_than_assumed(ranked: Path) -> None:
     config value survives as the thin-window fallback and floor. What is asserted
     here is the SHAPE the constraint-5 promise needs: the number is published,
     the rule that produced it is published, and the sample it came from is
-    published, so a reader can tell an estimate from a constant."""
+    published, so a reader can tell an estimate from a constant.
+
+    AMENDED 2026-08-12 by ADR 0009. The sample-size assertion used to be `> 400`,
+    which was a property of the CUMULATIVE window rather than of the promise: by
+    week 10 an estimator that keeps every game of the season has seen several
+    hundred. Campaign 2 made the window trailing on purpose, so the number the poll
+    publishes is now the size of the last few weeks - and the promise being tested
+    is that a reader can tell an estimate from a constant, which needs the sample to
+    be real and published, not to be large."""
     params = json.loads((ranked / "model_params.json").read_text())
     cfg = load_config()
     assert params["sigma_source"] == "walk_forward_residuals"
     assert params["sigma"] != cfg["resume"]["sigma"]
     assert params["sigma"] > cfg["resume"]["sigma"]  # the floor held; the model is worse
-    assert params["power_sigma_n_out_of_sample_games"] > 400
+    assert (
+        params["power_sigma_n_out_of_sample_games"]
+        >= cfg["resume"]["sigma_min_out_of_sample_games"]
+    )
     assert params["power_sigma"] == params["sigma"]
     # the résumé and the headline ordering must agree about the denominator of a
     # win probability - they are published on the same row

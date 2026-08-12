@@ -1313,21 +1313,28 @@ def sigma_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
         "   is its own, and the gate's stretch RMSE target of 15.3 is a reminder that the",
         "   system would have to *become* as accurate as the σ it used to assume in order to",
         "   have earned it.",
-        "2. **The asymmetry has since been DIAGNOSED, and neither named suspect did it.**",
-        "   This page used to say the suspects were the single home-field constant and the",
-        "   normal margin assumption in the tail. Both were tested and both are eliminated:",
-        "   maximum likelihood puts the residuals' Student-t ν at 92.7 with a Jarque-Bera p",
-        "   of 0.275 (they are not distinguishable from normal), and the residual mean is",
-        "   −1.13 points at home sites against −0.19 at neutral — an order of magnitude too",
-        "   small to make a 13-point decile. The cause is **under-dispersion of the point",
-        "   forecast**: regressing actual margin on predicted gives a slope of 1.143 ± 0.044,",
-        "   3.3 standard errors above one, with an intercept of −1.61 points, and both",
-        "   replicate on 2024 (1.244 ± 0.085, −2.11). Probabilities built from under-dispersed",
-        "   margins sit too close to 0.5, and the negative intercept pushes the whole curve",
-        "   down — which is exactly this table's shape. **No pre-declared fix cleared the",
-        "   adoption bar, so nothing was changed on account of it.** The full diagnosis, the",
-        "   four candidates and the rule that rejected them:",
-        "   [docs/analysis/tuning-campaign.md](../docs/analysis/tuning-campaign.md) §5.",
+        "2. **The asymmetry was DIAGNOSED, and then FIXED, and neither named suspect was",
+        "   ever the cause.** This page used to say the suspects were the single home-field",
+        "   constant and the normal margin assumption in the tail. Both were tested and both",
+        "   were eliminated: maximum likelihood puts the residuals' Student-t ν at 92.7 with",
+        "   a Jarque-Bera p of 0.275 (they are not distinguishable from normal), and the",
+        "   residual mean was −1.13 points at home sites against −0.19 at neutral — an order",
+        "   of magnitude too small to make a 13-point decile. The cause was **under-dispersion",
+        "   of the point forecast**, and the mechanism was the SHAPE of the accumulation",
+        "   window: both σ and the affine points calibration were fitted on every",
+        "   out-of-sample game of the season so far, while the ratings feeding them improve",
+        "   as the season goes on, so a slope fitted on weeks 2-9 under-scales week 10.",
+        "   Campaign 1 diagnosed it and deliberately did not act, because a fix discovered",
+        "   while looking is not a fix that has been tested. **Campaign 2 pre-registered the",
+        "   trailing window and it worked**: the slope of actual on predicted margin goes",
+        "   from 1.1492 ± 0.0437 to 1.0329 ± 0.0398 on these seasons — from 3.4 standard",
+        "   errors above one to 0.8, which is indistinguishable from one — and from 1.2428 to",
+        "   1.0222 on 2024. The decile deviation follows it, 11.28 pp → 7.37 pp here and",
+        "   15.82 pp → 8.12 pp on 2024. **It is still a FAIL: the threshold is 5.0 pp.** The",
+        "   diagnosis: [docs/analysis/tuning-campaign.md](../docs/analysis/tuning-campaign.md)",
+        "   §5. The fix, its cost in MAE, and the arm that won on MAE and was blocked:",
+        "   [docs/analysis/campaign-2.md](../docs/analysis/campaign-2.md) and",
+        "   [docs/adr/0009-accumulation-window.md](../docs/adr/0009-accumulation-window.md).",
     ]
     return lines
 
@@ -1490,12 +1497,15 @@ def backtest_report() -> str:
         "**2025 (holdout) is untouched.** The harness refuses to score it without an explicit",
         "`--unlock-holdout`, and no code path in this repository passes it (report 02 §5.1).",
         "",
-        "**2024 (validate) has been read exactly once.** The hyperparameter campaign of",
-        "2026-08-12 ([`docs/analysis/tuning-campaign.md`](../docs/analysis/tuning-campaign.md))",
-        "searched the C × β_w grid and both mode switches on these tune seasons under a",
-        "protocol committed before any number was read, froze one choice, and evaluated it",
-        "against 2024 once. Everything on this page is the tune seasons; the 2024 numbers",
-        "live in the campaign document and nowhere else.",
+        "**2024 (validate) has been read TWICE, once per campaign, and each campaign says",
+        "so.** Both searched these tune seasons under a protocol committed before any number",
+        "was read, froze a choice in writing, and evaluated it against 2024 once:",
+        "[`docs/analysis/tuning-campaign.md`](../docs/analysis/tuning-campaign.md) (C, β_w",
+        "and both mode switches) and",
+        "[`docs/analysis/campaign-2.md`](../docs/analysis/campaign-2.md) (the accumulation",
+        "window, a widened C grid, and a home-field experiment that changed nothing).",
+        "Everything on this page is the tune seasons; the 2024 numbers live in the campaign",
+        "documents and nowhere else.",
         "",
         "## Protocol",
         "",
@@ -1506,14 +1516,31 @@ def backtest_report() -> str:
         "  are scored separately below, because they measure different things.",
         "- Win probability = Phi(margin / sigma), and **sigma is estimated, not assumed**:"
         " each system's own root-mean-square walk-forward residual over the out-of-sample"
-        f" games accumulated so far, with {protocol['sigma_fallback']} (report 02 §5.4) as the"
+        " games of"
+        + (
+            f" the last {protocol['sigma_trailing_buckets']} weeks"
+            if protocol.get("sigma_trailing_buckets")
+            else " the season so far"
+        )
+        + f", with {protocol['sigma_fallback']} (report 02 §5.4) as the"
         " thin-window fallback and floor. See the section below for what that did and did"
         " not fix.",
-        "- Every system's ratings are mapped to the points scale by one OLS per system per",
-        "  week, fitted on the out-of-sample predictions already accumulated that season.",
-        "  Elo lives on a 400-point logit scale and win percentage on [0, 1]; without this",
-        "  the MAE column would be meaningless for five of the seven rows. Straight-up",
-        "  accuracy is unaffected - it is invariant to a positive affine map.",
+        "- Every system's ratings are mapped to the points scale by one OLS per system per"
+        " week, fitted on the out-of-sample predictions from"
+        + (
+            f" the last {protocol['calibration_trailing_buckets']} weeks."
+            if protocol.get("calibration_trailing_buckets")
+            else " earlier that season."
+        )
+        + " Elo lives on a 400-point logit scale and win percentage on [0, 1]; without"
+        " this the MAE column would be meaningless for five of the seven rows."
+        " Straight-up accuracy is unaffected - it is invariant to a positive affine map.",
+        "- **Both trailing windows are still strictly out of sample.** Every game in either"
+        " one was predicted before it was scored, by a fit that had not seen it; only the"
+        " SHAPE of the window is trailing rather than cumulative, and that shape was chosen"
+        " by a pre-registered search (ADR 0009) rather than assumed. Fitting either"
+        " estimator on the TRAINING window is a different thing entirely, costs L2 0.44"
+        " points of MAE, and is not done.",
         "- **Neither retrodictive ordering is in the predictive table.** Both the headline",
         "  (schedule odds) and the L4 résumé it replaced are desert measures by construction",
         "  (report 02 §3.5). Every undefeated team sits on the same q bound on the résumé, and",

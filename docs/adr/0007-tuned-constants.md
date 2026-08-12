@@ -10,6 +10,23 @@
   at all.
 - **Supersedes:** nothing. It replaces "unfitted starting values" with fitted ones
   for four keys and leaves every other constant exactly where it was.
+- **Followed by:** [ADR 0009](./0009-accumulation-window.md) and
+  [ADR 0008](./0008-league-structural-home-field.md). Campaign 2 took three of the
+  four items this ADR named at the bottom of the page. **Two of its findings change
+  how the closing sections below should be read**, and neither of them makes this
+  ADR wrong:
+  - *"`C = 32` is the top of `c_grid`, so the search did not bracket the
+    optimum"* — **now bracketed.** The widened grid ends at `c = inf`, the identity
+    response and the limit of the family. Its optimum is `c = inf`, `β_w = 12`,
+    which is not adopted: it fails the interaction with the accumulation-window
+    change, makes calibration substantially worse, and is a dial rather than a
+    convention by this project's own τ standard.
+  - *"the calibration miss is diagnosed and deliberately unfixed"* — **now fixed,
+    and the diagnosis below is what fixed it.** A trailing-window σ and a
+    trailing-window points calibration, pre-registered, take the slope of actual on
+    predicted margin from 3.4 standard errors above one to 0.8 and the maximum
+    decile deviation from 11.28 pp to 7.37 pp. The gate threshold is 5.0 pp and it
+    still fails.
 
 ---
 

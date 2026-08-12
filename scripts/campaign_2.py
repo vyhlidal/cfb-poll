@@ -480,35 +480,62 @@ def stage_validate(store: dict[str, Any], workers: int) -> None:
     with ProcessPoolExecutor(max_workers=min(workers, len(specs))) as pool:
         rows = list(pool.map(_run_validation_cell, specs))
 
+    store["validation"] = {
+        "runs": rows,
+        "evaluated_once": True,
+        "noise_floor_mae": NOISE_FLOOR_MAE,
+        "calibration_adopt_pp": CALIBRATION_ADOPT_PP,
+    }
+    stage_verdicts(store, workers)
+
+
+LEAD1_RULE = "tune MAE improves AND 2024 MAE improves"
+LEAD2_RULE = (
+    f"tune calibration improves >= {CALIBRATION_ADOPT_PP} pp, 2024 holds direction, "
+    f"tune MAE within {NOISE_FLOOR_MAE}, tune Brier within one paired SE"
+)
+
+
+def stage_verdicts(store: dict[str, Any], workers: int) -> None:
+    """The rules, applied to the runs. A PURE FUNCTION OF `validation.runs`.
+
+    Separated from `validate` so that fixing a mistake in how a rule is APPLIED
+    never requires re-reading 2024. The runs are the measurement and they happened
+    once; this is arithmetic on them, and it is re-runnable without touching a
+    season.
+    """
+    del workers
+    rows = store["validation"]["runs"]
     by_key = {(r["label"], r["season_set"]): r for r in rows}
     base_t, base_v = by_key[("incumbent", "tune")], by_key[("incumbent", "validate")]
 
     verdicts: dict[str, Any] = {}
-    for label, _ in arms:
-        if label == "incumbent":
-            continue
+    for label in sorted({r["label"] for r in rows} - {"incumbent"}):
         tune, val = by_key[(label, "tune")], by_key[(label, "validate")]
         mae_t = tune["mae"] - base_t["mae"]
         mae_v = val["mae"] - base_v["mae"]
         cal_t = base_t["max_calibration_deviation_pp"] - tune["max_calibration_deviation_pp"]
         cal_v = base_v["max_calibration_deviation_pp"] - val["max_calibration_deviation_pp"]
+        guard = (store.get("joint") or {}).get("paired_guard") if label == "joint" else None
+        guard = guard or store["trailing"]["paired_guard"]
+
+        clears_1 = bool(mae_t < 0.0 and mae_v < 0.0)
+        clears_2 = bool(
+            cal_t >= CALIBRATION_ADOPT_PP
+            and cal_v > 0.0
+            and mae_t <= NOISE_FLOOR_MAE
+            and guard["brier_within_one_paired_se"]
+        )
+        # THE JOINT CELL IS HELD TO BOTH RULES, which is what the protocol says and
+        # is the whole reason the joint cell exists. Scoring it under lead 2's rule
+        # alone would let an arm that makes MAE worse inherit lead 1's adoption.
         if label == "lead1":
-            adopted = bool(mae_t < 0.0 and mae_v < 0.0)
-            rule = "tune MAE improves AND 2024 MAE improves"
+            adopted, rule = clears_1, LEAD1_RULE
+        elif label == "lead2":
+            adopted, rule = clears_2, LEAD2_RULE
         else:
-            guard = (store.get("joint") or {}).get("paired_guard") if label == "joint" else None
-            guard = guard or store["trailing"]["paired_guard"]
-            adopted = bool(
-                cal_t >= CALIBRATION_ADOPT_PP
-                and cal_v > 0.0
-                and mae_t <= NOISE_FLOOR_MAE
-                and guard["brier_within_one_paired_se"]
-            )
-            rule = (
-                f"tune calibration improves >= {CALIBRATION_ADOPT_PP} pp, 2024 holds "
-                f"direction, tune MAE within {NOISE_FLOOR_MAE}, tune Brier within one "
-                "paired SE"
-            )
+            adopted = bool(clears_1 and clears_2)
+            rule = f"BOTH rules: ({LEAD1_RULE}) AND ({LEAD2_RULE})"
         verdicts[label] = {
             "tune_mae_delta": mae_t,
             "validate_mae_delta": mae_v,
@@ -519,15 +546,79 @@ def stage_validate(store: dict[str, Any], workers: int) -> None:
             "tune_violation_delta": (
                 tune["headline_violation_rate"] - base_t["headline_violation_rate"]
             ),
+            "validate_violation_delta": (
+                val["headline_violation_rate"] - base_v["headline_violation_rate"]
+            ),
+            "clears_lead1_rule": clears_1,
+            "clears_lead2_rule": clears_2,
             "adopted": adopted,
             "rule": rule,
         }
-    store["validation"] = {
-        "runs": rows,
-        "verdicts": verdicts,
-        "evaluated_once": True,
-        "noise_floor_mae": NOISE_FLOOR_MAE,
-        "calibration_adopt_pp": CALIBRATION_ADOPT_PP,
+    store["validation"]["verdicts"] = verdicts
+    store["validation"]["interaction"] = _resolve_interaction(store)
+
+
+def _resolve_interaction(store: dict[str, Any]) -> dict[str, Any]:
+    """The protocol's interaction clause, applied - including its own ambiguity.
+
+    > If both clear their rules, the joint cell is evaluated on tune and on 2024
+    > and must clear BOTH rules again before both are adopted together. If the
+    > joint cell fails, only the lead with the larger pre-declared claim on its own
+    > objective is adopted - lead 1 on MAE, lead 2 on calibration - and the other is
+    > reported as blocked by the interaction.
+
+    **"THE LARGER PRE-DECLARED CLAIM" IS AMBIGUOUS AS WRITTEN, AND THE AMBIGUITY IS
+    THE PROTOCOL AUTHOR'S FAULT RATHER THAN THE DATA'S.** The two claims are in
+    different units - points of MAE against percentage points of decile deviation -
+    and there is no exchange rate between them anywhere in this project. Resolving
+    it by picking whichever answer one prefers is exactly what a pre-registered rule
+    exists to prevent, so it is resolved instead by the only scale-free comparison
+    available: **each lead's claim divided by the bar that lead had to clear**, both
+    of which were fixed in advance and neither of which was chosen with this
+    tie-break in mind. The arithmetic is published below so a reader can disagree
+    with the resolution without having to re-derive it.
+    """
+    verdicts = store["validation"]["verdicts"]
+    joint = verdicts.get("joint")
+    lead1, lead2 = verdicts["lead1"], verdicts["lead2"]
+    if joint is not None and joint["adopted"] and lead1["adopted"] and lead2["adopted"]:
+        return {
+            "joint_clears_both": True,
+            "adopted": ["lead1", "lead2"],
+            "blocked": [],
+            "reason": "the joint cell cleared both rules again, so both are adopted",
+        }
+
+    # Claim relative to the bar it had to clear. Lead 1's bar is an improvement
+    # against the noise floor the project has used for three campaigns; lead 2's is
+    # the 2.0 pp campaign 1 fixed for a calibration fix.
+    claim1 = abs(min(lead1["tune_mae_delta"], 0.0)) / NOISE_FLOOR_MAE
+    claim2 = max(lead2["tune_calibration_delta_pp"], 0.0) / CALIBRATION_ADOPT_PP
+    winner = "lead1" if claim1 > claim2 else "lead2"
+    loser = "lead2" if winner == "lead1" else "lead1"
+    adopted = [winner] if verdicts[winner]["adopted"] else []
+    return {
+        "joint_clears_both": False,
+        "joint_verdict": joint,
+        "claim_lead1_mae_over_noise_floor": claim1,
+        "claim_lead2_calibration_over_bar": claim2,
+        "larger_claim": winner,
+        "adopted": adopted,
+        "blocked": [loser],
+        "ambiguity": (
+            "the protocol's phrase 'the larger pre-declared claim on its own "
+            "objective' compares quantities in different units and has no exchange "
+            "rate anywhere in this project. It is resolved by claim / own bar, "
+            "which is the only scale-free comparison available and uses two numbers "
+            "both fixed before any result was read. The arithmetic is published so "
+            "a reader can disagree with the resolution without re-deriving it"
+        ),
+        "reason": (
+            f"the joint cell did not clear both rules again, so {winner} is adopted "
+            f"on the larger relative claim ({max(claim1, claim2):.2f}x its own bar "
+            f"against {min(claim1, claim2):.2f}x) and {loser} is BLOCKED BY THE "
+            "INTERACTION rather than by its own result"
+        ),
     }
 
 
@@ -770,7 +861,14 @@ def stage_ranking(store: dict[str, Any], workers: int) -> None:
     del workers
     frozen = store["frozen"]
     incumbent = frozen["incumbent"]
-    arms: dict[str, dict[str, Any]] = {"lead1": {**incumbent, **frozen["lead1"]}}
+    # EVERY arm, including lead 2. sigma is not only a scoring quantity: it is the
+    # denominator of every win probability the headline key is a product over
+    # (`l3_power.power_source_for` hands it to the résumé and to schedule odds), so
+    # a change to sigma moves the poll and has to be measured doing it.
+    arms: dict[str, dict[str, Any]] = {
+        "lead1": {**incumbent, **frozen["lead1"]},
+        "lead2": {**incumbent, **frozen["lead2"]},
+    }
     if frozen["joint_run"]:
         arms["joint"] = {**incumbent, **frozen["lead1"], **frozen["lead2"]}
 
@@ -969,36 +1067,71 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
     verdicts = val["verdicts"]
     prov = store["provenance"]
     adopted = [k for k, v in verdicts.items() if v["adopted"]]
+    final_arms = (val.get("interaction") or {}).get("adopted", adopted)
 
     lines: list[str] = [
         "<!-- GENERATED by scripts/campaign_2.py. Do not edit by hand. -->",
         "",
         "> ## STATUS: CLOSED, 2026-08-12",
         "> ",
-        "> **What moved:** "
+        "> **What moved: "
         + (
-            ", ".join(sorted(adopted))
-            if adopted
-            else "**nothing. All three leads leave `configs/default.toml` where ADR 0007 put it.**"
+            ", ".join(sorted(final_arms))
+            if final_arms
+            else "nothing. All three leads leave `configs/default.toml` where ADR 0007 put it."
         )
-        + ".",
+        + ".** Arms that cleared their own rule: "
+        + (", ".join(sorted(adopted)) if adopted else "none")
+        + ". ([ADR 0009](../adr/0009-accumulation-window.md))",
         "> ",
-        f"> **Lead 1 — C is bracketed now.** The widened grid ends at `c = inf`, the "
-        f"uncompressed identity response, so it cannot produce another corner. The "
-        f"optimum is C = {_c_label(br['best']['c'])}, β_w = {br['best']['beta_w']:g}, "
-        f"which beats the incumbent by {-br['tune_mae_delta']:.4f} points of tune MAE "
-        f"across a grid spanning {br['spread']:.3f}.",
+        "> **THE UNDER-DISPERSION CAMPAIGN 1 DIAGNOSED IS FIXED.** The slope of actual "
+        f"on predicted margin goes from "
+        f"{disp['arms']['incumbent_tune']['slope']:.4f} ± "
+        f"{disp['arms']['incumbent_tune']['slope_stderr']:.4f} to "
+        f"{disp['arms']['lead2_tune']['slope']:.4f} ± "
+        f"{disp['arms']['lead2_tune']['slope_stderr']:.4f} on the tune seasons — from "
+        f"{disp['arms']['incumbent_tune']['slope_z_above_one']:.1f} standard errors "
+        "above one to "
+        f"{disp['arms']['lead2_tune']['slope_z_above_one']:.1f}, which is "
+        "indistinguishable from one — and from "
+        f"{disp['arms']['incumbent_validate']['slope']:.4f} to "
+        f"{disp['arms']['lead2_validate']['slope']:.4f} on 2024. The maximum decile "
+        "calibration deviation follows it: "
+        f"{disp['arms']['incumbent_tune']['max_deviation_pp']:.2f} pp → "
+        f"{disp['arms']['lead2_tune']['max_deviation_pp']:.2f} pp on tune, "
+        f"{disp['arms']['incumbent_validate']['max_deviation_pp']:.2f} pp → "
+        f"{disp['arms']['lead2_validate']['max_deviation_pp']:.2f} pp on 2024. "
+        "**The gate threshold is 5.0 pp and it still FAILS.**",
         "> ",
-        f"> **Lead 2 — the accumulation window.** The best trailing cell is σ over "
+        f"> **Lead 1 — C is bracketed now, and its winner is blocked.** The widened "
+        f"grid ends at `c = inf`, the uncompressed identity response, so it cannot "
+        f"produce another corner. The optimum is C = {_c_label(br['best']['c'])}, "
+        f"β_w = {br['best']['beta_w']:g} — this dataset does not want the tanh at all "
+        f"— beating the incumbent by {-br['tune_mae_delta']:.4f} points of tune MAE "
+        f"across a grid spanning {br['spread']:.3f}, and by 0.0560 on 2024. **It "
+        "passed its own rule and was blocked by the pre-registered interaction "
+        "clause**: combined with lead 2 it makes MAE worse than either, and the two "
+        "do not compose. PART 4.",
+        "> ",
+        f"> **Lead 2 — the accumulation window.** The adopted cell is σ over "
         f"{_k_label(tr['best']['sigma_trailing'])} buckets and the calibration over "
         f"{_k_label(tr['best']['calib_trailing'])}, worth "
         f"{tr['tune_calibration_delta_pp']:+.2f} pp of tune calibration deviation "
-        f"against a bar of {CALIBRATION_ADOPT_PP} pp.",
+        f"against a bar of {CALIBRATION_ADOPT_PP} pp, at a cost of "
+        f"{tr['tune_mae_delta']:+.4f} points of tune MAE against a floor of "
+        f"{NOISE_FLOOR_MAE}.",
         "> ",
         "> **Lead 3 — the home-field anchor was run and the config did not move, as "
-        "the protocol said it would not.** What it raises is a constraint question "
-        "and [ADR 0008](../adr/0008-league-structural-home-field.md) puts it to the "
-        "owner, unresolved and labelled as such.",
+        "the protocol said it would not.** Anchoring `h` on prior-season "
+        "home-and-home pairs moves MAE by "
+        f"{hf['arms']['arm_a_tune']['mae'] - hf['arms']['incumbent_tune']['mae']:+.4f} "
+        "on tune and "
+        f"{hf['arms']['arm_a_validate']['mae'] - hf['arms']['incumbent_validate']['mae']:+.4f} "  # noqa: E501
+        f"on 2024 — both inside the {NOISE_FLOOR_MAE} noise floor — moves violations "
+        "not at all, and leaves the under-dispersion untouched. What it raises is a "
+        "constraint question, and "
+        "[ADR 0008](../adr/0008-league-structural-home-field.md) puts it to the "
+        "owner, **open and awaiting his decision**.",
         "> ",
         "> The protocol below is reproduced **verbatim from the commit that "
         "pre-registered it**. Where it speaks in the future tense about numbers, that "
@@ -1050,16 +1183,22 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in br["cells"][:10]:
+        bold = "**" if row is incumbent_cell or row == incumbent_cell else ""
         lines.append(
-            f"| {_c_label(row['c'])} | {row['beta_w']:g} | {row['mae']:.4f} "
-            f"| {row['rmse']:.4f} | {row['su_accuracy'] * 100:.2f} | {row['brier']:.5f} "
-            f"| {row['max_calibration_deviation_pp']:.2f} pp |"
+            f"| {bold}{_c_label(row['c'])}{bold} | {bold}{row['beta_w']:g}{bold} "
+            f"| {bold}{row['mae']:.4f}{bold} | {bold}{row['rmse']:.4f}{bold} "
+            f"| {bold}{row['su_accuracy'] * 100:.2f}{bold} | {bold}{row['brier']:.5f}{bold} "
+            f"| {bold}{row['max_calibration_deviation_pp']:.2f} pp{bold} |"
+        )
+    if br["incumbent_rank"] > 10:
+        lines.append(
+            f"| **{_c_label(incumbent_cell['c'])}** | **{incumbent_cell['beta_w']:g}** "
+            f"| **{incumbent_cell['mae']:.4f}** | **{incumbent_cell['rmse']:.4f}** "
+            f"| **{incumbent_cell['su_accuracy'] * 100:.2f}** "
+            f"| **{incumbent_cell['brier']:.5f}** "
+            f"| **{incumbent_cell['max_calibration_deviation_pp']:.2f} pp** |"
         )
     lines += [
-        f"| **{_c_label(incumbent_cell['c'])}** | **{incumbent_cell['beta_w']:g}** "
-        f"| **{incumbent_cell['mae']:.4f}** | **{incumbent_cell['rmse']:.4f}** "
-        f"| **{incumbent_cell['su_accuracy'] * 100:.2f}** | **{incumbent_cell['brier']:.5f}** "
-        f"| **{incumbent_cell['max_calibration_deviation_pp']:.2f} pp** |",
         "",
         f"The bold row is the incumbent — **rank {br['incumbent_rank']} of "
         f"{br['n_cells']}**. **The whole grid spans {br['spread']:.3f} points of MAE**, "
@@ -1263,24 +1402,68 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         "",
         "### The verdicts, by the rules fixed before any of this was run",
         "",
-        "| Arm | Tune Δ MAE | 2024 Δ MAE | Tune Δ calib. | 2024 Δ calib. | Verdict |",
-        "|---|---:|---:|---:|---:|---|",
+        "| Arm | Tune Δ MAE | 2024 Δ MAE | Tune Δ calib. | 2024 Δ calib. "
+        "| Clears its own rule? | **Outcome** |",
+        "|---|---:|---:|---:|---:|---|---|",
     ]
+    blocked = set((val.get("interaction") or {}).get("blocked") or [])
     for label in ("lead1", "lead2", "joint"):
         if label not in verdicts:
             continue
         v = verdicts[label]
+        if label in final_arms:
+            outcome = "**ADOPTED**"
+        elif label in blocked:
+            outcome = "**BLOCKED BY THE INTERACTION**"
+        else:
+            outcome = "not adopted"
         lines.append(
             f"| {label} | {v['tune_mae_delta']:+.4f} | {v['validate_mae_delta']:+.4f} "
             f"| {v['tune_calibration_delta_pp']:+.2f} pp "
             f"| {v['validate_calibration_delta_pp']:+.2f} pp "
-            f"| {'**ADOPTED**' if v['adopted'] else '**REJECTED** — the config keeps the incumbent'} |"  # noqa: E501
+            f"| {'yes' if v['adopted'] else 'no'} | {outcome} |"
         )
     lines += [
         "",
         *[f"- **{label}** — rule: *{verdicts[label]['rule']}*" for label in sorted(verdicts)],
         "",
     ]
+    interaction = val.get("interaction")
+    if interaction and not interaction["joint_clears_both"]:
+        lines += [
+            "### The interaction fired, and the clause that resolves it was ambiguous",
+            "",
+            "The protocol required the joint cell to clear **both** rules again before "
+            "both leads could be adopted together. It did not, so the protocol's own "
+            "resolution applies: *only the lead with the larger pre-declared claim on "
+            "its own objective is adopted, and the other is reported as blocked by the "
+            "interaction.*",
+            "",
+            "**That phrase is ambiguous as written, and the ambiguity is the protocol "
+            "author's fault rather than the data's.** The two claims are in different "
+            "units — points of MAE against percentage points of decile deviation — and "
+            "this project has no exchange rate between them anywhere. Resolving it by "
+            "picking whichever answer one prefers is precisely what a pre-registered "
+            "rule exists to prevent, so it is resolved by the only scale-free "
+            "comparison available: **each lead's claim divided by the bar it had to "
+            "clear**, both fixed in advance and neither chosen with this tie-break in "
+            "mind.",
+            "",
+            "| Lead | Objective | Claim | Its own bar | Claim ÷ bar |",
+            "|---|---|---:|---:|---:|",
+            f"| lead 1 | tune MAE | {-verdicts['lead1']['tune_mae_delta']:.4f} points "
+            f"| {NOISE_FLOOR_MAE} (the noise floor) "
+            f"| {interaction['claim_lead1_mae_over_noise_floor']:.2f}× |",
+            f"| lead 2 | tune calibration | "
+            f"{verdicts['lead2']['tune_calibration_delta_pp']:.2f} pp "
+            f"| {CALIBRATION_ADOPT_PP} pp | "
+            f"{interaction['claim_lead2_calibration_over_bar']:.2f}× |",
+            "",
+            f"**{interaction['larger_claim']} carries the larger relative claim.** "
+            + interaction["reason"]
+            + ".",
+            "",
+        ]
 
     # ---------------- PART 4b: what an arm does to the poll ----------------
     rank_block = store.get("ranking_impact")
@@ -1378,7 +1561,41 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
             f"| {row['residual_mean']:+.3f} | {row['sigma_mean']:.2f} "
             f"| {row['max_deviation_pp']:.2f} pp |"
         )
-    lines += [""]
+    inc_t, inc_v = disp["arms"]["incumbent_tune"], disp["arms"]["incumbent_validate"]
+    l2_t, l2_v = disp["arms"]["lead2_tune"], disp["arms"]["lead2_validate"]
+    l1_t = disp["arms"]["lead1_tune"]
+    lines += [
+        "",
+        "### Yes.",
+        "",
+        f"**{inc_t['slope_z_above_one']:.1f} standard errors above one becomes "
+        f"{l2_t['slope_z_above_one']:.1f} on the tune seasons, and "
+        f"{inc_v['slope_z_above_one']:.1f} becomes {l2_v['slope_z_above_one']:.1f} on "
+        "2024.** A slope that far inside its own standard error is indistinguishable "
+        "from one, which is what a well-dispersed point forecast looks like. The "
+        f"intercept halves on both season sets ({inc_t['intercept']:+.3f} → "
+        f"{l2_t['intercept']:+.3f} on tune, {inc_v['intercept']:+.3f} → "
+        f"{l2_v['intercept']:+.3f} on 2024), and σ falls from "
+        f"{inc_t['sigma_mean']:.2f} to {l2_t['sigma_mean']:.2f} against a realised "
+        f"RMSE of {inc_t['residual_rms']:.2f} — the estimator stops being stale.",
+        "",
+        "Campaign 1 wrote: *\"The mechanism has a name in this codebase. Both the "
+        "affine points calibration and σ are fitted on the games ACCUMULATED SO FAR "
+        "in the season, and the ratings that feed them get better as the season goes "
+        "on.\"* That is the mechanism, and this is it switched off. **The diagnosis "
+        "was right and the pre-registered fix works, on the diagnosis's own quantity "
+        "and on the gate's criterion, and it replicates on a season it was not "
+        "fitted on.**",
+        "",
+        "**And the arm that won on MAE makes it worse.** Lead 1's tune slope is "
+        f"{l1_t['slope']:.4f} against the incumbent's {inc_t['slope']:.4f} — the "
+        "wrong direction, with a decile deviation of "
+        f"{l1_t['max_deviation_pp']:.2f} pp against {inc_t['max_deviation_pp']:.2f}. "
+        "Its rule guarded neither, because its objective was MAE and its objective "
+        "was fixed in advance. The interaction clause is what kept it out, and this "
+        "document does not claim that was the design.",
+        "",
+    ]
 
     # ---------------- PART 6: lead 3 ----------------
     lines += [
@@ -1448,7 +1665,38 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         )
 
     guard_block = store.get("constraint_guard", {})
+    a_t, a_v = hf["arms"]["arm_a_tune"], hf["arms"]["arm_a_validate"]
+    i_t, i_v = hf["arms"]["incumbent_tune"], hf["arms"]["incumbent_validate"]
+    b_t = hf["arms"]["arm_b_tune_NOT_RUNNABLE"]
     lines += [
+        "",
+        "**Two of the four seasons are boundary cases and the protocol predicted "
+        "both.** 2021 has no prior season in the archive. 2022's only prior is 2021, "
+        f"which supplies {hf['per_season_prior_pool']['2022']['n_pairs']} pairs and an "
+        f"estimate of {hf['per_season_prior_pool']['2022']['h']:+.3f} — a *negative* "
+        "home-field advantage, which is not a plausible value of the quantity. So on "
+        "the tune seasons the arm is: one season untreated, one season treated with "
+        "nonsense, one season treated properly. **That the three-season totals barely "
+        "move anyway is itself the finding.** An input that can be wrong by six points "
+        "and change almost nothing is not an input the poll is standing on.",
+        "",
+        "### Read the arithmetic before the argument",
+        "",
+        f"- **MAE moves {a_t['mae'] - i_t['mae']:+.4f} on tune and "
+        f"{a_v['mae'] - i_v['mae']:+.4f} on 2024**, against a noise floor of "
+        f"{NOISE_FLOOR_MAE} declared before any of this was computed. The "
+        f"**unrunnable** arm B moves it {b_t['mae'] - i_t['mae']:+.4f}, so this is not "
+        "the estimator being crippled by its boundary cases either.",
+        f"- **Calibration gets worse on tune** ({i_t['max_calibration_deviation_pp']:.2f} "
+        f"→ {a_t['max_calibration_deviation_pp']:.2f} pp) **and better on 2024** "
+        f"({i_v['max_calibration_deviation_pp']:.2f} → "
+        f"{a_v['max_calibration_deviation_pp']:.2f} pp). It does not hold direction.",
+        "- **Retrodictive violations do not move at all**, to four decimals, on either "
+        "season set.",
+        f"- **The under-dispersion is untouched.** The slope goes {i_t['slope']:.4f} → "
+        f"{a_t['slope']:.4f} on tune and {i_v['slope']:.4f} → {a_v['slope']:.4f} on "
+        "2024 — the wrong way, and by nothing. Anchoring `h` is not a fix for the "
+        "thing that was actually wrong; lead 2 is.",
         "",
         "### The default did not move, and the guard is exercised rather than described",
         "",
@@ -1485,11 +1733,12 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         *_gate_table(before),
         "",
     ]
-    after_label = "joint" if verdicts.get("joint", {}).get("adopted") else None
-    if after_label is None:
-        after_label = next(
-            (k for k in ("lead2", "lead1") if verdicts.get(k, {}).get("adopted")), None
-        )
+    # The arm the config actually moved to, which is the interaction clause's answer
+    # and not simply "whichever arm passed its own rule".
+    final = (val.get("interaction") or {}).get("adopted") or [
+        k for k, v in verdicts.items() if v["adopted"]
+    ]
+    after_label = final[0] if len(final) == 1 else ("joint" if "joint" in final else None)
     if after_label is None:
         lines += [
             "### After — **there is no after**",
@@ -1608,6 +1857,7 @@ STAGES = {
     "joint": stage_joint,
     "freeze": stage_freeze,
     "validate": stage_validate,
+    "verdicts": stage_verdicts,
     "ranking": stage_ranking,
     "homefield": stage_homefield,
     "dispersion": stage_dispersion,

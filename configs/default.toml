@@ -120,6 +120,40 @@ power_scale_min_games = 40
 saturation_tiebreak = "margin"              # margin | none
 
 ####################################################################################
+# Candidate headline ordering C — schedule odds. src/cfbpoll/model/schedule_odds.py
+#
+# NOT THE HEADLINE. [publication].headline_layer is unchanged and remains
+# L4_resume; this block exists so the third candidate ordering compared in
+# docs/analysis/headline-ordering-study.md is configured rather than hard-coded,
+# per constraint 5. Nothing on the live poll path reads it today.
+#
+# The ordering is ESPN's Strength-of-Record sentence taken literally (report 02
+# §2.4): the probability that a team of reference quality q_ref would have gone
+# at least this well against this exact schedule, computed exactly by the
+# Poisson-binomial convolution rather than by ESPN's ~20,000-run Monte Carlo.
+# Rank key is −log10 of that probability. Margin never enters.
+####################################################################################
+[schedule_odds]
+# q_ref is the ONE free constant in this ordering, so it is published every week
+# together with the name of the team it came from.
+#   power_rank_25   Power of the 25th-ranked Power team — the default reading of
+#                   "an average Top-25 team": a single nameable team, sitting at
+#                   the boundary of the group, so it is the least flattering
+#                   defensible choice.
+#   mean_top_25     mean Power of the top 25 — the other defensible reading.
+#   power_rank_10   a deliberately harsher reference, for sensitivity only.
+#   mean_fbs        the league-average team; not top-25 at all, included so the
+#                   sensitivity table has a far end.
+#   fixed           q_ref_fixed_points below. Breaks invariance to the zero point
+#                   of the Power fit, which is why it is not the default.
+q_ref_method = "power_rank_25"
+q_ref_fixed_points = 0.0
+
+# Reported in the study's sensitivity table (§9). Changing this list changes no
+# published number; it changes which alternatives get measured.
+q_ref_sensitivity = ["power_rank_25", "mean_top_25", "power_rank_10", "mean_fbs"]
+
+####################################################################################
 # Expected points — OUR model, not anyone else's. src/cfbpoll/model/ep.py
 #
 # Report 02 §3.1 specifies L1 as a ridge on play-level EPA, and the archive ships

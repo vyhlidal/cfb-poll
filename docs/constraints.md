@@ -124,10 +124,14 @@ weekly workflow and the reproducibility workflow.
 
 Nothing else may enter a design matrix (report 02 §3.10):
 
-- **L1:** play EPA, offense team ID, defense team ID, home/away/neutral, quarter,
-  score margin, clock *(the last three only for garbage-time filtering)*
+- **EP (our expected-points model):** down, distance, yards to goal, points
+  scored on a play, and the scoring segment. Nothing else — not the clock, not
+  the score, not the teams.
+- **L1:** **our** play value from that model, offense team ID, defense team ID,
+  home/away/neutral, quarter, score margin, clock *(the last three only for
+  garbage-time filtering)*
 - **L2:** final score, team IDs, home/away/neutral, game type
-- **L3:** L1 and L2 outputs
+- **L3:** L1 and L2 outputs, home/away/neutral
 - **L4:** L3 outputs, win/loss, schedule
 
 ## The trap this is really guarding
@@ -135,15 +139,26 @@ Nothing else may enter a design matrix (report 02 §3.10):
 The banned list is easy to honour when the data arrives labelled. It is hard when
 the banned values are sitting in the same file as the facts.
 
-The SportsDataverse play-by-play parquet ships precomputed `EPA` and `wpa`
-columns; the schedule files ship `home_pregame_elo`, `home_postgame_elo` and
-`excitement_index` (report 01 §5.6). CFBD documents PPA, win probability, WEPA,
-Elo, SRS and CORE as **proprietary models** whose "exact formulas, fitted
-coefficients, training artifacts, and every implementation detail are not part of
-the public documentation."
+The SportsDataverse play-by-play parquet ships precomputed `EPA`, `ppa` and `wpa`
+columns plus a six-column next-score probability block; the schedule files ship
+`home_pregame_elo`, `home_postgame_elo` and `excitement_index` (report 01 §5.6).
+CFBD documents PPA, win probability, WEPA, Elo, SRS and CORE as **proprietary
+models** whose "exact formulas, fitted coefficients, training artifacts, and every
+implementation detail are not part of the public documentation."
 
 > Do not let these leak into the model just because they are conveniently present
 > in the same file.
+
+**This is not hypothetical, and it is the one place the constraint cost real
+work.** Report 02 §3.1 specifies L1 as a ridge on play-level EPA, and the `EPA`
+column is right there in the file the loader already opens. Honouring the ban
+meant writing our own expected-points model — `src/cfbpoll/model/ep.py`, the
+Carter/Romer/Burke next-score construction, about a hundred lines, every constant
+in `configs/default.toml` under `[ep]`. It correlates with the shipped column at
+**r = 0.847** over 221,945 plays in 2023, with matching standard deviations (1.516
+ours, 1.514 theirs). That number is reported as a validation diagnostic and is
+never fitted to; the function that computes it names the banned column in its own
+signature so nobody can reach it by accident.
 
 Every third-party rating is a **benchmark, never an input**. The audit is an
 allow-list check, not a deny-list check, so an input nobody thought of fails

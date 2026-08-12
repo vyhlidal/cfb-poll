@@ -6,10 +6,12 @@ fork story) and §9.2 (the byte-match replay job). Every verb invoked by
 here, so that the workflows are a readable specification of the pipeline even
 before the pipeline exists.
 
-STATUS: PARTIAL. `rank` and `backtest` are real and run offline against the
-local MIT archive. Everything else is still a stub that raises
-NotImplementedError when invoked - `--help` is accurate about what each verb
-WILL do, and no command silently pretends to have worked.
+STATUS: PARTIAL. `rank`, `grid` and `backtest` are real and run offline against
+the local MIT archive. `rank` publishes the L4 résumé as the headline, per report
+02 §3.5 - but opponent quality is L2 rather than the L3 blend, because L1 and L3
+do not exist, and every artifact says `power_source = "L2"`. Everything else is
+still a stub that raises NotImplementedError when invoked - `--help` is accurate
+about what each verb WILL do, and no command silently pretends to have worked.
 
 Season/week options are typed as strings rather than integers on purpose: GitHub
 Actions passes an empty string for an omitted workflow input, and blank means
@@ -31,8 +33,10 @@ app = typer.Typer(
     name="cfbpoll",
     help=(
         "An open, bias-free college football ranking. "
-        "PARTIAL BUILD: `rank` and `backtest` work (L2 results core only); "
-        "every other command is a stub and raises NotImplementedError."
+        "PARTIAL BUILD: `rank`, `grid` and `backtest` work. The headline poll is "
+        "the L4 resume rating; opponent quality is L2 (power_source=L2, v0) "
+        "because L1 and L3 are not built. Every other command is a stub and "
+        "raises NotImplementedError."
     ),
     epilog=_EPILOG,
     no_args_is_help=True,
@@ -230,24 +234,33 @@ def rank(
 ) -> None:
     """Fit the model and write the ratings, the poll and the run record.
 
-    TODAY THIS IS L2 ONLY - the results core, ridge on compressed scoring margin
-    (report 02 §3.2). It is a complete, working, constraint-compliant ranking
-    system on its own, and every artifact it writes says so: the poll is labelled
-    "L2 results core, v0" in model_params.json and poll.json. L1 efficiency, the
-    L3 blend and the L4 resume rating are not implemented, so the headline layer
-    named in configs/default.toml ([publication].headline_layer = L4_resume) is
-    NOT what is being published yet and the output says that too.
+    THE HEADLINE IS THE RESUME (report 02 §3.5). Teams are ranked by the L4
+    resume rating - the quality q whose expected results against that exact
+    schedule equal the actual ones - with the Power rating and the
+    resume-minus-power gap printed beside every team. Both resume variants
+    (wins-based and margin-aware) and both surfaces (live R(N,N) and hindsight
+    R(N,final)) reach poll.json and poll.csv.
 
-    Writes ratings_live.parquet (+ .csv), poll.json/poll.csv, model_params.json
-    and _run.json to --out. Report 03 §5.3 fixes those filenames.
+    WHAT IS NOT FINISHED, said plainly on every artifact: opponent quality
+    should be L3, the blend of L1 efficiency and L2 results. L1 and L3 do not
+    exist, so Power is L2 rescaled to points, and `power_source` = "L2" /
+    `power_version` = "v0" is stamped on model_params.json, poll.json and every
+    ratings row. The bootstrap rank intervals are not built either.
+
+    Writes ratings_live.parquet, ratings_hindsight.parquet (+ .csv),
+    poll.json/poll.csv, model_params.json and _run.json to --out. Report 03 §5.3
+    fixes those filenames. `cfbpoll grid` writes the same two surfaces for every
+    week of a season at once, in the same schema.
 
     Weeks before configs/default.toml's headline_start_week are written as
     clearly-labelled provisional output, never as "the poll" (report 02 §4).
     """
+    import polars as pl
+
     from cfbpoll.config import load_config
     from cfbpoll.ingest import windows
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
-    from cfbpoll.model import l2_results
+    from cfbpoll.model import l4_resume, retro
     from cfbpoll.publish import files
     from cfbpoll.publish import poll as poll_mod
 
@@ -267,21 +280,35 @@ def rank(
     else:
         week_i = int(through_week)
 
-    window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
-    fit = l2_results.fit(window, cfg)
+    evaluated = next(b for b in regular if b.week == week_i)
+    final = buckets[-1]
 
-    ratings = poll_mod.ratings_frame(fit.ratings, window)
-    table = poll_mod.poll_frame(ratings, restrict_to=poll_mod.fbs_teams(window))
+    window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
+    power = l4_resume.power_from_l2(window, cfg)
+    fitted = l4_resume.fit(window, cfg, power=power)
+
+    live = retro.cell(games, evaluated, evaluated, cfg, power=power)
+    hindsight = retro.cell(games, evaluated, final, cfg)
+    table = poll_mod.headline_frame(live, hindsight)
     provisional, label = poll_mod.publication_status(week_i, cfg)
 
+    l2 = power.l2
     params = {
-        **fit.as_params(),
+        **fitted.as_params(),
+        **(l2.as_params() if l2 is not None else {}),
+        "layer": l4_resume.LAYER,
+        "version": l4_resume.VERSION,
         "season": season_i,
-        "through": {"season_type": "regular", "week": week_i},
+        "through": {"season_type": evaluated.season_type, "week": evaluated.week},
         "provisional": provisional,
         "provisional_label": label,
-        "headline_layer_when_complete": cfg["publication"]["headline_layer"],
-        "layers_implemented": ["L2"],
+        "headline_layer": cfg["publication"]["headline_layer"],
+        "companion_layer": cfg["publication"]["companion_layer"],
+        "hindsight_variant": retro.HINDSIGHT_VARIANT,
+        "hindsight_data_bucket": final.label,
+        "hindsight_is_live": final.order == evaluated.order,
+        "layers_implemented": ["L2", "L4"],
+        "layers_missing": ["L1", "L3", "bootstrap"],
         "seed": seed if seed is not None else cfg["bootstrap"]["seed"],
     }
     run = {
@@ -289,20 +316,33 @@ def rank(
         "through_week": week_i,
         "archive": str(DEFAULT_ARCHIVE),
         "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
-        "n_games_in_fit": fit.n_games,
-        "n_teams_in_fit": fit.n_teams,
+        "n_games_in_fit": int(window.height),
+        "n_teams_in_fit": int(live.height),
+        "n_ranked_teams": int(table.height),
     }
-    written = files.write_rank_outputs(out, ratings, table, params, run, config_path=config)
+    written = files.write_rank_outputs(out, live, hindsight, table, params, run, config_path=config)
 
+    saturated = int(table.filter(pl.col("saturated") != 0).height)
     typer.echo(
-        f"L2 results core v0 - {season_i} through regular week {week_i}: "
-        f"{fit.n_games} games, {fit.n_teams} teams, lambda={fit.lam:g}, h={fit.home_field:.3f}"
+        f"L4 resume v0 (Power = {params['power_source']} {params['power_version']}) - "
+        f"{season_i} through {evaluated.label}: {window.height} games, "
+        f"{live.height} teams, {table.height} ranked, "
+        f"lambda={l2.lam:g} b={power.scale:.3f} h={power.home_field:.3f}"
+        if l2 is not None
+        else f"L4 resume v0 - {season_i} through {evaluated.label}"
+    )
+    typer.echo(
+        f"  {saturated} ranked team(s) saturated at the q bound (*); order among them "
+        "from the margin variant ([resume].saturation_tiebreak)"
         + ("  [PROVISIONAL]" if provisional else "")
     )
+    typer.echo(f"{'#':>3}  {'team':<26}{'resume':>8}{'power':>8}{'gap':>7}   rec   retro")
     for row in table.head(25).iter_rows(named=True):
+        mark = "*" if row["saturated"] else " "
         typer.echo(
-            f"{row['rank']:>3}  {row['team']:<26} {row['rating']:>7.3f}"
-            f"  ({row['wins']}-{row['losses']})"
+            f"{row['rank']:>3}  {row['team']:<26}{row['resume']:>7.2f}{mark}"
+            f"{row['power']:>8.2f}{row['gap']:>7.2f}"
+            f"  {row['wins']}-{row['losses']}  {row['rank_delta']:+d}"
         )
     typer.echo("wrote: " + ", ".join(p.name for p in written))
 

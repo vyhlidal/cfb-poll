@@ -61,12 +61,15 @@ OUTPUT_FILENAMES: tuple[str, ...] = (
     "_run.json",
 )
 
-#: Written by `cfbpoll rank` today. The rest of OUTPUT_FILENAMES belongs to
-#: layers that do not exist yet, and writing an empty file for them would be a
-#: fabricated capability.
-L2_OUTPUTS: tuple[str, ...] = (
+#: Written by `cfbpoll rank`: one evaluation week N, both surfaces. The rest of
+#: OUTPUT_FILENAMES belongs to work that does not exist yet - the bootstrap's
+#: rank intervals, the next-slate predictions - and writing an empty file for
+#: them would be a fabricated capability.
+RANK_OUTPUTS: tuple[str, ...] = (
     "ratings_live.parquet",
     "ratings_live.csv",
+    "ratings_hindsight.parquet",
+    "ratings_hindsight.csv",
     "poll.json",
     "poll.csv",
     "model_params.json",
@@ -112,26 +115,51 @@ def _git_sha() -> str:
 
 def write_rank_outputs(
     out: Path,
-    ratings: pl.DataFrame,
+    live: pl.DataFrame,
+    hindsight: pl.DataFrame,
     poll: pl.DataFrame,
     params: dict[str, Any],
     run: dict[str, Any],
     config_path: Path | None = None,
 ) -> list[Path]:
-    """Write the L2-only artifact set. Returns the paths written, sorted."""
-    out.mkdir(parents=True, exist_ok=True)
+    """Write one evaluation week's artifact set. Returns the paths written, sorted.
 
-    ratings = ratings.sort(["rating", "team"], descending=[True, False])
+    `live` and `hindsight` are R(N, N) and R(N, final) for the same N, in the
+    schema `model/retro.py` defines, already sorted by its ordering rule - so
+    `ratings_live.parquet` here is one slice of what `cfbpoll grid` writes for a
+    whole season, not a different shape. `poll` is the joined headline table.
+    """
+    out.mkdir(parents=True, exist_ok=True)
     poll = poll.sort("rank")
 
-    ratings.write_parquet(out / "ratings_live.parquet")
-    ratings.write_csv(out / "ratings_live.csv")
+    live.write_parquet(out / "ratings_live.parquet")
+    live.write_csv(out / "ratings_live.csv")
+    hindsight.write_parquet(out / "ratings_hindsight.parquet")
+    hindsight.write_csv(out / "ratings_hindsight.csv")
     poll.write_csv(out / "poll.csv")
 
     _json_dump(
         out / "poll.json",
         {
-            **{k: v for k, v in params.items() if k in ("season", "through", "layer", "version")},
+            **{
+                k: v
+                for k, v in params.items()
+                if k
+                in (
+                    "season",
+                    "through",
+                    "layer",
+                    "version",
+                    "headline_layer",
+                    "companion_layer",
+                    "power_source",
+                    "power_version",
+                    "hindsight_variant",
+                    "hindsight_data_bucket",
+                    "hindsight_is_live",
+                    "saturation_tiebreak",
+                )
+            },
             "provisional": params.get("provisional"),
             "provisional_label": params.get("provisional_label"),
             "top25": poll.head(25).to_dicts(),
@@ -147,10 +175,10 @@ def write_rank_outputs(
             "config_hash": config_hash(config_path or DEFAULT_CONFIG_PATH),
             "config_path": str(config_path or DEFAULT_CONFIG_PATH),
             "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
-            "files": sorted(L2_OUTPUTS),
+            "files": sorted(RANK_OUTPUTS),
         },
     )
-    return sorted((out / name) for name in L2_OUTPUTS)
+    return sorted((out / name) for name in RANK_OUTPUTS)
 
 
 def write_grid_outputs(
@@ -202,9 +230,13 @@ def canonicalize(src: Path, dest: Path) -> Path:
     (report 03 §9.3 item 4). `_run.json` is deliberately NOT part of this: it
     carries a wall-clock timestamp by design.
     """
-    ratings = pl.read_parquet(src / "ratings_live.parquet").sort(["team"])
-    lines = ["team,rating"]
-    lines += [f"{t},{r:.10g}" for t, r in zip(ratings["team"], ratings["rating"], strict=True)]
+    ratings = pl.read_parquet(src / "ratings_live.parquet").sort(["eval_order", "team"])
+    lines = ["eval_label,team,resume,resume_margin,power"]
+    lines += [
+        f"{row['eval_label']},{row['team']},{row['resume']:.10g},"
+        f"{row['resume_margin']:.10g},{row['power']:.10g}"
+        for row in ratings.iter_rows(named=True)
+    ]
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return dest

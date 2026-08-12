@@ -7,18 +7,20 @@ No human polls. No recruiting rankings. No reputation. No black boxes. Every
 number on every page recomputable by a stranger with no API key, no account, and
 no permission from anyone.
 
-> ## ⚠️ Status: the results core works. The finished poll does not exist yet.
+> ## ⚠️ Status: the poll exists. Two of its four layers do not.
 >
 > **What runs today:** the games loader over the MIT archive, the L2 results core
-> (ridge on compressed scoring margin), `cfbpoll rank`, and the full walk-forward
-> backtest against every baseline — `cfbpoll backtest`. Real output is committed
-> under [`demo/`](demo/).
+> (ridge on compressed scoring margin), the **L4 résumé rating — the headline
+> poll**, the full R(N, K) retroactive grid (`cfbpoll grid`), `cfbpoll rank`, and
+> the walk-forward backtest against every baseline (`cfbpoll backtest`). Real
+> output is committed under [`demo/`](demo/).
 >
-> **What does not:** L1 efficiency, the L3 blend, the L4 résumé rating, the
-> bootstrap intervals, publishing, and the site. The headline layer named in
-> `configs/default.toml` is L4 résumé and **that is not what `rank` publishes**;
-> every artifact it writes says so in `model_params.json`. Those commands still
-> raise `NotImplementedError` rather than pretending.
+> **What does not:** L1 efficiency and the L3 blend. Report 02 §3.4 reads
+> opponent quality off L3; L3 does not exist, so **Power is L2 rescaled to
+> points**, and every artifact stamps `power_source = "L2"`, `power_version =
+> "v0"` rather than letting a reader assume otherwise. The bootstrap rank
+> intervals, publishing and the site are also still stubs, and they raise
+> `NotImplementedError` rather than pretending.
 >
 > See [Status](#status) for what exists versus what is coming.
 
@@ -171,9 +173,9 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 | `make .venv` | **Works now.** `uv sync --locked` — installs Python 3.12 and every pinned wheel |
 | `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
 | `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
+| `make grid` | **Works now.** The R(N, K) retroactive triangle for one season (`GRID_SEASON=2023`) |
 | `make rankings` | Sync the archive, fit L1–L4, bootstrap intervals, build the static site |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
-| `make grid` | The 5 seasons × 15 weeks × 15 windows retroactive grid |
 | `make site` | Build the static site into `site/_build` |
 | `make test` / `make lint` | pytest / ruff |
 
@@ -182,7 +184,8 @@ cfbpoll ingest {cfbd,sportsdataverse}   pull a week or a season into the archive
 cfbpoll archive {sync,push}             materialise or push the raw archive
 cfbpoll validate                        data-quality gate; halt and publish nothing on failure
 cfbpoll audit-features                  fail the build if a banned input reached a model matrix
-cfbpoll rank                            fit L1-L4, write out/
+cfbpoll rank                            fit the model, write the poll and both surfaces
+cfbpoll grid                            the full R(N,K) retroactive triangle for a season
 cfbpoll bootstrap                       rank + rating intervals
 cfbpoll guard                           has this week already been published?
 cfbpoll canonicalize                    emit the sorted CSV that golden fixtures hash
@@ -196,31 +199,41 @@ cfbpoll site build                      build the static site
 
 **What exists**
 
-- Repository skeleton, package layout, and the `cfbpoll` CLI surface (`--help` is
-  accurate; every command raises `NotImplementedError`)
+- The canonical games loader over the local MIT archive (2021–2025), with the
+  binding week-bucket rules of `docs/data-findings.md`
+- **L2 results core** — ridge on compressed scoring margin, every FBS *and* FCS
+  team with its own coefficient under the same penalty
+- **L4 résumé rating — the headline poll.** Root-solve for the quality `q` whose
+  expected results against that exact schedule equal the actual ones, in both the
+  wins-based and margin-aware variants, with Power and the résumé-minus-power gap
+  beside every team
+- **R(N, K) and retroactive re-ranking** — `cfbpoll grid` writes the full
+  upper-triangular surface, the live and hindsight surfaces, and the biggest
+  retroactive movers
+- The strict walk-forward backtest and all five computed baselines
 - `configs/default.toml` — every model constant with its starting value, its
   backtest grid, and a citation to the research section that fixed it
 - Licenses: MIT for code, CC BY 4.0 for published ratings, upstream notices
 - The five constraints and the banned-input table (`docs/constraints.md`)
 - Four architecture decision records (`docs/adr/`)
 - `weekly.yml` and `reproducibility.yml`, committed as the specification. Both are
-  `workflow_dispatch` only — no schedule, so nothing fires accidentally — and both
-  will fail until the CLI is real
-- One passing test: the CLI imports and `--help` runs
+  `workflow_dispatch` only — no schedule, so nothing fires accidentally
 
 **What is coming, in build order** (research report 03 §10, report 02 Appendix B)
 
 1. The MIT backfill onto disk, checksummed into `data/manifests/` — the step most
    likely to be lost forever if delayed
 2. `cfbpoll archive sync --verify` and the archive published as `archive-v1`
-3. **L2 alone** — ridge on compressed margin, ~100 lines. A complete,
-   constraint-compliant ranking system. Ship the smallest real thing
-4. **The backtest harness and all eight baselines** — built second, not last,
-   because every subsequent decision depends on it
-5. `reproducibility.yml` with the first golden fixture
-6. `weekly.yml` end to end, run manually before any clock is attached
-7. L4 résumé → L1 efficiency → L3 blend → bootstrap intervals
-8. The static site, the sandbox web app, and the challenge harness
+3. ~~**L2 alone**~~ — done
+4. ~~**The backtest harness and the computed baselines**~~ — done, built second
+   rather than last because every subsequent decision depends on it
+5. ~~**L4 résumé and the R(N, K) grid**~~ — done; this is the headline poll and
+   the retroactive product
+6. `reproducibility.yml` with the first golden fixture
+7. `weekly.yml` end to end, run manually before any clock is attached
+8. **L1 efficiency → L3 blend** — which is what replaces `power_source = "L2"`
+   with the real thing — then bootstrap rank intervals
+9. The static site, the sandbox web app, and the challenge harness
 
 **Known gaps, recorded rather than glossed**
 

@@ -14,16 +14,16 @@ JOBS ?= 4
 .PHONY: help rankings archive backtest demos replay replay-tolerant grid site test lint clean
 
 help:
-	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'demos', 'test', 'lint' work."
+	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'grid', 'demos', 'test', 'lint' work."
 	@echo
 	@echo "  make .venv            uv sync --locked  (installs Python 3.12 + pinned wheels)"
 	@echo "  make rankings         archive sync -> rank -> bootstrap -> site  [stub]"
 	@echo "  make archive          fetch + sha256-verify the MIT archive       [stub]"
 	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
+	@echo "  make grid             the R(N,K) retroactive triangle for one season"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
-	@echo "  make grid             the 5 x 15 x 15 retroactive grid            [stub]"
 	@echo "  make site             build the static site into site/_build      [stub]"
 	@echo "  make test / make lint pytest / ruff"
 
@@ -76,11 +76,16 @@ replay-tolerant: .venv
 	@echo "[stub] the same replay with a ~1e-12 tolerance, for local Mac use."
 	@echo "NOT IMPLEMENTED — report 03 §9.3 item 5."
 
+# Real. The full retroactive triangle for one season: every evaluation week N
+# against every data window K >= N, storing R(N,N), R(N,final) and the delta.
+# Stays in parquet as a release asset; never loaded into Postgres (report 03 §5.4).
+GRID_SEASON ?= 2023
 grid: .venv
-	@echo "[stub] the full retroactive grid: 5 seasons x 15 evaluation weeks x 15"
-	@echo "       data windows, storing R(N,N), R(N,final) and the delta."
-	@echo "       Stays in parquet as a release asset; never loaded into Postgres."
-	@echo "NOT IMPLEMENTED — report 02 §3.6, report 03 §5.4."
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run cfbpoll grid --config $(CONFIG) --season $(GRID_SEASON) --out $(OUT)
+	@echo
+	@echo "2021 and 2022 carry no postseason rows in the archive, so \"final\" in"
+	@echo "those seasons means through conference championships."
 
 site: .venv
 	@echo "[stub] uv run cfbpoll site build --from $(OUT)/ --to site/_build"

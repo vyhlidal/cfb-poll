@@ -104,8 +104,13 @@ def _through(games: pl.DataFrame, bucket: windows.Bucket) -> pl.DataFrame:
     )
 
 
-def _label(frame: pl.DataFrame, evaluated: windows.Bucket, data: windows.Bucket) -> pl.DataFrame:
-    """Attach the (N, K) coordinates to a résumé table."""
+def _label(
+    frame: pl.DataFrame,
+    evaluated: windows.Bucket,
+    data: windows.Bucket,
+    final_order: int,
+) -> pl.DataFrame:
+    """Attach the (N, K) coordinates and the two surface flags to a résumé table."""
     return frame.with_columns(
         season=pl.lit(evaluated.season, dtype=pl.Int32),
         eval_order=pl.lit(evaluated.order, dtype=pl.Int32),
@@ -116,7 +121,9 @@ def _label(frame: pl.DataFrame, evaluated: windows.Bucket, data: windows.Bucket)
         data_season_type=pl.lit(data.season_type),
         data_week=pl.lit(data.week, dtype=pl.Int32),
         data_label=pl.lit(data.label),
-    ).select([c for c in GRID_COLUMNS if c not in ("is_live", "is_hindsight")])
+        is_live=pl.lit(evaluated.order == data.order),
+        is_hindsight=pl.lit(data.order == final_order),
+    ).select(GRID_COLUMNS)
 
 
 def cell(
@@ -126,13 +133,14 @@ def cell(
     config: dict[str, Any] | None = None,
     power: l4_resume.PowerSource | None = None,
     classes: dict[str, str] | None = None,
+    final_order: int | None = None,
 ) -> pl.DataFrame:
     """One R(N, K). `games` is the whole season; this function does the slicing.
 
     `power` short-circuits the L2 fit for the K window, which is how `grid`
-    pays for one fit per column instead of one per cell. `classes` likewise
-    avoids recomputing a stable mapping; both are pure caches and neither can
-    change the answer.
+    pays for one fit per column instead of one per cell. `classes` and
+    `final_order` likewise avoid recomputing something stable; all three are
+    pure caches and none of them can change a number.
     """
     cfg = config if config is not None else load_config()
     if data.order < evaluated.order:
@@ -147,7 +155,9 @@ def cell(
         power = l4_resume.power_from_l2(power_window, cfg)
     fitted = l4_resume.fit(power_window, cfg, power=power, resume_games=resume_window)
     table = l4_resume.resume_frame(fitted, classes or poll_mod.team_classes(season_games))
-    return _label(table, evaluated, data)
+    if final_order is None:
+        final_order = _season_buckets(games, evaluated.season)[-1].order
+    return _label(table, evaluated, data, final_order)
 
 
 def _season_buckets(games: pl.DataFrame, season: int) -> list[windows.Bucket]:
@@ -165,8 +175,11 @@ def live_surface(
     all_buckets = buckets if buckets is not None else _season_buckets(games, season)
     season_games = games.filter(pl.col("season") == season)
     classes = poll_mod.team_classes(season_games)
-    frames = [cell(season_games, b, b, cfg, classes=classes) for b in all_buckets]
-    return _finalize(pl.concat(frames, how="vertical"), all_buckets)
+    final_order = all_buckets[-1].order
+    frames = [
+        cell(season_games, b, b, cfg, classes=classes, final_order=final_order) for b in all_buckets
+    ]
+    return _finalize(pl.concat(frames, how="vertical"))
 
 
 def hindsight_surface(
@@ -190,8 +203,11 @@ def hindsight_surface(
     classes = poll_mod.team_classes(season_games)
     final = all_buckets[-1]
     power = l4_resume.power_from_l2(_through(season_games, final), cfg)
-    frames = [cell(season_games, b, final, cfg, power=power, classes=classes) for b in all_buckets]
-    return _finalize(pl.concat(frames, how="vertical"), all_buckets)
+    frames = [
+        cell(season_games, b, final, cfg, power=power, classes=classes, final_order=final.order)
+        for b in all_buckets
+    ]
+    return _finalize(pl.concat(frames, how="vertical"))
 
 
 def grid(
@@ -218,23 +234,25 @@ def grid(
         for evaluated in all_buckets:
             if evaluated.order > data.order:
                 continue
-            frames.append(cell(season_games, evaluated, data, cfg, power=power, classes=classes))
-    return _finalize(pl.concat(frames, how="vertical"), all_buckets)
+            frames.append(
+                cell(
+                    season_games,
+                    evaluated,
+                    data,
+                    cfg,
+                    power=power,
+                    classes=classes,
+                    final_order=all_buckets[-1].order,
+                )
+            )
+    return _finalize(pl.concat(frames, how="vertical"))
 
 
-def _finalize(frame: pl.DataFrame, buckets: list[windows.Bucket]) -> pl.DataFrame:
-    """Attach the surface flags and impose the one sort order every writer uses."""
-    final_order = buckets[-1].order if buckets else 0
-    return (
-        frame.with_columns(
-            is_live=pl.col("eval_order") == pl.col("data_order"),
-            is_hindsight=pl.col("data_order") == pl.lit(final_order, dtype=pl.Int32),
-        )
-        .select(GRID_COLUMNS)
-        .sort(
-            ["eval_order", "data_order", "resume", "resume_margin", "team"],
-            descending=[False, False, True, True, False],
-        )
+def _finalize(frame: pl.DataFrame) -> pl.DataFrame:
+    """Impose the one sort order every writer uses. No other module re-sorts."""
+    return frame.select(GRID_COLUMNS).sort(
+        ["eval_order", "data_order", "resume", "resume_margin", "team"],
+        descending=[False, False, True, True, False],
     )
 
 

@@ -125,6 +125,11 @@ GRID_COLUMNS: tuple[str, ...] = (
     "resume",
     "resume_margin",
     "power",
+    # The ridge sandwich standard error of the Power rating, in points (report 02
+    # §3.3, model/ridge.py::sandwich). Per team, per week, on every surface -
+    # because "how precisely is this pinned down" is a property of the data
+    # window and belongs beside the number it qualifies, not in a footnote.
+    "power_se",
     "gap",
     "saturated",
 )
@@ -197,6 +202,7 @@ def _cell_frame(
             "resume": [fitted.resume[t] for t in teams],
             "resume_margin": [fitted.resume_margin[t] for t in teams],
             "power": [fitted.power.rating(t) for t in teams],
+            "power_se": [fitted.power.rating_se(t) for t in teams],
             "gap": [fitted.gap(t) for t in teams],
             "saturated": pl.Series([fitted.saturated[t] for t in teams], dtype=pl.Int8),
         }
@@ -456,6 +462,7 @@ def movers(
         "resume",
         "resume_margin",
         "power",
+        "power_se",
         "gap",
     ]
     a = live.filter(pl.col("rank").is_not_null()).select(keep)
@@ -473,6 +480,7 @@ def movers(
             "resume": "resume_live",
             "resume_margin": "resume_margin_live",
             "power": "power_live",
+            "power_se": "power_se_live",
             "gap": "gap_live",
         }
     ).with_columns(

@@ -445,10 +445,31 @@ fit_universe = "model"                      # all | model | fbs_vs_fbs
 
 ####################################################################################
 # Bootstrap — report 02 §3.3, determinism from report 03 §9.3
+#
+# THE SCHEME REPORT 02 §3.3 SPECIFIED IS NOT THE ONE THAT RUNS, and the correction
+# is deliberate. Its parenthetical said "resample games with replacement, refit";
+# src/cfbpoll/model/bootstrap.py copied that into a docstring and never built it.
+# It is invalid here. Games are EDGES IN THE SCHEDULE GRAPH, not exchangeable
+# observations: resampling edges can disconnect the graph and can strand a team
+# with no games, destroying exactly the connectivity that identifies a
+# cross-conference comparison. Measured over 1,000 draws on 2023 through week 10,
+# it breaks the graph in 100.0% of them (docs/analysis/uncertainty.md §1, and
+# `cfbpoll bootstrap --naive-diagnostic` recomputes it).
+#
+# WHAT RUNS: a parametric bootstrap on the FIXED schedule. The calendar was set
+# years in advance and is not random; the outcomes are. Each draw redraws every
+# game's margin from Normal(Power_h - Power_a + h*site, sigma^2), refits the
+# results core, rebuilds Power and re-ranks with the same functions the poll
+# calls. Each draw is a complete alternative season on the real calendar.
 ####################################################################################
 [bootstrap]
 draws = 1000                                # 500 is the documented floor
 interval = 0.90                             # publish 90% rating AND rank intervals
+# ACCEPTED AND IGNORED. The draws run sequentially. Per-draw streams come from
+# SeedSequence.spawn, so a future executor cannot move a published number - which
+# is the entire reason the seeding is done that way rather than as an
+# afterthought (report 03 §9.3 item 2). Stated rather than implied, because a
+# config key that does nothing is a small lie about the methodology.
 jobs = 4
 seed = 20260812                             # explicit PCG64 seed; never np.random.seed
 # Per-draw seeds are derived with SeedSequence.spawn so results are identical

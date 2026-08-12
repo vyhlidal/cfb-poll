@@ -77,8 +77,8 @@ def test_the_headline_is_schedule_odds_and_the_power_source_is_declared(ranked: 
     assert params["headline_ordering"] == "schedule_odds"
     assert params["headline_layer"] == "C_schedule_odds"
     assert params["resume_layer"] == "L4 resume rating"
-    assert params["layers_implemented"] == ["L1", "L2", "L3", "L4"]
-    assert params["layers_missing"] == ["bootstrap"]
+    assert params["layers_implemented"] == ["L1", "L2", "L3", "L4", "bootstrap"]
+    assert params["layers_missing"] == []
     assert params["power_source"] == "L3"
     assert params["power_version"] == "v1"
     assert params["provisional"] is False  # week 10 >= headline_start_week
@@ -283,10 +283,24 @@ def test_a_one_loss_team_can_outrank_an_unbeaten_team(ranked: Path) -> None:
 
 
 def test_provisional_weeks_are_labelled(tmp_path: Path) -> None:
+    """`--draws 0` here does double duty: it keeps a labelling test fast, and it
+    exercises the no-bootstrap path, which must publish EMPTY interval columns
+    rather than fabricated ones. A file that quietly omits the interval and a
+    file that quietly invents one are both worse than a null."""
     result = runner.invoke(
-        app, ["rank", "--season", "2023", "--through-week", "3", "--out", str(tmp_path)]
+        app,
+        # fmt: off
+        [
+            "rank", "--season", "2023", "--through-week", "3",
+            "--draws", "0", "--out", str(tmp_path),
+        ],
+        # fmt: on
     )
     assert result.exit_code == 0, result.output
+    poll = pl.read_csv(tmp_path / "poll.csv")
+    assert poll["rank_lo"].null_count() == poll.height
+    assert pl.read_parquet(tmp_path / "rank_intervals.parquet").height == 0
+    assert json.loads((tmp_path / "model_params.json").read_text())["bootstrap_draws"] == 0
     assert "PROVISIONAL" in result.output
     params = json.loads((tmp_path / "model_params.json").read_text())
     assert params["provisional"] is True
@@ -297,17 +311,65 @@ def test_provisional_weeks_are_labelled(tmp_path: Path) -> None:
 
 
 def test_rank_is_reproducible(tmp_path: Path) -> None:
+    """Byte-identical across two runs, INTERVALS INCLUDED.
+
+    The intervals come out of a seeded RNG, which is exactly the kind of thing
+    that silently stops being reproducible, so `files.canonicalize` covers them
+    and this test is what would notice. The draw count is small only to keep the
+    suite quick - determinism does not depend on it, and the seeding
+    (SeedSequence.spawn per draw) is what makes that true rather than lucky."""
     first, second = tmp_path / "a", tmp_path / "b"
     for out in (first, second):
         assert (
             runner.invoke(
-                app, ["rank", "--season", "2022", "--through-week", "8", "--out", str(out)]
+                app,
+                # fmt: off
+                [
+                    "rank", "--season", "2022", "--through-week", "8",
+                    "--draws", "40", "--out", str(out),
+                ],
+                # fmt: on
             ).exit_code
             == 0
         )
     a = files.canonicalize(first, first / "canonical.csv").read_text()
     b = files.canonicalize(second, second / "canonical.csv").read_text()
     assert a == b
+    assert "rank_lo" in a and "power_se" in a
+
+
+def test_every_rank_carries_a_published_interval(ranked: Path) -> None:
+    """`[publication].publish_rank_intervals = true  # every week, forever`, and
+    this is where that stops being a config line. The review's first line of
+    attack was that the poll prints an integer for a quantity that moves by
+    dozens of places (S3, §8 item 1); the interval is the honest defence and it
+    is on the row rather than in a footnote."""
+    poll = pl.read_csv(ranked / "poll.csv")
+    intervals = pl.read_parquet(ranked / "rank_intervals.parquet")
+    assert intervals.height == poll.height
+    assert set(intervals["team"]) == set(poll["team"])
+
+    for lo, hi in (("rank_lo", "rank_hi"), ("resume_rank_lo", "resume_rank_hi")):
+        assert poll[lo].null_count() == 0
+        assert (poll[lo] <= poll[hi]).all()
+        assert poll[lo].min() >= 1 and poll[hi].max() <= poll.height
+    assert (poll["power_rank_lo"] <= poll["power_rank_hi"]).all()
+
+    # The interval is WIDE, and that is the finding rather than a defect: a
+    # single season is twelve noisy games and the poll should not pretend
+    # otherwise (review §9 item 2).
+    widths = (poll["rank_hi"] - poll["rank_lo"]).to_list()
+    assert sorted(widths)[len(widths) // 2] > 20
+
+    # every Power rating carries the ridge sandwich SE, in points
+    assert poll["power_se"].null_count() == 0
+    assert poll["power_se"].min() > 0.0
+
+    params = json.loads((ranked / "model_params.json").read_text())
+    assert params["bootstrap_scheme"] == "parametric_on_fixed_schedule"
+    assert params["bootstrap_draws"] == load_config()["bootstrap"]["draws"]
+    assert "resampling them with replacement" in params["bootstrap_note"]
+    assert params["power_se_note"]
 
 
 def test_publication_status_follows_the_config() -> None:

@@ -84,33 +84,53 @@ rating — both kept as labelled comparison columns so the disagreement between 
 three is readable on every row rather than asserted. `Hindsight #` is R(N, final):
 the same week, re-scored with the season's answers.
 
-| # | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | Gap | Résumé # | Power # | Hindsight # |
-|---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Washington | 13-0 | 3.601 | 0.0003 | 60.00\* | 29.18 | 23.38 | +36.62 | 3 | 10 | 1 (—) |
-| 2 | Michigan | 13-0 | 2.574 | 0.0027 | 60.00\* | 38.72 | 31.87 | +28.13 | 1 | 1 | 2 (—) |
-| 3 | Florida State | 13-0 | 2.406 | 0.0039 | 60.00\* | 31.24 | 23.21 | +36.79 | 2 | 11 | 3 (—) |
-| 4 | Alabama | 12-1 | 2.167 | 0.0068 | 36.76 | 28.65 | 23.98 | +12.79 | 6 | 8 | 4 (—) |
-| 5 | Texas | 12-1 | 2.064 | 0.0086 | 36.49 | 31.41 | 25.44 | +11.05 | 7 | 7 | 5 (—) |
-| 6 | Ohio State | 11-1 | 1.905 | 0.0124 | 37.58 | 34.39 | 29.22 | +8.36 | 5 | 3 | 6 (—) |
-| 7 | Georgia | 12-1 | 1.591 | 0.0256 | 33.74 | 31.88 | 25.95 | +7.79 | 8 | 5 | 7 (—) |
-| 8 | Ole Miss | 10-2 | 1.034 | 0.0924 | 28.03 | 21.99 | 18.03 | +10.00 | 9 | 20 | 9 (▼1) |
-| 9 | Oregon | 11-2 | 1.026 | 0.0941 | 27.39 | 32.50 | 30.51 | -3.12 | 10 | 2 | 11 (▼2) |
-| 10 | Liberty | 13-0 | 1.024 | 0.0946 | 60.00\* | 22.35 | 18.72 | +41.28 | 4 | 17 | 8 (▲2) |
-| 11 | Missouri | 10-2 | 0.986 | 0.1032 | 27.11 | 23.25 | 20.81 | +6.31 | 11 | 13 | 10 (▲1) |
-| 12 | Oklahoma | 10-2 | 0.943 | 0.1140 | 26.51 | 27.25 | 25.75 | +0.76 | 14 | 6 | 12 (—) |
-| 13 | Penn State | 10-2 | 0.852 | 0.1407 | 26.91 | 31.38 | 26.30 | +0.61 | 13 | 4 | 13 (—) |
-| 14 | James Madison | 11-1 | 0.744 | 0.1804 | 27.08 | 20.55 | 17.38 | +9.70 | 12 | 23 | 14 (—) |
-| 15 | LSU | 9-3 | 0.611 | 0.2447 | 22.90 | 23.98 | 20.67 | +2.23 | 15 | 14 | 15 (—) |
-| 16 | Troy | 11-2 | 0.495 | 0.3201 | 22.01 | 20.76 | 17.57 | +4.44 | 16 | 22 | 16 (—) |
-| 17 | Louisville | 10-3 | 0.467 | 0.3414 | 20.83 | 18.05 | 18.06 | +2.77 | 19 | 19 | 17 (—) |
-| 18 | Iowa | 10-3 | 0.424 | 0.3768 | 20.77 | 12.84 | 7.39 | +13.38 | 20 | 63 | 18 (—) |
-| 19 | Tulane | 11-2 | 0.420 | 0.3804 | 20.89 | 13.74 | 10.72 | +10.18 | 18 | 44 | 19 (—) |
-| 20 | SMU | 11-2 | 0.419 | 0.3810 | 21.58 | 20.24 | 18.60 | +2.97 | 17 | 18 | 21 (▼1) |
-| 21 | Notre Dame | 9-3 | 0.414 | 0.3854 | 20.49 | 26.43 | 23.53 | -3.03 | 21 | 9 | 20 (▲1) |
-| 22 | Oklahoma State | 9-4 | 0.413 | 0.3865 | 19.66 | 14.29 | 11.32 | +8.34 | 23 | 41 | 23 (▼1) |
-| 23 | NC State | 9-3 | 0.399 | 0.3986 | 19.94 | 16.03 | 12.28 | +7.66 | 22 | 36 | 22 (▲1) |
-| 24 | Arizona | 9-3 | 0.363 | 0.4334 | 19.40 | 20.31 | 19.47 | -0.06 | 24 | 16 | 24 (—) |
-| 25 | Kansas State | 8-4 | 0.349 | 0.4474 | 18.91 | 24.70 | 21.53 | -2.61 | 26 | 12 | 26 (▼1) |
+| # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | ± | Gap | Résumé # | Power # | Hindsight # |
+|---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 2–41 | Washington | 13-0 | 3.601 | 0.0003 | 60.00\* | 29.18 | 23.38 | 1.87 | +36.62 | 3 | 10 | 1 (—) |
+| 2 | 1–20 | Michigan | 13-0 | 2.574 | 0.0027 | 60.00\* | 38.72 | 31.87 | 1.85 | +28.13 | 1 | 1 | 2 (—) |
+| 3 | 2–36 | Florida State | 13-0 | 2.406 | 0.0039 | 60.00\* | 31.24 | 23.21 | 1.82 | +36.79 | 2 | 11 | 3 (—) |
+| 4 | 2–36 | Alabama | 12-1 | 2.167 | 0.0068 | 36.76 | 28.65 | 23.98 | 1.82 | +12.79 | 6 | 8 | 4 (—) |
+| 5 | 1–32 | Texas | 12-1 | 2.064 | 0.0086 | 36.49 | 31.41 | 25.44 | 1.85 | +11.05 | 7 | 7 | 5 (—) |
+| 6 | 1–24 | Ohio State | 11-1 | 1.905 | 0.0124 | 37.58 | 34.39 | 29.22 | 1.90 | +8.36 | 5 | 3 | 6 (—) |
+| 7 | 1–27 | Georgia | 12-1 | 1.591 | 0.0256 | 33.74 | 31.88 | 25.95 | 1.83 | +7.79 | 8 | 5 | 7 (—) |
+| 8 | 5–60 | Ole Miss | 10-2 | 1.034 | 0.0924 | 28.03 | 21.99 | 18.03 | 1.89 | +10.00 | 9 | 20 | 9 (▼1) |
+| 9 | 1–22 | Oregon | 11-2 | 1.026 | 0.0941 | 27.39 | 32.50 | 30.51 | 1.88 | -3.12 | 10 | 2 | 11 (▼2) |
+| 10 | 5–56 | Liberty | 13-0 | 1.024 | 0.0946 | 60.00\* | 22.35 | 18.72 | 1.85 | +41.28 | 4 | 17 | 8 (▲2) |
+| 11 | 3–50 | Missouri | 10-2 | 0.986 | 0.1032 | 27.11 | 23.25 | 20.81 | 1.88 | +6.31 | 11 | 13 | 10 (▲1) |
+| 12 | 2–35 | Oklahoma | 10-2 | 0.943 | 0.1140 | 26.51 | 27.25 | 25.75 | 1.91 | +0.76 | 14 | 6 | 12 (—) |
+| 13 | 1–33 | Penn State | 10-2 | 0.852 | 0.1407 | 26.91 | 31.38 | 26.30 | 1.91 | +0.61 | 13 | 4 | 13 (—) |
+| 14 | 6–60 | James Madison | 11-1 | 0.744 | 0.1804 | 27.08 | 20.55 | 17.38 | 1.89 | +9.70 | 12 | 23 | 14 (—) |
+| 15 | 3–53 | LSU | 9-3 | 0.611 | 0.2447 | 22.90 | 23.98 | 20.67 | 1.89 | +2.23 | 15 | 14 | 15 (—) |
+| 16 | 5–56 | Troy | 11-2 | 0.495 | 0.3201 | 22.01 | 20.76 | 17.57 | 1.82 | +4.44 | 16 | 22 | 16 (—) |
+| 17 | 5–59 | Louisville | 10-3 | 0.467 | 0.3414 | 20.83 | 18.05 | 18.06 | 1.83 | +2.77 | 19 | 19 | 17 (—) |
+| 18 | 27–110 | Iowa | 10-3 | 0.424 | 0.3768 | 20.77 | 12.84 | 7.39 | 1.85 | +13.38 | 20 | 63 | 18 (—) |
+| 19 | 13–88 | Tulane | 11-2 | 0.420 | 0.3804 | 20.89 | 13.74 | 10.72 | 1.82 | +10.18 | 18 | 44 | 19 (—) |
+| 20 | 5–56 | SMU | 11-2 | 0.419 | 0.3810 | 21.58 | 20.24 | 18.60 | 1.82 | +2.97 | 17 | 18 | 21 (▼1) |
+| 21 | 2–42 | Notre Dame | 9-3 | 0.414 | 0.3854 | 20.49 | 26.43 | 23.53 | 1.87 | -3.03 | 21 | 9 | 20 (▲1) |
+| 22 | 17–96 | Oklahoma State | 9-4 | 0.413 | 0.3865 | 19.66 | 14.29 | 11.32 | 1.85 | +8.34 | 23 | 41 | 23 (▼1) |
+| 23 | 14–86 | NC State | 9-3 | 0.399 | 0.3986 | 19.94 | 16.03 | 12.28 | 1.90 | +7.66 | 22 | 36 | 22 (▲1) |
+| 24 | 4–55 | Arizona | 9-3 | 0.363 | 0.4334 | 19.40 | 20.31 | 19.47 | 1.92 | -0.06 | 24 | 16 | 24 (—) |
+| 25 | 2–51 | Kansas State | 8-4 | 0.349 | 0.4474 | 18.91 | 24.70 | 21.53 | 1.91 | -2.61 | 26 | 12 | 26 (▼1) |
+
+> **The interval is the honest part of this table.** Every rank carries a 90%
+> interval from 1,000 parametric draws on the FIXED schedule: each draw redraws
+> every game's margin from the fitted model, refits, and re-ranks with the same
+> code the poll uses. The median interval width across all 133 ranked
+> teams is **73 places**. A poll that prints an integer for a quantity
+> that moves that far is claiming a precision it does not have.
+>
+> Two things follow that a reader should expect rather than discover. The
+> bootstrap MEDIAN is worse than the published rank for nearly every undefeated
+> team, because under the model's own estimate of their quality going unbeaten is
+> an unlikely outcome and most simulated seasons do not repeat it - which is what
+> ranking by improbability MEANS. And with `power_source = "L3"` the efficiency
+> half of Power is held fixed across draws, because plays are not resimulated, so
+> these intervals are a **lower bound** on total uncertainty.
+>
+> `±` is the ridge sandwich standard error of the Power rating, in points
+> (report 02 §3.3). Full method and the replication of the independent review's
+> own bootstrap: [docs/analysis/uncertainty.md](../docs/analysis/uncertainty.md).
+
 
 **Why every undefeated team shows 60.00 and a `*` in the résumé column.** `E[W|q]`
 approaches the number of games from below, so an undefeated team's résumé equation
@@ -225,4 +245,4 @@ uv run cfbpoll grid --season 2023 --out out/
 triangle, both surfaces and the movers table are written by the second command.
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `6d68fc2` - config `configs/default.toml` sha256 `01c3ab291309b0be...`
+Code `f1c76c4` - config `configs/default.toml` sha256 `0f7999e5d90bcb94...`

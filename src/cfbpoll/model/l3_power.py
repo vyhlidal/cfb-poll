@@ -417,4 +417,16 @@ def power_source_for(fitted: L3Fit) -> l4_resume.PowerSource:
         n_scale_games=fitted.weights.n_games,
         l2=fitted.l2,
         l3=fitted,
+        # Power = w1*k*(alpha - beta) + w2*rho, and the blend regression's
+        # response is already points, so the results core enters multiplied by
+        # w2 and a compressed-response standard error is carried across by w2.
+        se_scale=fitted.w2,
+        se_note=(
+            "ridge sandwich on the L2 half only (report 02 §3.3), carried onto "
+            "the points scale by w2. THE EFFICIENCY HALF IS HELD AT ITS POINT "
+            "ESTIMATE: a play-level covariance over ~2,000 coefficients and "
+            "170,000 correlated rows is a different object and is not built, so "
+            "this is a LOWER BOUND on the uncertainty of an L3 rating. The "
+            "parametric bootstrap inherits the same limitation and says so"
+        ),
     )

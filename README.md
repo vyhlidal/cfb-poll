@@ -32,9 +32,8 @@ no permission from anyone.
 > column at **r = 0.847** over 221,945 plays, reported as a validation diagnostic
 > and never fed in.
 >
-> **What does not run:** the block bootstrap and its rank intervals, publishing,
-> and the site. They are stubs and they raise `NotImplementedError` rather than
-> pretending. A season with no play archive falls back to `power_source = "L2"`
+> **What does not run:** publishing and the site. They are stubs and they raise
+> `NotImplementedError` rather than pretending. A season with no play archive falls back to `power_source = "L2"`
 > and stamps that on every artifact rather than letting a reader assume otherwise.
 >
 > See [Status](#status) for what exists versus what is coming.
@@ -243,7 +242,7 @@ cfbpoll validate                        data-quality gate; halt and publish noth
 cfbpoll audit-features                  fail the build if a banned input reached a model matrix
 cfbpoll rank                            fit the model, write the poll and both surfaces
 cfbpoll grid                            the full R(N,K) retroactive triangle for a season
-cfbpoll bootstrap                       rank + rating intervals
+cfbpoll bootstrap                       rank + rating intervals (parametric, fixed schedule)
 cfbpoll guard                           has this week already been published?
 cfbpoll canonicalize                    emit the sorted CSV that golden fixtures hash
 cfbpoll publish {release,postgres}      publish out/ to its destinations
@@ -285,6 +284,14 @@ cfbpoll site build                      build the static site
 - **R(N, K) and retroactive re-ranking** — `cfbpoll grid` writes the full
   upper-triangular surface, the live and hindsight surfaces, and the biggest
   retroactive movers
+- **Published uncertainty.** A **90% rank interval beside every rank**, from a
+  parametric bootstrap on the *fixed* schedule, and a **standard error beside
+  every Power rating**, from the ridge sandwich. The scheme report 02 §3.3
+  specified — resample games with replacement — is invalid on a schedule graph
+  and is disqualified by its own output (it breaks the graph in 100% of draws);
+  `cfbpoll bootstrap --naive-diagnostic` recomputes that. Method and the
+  replication of the independent review's own bootstrap:
+  [docs/analysis/uncertainty.md](docs/analysis/uncertainty.md)
 - **The feature audit** (`validate/leakage.py`, `cfbpoll audit-features
   --fail-on-banned`). Not a docstring: every design matrix is rebuilt from the
   frame *restricted to that layer's allow-list* and required to be bit-identical,
@@ -313,8 +320,9 @@ cfbpoll site build                      build the static site
    the retroactive product
 6. `reproducibility.yml` with the first golden fixture
 7. `weekly.yml` end to end, run manually before any clock is attached
-8. ~~**L1 efficiency → L3 blend**~~ — done; `power_source` is now `"L3"`. Next:
-   bootstrap rank intervals
+8. ~~**L1 efficiency → L3 blend**~~ — done; `power_source` is now `"L3"`
+8b. ~~**Rank intervals and rating standard errors**~~ — done; published on every
+   row, every week
 9. The static site, the sandbox web app, and the challenge harness
 
 **Known gaps, recorded rather than glossed**

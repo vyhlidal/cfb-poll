@@ -11,8 +11,10 @@
 > (`model/ep.py`) and the R(N, K) retroactive surface. Opponent quality inside
 > both desert layers is L3 (`power_source = "L3"`, `power_version = "v1"`), with
 > L2 kept available and stamped on the artifact whenever it is what actually ran.
-> **Not built:** the block bootstrap and its rank intervals. Real output, with the
-> reasoning written out, is under [`demo/`](../demo/).
+> Every published rank carries a **90% interval** from a parametric bootstrap on
+> the fixed schedule, and every Power rating carries a **standard error** from the
+> ridge sandwich. Real output, with the reasoning written out, is under
+> [`demo/`](../demo/).
 
 ## Where the real specification lives
 

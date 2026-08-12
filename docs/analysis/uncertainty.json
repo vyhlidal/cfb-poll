@@ -1,0 +1,259 @@
+{
+  "live": {
+    "draws": 1000,
+    "lambda": 0.5,
+    "median_interval_width": 82.0,
+    "median_team_se_points": 1.8759386704961232,
+    "pair_se": {
+      "James Madison vs a Big Ten team": {
+        "max": 2.669977584827415,
+        "mean": 2.6619391438600273,
+        "min": 2.6488878697552765,
+        "n_pairs": 14
+      },
+      "SEC vs Big Ten (P4 cross-conference)": {
+        "max": 2.6822059899019597,
+        "mean": 2.668145027378408,
+        "min": 2.5984060278001837,
+        "n_pairs": 196
+      },
+      "Sun Belt vs Big Ten (G5 vs P4)": {
+        "max": 2.6761636622597633,
+        "mean": 2.659304656576298,
+        "min": 2.514936315548068,
+        "n_pairs": 182
+      },
+      "within the Big Ten": {
+        "max": 2.6330822255396598,
+        "mean": 2.5333930473718818,
+        "min": 2.434956857612197,
+        "n_pairs": 182
+      }
+    },
+    "power_source": "L3",
+    "rows": [
+      {
+        "bootstrap_median": 4,
+        "hi": 25,
+        "lo": 1,
+        "p_top10": 0.734,
+        "p_top25": 0.957,
+        "published_rank": 1,
+        "team": "Ohio State"
+      },
+      {
+        "bootstrap_median": 16,
+        "hi": 55,
+        "lo": 2,
+        "p_top10": 0.372,
+        "p_top25": 0.724,
+        "published_rank": 2,
+        "team": "Washington"
+      },
+      {
+        "bootstrap_median": 11,
+        "hi": 46,
+        "lo": 2,
+        "p_top10": 0.489,
+        "p_top25": 0.793,
+        "published_rank": 3,
+        "team": "Florida State"
+      },
+      {
+        "bootstrap_median": 20,
+        "hi": 59,
+        "lo": 2,
+        "p_top10": 0.262,
+        "p_top25": 0.671,
+        "published_rank": 5,
+        "team": "Alabama"
+      },
+      {
+        "bootstrap_median": 25,
+        "hi": 66,
+        "lo": 3,
+        "p_top10": 0.18,
+        "p_top25": 0.54,
+        "published_rank": 4,
+        "team": "James Madison"
+      },
+      {
+        "bootstrap_median": 13,
+        "hi": 49,
+        "lo": 2,
+        "p_top10": 0.354,
+        "p_top25": 0.726,
+        "published_rank": 6,
+        "team": "Georgia"
+      },
+      {
+        "bootstrap_median": 7,
+        "hi": 23,
+        "lo": 3,
+        "p_top10": 0.695,
+        "p_top25": 0.963,
+        "published_rank": 9,
+        "team": "Michigan"
+      },
+      {
+        "bootstrap_median": 23,
+        "hi": 66,
+        "lo": 6,
+        "p_top10": 0.198,
+        "p_top25": 0.547,
+        "published_rank": 12,
+        "team": "Liberty"
+      },
+      {
+        "bootstrap_median": 42,
+        "hi": 89,
+        "lo": 9,
+        "p_top10": 0.077,
+        "p_top25": 0.291,
+        "published_rank": 17,
+        "team": "Tulane"
+      }
+    ],
+    "se_note": "ridge sandwich on the L2 half only (report 02 \u00a73.3), carried onto the points scale by w2. THE EFFICIENCY HALF IS HELD AT ITS POINT ESTIMATE: a play-level covariance over ~2,000 coefficients and 170,000 correlated rows is a different object and is not built, so this is a LOWER BOUND on the uncertainty of an L3 rating. The parametric bootstrap inherits the same limitation and says so",
+    "se_scale": 0.49762535346748604,
+    "seed": 20260812,
+    "sigma": 15.3
+  },
+  "n_ranked_teams": 133,
+  "naive_resample_diagnostic": {
+    "draws": 1000,
+    "fraction_broken_either_way": 1.0,
+    "fraction_disconnected": 0.006,
+    "fraction_with_a_team_that_lost_every_game": 1.0,
+    "mean_largest_component_share": 0.9567574750830565,
+    "n_games": 1205,
+    "n_teams": 301,
+    "scheme": "resample games with replacement (report 02 \u00a73.3 parenthetical)",
+    "verdict": "INVALID for a schedule graph; not used anywhere in this package"
+  },
+  "provenance": {
+    "config_sha256": "01c3ab291309b0becc051c945cfab919bd93a21b04314ef4e961405048156efb",
+    "generated_at": "2026-08-12",
+    "git_sha": "f1c76c4"
+  },
+  "review_replication": {
+    "draws": 300,
+    "lambda": 0.5,
+    "median_team_se_points": 5.244996528203812,
+    "pair_se": {
+      "James Madison vs a Big Ten team": {
+        "max": 7.465075155734272,
+        "mean": 7.4426002232488875,
+        "min": 7.406109751334926,
+        "n_pairs": 14
+      },
+      "SEC vs Big Ten (P4 cross-conference)": {
+        "max": 7.499264941983784,
+        "mean": 7.459951450141469,
+        "min": 7.264965965583247,
+        "n_pairs": 196
+      },
+      "Sun Belt vs Big Ten (G5 vs P4)": {
+        "max": 7.4823710061616655,
+        "mean": 7.435234376553535,
+        "min": 7.031590345229553,
+        "n_pairs": 182
+      },
+      "within the Big Ten": {
+        "max": 7.361918248520493,
+        "mean": 7.083194108113917,
+        "min": 6.807973237805499,
+        "n_pairs": 182
+      }
+    },
+    "power_source": "L2",
+    "rows": [
+      {
+        "bootstrap_median": 3,
+        "hi": 19,
+        "lo": 1,
+        "p_top10": 0.8333333333333334,
+        "p_top25": 0.9866666666666667,
+        "published_rank": 1,
+        "team": "Ohio State"
+      },
+      {
+        "bootstrap_median": 13,
+        "hi": 42,
+        "lo": 2,
+        "p_top10": 0.39666666666666667,
+        "p_top25": 0.7966666666666666,
+        "published_rank": 2,
+        "team": "Washington"
+      },
+      {
+        "bootstrap_median": 8,
+        "hi": 30,
+        "lo": 1,
+        "p_top10": 0.6233333333333333,
+        "p_top25": 0.9166666666666666,
+        "published_rank": 3,
+        "team": "Florida State"
+      },
+      {
+        "bootstrap_median": 12,
+        "hi": 42,
+        "lo": 1,
+        "p_top10": 0.42333333333333334,
+        "p_top25": 0.8433333333333334,
+        "published_rank": 4,
+        "team": "Alabama"
+      },
+      {
+        "bootstrap_median": 24,
+        "hi": 56,
+        "lo": 3,
+        "p_top10": 0.18,
+        "p_top25": 0.5466666666666666,
+        "published_rank": 6,
+        "team": "James Madison"
+      },
+      {
+        "bootstrap_median": 14,
+        "hi": 39,
+        "lo": 3,
+        "p_top10": 0.3933333333333333,
+        "p_top25": 0.8233333333333334,
+        "published_rank": 8,
+        "team": "Georgia"
+      },
+      {
+        "bootstrap_median": 10,
+        "hi": 27,
+        "lo": 4,
+        "p_top10": 0.5166666666666667,
+        "p_top25": 0.9066666666666666,
+        "published_rank": 11,
+        "team": "Michigan"
+      },
+      {
+        "bootstrap_median": 25,
+        "hi": 59,
+        "lo": 6,
+        "p_top10": 0.16666666666666666,
+        "p_top25": 0.51,
+        "published_rank": 17,
+        "team": "Liberty"
+      },
+      {
+        "bootstrap_median": 38,
+        "hi": 84,
+        "lo": 9,
+        "p_top10": 0.05333333333333334,
+        "p_top25": 0.2633333333333333,
+        "published_rank": 22,
+        "team": "Tulane"
+      }
+    ],
+    "se_scale": 1.3913265355273525,
+    "seed": 20260812,
+    "sigma": 15.3
+  },
+  "season": 2023,
+  "through_week": 10
+}

@@ -60,6 +60,8 @@ import polars as pl
 __all__ = [
     "HEADLINE_COLUMNS",
     "HEADLINE_ORDERINGS",
+    "INTERVAL_COLUMNS",
+    "attach_intervals",
     "ORDERING_LAYER",
     "fbs_teams",
     "headline_frame",
@@ -98,6 +100,13 @@ ORDER_KEYS: dict[str, tuple[tuple[str, ...], tuple[bool, ...]]] = {
 #: with the season's answers (report 02 §3.6).
 HEADLINE_COLUMNS: tuple[str, ...] = (
     "rank",
+    # THE INTERVAL SITS NEXT TO THE RANK, not at the end of the row. A rank
+    # interval that a reader has to scroll to is a rank interval that does not
+    # do its job: the whole point (report 02 §3.3) is that "#4" and "#4, 90%
+    # interval 2-66" are different claims and only one of them is true.
+    "rank_lo",
+    "rank_hi",
+    "rank_median",
     "team",
     "wins",
     "losses",
@@ -110,7 +119,12 @@ HEADLINE_COLUMNS: tuple[str, ...] = (
     "q_ref_team",
     "resume",
     "resume_margin",
+    "resume_rank_lo",
+    "resume_rank_hi",
     "power",
+    "power_se",
+    "power_rank_lo",
+    "power_rank_hi",
     "gap",
     "saturated",
     "rank_hindsight",
@@ -123,6 +137,20 @@ HEADLINE_COLUMNS: tuple[str, ...] = (
     "rank_delta",
     "team_class",
 )
+
+#: The interval columns, and the ordering each one belongs to. `headline_frame`
+#: fills them from `model/bootstrap.py` when a draw set is supplied and leaves
+#: them null when it is not, so a run without a bootstrap publishes an empty
+#: column rather than a fabricated one.
+INTERVAL_COLUMNS: dict[str, tuple[str, str]] = {
+    "rank_lo": ("schedule_odds", "lo"),
+    "rank_hi": ("schedule_odds", "hi"),
+    "rank_median": ("schedule_odds", "median"),
+    "resume_rank_lo": ("resume", "lo"),
+    "resume_rank_hi": ("resume", "hi"),
+    "power_rank_lo": ("power", "lo"),
+    "power_rank_hi": ("power", "hi"),
+}
 
 
 def headline_ordering(config: dict[str, Any]) -> str:
@@ -244,7 +272,36 @@ _BOTH_SURFACES: tuple[str, ...] = (
 )
 
 
-def headline_frame(live: pl.DataFrame, hindsight: pl.DataFrame) -> pl.DataFrame:
+def _empty_intervals(teams: list[str]) -> pl.DataFrame:
+    """Null interval columns, for a run with no bootstrap. Never fabricated."""
+    return pl.DataFrame(
+        {
+            "team": teams,
+            **{name: pl.Series([None] * len(teams), dtype=pl.Int32) for name in INTERVAL_COLUMNS},
+        }
+    )
+
+
+def attach_intervals(table: pl.DataFrame, intervals: pl.DataFrame | None) -> pl.DataFrame:
+    """Join the bootstrap's per-team rank intervals onto a published table.
+
+    `intervals` is `model/bootstrap.intervals(...)`. A team present in the poll
+    but absent from the draws keeps null bounds, which is the honest answer and
+    cannot happen on a real window (the draw set is the same FBS pool).
+    """
+    teams = table["team"].to_list()
+    if intervals is None:
+        return table.join(_empty_intervals(teams), on="team", how="left")
+    wanted = {f"{ordering}_rank_{end}": name for name, (ordering, end) in INTERVAL_COLUMNS.items()}
+    narrow = intervals.select(["team", *sorted(wanted)]).rename(wanted)
+    return table.join(narrow, on="team", how="left")
+
+
+def headline_frame(
+    live: pl.DataFrame,
+    hindsight: pl.DataFrame,
+    intervals: pl.DataFrame | None = None,
+) -> pl.DataFrame:
     """The published poll: schedule-odds ranks, résumé and Power beside them, both
     surfaces, one row per team.
 
@@ -266,6 +323,7 @@ def headline_frame(live: pl.DataFrame, hindsight: pl.DataFrame) -> pl.DataFrame:
         a.select(
             [
                 *keep,
+                "power_se",
                 "wins",
                 "losses",
                 "mid_p",
@@ -280,7 +338,7 @@ def headline_frame(live: pl.DataFrame, hindsight: pl.DataFrame) -> pl.DataFrame:
         .join(b, on="team", how="left", suffix="_hindsight")
         .with_columns(rank_delta=pl.col("rank") - pl.col("rank_hindsight"))
     )
-    return joined.select(HEADLINE_COLUMNS).sort("rank")
+    return attach_intervals(joined, intervals).select(HEADLINE_COLUMNS).sort("rank")
 
 
 def publication_status(week: int, config: dict[str, Any]) -> tuple[bool, str | None]:

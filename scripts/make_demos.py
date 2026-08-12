@@ -259,31 +259,98 @@ def _rank_map(frame: pl.DataFrame, column: str) -> dict[str, int]:
     return dict(zip(frame["team"].to_list(), frame[column].to_list(), strict=True))
 
 
-def poll_table(live: pl.DataFrame, hind: pl.DataFrame, n: int = 25) -> list[str]:
-    """The published shape: schedule-odds ranks, with the two prior orderings'
-    ranks beside them as labelled comparison columns."""
+_INTERVAL_CACHE: dict[tuple[int, int], pl.DataFrame] = {}
+
+
+def intervals_for(season: int, bucket) -> pl.DataFrame:
+    """The published 90% rank intervals for one evaluation week, memoised.
+
+    `[publication].publish_rank_intervals = true  # every week, forever`, so a
+    demo page that shows a rank without its interval is showing something the
+    pipeline does not publish. The scheme is parametric on the FIXED schedule
+    (model/bootstrap.py); the invalid resample-with-replacement the scaffold
+    specified is measured and disqualified in docs/analysis/uncertainty.md.
+    """
+    key = (season, bucket.order)
+    if key not in _INTERVAL_CACHE:
+        from cfbpoll.model import bootstrap
+
+        cfg = load_config()
+        games, _, _ = season_frames(season)
+        window = windows.games_through(
+            games, season=season, week=bucket.week, season_type=bucket.season_type
+        )
+        draws = bootstrap.run(
+            window,
+            season_power_map(season)[bucket.order],
+            cfg,
+            classes=poll_mod.team_classes(games),
+        )
+        _INTERVAL_CACHE[key] = bootstrap.intervals(draws, float(cfg["bootstrap"]["interval"]))
+    return _INTERVAL_CACHE[key]
+
+
+def poll_table(
+    live: pl.DataFrame,
+    hind: pl.DataFrame,
+    n: int = 25,
+    intervals: pl.DataFrame | None = None,
+) -> list[str]:
+    """The published shape: schedule-odds ranks WITH their 90% intervals, and the
+    two prior orderings' ranks beside them as labelled comparison columns."""
     power_rank = _rank_map(with_power_rank(live), "power_rank")
     resume_rank = _rank_map(with_resume_rank(live), "resume_rank")
-    table = poll_mod.headline_frame(live, hind)
+    table = poll_mod.headline_frame(live, hind, intervals)
     rows = [
-        "| # | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | Gap "
-        "| Résumé # | Power # | Hindsight # |",
-        "|---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé "
+        "| Power | ± | Gap | Résumé # | Power # | Hindsight # |",
+        "|---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in table.head(n).iter_rows(named=True):
         mark = "\\*" if row["saturated"] else ""
         delta = row["rank_delta"]
         arrow = "—" if delta == 0 else (f"▲{delta}" if delta > 0 else f"▼{-delta}")
+        band = "—" if row["rank_lo"] is None else f"{row['rank_lo']}–{row['rank_hi']}"
+        se = "—" if row["power_se"] is None else f"{row['power_se']:.2f}"
         rows.append(
-            f"| {row['rank']} | {row['team']} | {row['wins']}-{row['losses']} "
+            f"| {row['rank']} | {band} | {row['team']} | {row['wins']}-{row['losses']} "
             f"| {row['odds_key']:.3f} | {row['tail_p']:.4f} "
             f"| {row['resume']:.2f}{mark} | {row['resume_margin']:.2f} "
-            f"| {row['power']:.2f} | {row['gap']:+.2f} "
+            f"| {row['power']:.2f} | {se} | {row['gap']:+.2f} "
             f"| {resume_rank.get(row['team'], 0)} "
             f"| {power_rank.get(row['team'], 0)} "
             f"| {row['rank_hindsight']} ({arrow}) |"
         )
     return rows
+
+
+def interval_note(intervals: pl.DataFrame, table: pl.DataFrame) -> list[str]:
+    """The paragraph that has to sit under any table of ranks with intervals."""
+    widths = (
+        intervals["schedule_odds_rank_hi"] - intervals["schedule_odds_rank_lo"]
+    ).to_numpy()
+    median = float(sorted(widths)[len(widths) // 2])
+    return [
+        "> **The interval is the honest part of this table.** Every rank carries a 90%",
+        "> interval from 1,000 parametric draws on the FIXED schedule: each draw redraws",
+        "> every game's margin from the fitted model, refits, and re-ranks with the same",
+        "> code the poll uses. The median interval width across all "
+        f"{intervals.height} ranked",
+        f"> teams is **{median:.0f} places**. A poll that prints an integer for a quantity",
+        "> that moves that far is claiming a precision it does not have.",
+        ">",
+        "> Two things follow that a reader should expect rather than discover. The",
+        "> bootstrap MEDIAN is worse than the published rank for nearly every undefeated",
+        "> team, because under the model's own estimate of their quality going unbeaten is",
+        "> an unlikely outcome and most simulated seasons do not repeat it - which is what",
+        "> ranking by improbability MEANS. And with `power_source = \"L3\"` the efficiency",
+        "> half of Power is held fixed across draws, because plays are not resimulated, so",
+        "> these intervals are a **lower bound** on total uncertainty.",
+        ">",
+        "> `±` is the ridge sandwich standard error of the Power rating, in points",
+        "> (report 02 §3.3). Full method and the replication of the independent review's",
+        "> own bootstrap: [docs/analysis/uncertainty.md](../docs/analysis/uncertainty.md).",
+    ]
 
 
 def q_ref_of(power, classes: dict[str, str]):
@@ -406,7 +473,9 @@ def final_poll_2023() -> str:
         "the same week, re-scored with the season's answers.",
         "",
     ]
-    lines += poll_table(live, hind, 25)
+    bands = intervals_for(season, evaluated)
+    lines += poll_table(live, hind, 25, bands)
+    lines += ["", *interval_note(bands, live), ""]
     lines += ["", *saturation_note(), ""]
 
     uga_gap = abs(uga_hind["power"] - liberty_hind["power"])
@@ -813,7 +882,9 @@ def cincinnati_2021() -> str:
         "## The final poll (through conference championships)",
         "",
     ]
-    lines += poll_table(live, hind, 12)
+    bands = intervals_for(season, evaluated)
+    lines += poll_table(live, hind, 12, bands)
+    lines += ["", *interval_note(bands, live), ""]
     lines += [
         "",
         "For this season the live and hindsight columns are **identical**, and that is not a",
@@ -1033,7 +1104,9 @@ def top25() -> str:
         "## Top 25",
         "",
     ]
-    lines += poll_table(live_r, hind_r, 25)
+    bands = intervals_for(DEMO_SEASON, evaluated)
+    lines += poll_table(live_r, hind_r, 25, bands)
+    lines += ["", *interval_note(bands, live_r), ""]
     lines += ["", *saturation_note(), ""]
 
     lines += [

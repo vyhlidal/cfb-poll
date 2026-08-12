@@ -39,9 +39,12 @@ from scipy.linalg import cho_factor, cho_solve
 
 __all__ = [
     "CVResult",
+    "Sandwich",
     "cv_select_lambda",
+    "difference_se",
     "group_folds",
     "normal_equations",
+    "sandwich",
     "solve",
     "solve_normal",
 ]
@@ -91,6 +94,107 @@ def solve(
     """
     a, b = normal_equations(z, y, w)
     return solve_normal(a, b, penalty, lam)
+
+
+@dataclass(frozen=True)
+class Sandwich:
+    """The ridge sandwich covariance, and the two numbers it was built from.
+
+    `cov` is in the units of the RESPONSE the fit was run on, which at L2 is the
+    compressed margin and not points. Rescaling to points is the caller's job and
+    is exactly the `b` (or `w2`) that already maps ratings to points - see
+    `model/l4_resume.py::PowerSource`.
+    """
+
+    cov: np.ndarray
+    residual_variance: float
+    effective_df: float
+    n_observations: int
+
+    def se(self) -> np.ndarray:
+        """Per-coefficient standard error: the square root of the diagonal."""
+        return np.sqrt(np.clip(np.diag(self.cov), 0.0, None))
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "residual_variance": self.residual_variance,
+            "residual_sd": float(np.sqrt(self.residual_variance)),
+            "effective_df": self.effective_df,
+            "n_observations": self.n_observations,
+            "form": "sigma2 * (ZtWZ + lambda D)^-1 (ZtW^2Z) (ZtWZ + lambda D)^-1",
+            "spec": "report 02 §3.3",
+        }
+
+
+def sandwich(
+    z: sparse.spmatrix,
+    y: np.ndarray,
+    w: np.ndarray,
+    penalty: np.ndarray,
+    lam: float,
+    theta: np.ndarray,
+) -> Sandwich:
+    """The ridge sandwich covariance of report 02 §3.3.
+
+        Cov(theta_hat) = sigma^2 (ZᵀWZ + lambda D)^-1 (ZᵀW²Z) (ZᵀWZ + lambda D)^-1
+
+    THE HISTORY OF THIS FUNCTION IS WORTH A PARAGRAPH. Report 02 §3.3 wrote this
+    formula down and then set it aside as less "robust for publication" than a
+    bootstrap - and specified the wrong bootstrap in the same sentence
+    ("resample games with replacement"), which model/bootstrap.py copied
+    faithfully into a docstring and never built. The independent review
+    (docs/analysis/fresh-eyes-review.md, appendix) computed every standard error
+    in its §4 from exactly this expression and endorsed it. The right instrument
+    was in hand and was put down; this is picking it back up.
+
+    IT IS NOT A SUBSTITUTE FOR THE BOOTSTRAP AND DOES NOT ANSWER THE SAME
+    QUESTION. This is the sampling covariance of the RATINGS conditional on the
+    observed results, which is what "how precisely is this team's rating pinned
+    down" means, and it is what makes a matched-units statement like "James
+    Madison minus Michigan is 8.6 +/- 4.2 points" computable. It says nothing
+    about how far a RANK would move, because a rank is a function of every team's
+    rating at once and of the record, and that is what the parametric bootstrap
+    on the fixed schedule is for.
+
+    `sigma^2` is estimated from the weighted residuals with the ridge effective
+    degrees of freedom in the denominator - `trace((ZᵀWZ + lambda D)^-1 ZᵀWZ)`,
+    which is the standard ridge edf and is strictly smaller than the column
+    count, because shrinkage costs less than a free parameter per team.
+    """
+    zw = z.T.multiply(w)
+    a_unpenalized = np.asarray((zw @ z).todense(), dtype=np.float64)
+    meat = np.asarray((z.T.multiply(w**2) @ z).todense(), dtype=np.float64)
+
+    penalised = a_unpenalized.copy()
+    penalised[np.diag_indices_from(penalised)] += lam * penalty
+    inverse = np.linalg.inv(penalised)
+
+    resid = y - np.asarray(z @ theta).ravel()
+    edf = float(np.trace(inverse @ a_unpenalized))
+    weight_total = float(np.sum(w))
+    denominator = max(weight_total - edf, 1.0)
+    sigma2 = float(np.sum(w * resid**2) / denominator)
+
+    return Sandwich(
+        cov=sigma2 * (inverse @ meat @ inverse),
+        residual_variance=sigma2,
+        effective_df=edf,
+        n_observations=int(z.shape[0]),
+    )
+
+
+def difference_se(cov: np.ndarray, i: int, j: int) -> float:
+    """SE of (theta_i - theta_j). THE quantity a ranking argument is about.
+
+    Var(a - b) = Var(a) + Var(b) - 2 Cov(a, b), and the covariance term is not a
+    detail: two teams that played each other, or that share many opponents, have
+    strongly correlated estimation errors, so the SE of their DIFFERENCE is much
+    smaller than the two individual SEs would suggest. A page that publishes only
+    per-team error bars and lets a reader add them in quadrature overstates the
+    uncertainty of every comparison it is actually making.
+    """
+    var = float(cov[i, i] + cov[j, j] - 2.0 * cov[i, j])
+    return float(np.sqrt(max(var, 0.0)))
 
 
 def group_folds(groups: np.ndarray, n_folds: int) -> np.ndarray:

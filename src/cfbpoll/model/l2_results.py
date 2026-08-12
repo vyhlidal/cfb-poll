@@ -70,10 +70,37 @@ class L2Fit:
     n_teams: int
     cv: ridge.CVResult
     params: dict[str, Any] = field(default_factory=dict)
+    #: Teams in DESIGN-MATRIX ORDER, which is what indexes `sandwich.cov`. Sorted
+    #: by name, so it is a pure function of the frame.
+    teams: tuple[str, ...] = ()
+    #: The ridge sandwich covariance of the team coefficients, in COMPRESSED-
+    #: RESPONSE units (report 02 §3.3, model/ridge.py::sandwich). None only for
+    #: an empty fit.
+    sandwich: ridge.Sandwich | None = None
 
     def rating(self, team: str) -> float:
         """Ratings default to 0.0 - the league-average prior - for unseen teams."""
         return self.ratings.get(team, 0.0)
+
+    def rating_se(self) -> dict[str, float]:
+        """Per-team standard error, in compressed-response units. Empty if unfitted."""
+        if self.sandwich is None:
+            return {}
+        se = self.sandwich.se()
+        return {team: float(se[i]) for i, team in enumerate(self.teams)}
+
+    def difference_se(self, a: str, b: str) -> float | None:
+        """SE of rating(a) - rating(b), in compressed-response units.
+
+        None when either team is absent from the fit. See ridge.difference_se for
+        why this is not the two individual errors added in quadrature.
+        """
+        if self.sandwich is None:
+            return None
+        index = {team: i for i, team in enumerate(self.teams)}
+        if a not in index or b not in index:
+            return None
+        return ridge.difference_se(self.sandwich.cov, index[a], index[b])
 
     def predict(self, home: str, away: str, neutral: bool = False) -> float:
         """Predicted compressed-response margin. Points-scale calibration is the
@@ -140,10 +167,12 @@ def fit(
         n_folds=int(cfg["ridge"]["cv_folds"]),
     )
     theta = ridge.solve(d.Z, d.s, d.v, d.penalty, cv.lam)
+    cov = ridge.sandwich(d.Z, d.s, d.v, d.penalty, cv.lam, theta)
 
     ratings = {team: float(theta[i]) for i, team in enumerate(d.teams)}
     params = _static_params(cfg)
     params["home_field_home_and_home"] = estimate_home_field(games)
+    params["sandwich"] = cov.as_dict()
     return L2Fit(
         ratings=ratings,
         home_field=float(theta[d.site_index]),
@@ -152,6 +181,8 @@ def fit(
         n_teams=d.n_teams,
         cv=cv,
         params=params,
+        teams=d.teams,
+        sandwich=cov,
     )
 
 

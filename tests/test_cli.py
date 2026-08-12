@@ -54,12 +54,27 @@ def test_subcommand_help_runs() -> None:
 def test_stubs_fail_loudly() -> None:
     """A stub must raise, not return quietly. No fabricated capabilities.
 
-    `rank` is real now (L2 only), so the canary moved to `bootstrap`, which
-    belongs to a layer that genuinely does not exist yet.
-    """
-    result = runner.invoke(app, ["bootstrap"])
+    THE CANARY HAS MOVED TWICE, and both times because the thing it was watching
+    got built: first `rank`, then `bootstrap` (the parametric intervals, 2026-08
+    -12). It is now `guard`, which belongs to the publication plumbing and
+    genuinely does not exist. When that is built, move it again rather than
+    deleting the test - the property under test is that this repository never
+    pretends, and it needs a live subject."""
+    result = runner.invoke(app, ["guard"])
     assert result.exit_code != 0
     assert isinstance(result.exception, NotImplementedError)
+
+
+def test_bootstrap_is_no_longer_a_stub() -> None:
+    """It raised NotImplementedError until 2026-08-12 while
+    `[publication].publish_rank_intervals` said "every week, forever" and
+    weekly.yml called it. Now it runs, and it runs the PARAMETRIC scheme on the
+    fixed schedule rather than the invalid resample-with-replacement the scaffold
+    specified (docs/analysis/fresh-eyes-review.md, S3)."""
+    result = runner.invoke(app, ["bootstrap", "--help"])
+    assert result.exit_code == 0
+    assert "PARAMETRIC ON THE FIXED SCHEDULE" in result.output
+    assert runner.invoke(app, ["bootstrap"]).exit_code != 0  # --season is required
 
 
 def test_rank_requires_a_season_until_the_calendar_resolver_exists() -> None:

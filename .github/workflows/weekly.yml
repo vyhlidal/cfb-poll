@@ -113,9 +113,16 @@ jobs:
         if: steps.guard.outputs.already_published != 'true'
         run: uv run cfbpoll rank --config configs/default.toml --out out/
 
+      # PARAMETRIC ON THE FIXED SCHEDULE, not resample-with-replacement: games are
+      # edges in the schedule graph and resampling them disconnects it (report 02
+      # §3.3's parenthetical was wrong; docs/analysis/uncertainty.md §1 measures
+      # how wrong). `cfbpoll rank` above already writes these; this step exists so
+      # a different draw count or seed can be applied without refitting the poll.
       - name: Bootstrap rank intervals
         if: steps.guard.outputs.already_published != 'true'
-        run: uv run cfbpoll bootstrap --draws 1000 --jobs 4 --seed 20260812 --out out/
+        run: >
+          uv run cfbpoll bootstrap --season "${{ inputs.season }}"
+          --draws 1000 --jobs 4 --seed 20260812 --out out/
 
       - name: Publish files (parquet + csv + json) as an immutable release asset
         if: steps.guard.outputs.already_published != 'true' && inputs.publish

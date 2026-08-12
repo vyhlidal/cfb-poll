@@ -61,15 +61,17 @@ OUTPUT_FILENAMES: tuple[str, ...] = (
     "_run.json",
 )
 
-#: Written by `cfbpoll rank`: one evaluation week N, both surfaces. The rest of
-#: OUTPUT_FILENAMES belongs to work that does not exist yet - the bootstrap's
-#: rank intervals, the next-slate predictions - and writing an empty file for
-#: them would be a fabricated capability.
+#: Written by `cfbpoll rank`: one evaluation week N, both surfaces, and the
+#: bootstrap's rank intervals. `predictions.parquet` (the next slate) is the only
+#: name in OUTPUT_FILENAMES this command does not write, and writing an empty
+#: file for it would be a fabricated capability.
 RANK_OUTPUTS: tuple[str, ...] = (
     "ratings_live.parquet",
     "ratings_live.csv",
     "ratings_hindsight.parquet",
     "ratings_hindsight.csv",
+    "rank_intervals.parquet",
+    "rank_intervals.csv",
     "poll.json",
     "poll.csv",
     "model_params.json",
@@ -121,6 +123,7 @@ def write_rank_outputs(
     params: dict[str, Any],
     run: dict[str, Any],
     config_path: Path | None = None,
+    intervals: pl.DataFrame | None = None,
 ) -> list[Path]:
     """Write one evaluation week's artifact set. Returns the paths written, sorted.
 
@@ -137,6 +140,17 @@ def write_rank_outputs(
     hindsight.write_parquet(out / "ratings_hindsight.parquet")
     hindsight.write_csv(out / "ratings_hindsight.csv")
     poll.write_csv(out / "poll.csv")
+
+    # The bootstrap's own artifact, sorted by team so the bytes are a pure
+    # function of the computation (report 03 §9.3). A run with no draws writes
+    # the schema with no rows rather than no file, because "we did not bootstrap
+    # this week" is a fact a downstream reader needs to be able to see.
+    intervals = (
+        intervals if intervals is not None else pl.DataFrame({"team": []}, schema={"team": pl.Utf8})
+    )
+    intervals = intervals.sort("team")
+    intervals.write_parquet(out / "rank_intervals.parquet")
+    intervals.write_csv(out / "rank_intervals.csv")
 
     _json_dump(
         out / "poll.json",
@@ -232,6 +246,11 @@ def write_grid_outputs(
     return sorted((out / name) for name in GRID_OUTPUTS)
 
 
+def _g(value: Any) -> str:
+    """%.10g for a number, empty for a null. The canonical float format."""
+    return "" if value is None else format(float(value), ".10g")
+
+
 def canonicalize(src: Path, dest: Path) -> Path:
     """Emit the sorted, %.10g-formatted CSV that golden fixtures hash.
 
@@ -241,12 +260,28 @@ def canonicalize(src: Path, dest: Path) -> Path:
     carries a wall-clock timestamp by design.
     """
     ratings = pl.read_parquet(src / "ratings_live.parquet").sort(["eval_order", "team"])
-    lines = ["eval_label,team,odds_key,tail_p,resume,resume_margin,power"]
+    lines = ["eval_label,team,odds_key,tail_p,resume,resume_margin,power,power_se"]
     lines += [
         f"{row['eval_label']},{row['team']},{row['odds_key']:.10g},{row['tail_p']:.10g},"
-        f"{row['resume']:.10g},{row['resume_margin']:.10g},{row['power']:.10g}"
+        f"{row['resume']:.10g},{row['resume_margin']:.10g},{row['power']:.10g},"
+        f"{_g(row.get('power_se'))}"
         for row in ratings.iter_rows(named=True)
     ]
+
+    # THE INTERVALS ARE PART OF THE REPLAY, not an extra. They come out of a
+    # seeded RNG, which is exactly the kind of thing that silently stops being
+    # reproducible, so the golden hash covers them (report 03 §9.3 item 2).
+    interval_path = src / "rank_intervals.parquet"
+    if interval_path.exists():
+        table = pl.read_parquet(interval_path)
+        if table.height:
+            columns = [c for c in sorted(table.columns) if c != "team"]
+            lines.append("")
+            lines.append("team," + ",".join(columns))
+            lines += [
+                row["team"] + "," + ",".join(_g(row[c]) for c in columns)
+                for row in table.sort("team").iter_rows(named=True)
+            ]
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return dest

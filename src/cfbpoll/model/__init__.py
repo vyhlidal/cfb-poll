@@ -10,7 +10,7 @@ Layer map (report 02 §1):
 
 Headline poll = L4 Resume. L3 Power is published beside it, always, with the gap
 shown (report 02 §3.5). Build order is report 02 Appendix B: L2 first, then the
-backtest harness, then L4, then L1, then L3, then bootstrap.
+backtest harness, then L4, then L1, then L3, then bootstrap. All of it is built.
 
 STATUS: all four layers are real and `cfbpoll rank` publishes L4 with opponent
 quality from the L3 blend (`power_source = "L3"`, `power_version = "v1"`). L2
@@ -19,7 +19,9 @@ falls back to; whichever ran is stamped on every artifact. The per-play value L1
 regresses on comes from ep.py - OUR expected-points model, because the archive's
 `EPA` column is a third party's and report 01 §5.6 bans it. The two argument
 surface R(N, K) that makes retroactive re-ranking definitional lives in retro.py.
-Still unbuilt: the block bootstrap and its rank intervals.
+The parametric bootstrap on the fixed schedule (bootstrap.py) publishes a 90%
+rank interval beside every rank, and the ridge sandwich (ridge.py) publishes a
+standard error beside every Power rating.
 """
 
 from __future__ import annotations

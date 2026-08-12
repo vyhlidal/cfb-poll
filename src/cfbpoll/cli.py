@@ -335,6 +335,10 @@ def rank(
         str | None, typer.Option(help="Data window K. Blank = latest completed week.")
     ] = None,
     seed: Annotated[int | None, typer.Option(help="Seed for any stochastic step.")] = None,
+    draws: Annotated[
+        int | None,
+        typer.Option(help="Bootstrap draws; blank = [bootstrap].draws. 0 skips the intervals."),
+    ] = None,
     out: Annotated[Path, typer.Option(help="Output directory.")] = Path("out"),
 ) -> None:
     """Fit the model and write the ratings, the poll and the run record.
@@ -374,6 +378,7 @@ def rank(
     from cfbpoll.config import load_config
     from cfbpoll.ingest import windows
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
+    from cfbpoll.model import bootstrap as bootstrap_mod
     from cfbpoll.model import l4_resume, retro, schedule_odds
     from cfbpoll.publish import files
     from cfbpoll.publish import poll as poll_mod
@@ -427,7 +432,23 @@ def rank(
 
     live = retro.cell(games, evaluated, evaluated, cfg, power=power, classes=classes)
     hindsight = retro.cell(games, evaluated, final, cfg, power=powers[final.order], classes=classes)
-    table = poll_mod.headline_frame(live, hindsight)
+
+    # THE INTERVALS. `[publication].publish_rank_intervals` says "every week,
+    # forever"; this is where that happens. The scheme is parametric on the FIXED
+    # schedule - outcomes redrawn from the fitted model, refit, re-ranked - and
+    # NOT the resample-games-with-replacement the scaffold specified, which is
+    # invalid on a schedule graph (model/bootstrap.py).
+    n_draws = int(draws if draws is not None else cfg["bootstrap"]["draws"])
+    root_seed = int(seed if seed is not None else cfg["bootstrap"]["seed"])
+    draw_set = None
+    interval_table = None
+    if bool(cfg["publication"]["publish_rank_intervals"]) and n_draws > 0:
+        draw_set = bootstrap_mod.run(
+            window, power, cfg, classes=classes, draws=n_draws, seed=root_seed
+        )
+        interval_table = bootstrap_mod.intervals(draw_set, float(cfg["bootstrap"]["interval"]))
+
+    table = poll_mod.headline_frame(live, hindsight, interval_table)
     provisional, label = poll_mod.publication_status(week_i, cfg)
     ordering = poll_mod.headline_ordering(cfg)
 
@@ -454,9 +475,15 @@ def rank(
         "hindsight_variant": retro.HINDSIGHT_VARIANT,
         "hindsight_data_bucket": final.label,
         "hindsight_is_live": final.order == evaluated.order,
-        "layers_implemented": (["L1", "L2", "L3", "L4"] if plays is not None else ["L2", "L4"]),
-        "layers_missing": ["bootstrap"],
-        "seed": seed if seed is not None else cfg["bootstrap"]["seed"],
+        "layers_implemented": (
+            ["L1", "L2", "L3", "L4", "bootstrap"]
+            if plays is not None
+            else ["L2", "L4", "bootstrap"]
+        ),
+        "layers_missing": [],
+        "seed": root_seed,
+        "interval_level": float(cfg["bootstrap"]["interval"]),
+        **(draw_set.as_params() if draw_set is not None else {"bootstrap_draws": 0}),
         # Constraint 5: the audit that licensed this run is published with it,
         # not merely run and forgotten.
         "feature_audit": {
@@ -482,7 +509,9 @@ def rank(
         "n_teams_in_fit": int(live.height),
         "n_ranked_teams": int(table.height),
     }
-    written = files.write_rank_outputs(out, live, hindsight, table, params, run, config_path=config)
+    written = files.write_rank_outputs(
+        out, live, hindsight, table, params, run, config_path=config, intervals=interval_table
+    )
 
     saturated = int(table.filter(pl.col("saturated") != 0).height)
     typer.echo(
@@ -504,16 +533,30 @@ def rank(
         "column, which is published beside the key and no longer orders the poll "
         "(docs/adr/0005-headline-ordering.md)" + ("  [PROVISIONAL]" if provisional else "")
     )
+    if draw_set is not None:
+        level = int(round(100 * float(cfg["bootstrap"]["interval"])))
+        typer.echo(
+            f"  {level}% rank intervals from {draw_set.n_draws} parametric draws on the "
+            f"FIXED schedule (seed {draw_set.seed}, sigma {draw_set.sigma:g}); "
+            "games are graph edges, so resampling them with replacement is invalid "
+            "and is not what this does"
+        )
     typer.echo(
-        f"{'#':>3}  {'team':<24}{'-log10P':>9}{'P':>10}{'resume':>9}"
-        f"{'power':>8}{'gap':>7}   rec   retro"
+        f"{'#':>3} {'90% int':>9}  {'team':<24}{'-log10P':>9}{'P':>10}{'resume':>9}"
+        f"{'power':>8}{'+/-':>6}{'gap':>7}   rec   retro"
     )
     for row in table.head(25).iter_rows(named=True):
         mark = "*" if row["saturated"] else " "
+        interval = (
+            f"{row['rank_lo']:>4}-{row['rank_hi']:<4}"
+            if row["rank_lo"] is not None
+            else " " * 9
+        )
+        se = f"{row['power_se']:>6.2f}" if row["power_se"] is not None else " " * 6
         typer.echo(
-            f"{row['rank']:>3}  {row['team']:<24}{row['odds_key']:>9.3f}"
+            f"{row['rank']:>3} {interval}  {row['team']:<24}{row['odds_key']:>9.3f}"
             f"{row['tail_p']:>10.2e}{row['resume']:>8.2f}{mark}"
-            f"{row['power']:>8.2f}{row['gap']:>7.2f}"
+            f"{row['power']:>8.2f}{se}{row['gap']:>7.2f}"
             f"  {row['wins']}-{row['losses']}  {row['rank_delta']:+d}"
         )
     typer.echo("wrote: " + ", ".join(p.name for p in written))
@@ -727,25 +770,116 @@ def grid(
 
 @app.command()
 def bootstrap(
-    draws: Annotated[int, typer.Option(help="Block-bootstrap resamples.")] = 1000,
-    jobs: Annotated[int, typer.Option(help="Parallel workers.")] = 4,
+    config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
+    season: Annotated[str | None, typer.Option(help="Season; required.")] = None,
+    through_week: Annotated[
+        str | None, typer.Option(help="Window; blank = latest completed week.")
+    ] = None,
+    draws: Annotated[
+        int | None, typer.Option(help="Draws; blank = [bootstrap].draws.")
+    ] = None,
+    jobs: Annotated[int, typer.Option(help="Parallel workers. Currently ignored.")] = 4,
     seed: Annotated[
         int | None, typer.Option(help="Root seed; SeedSequence.spawn per draw.")
     ] = None,
+    naive_diagnostic: Annotated[
+        bool,
+        typer.Option(help="Also run the INVALID resample-with-replacement scheme and report it."),
+    ] = False,
     out: Annotated[Path, typer.Option(help="Output directory.")] = Path("out"),
 ) -> None:
-    """Block-bootstrap the ratings into rating AND rank intervals.
+    """Bootstrap the ratings into rating AND rank intervals.
 
-    WILL DO: resample games with replacement, refit, and write rank_intervals.parquet
-    with 90% intervals on both rating and rank (report 02 §3.3). Publishing
-    "ranked 7th, 90% interval 4th-13th" every week is the single most honest thing
-    a computer poll can do and no major system does it.
+    PARAMETRIC ON THE FIXED SCHEDULE, and the correction matters. Report 02 §3.3
+    specified "resample games with replacement, refit", and the scaffold's
+    docstring copied it. That scheme is invalid here: games are EDGES in the
+    schedule graph, not exchangeable observations, and resampling edges can
+    disconnect the graph or strand a team with no games - destroying exactly the
+    connectivity structure whose uncertainty was being measured. The schedule was
+    also fixed years in advance and is not random.
 
-    Determinism is a requirement, not a nicety: never np.random.seed; use an
-    explicit Generator(PCG64(seed)) with per-draw seeds from SeedSequence.spawn so
-    results are identical on 1 core or 16 (report 03 §9.3).
+    So the schedule is held fixed and the OUTCOMES are redrawn from the fitted
+    model - `m_g ~ Normal(Power_h - Power_a + h*site, sigma^2)` - then refit and
+    re-ranked, 1,000 times. Each draw is a complete alternative season on the real
+    calendar, and the rank interval is the spread of a team's rank across them.
+    Writes rank_intervals.parquet with 90% intervals on rank (all three published
+    orderings) and on the Power rating. Publishing "ranked 7th, 90% interval
+    4th-13th" every week is the single most honest thing a computer poll can do
+    and no major system does it.
+
+    `--naive-diagnostic` runs the INVALID scheme too and reports how often it
+    breaks the graph, so the disqualification is a measurement rather than an
+    argument (docs/analysis/fresh-eyes-review.md, S3).
+
+    Determinism is a requirement, not a nicety: never np.random.seed; an explicit
+    Generator(PCG64(seed)) with per-draw seeds from SeedSequence.spawn, so results
+    are identical on 1 core or 16 (report 03 §9.3). `--jobs` is accepted and
+    ignored - the draws run sequentially and parallelising them later cannot move
+    a published number, which is precisely why the seeding is done this way.
+
+    `cfbpoll rank` already runs this and writes the same file; this verb exists so
+    the intervals can be recomputed at a different draw count or seed without
+    refitting the poll.
     """
-    _stub("bootstrap", "report 02 §3.3, report 03 §9.3")
+    import json
+
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.sportsdataverse import load_games
+    from cfbpoll.model import bootstrap as bootstrap_mod
+    from cfbpoll.model import retro
+    from cfbpoll.publish import poll as poll_mod
+
+    if season is None or str(season).strip() == "":
+        raise typer.BadParameter("--season is required. Try --season 2023.")
+    season_i = int(season)
+    cfg = load_config(config)
+
+    games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
+    plays = _plays_if_needed(cfg, [season_i])
+    buckets = windows.season_buckets(games, season_i)
+    regular = [b for b in buckets if b.season_type == "regular"]
+    week_i = (
+        max(b.week for b in regular)
+        if through_week is None or str(through_week).strip() == ""
+        else int(through_week)
+    )
+    evaluated = next(b for b in regular if b.week == week_i)
+    window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
+    powers = retro.season_power(games, season_i, cfg, plays=plays, buckets=buckets)
+    classes = poll_mod.team_classes(games)
+
+    draw_set = bootstrap_mod.run(
+        window,
+        powers[evaluated.order],
+        cfg,
+        classes=classes,
+        draws=draws,
+        seed=seed,
+    )
+    table = bootstrap_mod.intervals(draw_set, float(cfg["bootstrap"]["interval"])).sort("team")
+
+    out.mkdir(parents=True, exist_ok=True)
+    table.write_parquet(out / "rank_intervals.parquet")
+    table.write_csv(out / "rank_intervals.csv")
+    typer.echo(
+        f"{draw_set.n_draws} parametric draws on the fixed {season_i} schedule through "
+        f"{evaluated.label} (seed {draw_set.seed}, sigma {draw_set.sigma:g}, "
+        f"lambda {draw_set.lam:g}, jobs requested {jobs} / used 1)"
+    )
+    typer.echo(f"  {draw_set.note}")
+    if naive_diagnostic:
+        report = bootstrap_mod.naive_resample_diagnostic(window, draws=draw_set.n_draws)
+        (out / "naive_resample_diagnostic.json").write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        typer.echo(
+            "  the INVALID scheme, measured: "
+            f"{report['fraction_broken_either_way']:.1%} of draws disconnect the graph or "
+            f"strand a team (largest component {report['mean_largest_component_share']:.1%} "
+            "of teams on average)"
+        )
+    typer.echo(f"wrote: {(out / 'rank_intervals.parquet').name}, rank_intervals.csv")
 
 
 @app.command()

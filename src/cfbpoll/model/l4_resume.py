@@ -170,10 +170,41 @@ class PowerSource:
     n_scale_games: int
     l2: l2_results.L2Fit | None = None
     l3: Any = None  # l3_power.L3Fit, typed loosely to keep the import one-way
+    #: The multiplier that carries a compressed-response standard error onto the
+    #: points scale. For the L2 path it is `scale` (the OLS `b`); for L3 it is
+    #: `w2`, because the results core enters Power multiplied by w2.
+    se_scale: float = 0.0
+    #: What the published error bar does and does NOT propagate. Never None: a
+    #: number with an unstated scope is worse than no number.
+    se_note: str = ""
 
     def rating(self, team: str) -> float:
         """Unseen teams sit at 0.0 - the league-average prior, not a guess."""
         return self.ratings.get(team, 0.0)
+
+    def rating_se(self, team: str) -> float | None:
+        """Standard error of this team's Power rating, IN POINTS.
+
+        From the ridge sandwich of report 02 §3.3 (model/ridge.py::sandwich),
+        rescaled by whatever carries the results core onto the points scale. See
+        `se_note` for what is propagated: with Power = L3 the efficiency half is
+        held at its point estimate, because a play-level covariance is a
+        different object and is not built.
+        """
+        if self.l2 is None or self.l2.sandwich is None:
+            return None
+        se = self.l2.rating_se().get(team)
+        return None if se is None else abs(self.se_scale) * se
+
+    def difference_se(self, a: str, b: str) -> float | None:
+        """SE of Power(a) - Power(b), in points. THE quantity a ranking argument
+        is about, and not the two individual errors added in quadrature - two
+        teams that share opponents share estimation error (ridge.difference_se).
+        """
+        if self.l2 is None:
+            return None
+        se = self.l2.difference_se(a, b)
+        return None if se is None else abs(self.se_scale) * se
 
     def as_params(self) -> dict[str, Any]:
         """The model_params.json block for the opponent-quality source."""
@@ -184,7 +215,15 @@ class PowerSource:
             "power_home_field_points": self.home_field,
             "power_scale_universe": self.scale_universe,
             "power_scale_n_games": self.n_scale_games,
+            "power_se_scale": self.se_scale,
+            "power_se_note": self.se_note,
         }
+        if self.l2 is not None and self.l2.sandwich is not None:
+            params["power_se_median_points"] = float(
+                np.median(
+                    [abs(self.se_scale) * v for v in self.l2.rating_se().values()] or [float("nan")]
+                )
+            )
         if self.l3 is not None:
             params.update(self.l3.as_params())
         return params
@@ -280,6 +319,13 @@ def power_from_l2(
         scale_universe=universe,
         n_scale_games=n,
         l2=fitted,
+        se_scale=b,
+        se_note=(
+            "ridge sandwich on the L2 fit (report 02 §3.3), rescaled to points by "
+            "the same b that rescales the rating. It propagates the sampling "
+            "uncertainty of the results core and NOT the uncertainty in b itself, "
+            "which is second order at this sample size"
+        ),
     )
 
 

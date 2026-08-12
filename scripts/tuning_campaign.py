@@ -1294,7 +1294,9 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
             lines += [
                 "### THE WINNER IS A CORNER SOLUTION, AND THAT IS THE FINDING",
                 "",
-                f"**{' and '.join(edges)} sit on the EDGE of the published grid.** The "
+                f"**{' and '.join(edges)} "
+                f"{'sit' if len(edges) > 1 else 'sits'} on the EDGE of the published "
+                "grid.** The "
                 "optimum is therefore not bracketed: the data wants to keep going and the "
                 "search space stops it. The protocol fixed the search space as *exactly the "
                 "config grids* precisely so that this campaign could not widen the net after "

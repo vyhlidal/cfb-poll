@@ -37,7 +37,44 @@ import numpy as np
 from scipy import sparse
 from scipy.linalg import cho_factor, cho_solve
 
-__all__ = ["CVResult", "cv_select_lambda", "group_folds", "solve"]
+__all__ = [
+    "CVResult",
+    "cv_select_lambda",
+    "group_folds",
+    "normal_equations",
+    "solve",
+    "solve_normal",
+]
+
+
+def normal_equations(
+    z: sparse.spmatrix,
+    y: np.ndarray,
+    w: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """(ZᵀWZ, ZᵀWy). Neither depends on lambda, so form them once per fold.
+
+    This is the whole of report 02 §3.11's cost argument. At L2 the matrix is a
+    few hundred on a side and it hardly matters; at L1 the design is ~170k x ~530
+    and re-forming it for each of eleven lambdas in each of five folds would do
+    55 sparse products where 5 suffice.
+    """
+    zw = z.T.multiply(w)  # (n_cols x n_rows), each column scaled by its weight
+    a = np.asarray((zw @ z).todense(), dtype=np.float64)
+    b = np.asarray(zw @ y, dtype=np.float64).ravel()
+    return a, b
+
+
+def solve_normal(
+    a: np.ndarray,
+    b: np.ndarray,
+    penalty: np.ndarray,
+    lam: float,
+) -> np.ndarray:
+    """Cholesky solve of (A + lambda*D) theta = b, without disturbing A."""
+    m = a.copy()
+    m[np.diag_indices_from(m)] += lam * penalty
+    return cho_solve(cho_factor(m, lower=True, check_finite=False), b, check_finite=False)
 
 
 def solve(
@@ -52,11 +89,8 @@ def solve(
     The normal matrix is (T+1) x (T+1) at L2 - a few hundred on a side - so densifying
     it costs nothing and buys a numerically clean, exactly reproducible solve.
     """
-    zw = z.T.multiply(w)  # (n_cols x n_rows), each column scaled by its weight
-    a = np.asarray((zw @ z).todense(), dtype=np.float64)
-    b = np.asarray(zw @ y, dtype=np.float64).ravel()
-    a[np.diag_indices_from(a)] += lam * penalty
-    return cho_solve(cho_factor(a, lower=True, check_finite=False), b, check_finite=False)
+    a, b = normal_equations(z, y, w)
+    return solve_normal(a, b, penalty, lam)
 
 
 def group_folds(groups: np.ndarray, n_folds: int) -> np.ndarray:
@@ -132,8 +166,9 @@ def cv_select_lambda(
         if not train.any() or not test.any():
             continue
         z_tr, z_te = z[train], z[test]
+        a, b = normal_equations(z_tr, y[train], w[train])
         for i, lam in enumerate(grid):
-            theta = solve(z_tr, y[train], w[train], penalty, lam)
+            theta = solve_normal(a, b, penalty, lam)
             resid = y[test] - np.asarray(z_te @ theta).ravel()
             errors[i] += float(np.sum(w[test] * resid**2))
         weight_total += float(np.sum(w[test]))

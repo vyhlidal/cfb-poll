@@ -89,6 +89,17 @@ path-dependent: there is no principled "week 5 with hindsight," and its week-5
 rating cannot use week-13 information without breaking its own update recursion
 (report 02 §2.7, §3.6).
 
+**This constraint chose the headline ordering**, and it is worth recording that a
+constraint did real work rather than sitting on a page. The wins-based résumé that
+was the headline until 2026-08-12 satisfied constraint 4 for every team *that had
+lost a game*, and could not satisfy it for any team that had not: an undefeated
+team's résumé saturates at the published bracket `[−60, +60]`, +60 is not a
+function of the schedule, therefore it is not a function of `K`, therefore
+substituting end-of-season opponent quality could not move it at all. Measured:
+from week 11 of 2023 onward, the résumé ordering moved **no unbeaten team by a
+single place** between the live and hindsight surfaces. See
+[ADR 0005](adr/0005-headline-ordering.md).
+
 ## 5. Full transparency
 
 Every equation, every constant, every input published — and every published poll
@@ -100,6 +111,65 @@ Concretely this means: `model_params.json` ships every constant every week;
 `archive_hash` that produced it; the win premium `β_w` appears in a permanent
 footer rather than a buried methodology page; and a CI job recomputes a historical
 week offline and asserts a byte-match on every push.
+
+---
+
+# The headline promise
+
+The five constraints say what the poll may not do. This says what it claims to do,
+in the one sentence a reader is entitled to hold it to:
+
+> **The harder it was to do what you did, the higher you go — measured, never
+> assumed.**
+
+Teams are ranked by `−log10 P(W ≥ W_t)`: the probability that a team of published
+reference quality would have gone at least this well against that exact schedule.
+Both halves of the sentence are load-bearing.
+
+**"The harder it was"** means schedule difficulty, and only schedule difficulty.
+Margin never enters the rank key — not as a tie-break, not as a secondary sort,
+nowhere. That is enforced rather than promised: the module's schedule flattener
+carries no margin column at all, and a test scrambles every final score in a season
+while preserving every winner and asserts the ranking is bit-identical.
+
+**"Measured, never assumed"** is constraint 2 applied to the thing everyone
+actually argues about. An unbeaten Group of Five team probably would not survive a
+Big Ten schedule — and a poll may only say so if it *derived* it. Nothing in the
+computation knows what a conference is; opponent quality arrives only as a rating
+fitted from results. In 2023 the poll puts a 13-0 Liberty at #10, below a 12-1
+Georgia at #7. That is the same direction as the intuition, reached from Liberty's
+actual opponents rather than from the letters "C-USA", and it is falsifiable in a
+way the intuition is not.
+
+## Unbeatens-first was considered, and rejected
+
+The obvious alternative promise — *win them all and you finish ahead of every team
+that did not* — is the oldest promise in the sport, and it was the published
+ordering of this project from commit `50f4058` until 2026-08-12. It was the
+wins-based L4 résumé, under which an undefeated team's rating has no finite root
+and lands on the published bracket `+60`. That delivers unbeatens-first as a
+theorem rather than a tendency: across four seasons and both surfaces, the number
+of teams with a loss ever ranked above an unbeaten team was **exactly zero**, in
+all eight cells.
+
+It was rejected because **+60 is not a function of the schedule**, and therefore
+not a function of the data window, and therefore constraint 4 — retroactive
+re-ranking, the project's most differentiated product — could not move an unbeaten
+team at all. From week 11 of 2023 onward it moved none of them by a single place.
+A poll that cannot say "September turned out to be harder than we thought" about
+the teams whose ranking is most argued about is not delivering the feature it
+advertises.
+
+The evidence, in full, with the axes on which the rejected orderings *won*:
+[`docs/analysis/headline-ordering-study.md`](analysis/headline-ordering-study.md).
+The decision, the owner's rationale and the price:
+[`docs/adr/0005-headline-ordering.md`](adr/0005-headline-ordering.md).
+
+**The résumé did not go away.** It is on every published row, with its saturation
+flag, its margin-aware variant, and the Power rating with the gap between them.
+Anyone who prefers unbeatens-first can sort by that column, or set
+`[publication].headline_ordering = "L4_resume"` and regenerate the whole pipeline
+under it. What changed is which column sorts the table by default.
 
 ---
 

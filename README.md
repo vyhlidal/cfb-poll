@@ -12,13 +12,14 @@ no permission from anyone.
 > **What runs today:** the games and play loaders over the MIT archive, **our own
 > expected-points model**, the L1 efficiency core (ridge on play value), the L2
 > results core (ridge on compressed scoring margin), the L3 blend that stacks
-> them out-of-sample, the **L4 résumé rating — the headline poll**, the full
-> R(N, K) retroactive grid (`cfbpoll grid`), `cfbpoll rank`, and the walk-forward
-> backtest against every baseline (`cfbpoll backtest`). Real output is committed
-> under [`demo/`](demo/):
+> them out-of-sample, the L4 résumé rating, the **schedule-odds ordering — the
+> headline poll**, the full R(N, K) retroactive grid (`cfbpoll grid`),
+> `cfbpoll rank`, and the walk-forward backtest against every baseline
+> (`cfbpoll backtest`). Real output is committed under [`demo/`](demo/):
 >
-> - [**The 2023 final poll**](demo/2023-final-poll.md) — résumé and power, live and
->   hindsight, and what a transparent system says about undefeated Florida State
+> - [**The 2023 final poll**](demo/2023-final-poll.md) — schedule odds, résumé and
+>   power, live and hindsight, and what a transparent system says about undefeated
+>   Florida State
 > - [2023 retroactive movers](demo/2023-retro-movers.md) — who the model was wrong
 >   about, in its own words, plus the divergence curve
 > - [2021: Cincinnati](demo/2021-cincinnati.md) — the first Group of Five playoff team
@@ -62,27 +63,62 @@ singular and the method does not work at all.
 
 ---
 
-## Two ratings, published side by side
+## The promise
+
+> ### The harder it was to do what you did, the higher you go — measured, never assumed.
+
+Teams are ranked by **schedule odds**: `−log10 P(W ≥ W_t)`, the probability that a
+team of published reference quality would have gone at least this well against that
+exact schedule. Both halves of the sentence are load-bearing.
+
+**"The harder it was"** means schedule difficulty and nothing else. Margin never
+enters the rank key — not as a tie-break, not anywhere — and that is enforced
+rather than promised: scramble every final score in a season while preserving every
+winner and the ranking is bit-identical.
+
+**"Measured, never assumed"** is the part that matters. An unbeaten Group of Five
+team probably would not survive a Big Ten schedule — and a poll may only say so if
+it *derived* it from results. Assuming it is how you get AP-poll-style conference
+bias. Nothing in the computation knows what a conference is. In 2023 the poll puts
+a 13-0 Liberty at **#10**, below a 12-1 Georgia at **#7**: the same direction as
+the intuition, reached from Liberty's actual opponents rather than from the letters
+"C-USA".
+
+**Unbeatens-first was considered and rejected**, and it was this project's own
+published ordering until 2026-08-12. Under the wins-based résumé an undefeated team
+saturates at a published bracket, which made "win them all and finish ahead of
+everyone who didn't" a theorem rather than a tendency — but that bracket is not a
+function of the schedule, so the retroactive re-ranking below could not move an
+unbeaten team **at all**. From week 11 of 2023 it moved none of them by a single
+place. The full evidence, including the axes the rejected orderings *won*, is in
+[the headline-ordering study](docs/analysis/headline-ordering-study.md); the
+decision and its price are in
+[ADR 0005](docs/adr/0005-headline-ordering.md).
+
+## Three numbers, published side by side
 
 Most systems publish one number and leave you to argue about what it means. We
-publish two, always, with the gap between them shown.
+publish three, always, on every row, with the gap between the last two shown.
 
-| | **Résumé rating (L4)** | **Power rating (L3)** |
-|---|---|---|
-| Question it answers | *What have you earned?* | *How good are you?* |
-| In one sentence | "Given who they played and where, these results are what a +18.4 team would be expected to produce" | "Expected margin against an average team on a neutral field" |
-| Kind | Retrodictive — a selection instrument | Predictive |
-| Role | **This is the poll.** The headline ranking | **This is the engine.** Never hidden, published beside the poll every week |
+| | **Schedule odds** | **Résumé rating (L4)** | **Power rating (L3)** |
+|---|---|---|---|
+| Question it answers | *How hard was that to do?* | *What have you earned?* | *How good are you?* |
+| In one sentence | "A top-25-calibre team would have gone this well against this schedule about 9 times in 100" | "Given who they played and where, these results are what a +18.4 team would be expected to produce" | "Expected margin against an average team on a neutral field" |
+| Kind | Retrodictive — a selection instrument | Retrodictive — a selection instrument | Predictive |
+| Role | **This is the poll.** The headline ranking | Published beside it, both variants, with the saturation flag | **This is the engine.** Never hidden |
 
-**Résumé is the poll. Power is the engine.** Retroactively re-scoring week 5
-because we now know an opponent was overrated is inherently a *résumé* operation —
-you are re-evaluating an accomplishment in light of better information about its
-difficulty. So the résumé number is the ranking, and the power number stays
-visible so the system can be scored honestly against Vegas and against FPI.
+**Odds are the poll. Power is the engine.** Retroactively re-scoring week 5 because
+we now know an opponent was overrated is inherently a *desert* operation — you are
+re-evaluating an accomplishment in light of better information about its difficulty
+— so a desert number is the ranking, and the power number stays visible so the
+system can be scored honestly against Vegas and against FPI.
 
-The gap between them is itself the interesting column: teams whose résumé exceeds
-their power rating have out-performed their underlying play; the reverse is the
-"best three-loss team in the country" case.
+The résumé-minus-power gap is still the interesting column: teams whose résumé
+exceeds their power rating have out-performed their underlying play; the reverse is
+the "best three-loss team in the country" case. And the one free constant in the
+headline ordering — the reference team's rating — is published every week **with
+the name of the team it came from**, so anyone can check it against the same week's
+table.
 
 **Every published row carries a 90% rank interval**, every week, forever — "ranked
 7th, 90% interval 4th–13th." No major system does this, and it is the single most
@@ -163,6 +199,13 @@ Four layers, all batch refits, all regularized:
 | **L2 — Results** | Ridge on compressed scoring margin, `s = C·tanh(m/C) + β_w·sign(m)` |
 | **L3 — Power** | Walk-forward stacked blend of L1 and L2, weights fitted out-of-sample |
 | **L4 — Résumé** | Root-solve for the team quality `q` whose expected results against this exact schedule equal the actual results |
+| **Schedule odds — the headline** | The exact Poisson-binomial tail `P(W ≥ W_t)` for a reference-quality team against that exact schedule. Ranked on `−log10 P` |
+
+The tail is **exact**, not simulated. ESPN's Strength-of-Record is reportedly a
+~20,000-run Monte Carlo; a Poisson-binomial over `n ≤ 15` independent games has an
+exact `O(n²)` convolution, so the whole league costs microseconds and reproduces
+bit for bit forever. It is property-tested against brute-force enumeration of all
+`2ⁿ` outcomes for every `n ≤ 12`, to `1e-14`.
 
 The two most contested numbers are published prominently rather than buried:
 **C = 24** (the compression scale — a 40-point win and a 60-point win are worth
@@ -228,10 +271,17 @@ cfbpoll site build                      build the static site
   team with its own coefficient under the same penalty
 - **L3 power rating** — the blend of L1 and L2, with `w1` and `w2` fitted on
   out-of-sample games only and published every week
-- **L4 résumé rating — the headline poll.** Root-solve for the quality `q` whose
-  expected results against that exact schedule equal the actual ones, in both the
-  wins-based and margin-aware variants, with Power and the résumé-minus-power gap
-  beside every team
+- **L4 résumé rating.** Root-solve for the quality `q` whose expected results
+  against that exact schedule equal the actual ones, in both the wins-based and
+  margin-aware variants, with Power and the résumé-minus-power gap beside every
+  team. It was the headline poll from commit `50f4058` until 2026-08-12 and is now
+  published beside the headline on every row
+- **Schedule odds — the headline poll** (`model/schedule_odds.py`). The exact
+  Poisson-binomial tail `P(W ≥ W_t)` for a reference-quality team against that
+  exact schedule, ranked on `−log10 P`, with the reference team named every week.
+  Adopted on the evidence of
+  [the headline-ordering study](docs/analysis/headline-ordering-study.md);
+  see [ADR 0005](docs/adr/0005-headline-ordering.md)
 - **R(N, K) and retroactive re-ranking** — `cfbpoll grid` writes the full
   upper-triangular surface, the live and hindsight surfaces, and the biggest
   retroactive movers
@@ -239,8 +289,9 @@ cfbpoll site build                      build the static site
 - `configs/default.toml` — every model constant with its starting value, its
   backtest grid, and a citation to the research section that fixed it
 - Licenses: MIT for code, CC BY 4.0 for published ratings, upstream notices
-- The five constraints and the banned-input table (`docs/constraints.md`)
-- Four architecture decision records (`docs/adr/`)
+- The five constraints, the headline promise and the banned-input table
+  (`docs/constraints.md`)
+- Five architecture decision records (`docs/adr/`)
 - `weekly.yml` and `reproducibility.yml`, committed as the specification. Both are
   `workflow_dispatch` only — no schedule, so nothing fires accidentally
 

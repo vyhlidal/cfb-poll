@@ -23,11 +23,48 @@ def test_config_parses() -> None:
 
 
 def test_margin_constants() -> None:
+    """The two most contested constants, and the grids they were searched over.
+
+    C and beta_w were the research report's starting values (24.0 / 3.0) until the
+    hyperparameter campaign of 2026-08-12 fitted them on 2021-2023 and validated
+    the choice once on 2024 (docs/adr/0007-tuned-constants.md). The grid endpoints
+    did NOT move: the protocol fixed the search space as exactly these grids, so
+    the campaign could not widen the net after seeing that the optimum landed on
+    C's upper bound.
+    """
     margin = load()["margin"]
-    assert margin["c"] == 24.0  # compression scale, report 02 §3.2
-    assert margin["beta_w"] == 3.0  # win premium, report 02 §3.2
+    assert margin["c"] == 32.0  # FITTED, ADR 0007 (was 24.0, report 02 §3.2)
+    assert margin["beta_w"] == 7.0  # FITTED, ADR 0007 (was 3.0, report 02 §3.2)
     assert min(margin["c_grid"]) == 18.0 and max(margin["c_grid"]) == 32.0
     assert min(margin["beta_w_grid"]) == 0.0 and max(margin["beta_w_grid"]) == 8.0
+
+
+def test_every_searched_constant_is_a_member_of_its_own_published_grid() -> None:
+    """THE INVARIANT, which outlives any particular fitted value.
+
+    A live constant outside the grid the config publishes for it would be a value
+    no backtest ever scored - the search space and the answer have to be the same
+    object. Asserting the mechanism rather than the choice is the lesson the
+    independent review drew from the tests that broke when the headline ordering
+    moved (S13): assert what must always hold, and let the choice move freely.
+    """
+    margin = load()["margin"]
+    assert margin["c"] in margin["c_grid"]
+    assert margin["beta_w"] in margin["beta_w_grid"]
+
+
+def test_prediction_compression_is_implemented_and_its_state_is_deliberate() -> None:
+    """`[margin.prediction_compression]` was configured `true` and implemented
+    NOWHERE in src/ until 2026-08-12 (fresh-eyes review S9), so every published
+    number was produced with it off while the config said on. It is implemented
+    now, it was searched in all 416 cells, and it lost on the objective in 208 of
+    208 paired cells - so the config says `false` and means it."""
+    from cfbpoll.model import design
+
+    pc = load()["margin"]["prediction_compression"]
+    assert pc["enabled"] is False  # SEARCHED, ADR 0007 (was true and inert)
+    assert pc["threshold"] == 21.0 and pc["alpha"] == 0.8
+    assert callable(design.compress_prediction)
 
 
 def test_resume_sigma() -> None:

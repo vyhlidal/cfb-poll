@@ -7,18 +7,39 @@
 # in this file, that is a bug: constraint 5 (full transparency) means the config
 # IS the methodology.
 #
-# Values here are STARTING VALUES plus the grids the backtest will search
+# Values here are the LIVE constants plus the grids the backtest searches
 # (report 02 §5.1: tune on 2021-2023, validate on 2024, hold out 2025).
-# Nothing in this file has been fitted yet — the model is not implemented.
+#
+# WHICH CONSTANTS ARE MEASURED HERE AND WHICH ARE INHERITED (fresh-eyes review §7
+# asked for exactly this distinction, because a citation points at a SOURCE and
+# not at a STATUS):
+#
+#   MEASURED ON THIS DATA   [margin].c, [margin].beta_w,
+#                           [margin.prediction_compression].enabled,
+#                           [garbage_time].mode          — ADR 0007, 2026-08-12
+#                           [model].fit_universe          — ADR 0006
+#                           [publication].headline_ordering — ADR 0005
+#                           [resume].sigma_estimator, [blend] weights, [ridge]
+#                           lambda and [efficiency].k are FITTED EVERY WEEK from
+#                           the data and published on model_params.json
+#   INHERITED, UNSEARCHED   [garbage_time].connelly / .strict thresholds,
+#                           [resume].sigma's 15.3 floor, [ridge] grid BOUNDS,
+#                           [ep] point values and buckets, every [baselines.*]
+#                           constant (those belong to the competition), and
+#                           [homefield].h_pasteur / .h_recent_estimate, which are
+#                           reference values no code path selects
+#
+# Anything in the second list is somebody else's answer on somebody else's data
+# until this file says otherwise.
 #
 # Rules never change mid-season. Once week 1 of a season publishes, this file is
 # copied to configs/frozen/<season>.toml and that copy governs the season.
 ####################################################################################
 
 [meta]
-config_version = "0.0.1"
+config_version = "0.1.0"
 frozen = false                  # true only for files under configs/frozen/
-description = "Scaffold defaults. No constant has been fitted; grids are unsearched."
+description = "C, beta_w and both mode switches fitted on 2021-2023, validated once on 2024 (ADR 0007). Remaining constants inherited; see the header."
 
 ####################################################################################
 # Publication policy — report 02 §4 (recommendation: Option B) and §3.5
@@ -90,12 +111,36 @@ publish_margin_resume_variant = true        # both resume flavours — report 02
 #   s_g = C * tanh(m_g / C) + beta_w * sign(m_g)
 ####################################################################################
 [margin]
+# ---------------------------------------------------------------------------------
+# BOTH CONSTANTS BELOW ARE FITTED, AS OF 2026-08-12, AND THE GRIDS ARE NO LONGER
+# UNSEARCHED. The full 416-cell factorial (C x beta_w x garbage_time x prediction
+# compression) was run on the tune seasons under a protocol committed before any
+# number was read; the winner was frozen in writing and then evaluated once on
+# 2024. See docs/analysis/tuning-campaign.md and docs/adr/0007-tuned-constants.md.
+#
+# Two things a reader must be told in the same breath as the new numbers:
+#
+#   1. THE OPTIMUM SITS ON THE EDGE OF C's PUBLISHED GRID. C = 32 is the top of
+#      `c_grid`, so the search did not bracket the optimum - the data wants to keep
+#      going and the grid stops it. The protocol fixed the search space as exactly
+#      these grids so the campaign could not widen the net after seeing the
+#      numbers, so the boundary is REPORTED rather than crossed. Widening the grid
+#      is the first item for the next campaign and must be pre-registered.
+#
+#   2. THE WHOLE GRID IS WORTH 0.135 POINTS OF MAE, BEST CELL TO WORST, AND THE
+#      WINNER BEATS THE INCUMBENT BY 0.0086. The gate needs 0.22 points. Tuning
+#      these constants is not what closes the gate, and saying so here is cheaper
+#      than letting a reader infer that a fitted constant is a fixed problem.
+# ---------------------------------------------------------------------------------
+
 # C — the compression scale. tanh is smooth, monotone, asymptotes at +/-C, so a
 # 40-point win and a 60-point win are worth nearly the same. Answers the BCS
 # sportsmanship objection WITHOUT discarding margin, and more gracefully than a
 # hard cap (no derivative discontinuity). Precedents: Pasteur capped at 21, the
-# CFBD SRS walkthrough uses +/-28.
-c = 24.0                                    # report 02 §3.2 (start; grid 18-32)
+# CFBD SRS walkthrough uses +/-28 - and the fitted value is above BOTH of them,
+# which is the "derivative without independent justification" charge (fresh-eyes
+# review §7) answered on this dataset rather than by citation.
+c = 32.0                                    # FITTED 2026-08-12, ADR 0007 (was 24.0)
 c_grid = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0]
 
 # beta_w — the win premium. The discontinuity at zero that makes this a FOOTBALL
@@ -104,13 +149,37 @@ c_grid = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0]
 # floor, which corresponds to beta_w ~ 3.0 here.
 # PUBLISH THIS NUMBER PROMINENTLY. It is the single most contested value in the
 # system and hiding it would be a transparency failure. (report 02 §3.2, §7.4)
-beta_w = 3.0                                # report 02 §3.2 (start; grid 0-8)
+#
+# IT MORE THAN DOUBLED, AND THE POLL BARELY MOVED. The search objective is margin
+# MAE, which has no opinion about desert, so the ranking consequence was measured
+# separately by the project's own standard (headline-ordering study §9, ADR 0006):
+# Kendall's tau against the incumbent is 0.9940 / 0.9979 / 0.9973 over 2021-2023,
+# every one above the 0.985 that the published q_ref sweep never dipped below. The
+# 2023 top ten is IDENTICAL and one team changes top-25 membership. By this
+# project's published rule that makes beta_w a convention rather than a dial on
+# this range - which is a measurement, not an assurance, and it is why the tau
+# table is published in the campaign document rather than summarised.
+beta_w = 7.0                                # FITTED 2026-08-12, ADR 0007 (was 3.0)
 beta_w_grid = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0]
 
 # Compression of extreme PREDICTIONS, after Pasteur: if raw predicted margin
 # M > 21, replace with M* = 21 + (1/a) * [(M - 20)^a - 1].
+#
+# IMPLEMENTED 2026-08-12 (model/design.py::compress_prediction) AND THEN TURNED
+# OFF BY THE SEARCH. Until that date this block was configured `true` and
+# implemented NOWHERE in src/ (fresh-eyes review S9), so every number this project
+# ever published was produced with it off while the config said on. It could not
+# be backtested until it could be run; it was run, in all 416 cells, and it loses
+# on the objective in all 208 paired cells - 0.0056 points of MAE on average.
+#
+# THE HONEST COST OF THAT DECISION: at the frozen (C, beta_w) it would have cut the
+# max decile calibration deviation, which is the gate criterion missed by the
+# widest relative margin. The objective is MAE, the objective was fixed before any
+# number was read, and MAE says off. Switching objectives at the moment the losing
+# option starts winning on a different column is the exact failure the protocol
+# exists to prevent, so it is recorded here instead of taken.
 [margin.prediction_compression]
-enabled = true                              # report 02 §2.13
+enabled = false                             # SEARCHED 2026-08-12, ADR 0007 (was true)
 threshold = 21.0
 alpha = 0.8
 
@@ -322,6 +391,14 @@ frozen_seasons = [2021, 2022, 2023]
 # least explainable. Backtest all three, then choose, and publish which is live.
 # Note this choice has a public-relations dimension as well as a statistical one
 # (report 02 §7.7).
+#
+# SEARCHED 2026-08-12 AND UNCHANGED. connelly beats strict in all 208 paired cells
+# of the factorial - 0.0584 points of MAE on average, the largest single effect
+# in the whole search and still smaller than the gate gap. `leverage` COULD NOT BE
+# SEARCHED: it raises NotImplementedError because it needs a win-probability model
+# this project does not have, so one of the three named alternatives has never been
+# measured. That is a hole in the search, recorded as one, and not a value that
+# lost. See docs/analysis/tuning-campaign.md Part 2b.
 mode = "connelly"
 connelly = { q1 = 43, q2 = 37, q3 = 29, q4 = 22 }   # report 02 §2.3, §3.1
 strict = { q1 = 28, q2 = 24, q3 = 21, q4 = 16 }     # report 02 §3.1 (alternative)
@@ -388,12 +465,44 @@ unpenalized = ["intercept", "home_field"]
 # Home-field advantage — report 02 §3.2
 ####################################################################################
 [homefield]
-# Estimate h from home-and-home series ONLY, because the schedule is structurally
-# asymmetric: power programs buy home games that never get a return trip. Fit it
-# both ways (independent estimate vs regression coefficient), compare, publish both.
-method = "home_and_home"
-h_pasteur = 3.70                            # report 02 §2.13, §3.2
-h_recent_estimate = 2.8                     # report 02 §3.2 (0.11 pts/drive, 2005-2023)
+# The argument for home-and-home is sound and the estimator is unrunnable, and
+# both halves of that sentence are now measured rather than asserted.
+#
+# THE ARGUMENT (report 02 §3.2): the schedule is structurally asymmetric - power
+# programs buy home games that never get a return trip - so a regression
+# coefficient on `site` is estimated partly off the difference between the teams
+# that host and the teams that visit. A home-and-home pair is the same two teams
+# in both venues, so the team effect cancels exactly and what is left is the venue.
+#
+# THE MEASUREMENT (docs/analysis/tuning-campaign.md §5.4, 2026-08-12). College
+# football schedules home-and-home ACROSS seasons, not inside one:
+#
+#   within season, 2021-2023   h = -0.14 +/- 2.38  from      21 pairs
+#   across seasons             h =  1.88 +/- 0.34  from   1,113 pairs
+#   the regression coefficient the harness actually uses:
+#                              h =  6.39, sd 4.34 across published weeks
+#
+# Constraint 2 forbids a prior season reaching anything the model uses, so the
+# across-seasons number - the only one with a usable standard error - IS NOT
+# AVAILABLE TO THIS POLL. Twenty-one pairs in three years is not an estimator.
+#
+# So `method` DOES NOT SELECT AN ESTIMATOR and never has (fresh-eyes review S9
+# was right to flag it). It is kept, with the value that names the estimator the
+# project would use if constraint 2 allowed it, and the three reference numbers
+# below are labelled as reference numbers. `estimate_home_field` in
+# model/l2_results.py computes the within-season figure every week and publishes
+# it as a DIAGNOSTIC beside the coefficient that actually runs, which is the
+# honest version of `fit_both_and_publish`.
+#
+# THE DEFECT THIS EXPOSED, which is separate and real: only 37 of the 1,585 scored
+# games are at neutral sites, so in the affine points calibration the intercept and
+# the site term are very nearly collinear and h is barely identified - hence a
+# coefficient averaging 6.39 with a standard deviation of 4.34 against an honest
+# 1.88. It is NOT the cause of the calibration miss (§5.8 eliminates it) and it is
+# a genuine weakness of the estimator, published here rather than left in a study.
+method = "home_and_home"                    # NAMES the estimator; selects nothing - see above
+h_pasteur = 3.70                            # REFERENCE ONLY - report 02 §2.13, §3.2
+h_recent_estimate = 2.8                     # REFERENCE ONLY - report 02 §3.2 (0.11 pts/drive)
 fit_both_and_publish = true
 
 ####################################################################################

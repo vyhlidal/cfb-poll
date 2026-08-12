@@ -548,7 +548,25 @@ mae_max = 12.8                              # target 12.5, stretch 12.3
 rmse_max = 15.8                             # target 15.5, stretch 15.3
 calibration_max_decile_deviation_pp = 5.0   # target 3.0, stretch 2.0
 brier_must_beat_all_baselines = true
-violations_must_beat = ["colley", "srs"]    # stretch: within 25% of the MinV bound
+
+# WHO THE VIOLATIONS CRITERION IS MEASURED AGAINST. This read
+# `["colley", "srs"]` until 2026-08-12. The fresh-eyes review
+# (docs/analysis/fresh-eyes-review.md, S1) pointed out that the list omitted win
+# percentage, which at 0.1769 beats every other system in the table - so the
+# gate's one comparative criterion was drawn around the rivals it happened to
+# clear. A gate that curates its rivals is not a gate.
+#
+# "all_scored_systems" means every system the run scored, excluding only the
+# home-team floor, which has no ratings and therefore no violation rate to lose
+# to. An explicit list is still accepted, so a fork may state a narrower intent
+# IN THE GATE'S OWN DEFINITION rather than by leaving a name off a list nobody
+# reads - which is exactly the failure mode this replaced.
+#
+# The consequence is published rather than avoided: under this definition the
+# headline ordering does NOT clear the criterion, because win percentage does not
+# lose to anything on a metric that ignores schedule entirely. See
+# demo/backtest-2021-2023.md, which prints the full comparison table.
+violations_must_beat = "all_scored_systems"  # stretch: within 25% of the MinV bound
 retro_vs_live_divergence_monotone = true
 # ATS is REPORTED, NEVER OPTIMISED. Break-even at -110 juice is 52.38%. Any
 # sustained result above ~53% over 800+ games is an overfitting alarm until it

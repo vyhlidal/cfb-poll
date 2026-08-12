@@ -746,15 +746,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.561447683708579,
+          "max_calibration_deviation_pp": 8.507774656941471,
+          "retrodictive_violation_rate": 0.19619131975199292,
+          "rmse": 17.236566406643988,
+          "su_accuracy": 0.6801261829652997
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": true
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19619131975199292
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 14.10267848456859,
+          "max_calibration_deviation_pp": 10.28561337648124,
+          "retrodictive_violation_rate": 0.19619131975199292,
+          "rmse": 17.928226844821342,
+          "su_accuracy": 0.6715186802523047
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19619131975199292
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -1082,25 +1180,42 @@
         "mean_all": 9.584772912904693,
         "mean_top25": 8.097636261722998
       },
-      "retrodictive_violation_rate": 0.19629963898916966,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.19619131975199292,
+      "retrodictive_violation_rate_full_season_refit": 0.19629963898916966,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.18442622950819673,
+            "violations": 135.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.18442622950819673,
           "violations": 135.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.22070844686648503,
+            "violations": 162.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.22070844686648503,
           "violations": 162.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.184,
+            "violations": 138.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.184,
-          "violations": 138.0
+          "violation_rate": 0.18434343434343434,
+          "violations": 146.0
         }
       ],
       "segments": {
@@ -1841,15 +1956,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.606317409719635,
+          "max_calibration_deviation_pp": 9.365393547560686,
+          "retrodictive_violation_rate": 0.224977856510186,
+          "rmse": 17.148148133284657,
+          "su_accuracy": 0.689589905362776
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536
+          },
+          "compared_against": [
+            "colley",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.224977856510186
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.97469857384041,
+          "max_calibration_deviation_pp": 11.541297872486133,
+          "retrodictive_violation_rate": 0.224977856510186,
+          "rmse": 17.60982801286989,
+          "su_accuracy": 0.6880155264434741
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536
+          },
+          "compared_against": [
+            "colley",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.224977856510186
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -2177,25 +2390,42 @@
         "mean_all": 9.596544929558188,
         "mean_top25": 7.504205075680163
       },
-      "retrodictive_violation_rate": 0.22427797833935018,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.224977856510186,
+      "retrodictive_violation_rate_full_season_refit": 0.22427797833935018,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.21448087431693988,
+            "violations": 157.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.21448087431693988,
           "violations": 157.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.23705722070844687,
+            "violations": 174.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.23705722070844687,
           "violations": 174.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.22133333333333333,
+            "violations": 166.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.22133333333333333,
-          "violations": 166.0
+          "violation_rate": 0.22348484848484848,
+          "violations": 177.0
         }
       ],
       "segments": {
@@ -2936,23 +3166,104 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 15.442262380650847,
+          "max_calibration_deviation_pp": 7.799363673961269,
+          "retrodictive_violation_rate": null,
+          "rmse": 19.83963468641934,
+          "su_accuracy": 0.5646687697160884
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone",
           "violations_vs_baselines"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": null,
+        "violations_vs_baselines_detail": {
+          "beaten": {},
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {},
+          "rate": null
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 15.78437201755782,
+          "max_calibration_deviation_pp": 17.450737632194226,
+          "retrodictive_violation_rate": null,
+          "rmse": 20.20885361562396,
+          "su_accuracy": 0.5739932071809801
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone",
+          "violations_vs_baselines"
+        ],
+        "violations_vs_baselines": null,
+        "violations_vs_baselines_detail": {
+          "beaten": {},
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {},
+          "rate": null
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [],
         "mean_all": null,
         "mean_top25": null
       },
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
       "retrodictive_violation_rate": null,
+      "retrodictive_violation_rate_full_season_refit": null,
       "retrodictive_violations": [],
       "segments": {
         "bowl": {
@@ -3692,15 +4003,111 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.157723765928958,
+          "max_calibration_deviation_pp": 8.303713283208964,
+          "retrodictive_violation_rate": 0.2395925597874225,
+          "rmse": 16.678360446177567,
+          "su_accuracy": 0.7003154574132492
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
-        "su_accuracy": false,
+        "su_accuracy": true,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {},
+          "compared_against": [
+            "colley",
+            "elo",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.2395925597874225
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.913788516806232,
+          "max_calibration_deviation_pp": 8.969734376340899,
+          "retrodictive_violation_rate": 0.2395925597874225,
+          "rmse": 17.543400937059342,
+          "su_accuracy": 0.6909267345948569
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {},
+          "compared_against": [
+            "colley",
+            "elo",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.2395925597874225
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -4028,25 +4435,42 @@
         "mean_all": 7.96725835434152,
         "mean_top25": 7.304037846311921
       },
-      "retrodictive_violation_rate": 0.23465703971119134,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.2395925597874225,
+      "retrodictive_violation_rate_full_season_refit": 0.23465703971119134,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.226775956284153,
+            "violations": 166.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.226775956284153,
           "violations": 166.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.24931880108991825,
+            "violations": 183.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.24931880108991825,
           "violations": 183.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.228,
+            "violations": 171.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.228,
-          "violations": 171.0
+          "violation_rate": 0.24242424242424243,
+          "violations": 192.0
         }
       ],
       "segments": {
@@ -4787,15 +5211,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.207134776468846,
+          "max_calibration_deviation_pp": 7.2725205248107,
+          "retrodictive_violation_rate": 0.21656333038086803,
+          "rmse": 16.695833420972075,
+          "su_accuracy": 0.694006309148265
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.21656333038086803
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.877995419087505,
+          "max_calibration_deviation_pp": 10.446926927582222,
+          "retrodictive_violation_rate": 0.21656333038086803,
+          "rmse": 17.59100702545348,
+          "su_accuracy": 0.6841339155749636
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.21656333038086803
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -5123,25 +5645,42 @@
         "mean_all": 8.064861588792887,
         "mean_top25": 7.046932469499315
       },
-      "retrodictive_violation_rate": 0.21074007220216606,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.21656333038086803,
+      "retrodictive_violation_rate_full_season_refit": 0.21074007220216606,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.21721311475409835,
+            "violations": 159.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.21721311475409835,
           "violations": 159.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.2220708446866485,
+            "violations": 163.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.2220708446866485,
           "violations": 163.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.19333333333333333,
+            "violations": 145.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.19333333333333333,
-          "violations": 145.0
+          "violation_rate": 0.21085858585858586,
+          "violations": 167.0
         }
       ],
       "segments": {
@@ -5882,15 +6421,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.018796962702652,
+          "max_calibration_deviation_pp": 9.173719881042006,
+          "retrodictive_violation_rate": 0.22763507528786536,
+          "rmse": 16.54941132224072,
+          "su_accuracy": 0.6921135646687697
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "l1": 0.2395925597874225
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.22763507528786536
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.725495389569716,
+          "max_calibration_deviation_pp": 11.39753020327252,
+          "retrodictive_violation_rate": 0.22763507528786536,
+          "rmse": 17.47438617135243,
+          "su_accuracy": 0.6797671033478894
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "l1": 0.2395925597874225
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.22763507528786536
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -6218,25 +6855,42 @@
         "mean_all": 8.282538554254103,
         "mean_top25": 7.623991221478254
       },
-      "retrodictive_violation_rate": 0.20712996389891697,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.22763507528786536,
+      "retrodictive_violation_rate_full_season_refit": 0.20712996389891697,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.21448087431693988,
+            "violations": 157.0
+          },
           "games": 732.0,
           "season": 2021,
-          "violation_rate": 0.21448087431693988,
-          "violations": 157.0
+          "violation_rate": 0.2226775956284153,
+          "violations": 163.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.21798365122615804,
+            "violations": 160.0
+          },
           "games": 734.0,
           "season": 2022,
-          "violation_rate": 0.21798365122615804,
-          "violations": 160.0
+          "violation_rate": 0.2356948228882834,
+          "violations": 173.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.18933333333333333,
+            "violations": 142.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.18933333333333333,
-          "violations": 142.0
+          "violation_rate": 0.22474747474747475,
+          "violations": 178.0
         }
       ],
       "segments": {
@@ -6977,15 +7631,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 14.39136338690545,
+          "max_calibration_deviation_pp": 20.049301762979997,
+          "retrodictive_violation_rate": 0.19973427812223207,
+          "rmse": 18.479434746755047,
+          "su_accuracy": 0.62397476340694
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19973427812223207
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 15.332147274961882,
+          "max_calibration_deviation_pp": 23.634264375161717,
+          "retrodictive_violation_rate": 0.19973427812223207,
+          "rmse": 20.840932273007706,
+          "su_accuracy": 0.6244541484716157
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "resume",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19973427812223207
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -7313,25 +8065,42 @@
         "mean_all": 12.261208901584554,
         "mean_top25": 11.621941754134966
       },
-      "retrodictive_violation_rate": 0.1976534296028881,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.19973427812223207,
+      "retrodictive_violation_rate_full_season_refit": 0.1976534296028881,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.19262295081967212,
+            "violations": 141.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.19262295081967212,
           "violations": 141.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.21662125340599456,
+            "violations": 159.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.21662125340599456,
           "violations": 159.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.184,
+            "violations": 138.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.184,
-          "violations": 138.0
+          "violation_rate": 0.19065656565656566,
+          "violations": 151.0
         }
       ],
       "segments": {
@@ -8072,15 +8841,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.018796962702652,
+          "max_calibration_deviation_pp": 9.173719881042006,
+          "retrodictive_violation_rate": 0.19973427812223207,
+          "rmse": 16.54941132224072,
+          "su_accuracy": 0.6921135646687697
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": true
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19973427812223207
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.725495389569716,
+          "max_calibration_deviation_pp": 11.39753020327252,
+          "retrodictive_violation_rate": 0.19973427812223207,
+          "rmse": 17.47438617135243,
+          "su_accuracy": 0.6797671033478894
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "schedule_odds",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.19973427812223207
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -8408,25 +9275,42 @@
         "mean_all": 9.296479366354818,
         "mean_top25": 7.29312329134423
       },
-      "retrodictive_violation_rate": 0.19359205776173286,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.19973427812223207,
+      "retrodictive_violation_rate_full_season_refit": 0.19359205776173286,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.18442622950819673,
+            "violations": 135.0
+          },
           "games": 732.0,
           "season": 2021,
-          "violation_rate": 0.18442622950819673,
-          "violations": 135.0
+          "violation_rate": 0.1871584699453552,
+          "violations": 137.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.2125340599455041,
+            "violations": 156.0
+          },
           "games": 734.0,
           "season": 2022,
-          "violation_rate": 0.2125340599455041,
-          "violations": 156.0
+          "violation_rate": 0.2220708446866485,
+          "violations": 163.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.184,
+            "violations": 138.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.184,
-          "violations": 138.0
+          "violation_rate": 0.19065656565656566,
+          "violations": 151.0
         }
       ],
       "segments": {
@@ -9167,15 +10051,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.018796962702652,
+          "max_calibration_deviation_pp": 9.173719881042006,
+          "retrodictive_violation_rate": 0.20150575730735165,
+          "rmse": 16.54941132224072,
+          "su_accuracy": 0.6921135646687697
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.20150575730735165
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.725495389569716,
+          "max_calibration_deviation_pp": 11.39753020327252,
+          "retrodictive_violation_rate": 0.20150575730735165,
+          "rmse": 17.47438617135243,
+          "su_accuracy": 0.6797671033478894
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "srs",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.20150575730735165
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -9503,25 +10485,42 @@
         "mean_all": 9.655455255873093,
         "mean_top25": 7.964441460023122
       },
-      "retrodictive_violation_rate": 0.19945848375451264,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.20150575730735165,
+      "retrodictive_violation_rate_full_season_refit": 0.19945848375451264,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.18579234972677597,
+            "violations": 136.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.18579234972677597,
           "violations": 136.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.22615803814713897,
+            "violations": 166.0
+          },
           "games": 734.0,
           "season": 2022,
-          "violation_rate": 0.22615803814713897,
-          "violations": 166.0
+          "violation_rate": 0.22888283378746593,
+          "violations": 168.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.18666666666666668,
+            "violations": 140.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.18666666666666668,
-          "violations": 140.0
+          "violation_rate": 0.19065656565656566,
+          "violations": 151.0
         }
       ],
       "segments": {
@@ -10262,15 +11261,113 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 13.293869205176449,
+          "max_calibration_deviation_pp": 13.710191738847294,
+          "retrodictive_violation_rate": 0.2183348095659876,
+          "rmse": 16.835557755338666,
+          "su_accuracy": 0.6876971608832808
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": false
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.2183348095659876
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 13.770328694353928,
+          "max_calibration_deviation_pp": 15.681371604854633,
+          "retrodictive_violation_rate": 0.2183348095659876,
+          "rmse": 17.48974562303113,
+          "su_accuracy": 0.6836487142163998
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l3": 0.22763507528786536
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "winpct"
+          ],
+          "lost_to": {
+            "colley": 0.19619131975199292,
+            "l2": 0.21656333038086803,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "winpct": 0.17803365810451727
+          },
+          "rate": 0.2183348095659876
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -10598,25 +11695,42 @@
         "mean_all": 8.20632492858688,
         "mean_top25": 7.969941988548385
       },
-      "retrodictive_violation_rate": 0.21525270758122744,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.2183348095659876,
+      "retrodictive_violation_rate_full_season_refit": 0.21525270758122744,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.21584699453551912,
+            "violations": 158.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.21584699453551912,
           "violations": 158.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.22888283378746593,
+            "violations": 168.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.22888283378746593,
           "violations": 168.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.20133333333333334,
+            "violations": 151.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.20133333333333334,
-          "violations": 151.0
+          "violation_rate": 0.21085858585858586,
+          "violations": 167.0
         }
       ],
       "segments": {
@@ -11357,15 +12471,111 @@
         "brier_beats_all_baselines": null,
         "calibration": false,
         "mae": false,
+        "observed": {
+          "mae": 14.005097847526766,
+          "max_calibration_deviation_pp": 16.356331603239322,
+          "retrodictive_violation_rate": 0.17803365810451727,
+          "rmse": 17.896766322407775,
+          "su_accuracy": 0.6605678233438486
+        },
         "passed": false,
         "retro_vs_live_monotone": null,
         "rmse": false,
         "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
         "undecided": [
           "brier_beats_all_baselines",
           "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": true
+        "violations_vs_baselines": true,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs"
+          ],
+          "lost_to": {},
+          "rate": 0.17803365810451727
+        },
+        "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+      },
+      "gate_all_weeks": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "observed": {
+          "mae": 14.45363051226427,
+          "max_calibration_deviation_pp": 20.77134681608248,
+          "retrodictive_violation_rate": 0.17803365810451727,
+          "rmse": 18.479696009447952,
+          "su_accuracy": 0.655992236778263
+        },
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "thresholds": {
+          "calibration_max_decile_deviation_pp": 5.0,
+          "mae_max": 12.8,
+          "rmse_max": 15.8,
+          "su_accuracy_min": 0.7,
+          "violations_must_beat": "all_scored_systems"
+        },
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": true,
+        "violations_vs_baselines_detail": {
+          "beaten": {
+            "colley": 0.19619131975199292,
+            "elo": 0.224977856510186,
+            "l1": 0.2395925597874225,
+            "l2": 0.21656333038086803,
+            "l3": 0.22763507528786536,
+            "random_walker": 0.19973427812223207,
+            "resume": 0.19973427812223207,
+            "schedule_odds": 0.20150575730735165,
+            "srs": 0.2183348095659876
+          },
+          "compared_against": [
+            "colley",
+            "elo",
+            "l1",
+            "l2",
+            "l3",
+            "random_walker",
+            "resume",
+            "schedule_odds",
+            "srs"
+          ],
+          "lost_to": {},
+          "rate": 0.17803365810451727
+        },
+        "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
       "rank_churn": {
         "by_bucket": [
@@ -11693,25 +12903,42 @@
         "mean_all": 10.124525163466505,
         "mean_top25": 6.813002863359927
       },
-      "retrodictive_violation_rate": 0.17689530685920576,
+      "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
+      "retrodictive_violation_rate": 0.17803365810451727,
+      "retrodictive_violation_rate_full_season_refit": 0.17689530685920576,
       "retrodictive_violations": [
         {
+          "full_season_refit": {
+            "games": 732.0,
+            "violation_rate": 0.16256830601092895,
+            "violations": 119.0
+          },
           "games": 732.0,
           "season": 2021,
           "violation_rate": 0.16256830601092895,
           "violations": 119.0
         },
         {
+          "full_season_refit": {
+            "games": 734.0,
+            "violation_rate": 0.20435967302452315,
+            "violations": 150.0
+          },
           "games": 734.0,
           "season": 2022,
           "violation_rate": 0.20435967302452315,
           "violations": 150.0
         },
         {
-          "games": 750.0,
+          "full_season_refit": {
+            "games": 750.0,
+            "violation_rate": 0.164,
+            "violations": 123.0
+          },
+          "games": 792.0,
           "season": 2023,
-          "violation_rate": 0.164,
-          "violations": 123.0
+          "violation_rate": 0.16792929292929293,
+          "violations": 133.0
         }
       ],
       "segments": {

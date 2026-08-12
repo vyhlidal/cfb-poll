@@ -614,6 +614,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: Any = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3): the headline poll's number.
 
@@ -632,4 +633,4 @@ def rate(
     `OddsFit.order_key` and every published artifact use.
     """
     del through_week
-    return fit(games, plays=plays, state=state).key
+    return fit(games, config, plays=plays, state=state).key

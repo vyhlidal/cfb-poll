@@ -342,6 +342,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: SeasonState | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3): the incumbent Power rating.
 
@@ -351,7 +352,7 @@ def rate(
     is informational; `state` is the optional per-season cache.
     """
     del through_week
-    return fit(games, plays, state=state).ratings
+    return fit(games, plays, config, state=state).ratings
 
 
 def season_power(

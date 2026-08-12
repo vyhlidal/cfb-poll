@@ -23,6 +23,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: object = None,
+    config: dict | None = None,
 ) -> dict[str, float]:
     """Win percentage as a rating (challenger protocol, report 03 §7.3).
 

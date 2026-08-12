@@ -176,6 +176,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: object = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3). `plays` is unused by L2.
 
@@ -183,7 +184,7 @@ def rate(
     select its own rows - and `through_week` is informational.
     """
     del plays, through_week, state
-    return fit(games).ratings
+    return fit(games, config).ratings
 
 
 def estimate_home_field(games: pl.DataFrame) -> float | None:

@@ -36,6 +36,7 @@ import numpy as np
 from scipy.stats import norm
 
 __all__ = [
+    "ALL_SCORED_SYSTEMS",
     "brier",
     "calibration_table",
     "check_gate",
@@ -44,6 +45,7 @@ __all__ = [
     "rank_churn",
     "straight_up_accuracy",
     "summarize",
+    "violation_rivals",
     "violations",
     "win_probability",
 ]
@@ -220,19 +222,73 @@ def summarize(
     }
 
 
+#: The value `[gate].violations_must_beat` takes when the comparison is against
+#: EVERY system the run scored rather than a named list. This is the default and
+#: the fresh-eyes review (S1) is why: the config named `["colley", "srs"]` and
+#: omitted win percentage, which at 0.1769 beats every other system in the table.
+#: A gate whose rival list is drawn around the systems it happens to beat is not
+#: a gate. Gates state facts; they do not curate rivals.
+ALL_SCORED_SYSTEMS = "all_scored_systems"
+
+#: Never a rival: it has no ratings at all, so it has no violation rate to lose
+#: to. Excluded by construction rather than by taste.
+_NOT_A_RIVAL: frozenset[str] = frozenset({"home_team"})
+
+
+def violation_rivals(
+    system: str | None,
+    rates: dict[str, float | None] | None,
+    must_beat: Any,
+) -> list[str]:
+    """Which systems this one is measured against on retrodictive violations.
+
+    `must_beat` is either the sentinel `ALL_SCORED_SYSTEMS` - every other system
+    in the run that has a rate - or an explicit list of names. The sentinel is
+    the default and the honest setting; the list form is kept only so a fork can
+    state a narrower intent EXPLICITLY, in the gate's own definition, rather than
+    by leaving a rival off a list nobody reads.
+    """
+    if not rates:
+        return []
+    if must_beat == ALL_SCORED_SYSTEMS or must_beat is True:
+        return sorted(
+            name
+            for name, rate in rates.items()
+            if name != system and name not in _NOT_A_RIVAL and rate is not None
+        )
+    return [str(name) for name in (must_beat or []) if str(name) != system]
+
+
 def _check_violations(
     rate: float | None,
     baselines: dict[str, float | None] | None,
-    must_beat: list[str],
-) -> bool | None:
-    """At or below every named baseline's violation rate, or None if unknowable."""
-    if rate is None or not baselines or not must_beat:
-        return None
-    targets = [baselines.get(name) for name in must_beat]
-    present = [t for t in targets if t is not None]
-    if len(present) != len(targets) or not present:
-        return None  # a named baseline was not scored in this run
-    return bool(all(rate <= t + 1e-12 for t in present))
+    must_beat: Any,
+    system: str | None = None,
+) -> tuple[bool | None, dict[str, Any]]:
+    """At or below EVERY rival's violation rate, plus the full comparison table.
+
+    The second element is what makes the verdict auditable: every rival, its
+    rate, and whether this system is at or below it. A reader never has to
+    reconstruct which comparison produced the boolean.
+    """
+    rivals = violation_rivals(system, baselines, must_beat)
+    detail: dict[str, Any] = {
+        "rate": rate,
+        "compared_against": rivals,
+        "beaten": {},
+        "lost_to": {},
+    }
+    if rate is None or not baselines or not rivals:
+        return None, detail
+    targets = {name: (baselines or {}).get(name) for name in rivals}
+    if any(t is None for t in targets.values()):
+        return None, detail  # a named rival was not scored in this run
+    for name, target in sorted(targets.items()):
+        if rate <= float(target) + 1e-12:  # type: ignore[arg-type]
+            detail["beaten"][name] = float(target)  # type: ignore[arg-type]
+        else:
+            detail["lost_to"][name] = float(target)  # type: ignore[arg-type]
+    return (not detail["lost_to"]), detail
 
 
 def check_gate(
@@ -240,6 +296,7 @@ def check_gate(
     gate: dict[str, Any],
     violation_rate: float | None = None,
     baseline_violation_rates: dict[str, float | None] | None = None,
+    system: str | None = None,
 ) -> dict[str, Any]:
     """Evaluate the publication gate from configs/default.toml [gate] (report 02 §5.4).
 
@@ -252,7 +309,11 @@ def check_gate(
     therefore evaluated by the caller once the whole table exists. "Beat" means
     at or below, per report 02's wording ("retrodictive violations at or below a
     Colley/SRS baseline"), and a system compared against itself is skipped rather
-    than trivially passed.
+    than trivially passed. Since the fresh-eyes review the DEFAULT comparison is
+    against every scored system, win percentage included - see
+    `ALL_SCORED_SYSTEMS`. `violations_vs_baselines_detail` carries every rival's
+    rate and which of them this system lost to, so the boolean is never the only
+    thing published.
     """
     checks: dict[str, Any] = {}
     su = results.get("su_accuracy")
@@ -268,11 +329,32 @@ def check_gate(
         else bool(dev <= gate["calibration_max_decile_deviation_pp"])
     )
     checks["brier_beats_all_baselines"] = None
-    checks["violations_vs_baselines"] = _check_violations(
-        violation_rate, baseline_violation_rates, gate.get("violations_must_beat", [])
+    verdict, detail = _check_violations(
+        violation_rate,
+        baseline_violation_rates,
+        gate.get("violations_must_beat", ALL_SCORED_SYSTEMS),
+        system=system,
     )
+    checks["violations_vs_baselines"] = verdict
     checks["retro_vs_live_monotone"] = None
     decided = [v for v in checks.values() if v is not None]
     checks["passed"] = bool(decided) and all(decided)
     checks["undecided"] = sorted(k for k, v in checks.items() if v is None)
+    # Attached AFTER `passed` and `undecided` are computed, so a dict of evidence
+    # can never be mistaken for a criterion verdict.
+    checks["violations_vs_baselines_detail"] = detail
+    checks["thresholds"] = {
+        "su_accuracy_min": gate.get("su_accuracy_min"),
+        "mae_max": gate.get("mae_max"),
+        "rmse_max": gate.get("rmse_max"),
+        "calibration_max_decile_deviation_pp": gate.get("calibration_max_decile_deviation_pp"),
+        "violations_must_beat": gate.get("violations_must_beat", ALL_SCORED_SYSTEMS),
+    }
+    checks["observed"] = {
+        "su_accuracy": su,
+        "mae": mae,
+        "rmse": rmse,
+        "max_calibration_deviation_pp": dev,
+        "retrodictive_violation_rate": violation_rate,
+    }
     return checks

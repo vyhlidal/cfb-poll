@@ -1148,6 +1148,119 @@ def backtest_result() -> dict:
     return _BACKTEST["result"]  # type: ignore[return-value]
 
 
+def gate_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
+    """THE GATE, RENDERED FROM THE HARNESS'S OWN JSON. Criterion by criterion.
+
+    Fresh-eyes review S1: the previous version of this page summarised the gate
+    in prose while the object it was generated from recorded `"passed": false`.
+    The fix is not a better sentence. It is to stop writing the sentence by hand:
+    every row below, and the verbatim JSON under it, is read out of
+    `systems[headline]["gate"]`, so the page cannot say the gate passed unless
+    the harness says so.
+    """
+    gate = systems[headline]["gate"]
+    thresholds = gate["thresholds"]
+    observed = gate["observed"]
+    detail = gate["violations_vs_baselines_detail"]
+
+    def verdict(value: object) -> str:
+        return {True: "**PASS**", False: "**FAIL**", None: "undecided"}[value]  # type: ignore[index]
+
+    rows = [
+        (
+            "Straight-up accuracy",
+            f">= {thresholds['su_accuracy_min']:.2%}",
+            f"{observed['su_accuracy']:.2%}",
+            gate["su_accuracy"],
+        ),
+        (
+            "Margin MAE",
+            f"<= {thresholds['mae_max']}",
+            f"{observed['mae']:.3f}",
+            gate["mae"],
+        ),
+        (
+            "Margin RMSE",
+            f"<= {thresholds['rmse_max']}",
+            f"{observed['rmse']:.3f}",
+            gate["rmse"],
+        ),
+        (
+            "Max decile calibration deviation",
+            f"<= {thresholds['calibration_max_decile_deviation_pp']} pp",
+            f"{observed['max_calibration_deviation_pp']:.2f} pp",
+            gate["calibration"],
+        ),
+        (
+            "Retrodictive violations vs every scored system",
+            f"at or below all of `{thresholds['violations_must_beat']}`",
+            f"{observed['retrodictive_violation_rate']:.4f}",
+            gate["violations_vs_baselines"],
+        ),
+        ("Brier beats all baselines", "not yet computed", "-", gate["brier_beats_all_baselines"]),
+        (
+            "Retro-vs-live divergence monotone",
+            "not yet computed",
+            "-",
+            gate["retro_vs_live_monotone"],
+        ),
+    ]
+    n_decided = sum(1 for _, _, _, ok in rows if ok is not None)
+    n_failed = sum(1 for _, _, _, ok in rows if ok is False)
+    lines = [
+        "",
+        "## The publication gate",
+        "",
+        f"**`passed`: `{gate['passed']}`.** Every row of this table and the JSON under it is",
+        "read out of `backtest_metrics.json` by the generator. Nothing here is typed by hand,",
+        "which is the point: an earlier version of this page summarised the gate in prose",
+        "while the object it was generated from recorded `\"passed\": false`",
+        "(docs/analysis/fresh-eyes-review.md, S1).",
+        "",
+        f"Window: {gate['window']}.",
+        "",
+        "| Criterion | Threshold | Observed | Verdict |",
+        "|---|---|---:|---|",
+    ]
+    lines += [
+        f"| {name} | {target} | {value} | {verdict(ok)} |"
+        for name, target, value, ok in rows
+    ]
+    lines += [
+        "",
+        f"**{n_failed} of the {n_decided} decidable criteria fail.** This poll does not clear",
+        "its own gate on the tune seasons and the page says so in the same words the harness",
+        f"does. The {len(gate['undecided'])} undecided rows need the Brier-vs-all-baselines",
+        "comparison and the retro-vs-live monotonicity check; they are reported as `null`",
+        "rather than as passes.",
+        "",
+        "### Who the violations criterion is measured against",
+        "",
+        "`[gate].violations_must_beat` read `[\"colley\", \"srs\"]` until 2026-08-12. It omitted",
+        "win percentage, which beats every other system in the table - so the gate's one",
+        "comparative criterion was drawn around the rivals it happened to clear. It is now",
+        "`\"all_scored_systems\"`: every system the run scored, excluding only the home-team",
+        "floor, which has no ratings and therefore no rate to lose to. Gates state facts; they",
+        "do not curate rivals.",
+        "",
+        "| Rival | Its rate | Ours | Result |",
+        "|---|---:|---:|---|",
+    ]
+    for rival, value in sorted({**detail["beaten"], **detail["lost_to"]}.items()):
+        won = rival in detail["beaten"]
+        lines.append(
+            f"| {rival} | {value:.4f} | {detail['rate']:.4f} | "
+            f"{'at or below' if won else '**above - lost**'} |"
+        )
+    lines += [
+        "",
+        "```json",
+        json.dumps(gate, indent=2, sort_keys=True),
+        "```",
+    ]
+    return lines
+
+
 def backtest_report() -> str:
     result = backtest_result()
     protocol = result["protocol"]
@@ -1238,6 +1351,7 @@ def backtest_report() -> str:
     ]
     lines += table("segments_from_headline_week", "Weeks 5+ (the published window)")
     lines += table("segments", "Weeks 2+ (everything the harness can score)")
+    lines += gate_section(systems)
 
     h = systems["l3"]["segments_from_headline_week"]["fbs_vs_fbs"]
     b = systems["l2"]["segments_from_headline_week"]["fbs_vs_fbs"]
@@ -1389,9 +1503,9 @@ def backtest_report() -> str:
         "",
         "## Retrodictive violations — the metric the headline ordering is for",
         "",
-        "Violations are games whose loser the final full-season rating ranks above the",
-        "winner - the canonical retrodictive metric (report 02 §2.12). Churn is the mean",
-        "absolute week-over-week rank change across FBS teams.",
+        "Violations are games whose loser the final rating ranks above the winner - the",
+        "canonical retrodictive metric (report 02 §2.12). Churn is the mean absolute",
+        "week-over-week rank change across FBS teams.",
         "",
         "**Schedule odds is the headline ordering and the L4 résumé is the ordering it",
         "replaced on 2026-08-12, and both stay in this table permanently.** The decision",
@@ -1399,8 +1513,28 @@ def backtest_report() -> str:
         "([the study](../docs/analysis/headline-ordering-study.md)); dropping the loser",
         "afterwards would make that decision unfalsifiable from that week on.",
         "",
-        "| System | Violation rate | Violations / games | Mean rank churn |",
-        "|---|---:|---:|---:|",
+        "### Two protocols, and which one is the published definition",
+        "",
+        "This harness and the headline-ordering study used to disagree on this metric, and",
+        "the disagreement was one of protocol rather than arithmetic",
+        "(docs/analysis/fresh-eyes-review.md, S1). Both are now computed and both are in",
+        "`backtest_metrics.json`:",
+        "",
+        "- **Published: walk-forward at the final bucket.** Every hyperparameter is the one",
+        "  that was live when the season ended - in particular the L3 blend weights, which",
+        "  saw only games already predicted. Scored over **every** FBS-vs-FBS game of the",
+        "  season, postseason included. This is the definition the gate uses, and it is the",
+        "  one that matches how the poll is actually produced: `retro.season_power` walks the",
+        "  season forward and the fit live at week K has out-of-sample weights.",
+        "- **Diagnostic: full-season refit** (`*_full_season_refit`). One fit on the whole",
+        "  season, which means the blend weights are fitted **in-sample** because there is no",
+        "  walk left to do - exactly what report 02 §3.3 legislates against - and scored over",
+        "  the `fbs_vs_fbs` segment only, i.e. excluding the postseason. It is reported",
+        "  because it is what this harness computed before the reconciliation, and dropping",
+        "  it silently would make the change invisible.",
+        "",
+        "| System | Violations (published) | Violations / games | Full-season refit | Mean rank churn |",  # noqa: E501
+        "|---|---:|---:|---:|---:|",
     ]
     for name in ["schedule_odds", "resume", *order]:
         block = systems[name]
@@ -1412,7 +1546,9 @@ def backtest_report() -> str:
         )
         lines.append(
             f"| {label[name]} | {_fmt(block['retrodictive_violation_rate'], '.4f')} "
-            f"| {count} | {_fmt(block['rank_churn']['mean_all'], '.2f')} |"
+            f"| {count} "
+            f"| {_fmt(block['retrodictive_violation_rate_full_season_refit'], '.4f')} "
+            f"| {_fmt(block['rank_churn']['mean_all'], '.2f')} |"
         )
 
     rate = {
@@ -1420,8 +1556,16 @@ def backtest_report() -> str:
         for n in ["schedule_odds", "resume", *order]
         if systems[n]["retrodictive_violation_rate"] is not None
     }
+    refit = {
+        n: systems[n]["retrodictive_violation_rate_full_season_refit"]
+        for n in ["schedule_odds", "resume", *order]
+        if systems[n]["retrodictive_violation_rate_full_season_refit"] is not None
+    }
     gate_odds = systems["schedule_odds"]["gate"]["violations_vs_baselines"]
     gate_resume = systems["resume"]["gate"]["violations_vs_baselines"]
+    ahead = sorted(
+        (v, n) for n, v in rate.items() if v < rate["schedule_odds"] and n != "schedule_odds"
+    )
     lines += [
         "",
         "**Both desert orderings beat every power rating in the table, which is the point of",
@@ -1431,36 +1575,41 @@ def backtest_report() -> str:
         f"{rate['elo']:.4f}. A margin-based rating is not",
         "trying to respect results; these are the layers that do.",
         "",
-        "**Three systems in the table are ahead of the headline ordering on this metric and",
-        "none of them is a power rating:** win percentage "
-        f"({rate['winpct']:.4f}), Colley ({rate['colley']:.4f}) and the",
-        f"random walker ({rate['random_walker']:.4f}). All three are margin-blind and two of "
-        "the three ignore",
-        "schedule almost entirely, which is precisely why they do well here and precisely why",
-        "none of them is a poll anybody wants. That does not make the next paragraph go away.",
+        f"**{len(ahead)} systems in the table are ahead of the headline ordering on this "
+        "metric, and not one",
+        "of them is a power rating:** "
+        + ", ".join(f"{label[n].strip('*')} ({v:.4f})" for v, n in ahead)
+        + ".",
+        "They are margin-blind and most of them ignore schedule almost entirely, which is",
+        "precisely why they do well here and precisely why none of them is a poll anybody",
+        "wants. That does not make the next paragraph go away.",
         "",
-        "### The headline ordering does not clear the violations gate on this protocol",
+        "### The headline ordering does not clear the violations criterion on either protocol",
         "",
-        "`configs/default.toml` asks for a violation rate at or below **Colley and SRS**",
-        f"(`violations_must_beat`). Colley is at {rate['colley']:.4f}. Schedule odds is at",
-        f"{rate['schedule_odds']:.4f}, so the harness reports that criterion as "
-        f"`{gate_odds}` — and the ordering it",
-        f"replaced, at {rate['resume']:.4f}, reports `{gate_resume}`. **That is a real cost of",
-        "[ADR 0005](../docs/adr/0005-headline-ordering.md) and it is stated here rather than",
-        "left for someone else to find.**",
+        "`[gate].violations_must_beat` is now `\"all_scored_systems\"`, so the comparison runs",
+        "against every system in the table. Schedule odds is at "
+        f"{rate['schedule_odds']:.4f} on the published",
+        f"protocol, so the harness reports that criterion as `{gate_odds}` — and the ordering "
+        "it replaced,",
+        f"at {rate['resume']:.4f}, reports `{gate_resume}`. **Under the old two-name rival "
+        "list the résumé",
+        "reported `True` and the headline reported `False`; under an honest rival list they",
+        "both fail, because win percentage does not lose to anything on a metric that ignores",
+        "schedule.** That is a real cost of [ADR 0005](../docs/adr/0005-headline-ordering.md)",
+        "and of the gate fix, and it is stated here rather than left for someone else to find.",
         "",
         "Three things are true about that number at once and all three belong on the page:",
         "",
-        "1. **It is not the number the decision was made on, and the two protocols differ in",
-        "   a way that matters.** The headline-ordering study measures violations at each",
-        "   season's final poll bucket using **walk-forward** Power, over every FBS-vs-FBS",
-        "   game including the postseason, and there the two orderings are tied (0.1997 vs",
-        "   0.2011 on the tune seasons; 0.1930 vs 0.1942 on the validation season). This",
-        "   harness refits on the whole season at once, which means the L3 blend weights are",
-        "   fitted **in-sample** because there is no walk left to do, and it scores the",
-        "   `fbs_vs_fbs` segment only. The in-sample blend flatters the résumé more than it",
-        "   flatters the tail — which is exactly the failure report 02 §3.3 legislates",
-        "   against, and the reason the live pipeline never fits weights that way.",
+        "1. **The protocol reconciliation did not rescue it, and was not expected to.** On",
+        f"   the published walk-forward protocol the headline is {rate['schedule_odds']:.4f} "
+        f"and the résumé is",
+        f"   {rate['resume']:.4f}; on the full-season refit they are "
+        f"{refit['schedule_odds']:.4f} and {refit['resume']:.4f}. The two",
+        "   orderings swap places between the protocols by less than two thousandths, which",
+        "   is another way of saying the gap between them is not a fact about the orderings.",
+        "   The study (§3a) measured 0.1997 vs 0.2011 on the tune seasons by ranking at each",
+        "   season's *final poll bucket*; this harness ranks at the last bucket of the season,",
+        "   which for 2023 is the postseason. Same protocol, one bucket apart.",
         "2. **The gap is small and the study said not to trust a gap this size.** Study §10.4",
         "   states plainly that the A-vs-C violations difference is not significant at four",
         "   seasons and does not claim it is. This page is not entitled to claim it either,",
@@ -1474,7 +1623,9 @@ def backtest_report() -> str:
         "purely a function of record is close to the floor on a metric that ignores schedule",
         "entirely. The two-odd points of violation rate given up is the price of caring who",
         "you played, which is constraint 3. A poll optimised for this metric alone would be a",
-        "win-percentage poll, and that is not a thing anyone wants.",
+        "win-percentage poll, and that is not a thing anyone wants. The right response to that",
+        "is to say it on the front page as an owned result, which is what the gate table above",
+        "now does, and not to redraw the rival list until it disappears.",
         "",
         "Saturation cannot flatter the résumé's number, and the reason is structural rather",
         "than empirical: a team saturated at the top never lost a game, and a team saturated",

@@ -437,6 +437,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: Any = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3): efficiency alone, in points.
 
@@ -448,4 +449,4 @@ def rate(
     del through_week, state
     if plays is None:
         return {}
-    return fit(plays, games).point_ratings
+    return fit(plays, games, config).point_ratings

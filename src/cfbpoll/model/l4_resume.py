@@ -690,6 +690,7 @@ def rate(
     plays: pl.DataFrame | None = None,
     through_week: int | None = None,
     state: Any = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """Challenger-protocol entry point (report 03 §7.3): the incumbent headline poll.
 
@@ -699,7 +700,7 @@ def rate(
     the Power rating are on `fit()` for callers that want the whole picture.
     """
     del through_week
-    return fit(games, plays=plays, state=state).resume
+    return fit(games, config, plays=plays, state=state).resume
 
 
 def rate_hindsight(

@@ -182,9 +182,10 @@ def _cached_ratings(
     name: str,
     train: pl.DataFrame,
     train_plays: pl.DataFrame | None,
-    week: int,
+    week: int | None,
     cache: dict[str, dict[str, float]],
     state: l3_power.SeasonState | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """One fit per system per bucket, memoised so a system that predicts through
     another (baselines.prediction_source) does not refit it. The cache is
@@ -192,9 +193,20 @@ def _cached_ratings(
 
     `state` is the per-season L3 cache and out-of-sample blend accumulator. It is
     passed to every rater and ignored by every rater that does not need it, which
-    keeps one code path rather than a special case for our own layers."""
+    keeps one code path rather than a special case for our own layers.
+
+    `config` IS THE HARNESS'S CONFIG, and passing it is not a nicety. Every rater
+    used to fall back to `load_config()` when it was not given one, so a backtest
+    run under a non-default config - the fit-universe sensitivity of
+    docs/analysis/fit-universe-sensitivity.md, the recency sweep in
+    docs/analysis/robustness-notes.md - would have silently scored our own layers
+    under the DEFAULT constants while claiming to have varied them. Constraint 5
+    says the config is the methodology; a harness that fits with a config other
+    than the one it was handed is publishing a number about a model nobody ran."""
     if name not in cache:
-        cache[name] = baselines.RATERS[name](train, train_plays, week, state=state)
+        cache[name] = baselines.RATERS[name](
+            train, train_plays, week, state=state, config=config
+        )
     return cache[name]
 
 
@@ -207,6 +219,23 @@ def _ranking(ratings: dict[str, float], teams: set[str]) -> dict[str, int]:
 class _Accumulator:
     predicted: list[float] = field(default_factory=list)
     actual: list[float] = field(default_factory=list)
+
+
+def _pooled_rate(rows: list[dict[str, Any]]) -> float | None:
+    """Violations / games pooled over seasons, or None when nothing was scored."""
+    played = sum(r["games"] for r in rows)
+    return float(sum(r["violations"] for r in rows) / played) if rows and played else None
+
+
+def _winner_loser(games: pl.DataFrame) -> tuple[list[str], list[str]]:
+    """(winners, losers), one entry per game. Ties are impossible (overtime)."""
+    home = games["home_team"].to_list()
+    away = games["away_team"].to_list()
+    hp = games["home_points"].to_list()
+    ap = games["away_points"].to_list()
+    winners = [h if a_ < h_ else a for h, a, h_, a_ in zip(home, away, hp, ap, strict=True)]
+    losers = [a if a_ < h_ else h for h, a, h_, a_ in zip(home, away, hp, ap, strict=True)]
+    return winners, losers
 
 
 def run_backtest(
@@ -361,7 +390,9 @@ def run_backtest(
                 )
 
             for name in canonical:
-                ratings = _cached_ratings(name, train, train_plays, bucket.week, fits, blend)
+                ratings = _cached_ratings(
+                    name, train, train_plays, bucket.week, fits, blend, cfg
+                )
                 predict_with = _cached_ratings(
                     baselines.prediction_source(name, cfg),
                     train,
@@ -369,6 +400,7 @@ def run_backtest(
                     bucket.week,
                     fits,
                     blend,
+                    cfg,
                 )
 
                 pool = calibration[name]
@@ -427,37 +459,73 @@ def run_backtest(
             if l3fit is not None:
                 blend.add(l3fit, test.filter(pl.col("segment") == "fbs_vs_fbs"))
 
-        # Retrodictive pass: fit on the whole season, then count violations over
-        # every FBS-vs-FBS game it was fit on (report 02 §2.12, §5.2).
+        # ------------------------------------------------------------------
+        # THE RETRODICTIVE PASS, in two protocols. Report 02 §2.12 and §5.2
+        # define the metric - games whose loser the final rating ranks above the
+        # winner - and leave the fitting protocol implicit. There are two
+        # defensible readings and this harness ran the wrong one as its only
+        # number until the fresh-eyes review (S1) noticed that the harness and
+        # docs/analysis/headline-ordering-study.md disagreed by protocol rather
+        # than by arithmetic.
+        #
+        #   PUBLISHED   walk-forward at the final bucket. Every hyperparameter is
+        #               the one that was live when the season ended - in
+        #               particular the L3 blend weights, which were fitted only
+        #               on games already predicted. Scored over EVERY FBS-vs-FBS
+        #               game of the season, postseason included.
+        #               THIS IS HOW THE POLL IS ACTUALLY PRODUCED, week by week,
+        #               by `retro.season_power`, so it is the definition the gate
+        #               is evaluated on and the one the study used.
+        #
+        #   DIAGNOSTIC  full-season refit with no walk left to do, which means
+        #               the blend weights are fitted IN-SAMPLE - exactly what
+        #               report 02 §3.3 legislates against - and scored over the
+        #               `fbs_vs_fbs` segment only, i.e. excluding the postseason.
+        #               Reported because it is what this harness computed before,
+        #               and dropping it silently would make the change invisible.
+        #
+        # Both are written to backtest_metrics.json for every system.
+        # ------------------------------------------------------------------
         full = season_games
-        season_fbs = full.filter(pl.col("segment") == "fbs_vs_fbs")
-        winners = [
-            h if hp > ap else a
-            for h, a, hp, ap in zip(
-                season_fbs["home_team"].to_list(),
-                season_fbs["away_team"].to_list(),
-                season_fbs["home_points"].to_list(),
-                season_fbs["away_points"].to_list(),
-                strict=True,
-            )
-        ]
-        losers = [
-            a if hp > ap else h
-            for h, a, hp, ap in zip(
-                season_fbs["home_team"].to_list(),
-                season_fbs["away_team"].to_list(),
-                season_fbs["home_points"].to_list(),
-                season_fbs["away_points"].to_list(),
-                strict=True,
-            )
-        ]
         full_plays = None if plays is None else plays_for(plays, full)
+        all_fbs = full.filter(
+            (pl.col("home_class") == "fbs") & (pl.col("away_class") == "fbs")
+        )
+        published_pairs = _winner_loser(all_fbs)
+        diagnostic_pairs = _winner_loser(full.filter(pl.col("segment") == "fbs_vs_fbs"))
+
+        walk_forward_fits: dict[str, dict[str, float]] = {"home_team": {}}
+        refit_fits: dict[str, dict[str, float]] = {"home_team": {}}
+        if blend is not None and full_plays is not None:
+            # One L1+L2+L3 per protocol, seeded for the three names that read it,
+            # exactly as the walk loop does. `state=blend` is the whole of the
+            # published protocol: the blend weights are the accumulated
+            # out-of-sample ones rather than weights fitted on the season being
+            # scored.
+            walked = l3_power.fit(full, full_plays, cfg, state=blend)
+            walk_forward_fits |= {
+                "l3": walked.ratings,
+                "l2": walked.l2.ratings,
+                "l1": walked.l1.point_ratings,
+            }
+            refitted = l3_power.fit(full, full_plays, cfg, state=None)
+            refit_fits |= {
+                "l3": refitted.ratings,
+                "l2": refitted.l2.ratings,
+                "l1": refitted.l1.point_ratings,
+            }
+
         for name in canonical:
             if name == "home_team":
                 continue
-            ratings = baselines.RATERS[name](full, full_plays, None, state=None)
+            published = _cached_ratings(name, full, full_plays, None, walk_forward_fits, blend, cfg)
+            diagnostic = _cached_ratings(name, full, full_plays, None, refit_fits, None, cfg)
             final_violations[name].append(
-                {"season": season, **metrics.violations(ratings, winners, losers)}
+                {
+                    "season": season,
+                    **metrics.violations(published, *published_pairs),
+                    "full_season_refit": metrics.violations(diagnostic, *diagnostic_pairs),
+                }
             )
 
     per_system: dict[str, Any] = {}
@@ -485,26 +553,58 @@ def run_backtest(
                 "by_bucket": churn,
             },
             "retrodictive_violations": violations_rows,
-            "retrodictive_violation_rate": (
-                float(
-                    sum(v["violations"] for v in violations_rows)
-                    / sum(v["games"] for v in violations_rows)
-                )
-                if violations_rows and sum(v["games"] for v in violations_rows)
-                else None
+            "retrodictive_violation_rate": _pooled_rate(violations_rows),
+            "retrodictive_violation_rate_full_season_refit": _pooled_rate(
+                [v["full_season_refit"] for v in violations_rows]
+            ),
+            "retrodictive_protocol": (
+                "PUBLISHED: walk-forward at the final bucket - every "
+                "hyperparameter is the one that was live when the season ended, "
+                "which is how the poll is produced week by week - scored over "
+                "every FBS-vs-FBS game of the season, postseason included. "
+                "`*_full_season_refit` is the DIAGNOSTIC: a full-season refit, "
+                "whose L3 blend weights are in-sample because there is no walk "
+                "left to do, scored over the fbs_vs_fbs segment only"
             ),
         }
     # The violations criterion is comparative, so it can only be evaluated once
     # every system has a rate (report 02 §5.4, [gate].violations_must_beat).
     violation_rates = {n: per_system[n]["retrodictive_violation_rate"] for n in canonical}
     for name in canonical:
+        # THE GATE IS EVALUATED ON THE PUBLISHED WINDOW. It used to be evaluated
+        # on `segments`, which starts at `first_eval_week` (2) - the near-noise
+        # regime report 02 §4 explicitly declines to publish. A publication gate
+        # scored on weeks that are never published is measuring a poll that does
+        # not exist, and it disagreed with the numbers the demo quoted, which
+        # were the headline-window ones. `gate_all_weeks` keeps the wider view as
+        # a diagnostic so the change is visible rather than silent. Neither
+        # window passes: the calibration criterion is missed by 4.2pp on the
+        # published window and by 6.4pp on the wider one.
+        headline = per_system[name]["segments_from_headline_week"]
         segments = per_system[name]["segments"]
-        if "fbs_vs_fbs" in segments:
+        if "fbs_vs_fbs" in headline:
             per_system[name]["gate"] = metrics.check_gate(
+                headline["fbs_vs_fbs"],
+                cfg["gate"],
+                violation_rate=violation_rates[name],
+                baseline_violation_rates=violation_rates,
+                system=name,
+            )
+            per_system[name]["gate"]["window"] = (
+                f"FBS-vs-FBS, weeks >= [publication].headline_start_week "
+                f"({headline_week}) - the published poll's own window"
+            )
+        if "fbs_vs_fbs" in segments:
+            per_system[name]["gate_all_weeks"] = metrics.check_gate(
                 segments["fbs_vs_fbs"],
                 cfg["gate"],
                 violation_rate=violation_rates[name],
                 baseline_violation_rates=violation_rates,
+                system=name,
+            )
+            per_system[name]["gate_all_weeks"]["window"] = (
+                f"FBS-vs-FBS, weeks >= [backtest].first_eval_week ({min_week}) - "
+                "a DIAGNOSTIC. These weeks are not published as the poll"
             )
 
     return {

@@ -317,39 +317,47 @@ def test_schedule_odds_beats_its_own_power_rating_on_violations() -> None:
     rating it is built on, or it is not doing its job (report 02 §5.4).
 
     AND THE PART THAT IS NOT FLATTERING, pinned here so it cannot quietly go away.
-    On this harness's protocol - a full-season fit, regular season and conference
-    championships only, blend weights in-sample because there is no walk to do -
-    the headline ordering is at ~0.199 and Colley is at ~0.196, so it does NOT
-    clear `[gate].violations_must_beat`, and the résumé ordering it replaced does
-    (~0.194). That is a genuine cost of ADR 0005 and it is reported in
-    demo/backtest-2021-2023.md rather than buried.
+    Neither desert ordering clears `[gate].violations_must_beat`, on either
+    protocol, and that is reported in demo/backtest-2021-2023.md rather than
+    buried. Both lose to win percentage, which is close to the floor on a metric
+    that ignores schedule entirely, and to Colley.
 
-    It is also NOT the number the decision was made on, and the difference is not
-    a dodge - the two measure different things:
+    ADAPTED 2026-08-12 (fresh-eyes review S1). Two things changed underneath it:
 
-      * the study (§3a) ranks at each season's final poll bucket with WALK-FORWARD
-        Power and scores every FBS-vs-FBS game including the postseason, and there
-        the two orderings are tied (tune 0.1997 vs 0.2011, validate 0.1930 vs
-        0.1942);
-      * this harness refits on the whole season with `state=None`, so the L3 blend
-        weights are fitted in-sample, and scores the fbs_vs_fbs segment only.
+      * the PUBLISHED violations protocol is now walk-forward at the final
+        bucket - the blend weights are the ones that were live, scored over every
+        FBS-vs-FBS game including the postseason - which is how the poll is
+        actually produced, and which is what the headline-ordering study used.
+        The full-season refit is kept as `*_full_season_refit`;
+      * `violations_must_beat` compares against every scored system rather than
+        the two the old config named, so the résumé's `True` became a `False`.
+        The résumé never beat win percentage; the rival list simply did not
+        mention it.
 
-    The in-sample blend flatters the résumé more than it flatters the tail, which
-    is exactly the effect report 02 §3.3 warns about and the reason the live
-    pipeline never fits weights that way. Both numbers are true about their own
-    protocol; neither is allowed to be quoted as the other."""
+    The two orderings swap places between the protocols by less than two
+    thousandths, which is another way of saying the gap between them is not a
+    fact about the orderings. Study §10.4 declines to claim significance for it
+    and so does this test."""
     result = walkforward.run_backtest(
-        [2021, 2022, 2023], ["schedule_odds", "resume", "l2", "l3", "colley", "srs"]
+        [2021, 2022, 2023],
+        ["schedule_odds", "resume", "l2", "l3", "colley", "srs", "winpct"],
     )
-    rate = {n: result["systems"][n]["retrodictive_violation_rate"] for n in result["systems"]}
+    systems = result["systems"]
+    rate = {n: systems[n]["retrodictive_violation_rate"] for n in systems}
+    refit = {n: systems[n]["retrodictive_violation_rate_full_season_refit"] for n in systems}
     assert rate["schedule_odds"] < rate["l2"]
     assert rate["schedule_odds"] < rate["l3"]
     assert rate["schedule_odds"] <= rate["srs"]
-    # the two orderings are close, and the résumé is ahead on THIS protocol
-    assert rate["resume"] < rate["schedule_odds"] < rate["resume"] + 0.01
+    # the two orderings are within a rounding difference of each other, and which
+    # one is ahead depends on the protocol rather than on the ordering
+    assert abs(rate["schedule_odds"] - rate["resume"]) < 0.01
+    assert abs(refit["schedule_odds"] - refit["resume"]) < 0.01
     assert rate["schedule_odds"] > rate["colley"]
-    assert result["systems"]["schedule_odds"]["gate"]["violations_vs_baselines"] is False
-    assert result["systems"]["resume"]["gate"]["violations_vs_baselines"] is True
+    # both lose the comparative criterion once the rival list is honest
+    for name in ("schedule_odds", "resume"):
+        gate = systems[name]["gate"]
+        assert gate["violations_vs_baselines"] is False
+        assert "winpct" in gate["violations_vs_baselines_detail"]["lost_to"]
 
 
 @needs_archive
@@ -381,15 +389,29 @@ def test_resume_is_scored_and_predicts_through_its_power_source() -> None:
 @needs_archive
 def test_resume_beats_its_own_power_rating_on_violations() -> None:
     """The gate L2 rightly missed (report 02 §5.4). A margin-based power rating is
-    not trying to respect results; the résumé is exactly the layer that does."""
-    result = walkforward.run_backtest([2021, 2022, 2023], ["resume", "l2", "colley", "srs"])
-    rate = {n: result["systems"][n]["retrodictive_violation_rate"] for n in result["systems"]}
+    not trying to respect results; the résumé is exactly the layer that does.
+
+    ADAPTED 2026-08-12 (fresh-eyes review S1). The claim this test is about - a
+    desert ordering respects results better than the margin-based power rating it
+    is built on - is unchanged and still holds on both protocols. What changed is
+    the two lines about Colley: on the PUBLISHED walk-forward protocol the résumé
+    is at ~0.1997 and Colley at ~0.1962, so the résumé no longer clears the
+    comparative criterion. It never beat win percentage either; the old rival list
+    just did not name it."""
+    result = walkforward.run_backtest(
+        [2021, 2022, 2023], ["resume", "l2", "colley", "srs", "winpct"]
+    )
+    systems = result["systems"]
+    rate = {n: systems[n]["retrodictive_violation_rate"] for n in systems}
+    refit = {n: systems[n]["retrodictive_violation_rate_full_season_refit"] for n in systems}
     assert rate["resume"] < rate["l2"]
     assert rate["resume"] <= rate["srs"]
-    assert rate["resume"] <= rate["colley"]
-    # and the gate criterion now returns a verdict instead of a shrug
-    assert result["systems"]["resume"]["gate"]["violations_vs_baselines"] is True
-    assert result["systems"]["l2"]["gate"]["violations_vs_baselines"] is False
+    assert refit["resume"] < refit["l2"]
+    # the criterion returns a verdict rather than a shrug, and the verdict is that
+    # a schedule-blind rating wins a schedule-blind metric
+    assert systems["resume"]["gate"]["violations_vs_baselines"] is False
+    assert systems["l2"]["gate"]["violations_vs_baselines"] is False
+    assert rate["winpct"] < rate["resume"] < rate["l2"]
 
 
 @needs_archive
@@ -418,19 +440,145 @@ def test_resume_violations_beat_power_violations_season_by_season() -> None:
         assert resume["violations"] <= power["violations"], season
 
 
-def test_the_violations_gate_is_at_or_below_every_named_baseline() -> None:
+def test_the_violations_gate_is_at_or_below_every_scored_system() -> None:
+    """ADAPTED 2026-08-12, and the asserted truth genuinely changed.
+
+    This used to be `..._every_named_baseline`, against a config that named
+    `["colley", "srs"]`. The fresh-eyes review (S1) pointed out that the list
+    omitted win percentage, which beats every other system in the table - so the
+    gate's one comparative criterion was drawn around the rivals it happened to
+    clear. `[gate].violations_must_beat` is now the sentinel
+    `"all_scored_systems"` and the comparison runs against every system in the
+    run. The shape of the assertion is unchanged: at or below all of them, or the
+    criterion is False."""
     gate = dict(CONFIG["gate"])
-    rates = {"colley": 0.20, "srs": 0.22, "ours": 0.20}
+    assert gate["violations_must_beat"] == metrics.ALL_SCORED_SYSTEMS
+    rates = {"colley": 0.20, "srs": 0.22, "winpct": 0.20, "home_team": None}
     verdict = metrics.check_gate({}, gate, violation_rate=0.20, baseline_violation_rates=rates)
     assert verdict["violations_vs_baselines"] is True
+    # the home-team floor has no ratings, so it is never a rival
+    assert "home_team" not in verdict["violations_vs_baselines_detail"]["compared_against"]
+
     worse = metrics.check_gate({}, gate, violation_rate=0.21, baseline_violation_rates=rates)
     assert worse["violations_vs_baselines"] is False
-    # a baseline that was not scored in this run makes the criterion unknowable
+    detail = worse["violations_vs_baselines_detail"]
+    assert sorted(detail["lost_to"]) == ["colley", "winpct"]
+    assert sorted(detail["beaten"]) == ["srs"]
+
+    # a system is never its own rival
+    itself = metrics.check_gate(
+        {}, gate, violation_rate=0.20, baseline_violation_rates=rates, system="colley"
+    )
+    assert "colley" not in itself["violations_vs_baselines_detail"]["compared_against"]
+
+    # AND THE ONE THIS REPLACED. An explicit list is still honoured, so a fork can
+    # state a narrower intent in the gate's own definition rather than by leaving
+    # a name off a list nobody reads - and a named rival that was not scored still
+    # makes the criterion unknowable rather than trivially passed.
+    named = {**gate, "violations_must_beat": ["colley", "srs"]}
     unknown = metrics.check_gate(
-        {}, gate, violation_rate=0.20, baseline_violation_rates={"colley": 0.20}
+        {}, named, violation_rate=0.20, baseline_violation_rates={"colley": 0.20}
     )
     assert unknown["violations_vs_baselines"] is None
     assert "violations_vs_baselines" in unknown["undecided"]
+
+
+def test_the_gate_publishes_its_thresholds_and_its_observations() -> None:
+    """A bare per-criterion boolean is not auditable: a reader cannot tell what it
+    was compared against. Since the fresh-eyes review the verdict carries the
+    thresholds it used and the numbers it saw, and demo/backtest-2021-2023.md
+    renders both rather than paraphrasing them."""
+    verdict = metrics.check_gate(
+        {"su_accuracy": 0.72, "mae": 12.4, "rmse": 15.4, "max_calibration_deviation_pp": 2.0},
+        CONFIG["gate"],
+    )
+    assert verdict["thresholds"]["su_accuracy_min"] == CONFIG["gate"]["su_accuracy_min"]
+    assert verdict["observed"]["mae"] == 12.4
+    # evidence blocks are attached after the verdict is computed, so a dict can
+    # never be mistaken for a criterion
+    assert verdict["passed"] is True
+    assert "thresholds" not in verdict["undecided"]
+    assert "observed" not in verdict["undecided"]
+
+
+@needs_archive
+def test_both_violations_protocols_are_computed_and_named() -> None:
+    """Fresh-eyes review S1: the harness and the headline-ordering study reported
+    different violation rates, and the difference was PROTOCOL rather than
+    arithmetic. Both are now computed for every system and both are in
+    backtest_metrics.json, with the published one named as such.
+
+    PUBLISHED  walk-forward at the final bucket - the hyperparameters that were
+               live when the season ended - over every FBS-vs-FBS game including
+               the postseason. This is how the poll is produced week by week.
+    DIAGNOSTIC full-season refit, blend weights in-sample, fbs_vs_fbs segment
+               only. What this harness computed before.
+
+    The two differ most for the layers that HAVE a walked hyperparameter, which
+    is the whole point: L3's blend weights. For Colley, which has none, the two
+    protocols differ only by the postseason games in the denominator."""
+    result = walkforward.run_backtest([2023], ["l3", "colley", "schedule_odds"])
+    for name in ("l3", "colley", "schedule_odds"):
+        block = result["systems"][name]
+        assert block["retrodictive_violation_rate"] is not None
+        assert block["retrodictive_violation_rate_full_season_refit"] is not None
+        assert "walk-forward at the final bucket" in block["retrodictive_protocol"]
+        row = block["retrodictive_violations"][0]
+        assert row["games"] > row["full_season_refit"]["games"]  # the postseason
+
+    # L3 has a walked hyperparameter, so the protocols genuinely disagree...
+    l3 = result["systems"]["l3"]
+    assert l3["retrodictive_violation_rate"] != l3["retrodictive_violation_rate_full_season_refit"]
+    # ...and the in-sample blend is the FLATTERING one, which is exactly the
+    # effect report 02 §3.3 legislates against
+    assert l3["retrodictive_violation_rate_full_season_refit"] < l3["retrodictive_violation_rate"]
+
+
+@needs_archive
+def test_the_gate_is_evaluated_on_the_window_the_poll_is_published_in() -> None:
+    """A publication gate scored on weeks that are never published is measuring a
+    poll that does not exist. It used to run over `[backtest].first_eval_week`
+    (week 2 on), which report 02 §4 explicitly declines to publish, and it
+    therefore disagreed with the numbers the demo quoted. It now runs over
+    `[publication].headline_start_week` and the wider view is kept as
+    `gate_all_weeks`. Neither passes; this is not a change that rescued
+    anything."""
+    result = walkforward.run_backtest([2021, 2022, 2023], ["schedule_odds", "l3", "colley"])
+    block = result["systems"]["schedule_odds"]
+    gate, wide = block["gate"], block["gate_all_weeks"]
+    assert "headline_start_week" in gate["window"]
+    assert "DIAGNOSTIC" in wide["window"]
+    headline = block["segments_from_headline_week"]["fbs_vs_fbs"]
+    assert gate["observed"]["mae"] == pytest.approx(headline["mae"])
+    assert gate["observed"]["su_accuracy"] == pytest.approx(headline["su_accuracy"])
+    assert gate["passed"] is False and wide["passed"] is False
+    # the published window is the kinder one, and it still fails every criterion
+    assert gate["observed"]["mae"] < wide["observed"]["mae"]
+
+
+@needs_archive
+def test_the_harness_fits_with_the_config_it_was_handed() -> None:
+    """Every rater used to fall back to `load_config()` when it was not given one,
+    so a backtest under a non-default config would have scored our own layers
+    under the DEFAULT constants while claiming to have varied them - which would
+    have made the fit-universe and recency sensitivity studies measurements of
+    nothing. Constraint 5: the config IS the methodology."""
+    import copy
+
+    changed = copy.deepcopy(CONFIG)
+    changed["margin"]["beta_w"] = 0.0  # a constant only OUR layers read
+    base = walkforward.run_backtest([2023], ["l2", "colley"], config=CONFIG)
+    varied = walkforward.run_backtest([2023], ["l2", "colley"], config=changed)
+    assert (
+        base["systems"]["l2"]["retrodictive_violation_rate"]
+        != varied["systems"]["l2"]["retrodictive_violation_rate"]
+    )
+    # ...and a baseline that reads none of it is untouched, which is what makes
+    # the comparison above a test of plumbing rather than of noise
+    assert (
+        base["systems"]["colley"]["retrodictive_violation_rate"]
+        == varied["systems"]["colley"]["retrodictive_violation_rate"]
+    )
 
 
 # ------------------------------------------- the leakage guarantee, at play level

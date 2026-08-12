@@ -59,6 +59,7 @@ __all__ = [
     "play_weights",
     "compress_margin",
     "compress_margin_array",
+    "compress_prediction",
     "game_weights",
 ]
 
@@ -118,6 +119,55 @@ def compress_margin_array(margin: np.ndarray, c: float, beta_w: float) -> np.nda
     """Vectorised `compress_margin`. Same function, one array at a time."""
     m = np.asarray(margin, dtype=np.float64)
     return c * np.tanh(m / c) + beta_w * np.sign(m)
+
+
+def compress_prediction(margin: np.ndarray, config: dict[str, Any]) -> np.ndarray:
+    """Pasteur's compression of extreme PREDICTED margins (report 02 §2.13).
+
+    Not to be confused with `compress_margin`, which transforms the L2 RESPONSE.
+    This one transforms a FORECAST, and it exists because a linear rating
+    difference overstates blowouts: the tail of the predicted-margin distribution
+    is longer than the tail of the realised one, so the biggest predictions are
+    the ones with the most to give back.
+
+        |M| > threshold  ->  M* = sign(M) * (T + (1/a) * [(|M| - (T-1))^a - 1])
+
+    written exactly as `[margin.prediction_compression]` publishes it, with
+    T = threshold and a = alpha. It is continuous AND differentiable at the
+    threshold - at |M| = T the bracket is zero and the derivative is
+    (|M| - (T-1))^(a-1) = 1 - so nothing is discontinuous at the join, which is
+    the same property that made tanh preferable to a hard cap one function above.
+
+    WHERE THIS IS APPLIED, AND WHERE IT DELIBERATELY IS NOT. It applies to a
+    forecast of an actual game: the backtest harness's predicted margin and
+    `L3Fit.predict`. It does NOT apply inside the résumé root-solve or the
+    schedule-odds tail, where `mu = q_ref - Power_opponent + h*site` is a
+    COUNTERFACTUAL expected margin for a hypothetical reference-quality team
+    rather than a forecast of a game anyone played. Pasteur's device is a
+    forecasting correction and report 02 §2.13 places it in the prediction
+    section; applying it to a counterfactual would compress the very quantity the
+    headline ordering is defined on. The scope is stated here rather than left to
+    be inferred from which call sites happen to have the import.
+
+    Until the tuning campaign of 2026-08-12 this function did not exist and
+    `[margin.prediction_compression]` was configured but implemented NOWHERE in
+    `src/` (fresh-eyes review S9). It could not be backtested because it could not
+    be run, so `docs/analysis/tuning-campaign.md` implemented it in order to
+    search it.
+    """
+    pc = config["margin"]["prediction_compression"]
+    m = np.asarray(margin, dtype=np.float64)
+    if not bool(pc.get("enabled", False)):
+        return m
+    threshold = float(pc["threshold"])
+    alpha = float(pc["alpha"])
+    magnitude = np.abs(m)
+    over = magnitude > threshold
+    if not bool(np.any(over)):
+        return m
+    shifted = np.where(over, magnitude - (threshold - 1.0), 1.0)
+    compressed = threshold + (np.power(shifted, alpha) - 1.0) / alpha
+    return np.where(over, np.sign(m) * compressed, m)
 
 
 def game_weights(games: pl.DataFrame, config: dict[str, Any]) -> np.ndarray:

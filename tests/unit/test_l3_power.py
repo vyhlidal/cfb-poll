@@ -16,7 +16,7 @@ from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
 from cfbpoll.ingest.plays import DEFAULT_ARCHIVE, load_plays, plays_for
 from cfbpoll.ingest.sportsdataverse import load_games
-from cfbpoll.model import l3_power, l4_resume
+from cfbpoll.model import design, l3_power, l4_resume
 
 CONFIG = load_config()
 
@@ -62,15 +62,8 @@ def test_power_is_exactly_the_published_formula(walk: dict[int, l3_power.L3Fit])
         assert fitted.rating(team) == pytest.approx(expected, abs=1e-12)
 
 
-def test_the_prediction_is_the_power_difference_plus_home_field(
-    walk: dict[int, l3_power.L3Fit], games: pl.DataFrame
-) -> None:
-    """m_hat = Power_h - Power_a + h*site. If this does not hold, the rating and
-    the equation that defines it have come apart."""
-    fitted = walk[max(walk)]
-    sample = games.head(50)
-    predicted = fitted.predict(sample)
-    manual = np.array(
+def _power_difference(fitted: l3_power.L3Fit, sample: pl.DataFrame) -> np.ndarray:
+    return np.array(
         [
             fitted.rating(h) - fitted.rating(a) + fitted.home_field * (0.0 if n else 1.0)
             for h, a, n in zip(
@@ -81,7 +74,68 @@ def test_the_prediction_is_the_power_difference_plus_home_field(
             )
         ]
     )
-    assert np.allclose(predicted, manual, atol=1e-10)
+
+
+def test_the_prediction_is_the_power_difference_plus_home_field(
+    walk: dict[int, l3_power.L3Fit], games: pl.DataFrame
+) -> None:
+    """m_hat = Power_h - Power_a + h*site. If this does not hold, the rating and
+    the equation that defines it have come apart.
+
+    The identity is asserted with `[margin.prediction_compression]` OFF, because
+    since the tuning campaign of 2026-08-12 that transform is implemented and is
+    applied to a FORECAST on its way out of `predict` (design.compress_prediction).
+    The identity is a statement about the RATING; the compression is a statement
+    about the forecast. Asserting the raw form here and the compressed form in the
+    test below keeps the two claims separable, which is the lesson the independent
+    review drew from the last set of tests that encoded a configurable policy
+    (S13): assert the mechanism, and let the choice move freely.
+    """
+    fitted = walk[max(walk)]
+    sample = games.head(50)
+    off = {**CONFIG["margin"], "prediction_compression": {"enabled": False}}
+    raw_config = {**CONFIG, "margin": off}
+    raw = l3_power.L3Fit(
+        ratings=fitted.ratings,
+        weights=fitted.weights,
+        k=fitted.k,
+        l1=fitted.l1,
+        l2=fitted.l2,
+        config=raw_config,
+    )
+    assert np.allclose(raw.predict(sample), _power_difference(fitted, sample), atol=1e-10)
+
+
+def test_prediction_compression_is_applied_to_the_forecast_when_enabled(
+    walk: dict[int, l3_power.L3Fit], games: pl.DataFrame
+) -> None:
+    """`predict` returns the config's own published Pasteur transform of the
+    Power difference - not some other compression, and not silently nothing.
+
+    `[margin.prediction_compression]` was configured `true` and implemented
+    NOWHERE in src/ until 2026-08-12 (independent review S9). This test is what
+    stops it going back to being a comment.
+    """
+    fitted = walk[max(walk)]
+    sample = games.head(200)
+    enabled = {**CONFIG, "margin": {**CONFIG["margin"], "prediction_compression": {
+        **CONFIG["margin"]["prediction_compression"], "enabled": True,
+    }}}
+    compressed = l3_power.L3Fit(
+        ratings=fitted.ratings,
+        weights=fitted.weights,
+        k=fitted.k,
+        l1=fitted.l1,
+        l2=fitted.l2,
+        config=enabled,
+    )
+    raw = _power_difference(fitted, sample)
+    assert np.allclose(
+        compressed.predict(sample), design.compress_prediction(raw, enabled), atol=1e-12
+    )
+    # It must actually bite on this sample, or the test proves nothing.
+    assert np.any(np.abs(raw) > enabled["margin"]["prediction_compression"]["threshold"])
+    assert np.all(np.abs(compressed.predict(sample)) <= np.abs(raw) + 1e-12)
 
 
 def test_blend_weights_become_out_of_sample_and_stay_positive(

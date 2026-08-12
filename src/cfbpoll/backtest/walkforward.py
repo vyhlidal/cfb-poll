@@ -59,7 +59,7 @@ from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
 from cfbpoll.ingest.plays import load_plays, plays_for
 from cfbpoll.ingest.sportsdataverse import load_games
-from cfbpoll.model import l3_power
+from cfbpoll.model import design, l3_power
 
 __all__ = ["HoldoutLocked", "calibrate", "run_backtest", "segment_games", "slice_through"]
 
@@ -191,10 +191,20 @@ def _predict(
     ratings: dict[str, float],
     test: pl.DataFrame,
     coef: tuple[float, float, float],
+    config: dict[str, Any] | None = None,
 ) -> np.ndarray:
+    """The calibrated points-scale forecast, after `[margin.prediction_compression]`.
+
+    The compression is applied to EVERY system or to none of them, from the same
+    config, because a correction that only the home team's rival gets is not a
+    comparison. It changes no ranking - it is monotone - and it is applied after
+    the affine calibration rather than before, because the thing Pasteur's device
+    is about is an extreme number of POINTS, not an extreme rating gap.
+    """
     a, b, h = coef
     site = np.where(test["neutral_site"].to_numpy(), 0.0, 1.0)
-    return a + b * rating_deltas(ratings, test) + h * site
+    raw = a + b * rating_deltas(ratings, test) + h * site
+    return raw if config is None else design.compress_prediction(raw, config)
 
 
 def _cached_ratings(
@@ -271,11 +281,20 @@ def run_backtest(
     unlock_holdout: bool = False,
     first_eval_week: int | None = None,
     plays: pl.DataFrame | None = None,
+    collect_predictions: bool = False,
 ) -> dict[str, Any]:
     """Walk every season forward and score every system. Returns the metrics tree.
 
     `unlock_holdout` exists so the single-shot 2025 evaluation is possible ONCE,
     deliberately, by a human typing a flag. Nothing in this repository passes it.
+
+    `collect_predictions` adds a `predictions` key holding EVERY scored game with
+    the margin that was forecast, the margin that happened, and the sigma that was
+    live at the moment - the residual-level view. It is off by default because it
+    is ~25,000 rows for a three-season ten-system run and `backtest_metrics.json`
+    is a published artifact. It exists so that a diagnosis of the calibration miss
+    (docs/analysis/tuning-campaign.md) can slice the residuals THE HARNESS ACTUALLY
+    PRODUCED rather than reconstructing them in a script that would drift from it.
     """
     cfg = config if config is not None else load_config()
     bt = cfg["backtest"]
@@ -313,6 +332,7 @@ def run_backtest(
     headline_week = int(cfg["publication"]["headline_start_week"])
 
     rows: list[dict[str, Any]] = []
+    predictions: list[dict[str, Any]] = []
     pooled: dict[tuple[str, str, str], _Accumulator] = {}
     churn_rows: list[dict[str, Any]] = []
     blend_rows: list[dict[str, Any]] = []
@@ -446,13 +466,40 @@ def run_backtest(
                 in_headline = bucket.season_type != "regular" or bucket.week >= headline_week
                 for segment in sorted(test["segment"].unique().to_list()):
                     sub = test.filter(pl.col("segment") == segment)
-                    predicted = _predict(predict_with, sub, coef)
+                    predicted = _predict(predict_with, sub, coef, cfg)
                     actual = (sub["home_points"] - sub["away_points"]).to_numpy().astype(float)
                     for cut in ("all",) + (("headline",) if in_headline else ()):
                         acc = pooled.setdefault((name, segment, cut), _Accumulator())
                         acc.predicted.extend(predicted.tolist())
                         acc.actual.extend(actual.tolist())
                         acc.sigma.extend([sigma_now.value] * len(actual))
+                    if collect_predictions:
+                        predictions.extend(
+                            {
+                                "system": name,
+                                "season": season,
+                                "week": bucket.week,
+                                "season_type": bucket.season_type,
+                                "segment": segment,
+                                "in_headline_window": in_headline,
+                                "game_id": int(gid),
+                                "home_team": str(ht),
+                                "away_team": str(at),
+                                "neutral_site": bool(ns),
+                                "predicted": float(pm),
+                                "actual": float(am),
+                                "sigma": sigma_now.value,
+                            }
+                            for gid, ht, at, ns, pm, am in zip(
+                                sub["game_id"].to_list(),
+                                sub["home_team"].to_list(),
+                                sub["away_team"].to_list(),
+                                sub["neutral_site"].to_list(),
+                                predicted.tolist(),
+                                actual.tolist(),
+                                strict=True,
+                            )
+                        )
                     if segment == "fbs_vs_fbs":
                         pool.add(
                             rating_deltas(predict_with, sub),
@@ -689,6 +736,7 @@ def run_backtest(
         },
         "systems": per_system,
         "weekly": rows,
+        **({"predictions": predictions} if collect_predictions else {}),
         "blend": blend_rows,
         "connectivity": connectivity,
     }

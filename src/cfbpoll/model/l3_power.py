@@ -61,7 +61,7 @@ import numpy as np
 import polars as pl
 
 from cfbpoll.config import load_config
-from cfbpoll.model import l1_efficiency, l2_results, l4_resume
+from cfbpoll.model import design, l1_efficiency, l2_results, l4_resume
 
 __all__ = [
     "BlendWeights",
@@ -256,6 +256,13 @@ class L3Fit:
     l1: l1_efficiency.L1Fit
     l2: l2_results.L2Fit
     params: dict[str, Any] = field(default_factory=dict)
+    #: The config this fit ran under. Carried rather than re-loaded because
+    #: `predict` needs `[margin.prediction_compression]` and a fit that reached
+    #: for `load_config()` would forecast under constants nobody ran (the same
+    #: failure `_cached_ratings` documents on the harness side). It is NOT
+    #: published by `as_params` - the constants that matter are already there,
+    #: individually, and a nested copy of the whole file would be noise.
+    config: dict[str, Any] | None = None
 
     @property
     def w1(self) -> float:
@@ -295,8 +302,18 @@ class L3Fit:
         return eff, res, site
 
     def predict(self, games: pl.DataFrame) -> np.ndarray:
+        """The blend's forecast margin, after `[margin.prediction_compression]`.
+
+        The compression is a property of a FORECAST, so it belongs here and not in
+        `features`: the blend regression is fitted on the raw differentials, and
+        compressing the response would change what w1 and w2 mean. What it does
+        change is the residual this prediction contributes to sigma, which is
+        correct - sigma must measure the error of the number the system actually
+        publishes. See `design.compress_prediction` for the scope rule.
+        """
         eff, res, site = self.features(games)
-        return self.w1 * eff + self.w2 * res + self.home_field * site
+        raw = self.w1 * eff + self.w2 * res + self.home_field * site
+        return raw if self.config is None else design.compress_prediction(raw, self.config)
 
     def as_params(self) -> dict[str, Any]:
         """The model_params.json payload for this layer (report 03 §5.3).
@@ -393,6 +410,7 @@ def fit(
         k=l1.k,
         l1=l1,
         l2=l2,
+        config=cfg,
         params={
             "estimator": str(blend_cfg["estimator"]),
             "fit_out_of_sample_only": bool(blend_cfg["fit_out_of_sample_only"]),

@@ -321,11 +321,16 @@ cfbpoll site build                      build the static site
   [`fit-universe-sensitivity.md`](docs/analysis/fit-universe-sensitivity.md),
   [`robustness-notes.md`](docs/analysis/robustness-notes.md) (the bridge-game
   venue confound and the `recency_gamma` sweep),
-  [`headline-ordering-study.md`](docs/analysis/headline-ordering-study.md), and the
+  [`headline-ordering-study.md`](docs/analysis/headline-ordering-study.md),
+  [`tuning-campaign.md`](docs/analysis/tuning-campaign.md) and
+  [`campaign-2.md`](docs/analysis/campaign-2.md) (two pre-registered hyperparameter
+  campaigns, protocol committed before any number was read), and the
   [independent review](docs/analysis/fresh-eyes-review.md) that asked for most of it
-- Six architecture decision records (`docs/adr/`), including
+- Eight architecture decision records (`docs/adr/`), including
   [ADR 0006](docs/adr/0006-fit-universe.md): the fit universe stays `model`, on a
-  rule fixed before the numbers were read, and stops being called a convention
+  rule fixed before the numbers were read, and stops being called a convention —
+  and [ADR 0008](docs/adr/0008-league-structural-home-field.md), which is **open**:
+  it puts a constraint question to the owner rather than answering it
 - `weekly.yml` and `reproducibility.yml`, committed as the specification. Both are
   `workflow_dispatch` only — no schedule, so nothing fires accidentally
 

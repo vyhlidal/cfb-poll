@@ -61,7 +61,15 @@ from cfbpoll.ingest.plays import load_plays, plays_for
 from cfbpoll.ingest.sportsdataverse import load_games
 from cfbpoll.model import design, l3_power
 
-__all__ = ["HoldoutLocked", "calibrate", "run_backtest", "segment_games", "slice_through"]
+__all__ = [
+    "HoldoutLocked",
+    "PriorSeasonLocked",
+    "calibrate",
+    "homefield_anchor",
+    "run_backtest",
+    "segment_games",
+    "slice_through",
+]
 
 #: Fewer training games than this and no week is scored: the calibration would be
 #: fitting three parameters to noise.
@@ -70,6 +78,18 @@ MIN_CALIBRATION_GAMES = 10
 
 class HoldoutLocked(RuntimeError):
     """Raised when a run would touch a held-out season without --unlock-holdout."""
+
+
+class PriorSeasonLocked(RuntimeError):
+    """Raised when a config asks for a prior-season quantity that is still banned.
+
+    Constraint 2's banned list includes "prior-season ratings of any kind" and
+    `[constraints].allow_prior_season_data = false` is the switch that enforces
+    it. `[homefield].anchor_h_by_season` can carry a league-wide venue constant
+    estimated from earlier seasons, which is the question campaign 2 put to the
+    owner in ADR 0008 - and until that question has an answer, the harness fails
+    closed rather than quietly running the experiment as if it were policy.
+    """
 
 
 def slice_through(games: pl.DataFrame, season: int, through_week: int) -> pl.DataFrame:
@@ -107,19 +127,63 @@ def segment_games(games: pl.DataFrame) -> pl.DataFrame:
 
 
 def _fit_affine(
-    delta: np.ndarray, site: np.ndarray, margin: np.ndarray
+    delta: np.ndarray,
+    site: np.ndarray,
+    margin: np.ndarray,
+    fixed_site: float | None = None,
 ) -> tuple[float, float, float]:
     """OLS of `margin ~ a + b*delta + h*site`, minimum-norm on a degenerate design.
 
     The home-team floor has no rating spread at all, so its delta column is
     identically zero; least squares in the minimum-norm sense degrades that to an
     intercept-plus-site model instead of raising.
+
+    `fixed_site` HOLDS h AT A VALUE ESTIMATED SOMEWHERE ELSE and fits only the
+    intercept and the slope, on the residualised response `margin - h*site`. It is
+    off in the live config and exists so that campaign 2's third lead could be run
+    at all: the h this regression produces averages 6.39 points with a standard
+    deviation of 4.34 across published weeks, because only 37 of 1,585 scored
+    games are at neutral sites and the intercept and the site column are therefore
+    very nearly collinear. Anchoring h is the only identification strategy anyone
+    has proposed for that, and whether the project may use it is a question about
+    constraint 2 rather than about arithmetic - see ADR 0008.
     """
     if margin.size == 0:
         return (0.0, 0.0, 0.0)
+    if fixed_site is not None:
+        x = np.column_stack([np.ones_like(delta), delta])
+        coef, *_ = np.linalg.lstsq(x, margin - float(fixed_site) * site, rcond=None)
+        return (float(coef[0]), float(coef[1]), float(fixed_site))
     x = np.column_stack([np.ones_like(delta), delta, site])
     coef, *_ = np.linalg.lstsq(x, margin, rcond=None)
     return (float(coef[0]), float(coef[1]), float(coef[2]))
+
+
+def homefield_anchor(config: dict[str, Any]) -> dict[int, float]:
+    """season -> the h this run holds fixed, from `[homefield]`. Empty by default.
+
+    FAILS CLOSED. A table whose declared provenance is a prior season is refused
+    unless `[constraints].allow_prior_season_data` has been explicitly flipped,
+    because that key is the machine-readable form of constraint 2 and an
+    experiment that could switch itself on is not a constraint.
+    """
+    homefield = config.get("homefield") or {}
+    table = homefield.get("anchor_h_by_season") or {}
+    if not table:
+        return {}
+    provenance = str(homefield.get("anchor_provenance", "none"))
+    allowed = bool((config.get("constraints") or {}).get("allow_prior_season_data", False))
+    if provenance.startswith("prior_season") and not allowed:
+        raise PriorSeasonLocked(
+            "[homefield].anchor_h_by_season declares provenance "
+            f"{provenance!r}, and [constraints].allow_prior_season_data is false. "
+            "Anchoring h on earlier seasons would be this project's FIRST "
+            "cross-season fitted quantity; it is not an extension of an existing "
+            "precedent, because [ep].fit_scope is training_window and every other "
+            "fitted quantity is within-season. The question is open in ADR 0008 "
+            "and awaits the owner's decision."
+        )
+    return {int(season): float(h) for season, h in table.items()}
 
 
 def rating_deltas(ratings: dict[str, float], games: pl.DataFrame) -> np.ndarray:
@@ -136,6 +200,7 @@ def rating_deltas(ratings: dict[str, float], games: pl.DataFrame) -> np.ndarray:
 def calibrate(
     ratings: dict[str, float],
     train: pl.DataFrame,
+    fixed_site: float | None = None,
 ) -> tuple[float, float, float]:
     """In-sample fallback calibration, on the training window. See the module
     docstring for why this is the fallback and not the default."""
@@ -145,6 +210,7 @@ def calibrate(
         rating_deltas(ratings, train),
         np.where(train["neutral_site"].to_numpy(), 0.0, 1.0),
         (train["home_points"] - train["away_points"]).to_numpy().astype(np.float64),
+        fixed_site=fixed_site,
     )
 
 
@@ -162,6 +228,10 @@ class _Calibration:
     site: list[float] = field(default_factory=list)
     margin: list[float] = field(default_factory=list)
     residual: list[float] = field(default_factory=list)
+    #: The bucket each accumulated game was played in. Carried so that both
+    #: estimators below can ask for the last K buckets rather than for all of
+    #: them - campaign 2's second lead, `l3_power.trailing_index`.
+    bucket: list[int] = field(default_factory=list)
 
     def add(
         self,
@@ -169,19 +239,48 @@ class _Calibration:
         site: np.ndarray,
         margin: np.ndarray,
         predicted: np.ndarray | None = None,
+        bucket_order: int = 0,
     ) -> None:
         self.delta.extend(delta.tolist())
         self.site.extend(site.tolist())
         self.margin.extend(margin.tolist())
+        self.bucket.extend([int(bucket_order)] * int(np.size(margin)))
         if predicted is not None:
             self.residual.extend((margin - predicted).tolist())
 
-    def coefficients(self) -> tuple[float, float, float]:
-        return _fit_affine(np.array(self.delta), np.array(self.site), np.array(self.margin))
+    def _window(self, trailing: int, minimum: int, size: int) -> np.ndarray | None:
+        return l3_power.trailing_index(
+            self.bucket if len(self.bucket) == size else [], trailing, minimum
+        )
+
+    def coefficients(
+        self, trailing: int = 0, minimum: int = 0, fixed_site: float | None = None
+    ) -> tuple[float, float, float]:
+        delta = np.asarray(self.delta, dtype=np.float64)
+        site = np.asarray(self.site, dtype=np.float64)
+        margin = np.asarray(self.margin, dtype=np.float64)
+        index = self._window(trailing, minimum, margin.size)
+        if index is not None:
+            delta, site, margin = delta[index], site[index], margin[index]
+        return _fit_affine(delta, site, margin, fixed_site=fixed_site)
+
+    def n_fitted(self, trailing: int = 0, minimum: int = 0) -> int:
+        """How many games the calibration above was actually fitted on."""
+        index = self._window(trailing, minimum, len(self.margin))
+        return len(self.margin) if index is None else int(index.size)
 
     def sigma(self, config: dict[str, Any]) -> l3_power.SigmaEstimate:
-        """This system's own walk-forward sigma, from everything predicted so far."""
-        return l3_power.estimate_sigma(self.residual, config)
+        """This system's own walk-forward sigma, over the window
+        `[resume].sigma_trailing_buckets` selects."""
+        residual = np.asarray(self.residual, dtype=np.float64)
+        index = self._window(
+            int(config["resume"].get("sigma_trailing_buckets", 0)),
+            int(config["resume"].get("sigma_min_out_of_sample_games", 40)),
+            residual.size,
+        )
+        return l3_power.estimate_sigma(
+            residual if index is None else residual[index], config
+        )
 
     def __len__(self) -> int:
         return len(self.margin)
@@ -329,7 +428,12 @@ def run_backtest(
 
     use_oos = bool(bt.get("calibration_out_of_sample", True))
     min_oos = int(bt.get("calibration_min_out_of_sample_games", 40))
+    calib_trailing = int(bt.get("calibration_trailing_buckets", 0))
     headline_week = int(cfg["publication"]["headline_start_week"])
+    # season -> a fixed h, empty in the live config. Resolved once, up here, so
+    # that a config which asks for a banned quantity fails before any fitting
+    # happens rather than in the middle of a season.
+    anchor = homefield_anchor(cfg)
 
     rows: list[dict[str, Any]] = []
     predictions: list[dict[str, Any]] = []
@@ -449,11 +553,20 @@ def run_backtest(
                 )
 
                 pool = calibration[name]
+                fixed_h = anchor.get(season)
                 if use_oos and len(pool) >= min_oos:
-                    coef = pool.coefficients()
-                    coef_source = "out_of_sample"
+                    coef = pool.coefficients(
+                        trailing=calib_trailing, minimum=min_oos, fixed_site=fixed_h
+                    )
+                    n_calib = pool.n_fitted(trailing=calib_trailing, minimum=min_oos)
+                    coef_source = (
+                        "out_of_sample"
+                        if n_calib == len(pool)
+                        else f"out_of_sample_trailing_{calib_trailing}"
+                    )
                 else:
-                    coef = calibrate(predict_with, train_fbs)
+                    coef = calibrate(predict_with, train_fbs, fixed_site=fixed_h)
+                    n_calib = int(train_fbs.height)
                     coef_source = "training_window"
 
                 # THIS SYSTEM'S OWN SIGMA, AS OF THIS BUCKET (review S6). It is
@@ -513,6 +626,7 @@ def run_backtest(
                             np.where(sub["neutral_site"].to_numpy(), 0.0, 1.0),
                             actual,
                             predicted,
+                            bucket_order=bucket.order,
                         )
                         summary = metrics.summarize(predicted, actual, sigma_now.value)
                         summary.pop("calibration")
@@ -525,9 +639,11 @@ def run_backtest(
                                 "bucket": bucket.label,
                                 "n_train_games": int(train.height),
                                 "calibration_source": coef_source,
+                                "calib_n_games": n_calib,
                                 "calib_intercept": coef[0],
                                 "calib_slope": coef[1],
                                 "calib_site": coef[2],
+                                "calib_site_anchored": fixed_h is not None,
                                 **sigma_now.as_params(),
                                 **summary,
                             }
@@ -546,7 +662,11 @@ def run_backtest(
             # this line above the loop and w1/w2 become in-sample, which is
             # precisely the failure report 02 §3.3 legislates against.
             if l3fit is not None:
-                blend.add(l3fit, test.filter(pl.col("segment") == "fbs_vs_fbs"))
+                blend.add(
+                    l3fit,
+                    test.filter(pl.col("segment") == "fbs_vs_fbs"),
+                    bucket_order=bucket.order,
+                )
 
         # ------------------------------------------------------------------
         # THE RETRODICTIVE PASS, in two protocols. Report 02 §2.12 and §5.2
@@ -717,6 +837,15 @@ def run_backtest(
                 "that was live for each row and `segments[].sigma_mean` the mean "
                 "over a pooled segment"
             ),
+            "sigma_trailing_buckets": int(cfg["resume"].get("sigma_trailing_buckets", 0)),
+            "calibration_trailing_buckets": calib_trailing,
+            "trailing_windows": (
+                "0 means the cumulative window - every out-of-sample game so far - "
+                "which is what has always run. K > 0 keeps only the last K buckets, "
+                "falling back to the cumulative window when the slice is thinner "
+                "than the same minimum the cumulative estimator uses. A trailing "
+                "window is still strictly out of sample (campaign 2, lead 2)"
+            ),
             "holdout_seasons": sorted(locked),
             "holdout_touched": bool(trespass),
             "headline_start_week": headline_week,
@@ -739,7 +868,13 @@ def run_backtest(
                 "rating scored on violations, and predicts through the rating it "
                 "was built on (report 02 §3.5, backtest/baselines/__init__.py)"
             ),
-            "prior_seasons_used": False,
+            # NOT A CONSTANT. It used to be the literal `False`, which was true and
+            # would have gone on printing itself if it ever stopped being true.
+            "prior_seasons_used": bool(anchor),
+            "homefield_anchor": {str(k): v for k, v in sorted(anchor.items())},
+            "homefield_anchor_provenance": str(
+                (cfg.get("homefield") or {}).get("anchor_provenance", "none")
+            ),
         },
         "systems": per_system,
         "weekly": rows,

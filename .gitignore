@@ -28,3 +28,8 @@ __pycache__/
 
 # Scratch outputs from multi-week fixture generation (regenerable; see Makefile)
 .cache/
+
+# A local convenience symlink into another checkout of the same archive. `archive/`
+# above does not match it: git stores a symlink as a file, so the trailing slash
+# misses. Named explicitly so `git add -A` cannot pick up a machine-specific path.
+archive

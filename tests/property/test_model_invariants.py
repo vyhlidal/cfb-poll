@@ -23,7 +23,15 @@ def _rng() -> np.random.Generator:
 
 
 def test_compressed_response_is_bounded_by_c_plus_beta_w() -> None:
-    """report 02 §3.2: tanh asymptotes at +/-C, and the win premium adds beta_w."""
+    """report 02 §3.2: tanh asymptotes at +/-C, and the win premium adds beta_w.
+
+    THE GRID NOW CONTAINS `inf`, AND THE INVARIANT IS STATED FOR WHAT IT IS. Campaign
+    2 widened `c_grid` under pre-registration to end at the LIMIT of the family - the
+    identity response, which does not compress and is therefore not bounded. That is
+    not a hole in the invariant; it is the invariant's own boundary case, and the
+    reason the widened grid cannot produce another corner solution in C. The bound is
+    a property of finite C and is asserted for every finite C in the grid.
+    """
     rng = _rng()
     for c in CONFIG["margin"]["c_grid"]:
         for beta_w in CONFIG["margin"]["beta_w_grid"]:
@@ -34,6 +42,10 @@ def test_compressed_response_is_bounded_by_c_plus_beta_w() -> None:
                 ]
             )
             s = design.compress_margin_array(margins, float(c), float(beta_w))
+            if not np.isfinite(c):
+                # the uncompressed limit: s = m + beta_w*sign(m), unbounded by design
+                assert np.allclose(s, margins + beta_w * np.sign(margins))
+                continue
             assert np.all(np.abs(s) <= c + beta_w + 1e-12)
             # and the bound is tight: a big enough margin approaches it
             assert design.compress_margin(1e6, float(c), float(beta_w)) == pytest.approx(

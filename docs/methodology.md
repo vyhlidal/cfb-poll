@@ -90,10 +90,21 @@ are in [`configs/default.toml`](../configs/default.toml) with their citations.
 until 2026-08-12, when the full C × β_w × garbage-time × prediction-compression
 factorial was searched on 2021-2023 under a protocol committed before any number
 was read, and the winner validated once on 2024
-([ADR 0007](adr/0007-tuned-constants.md)). Two caveats travel with them: `C = 32`
-is the top of its own published grid, so the optimum is not bracketed; and the
-entire 416-cell search spans 0.135 points of MAE against a gate gap of 0.219, so
-these constants are not what stands between the system and its thresholds.
+([ADR 0007](adr/0007-tuned-constants.md)). One caveat travels with them: the entire
+416-cell search spans 0.135 points of MAE against a gate gap of 0.219, so these
+constants are not what stands between the system and its thresholds.
+
+**`C = 32` used to sit on the top of its own grid, and it no longer does.**
+Campaign 2 widened `c_grid` under pre-registration all the way to `inf` — the
+identity response, the limit of the family, so the grid cannot produce another
+corner — and searched `β_w` to 12. The optimum of that widened grid is `c = inf`,
+`β_w = 12`, which improves MAE on both the tune seasons and 2024 and **is not
+adopted**: combined with the same campaign's accumulation-window change it makes
+MAE worse than either alone, and a clause fixed before any number was read blocks
+it. It also makes calibration substantially worse and moves the poll far enough to
+be a *dial* rather than a convention. The full result, and the argument for
+re-opening it in a campaign of its own, are in
+[`campaign-2.md`](analysis/campaign-2.md) and [ADR 0009](adr/0009-accumulation-window.md).
 
 The résumé root-solve, which is where retroactive re-ranking comes from:
 
@@ -104,16 +115,37 @@ Résumé_t = the unique q* with Σ_g P_g(q*) = actual wins
 ```
 
 `σ` is **not the constant 15.3**. Since 2026-08-12 it is the root-mean-square
-walk-forward residual of this system's own margin predictions over the
-out-of-sample games accumulated so far in the season, published every week beside
-the number of games it came from (`[resume].sigma_estimator`). 15.3 — the
-Prediction Tracker band for good public models — survives as the thin-window
-fallback and as a floor, which is what it is actually good for. The reason is the
-independent review's S6: 15.3 is the residual SD around a *good public model's*
-prediction, and using it as the denominator of every probability this poll
-publishes asserts a precision this system has not demonstrated. Estimating it did
-**not** fix the calibration criterion — it made it worse, for reasons diagnosed in
-[`docs/analysis/tuning-campaign.md`](analysis/tuning-campaign.md) §5.
+walk-forward residual of this system's own margin predictions, over the
+out-of-sample games of **the last three weeks** — `[resume].sigma_trailing_buckets`
+— published every week beside the number of games it came from
+(`[resume].sigma_estimator`). 15.3 — the Prediction Tracker band for good public
+models — survives as the thin-window fallback and as a floor, which is what it is
+actually good for. The reason is the independent review's S6: 15.3 is the residual
+SD around a *good public model's* prediction, and using it as the denominator of
+every probability this poll publishes asserts a precision this system has not
+demonstrated.
+
+**The window is trailing rather than cumulative, and that is the fix that closed
+the calibration diagnosis.** Estimating σ on every game of the season so far made
+the calibration criterion *worse*, and the reason turned out to be the shape of the
+window rather than the estimator: the ratings feeding σ and feeding the affine
+points calibration improve as the season goes on, so a σ fitted on weeks 2-9
+over-covers week 10 and a slope fitted on weeks 2-9 under-scales it. Campaign 1
+diagnosed that and deliberately did not act on it; campaign 2 pre-registered the
+trailing window and it worked. The slope of actual margin on predicted goes from
+1.1492 ± 0.0437 to 1.0329 ± 0.0398 on the tune seasons — indistinguishable from
+one — and from 1.2428 to 1.0222 on 2024, with the maximum decile deviation falling
+11.28 pp → 7.37 pp and 15.82 pp → 8.12 pp. **The gate threshold is 5.0 pp and it
+still fails.** The diagnosis is
+[`tuning-campaign.md`](analysis/tuning-campaign.md) §5; the fix, its cost of 0.028
+points of MAE, and the C grid that won on MAE and was blocked by the same campaign's
+interaction clause are in [`campaign-2.md`](analysis/campaign-2.md) and
+[ADR 0009](adr/0009-accumulation-window.md).
+
+**A trailing window is not a relaxation of the out-of-sample rule.** Every game in
+it was predicted before it was scored, by a fit that had not seen it. Fitting either
+estimator on the *training* window is a different thing entirely, costs L2 0.44
+points of MAE, and is not done.
 
 Both desert layers depend on opponent quality **only** through `Power_{o_g}` (and,
 for schedule odds, through `q_ref`, which is itself read off Power). Substitute

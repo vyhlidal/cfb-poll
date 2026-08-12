@@ -229,3 +229,94 @@ def test_2023_week_10_top_of_the_table_is_football_reality() -> None:
     top = [t for t in sorted(f.ratings, key=lambda t: -f.ratings[t]) if t in fbs][:10]
     assert "Ohio State" in top and "Michigan" in top
     assert {"Georgia", "Florida State", "Washington", "Texas"} <= set(top)
+
+
+# ------------------------------- campaign 2: the home-and-home estimate, with its width
+
+
+def _home_and_home_frame() -> pl.DataFrame:
+    """Two teams, both venues, plus a one-way game that must not enter the pair.
+
+    A hosts B and wins by 10; B hosts A and wins by 4. The team effect enters with
+    opposite signs and cancels; the venue enters twice with the same sign. So
+    h = (10 + 4) / 2 = 7. The third game has no return trip and is ignored, which
+    is the whole point of the estimator.
+    """
+    return pl.DataFrame(
+        {
+            "season": [2021, 2021, 2021],
+            "home_team": ["A", "B", "A"],
+            "away_team": ["B", "A", "C"],
+            "home_points": [24, 18, 30],
+            "away_points": [14, 14, 3],
+            "neutral_site": [False, False, False],
+        }
+    )
+
+
+def test_home_and_home_estimate_agrees_with_the_function_that_publishes_weekly() -> None:
+    """One quantity, two call sites, asserted equal rather than assumed equal.
+
+    `estimate_home_field` is published on model_params.json every week and returns
+    a bare float. `home_and_home_estimate` adds the two things the config never
+    carried and campaign 1 found were the finding: how many pairs it rests on and
+    how wide it is.
+    """
+    frame = _home_and_home_frame()
+    estimate = l2_results.home_and_home_estimate(frame)
+    assert estimate["h"] == pytest.approx(7.0)
+    assert estimate["h"] == pytest.approx(l2_results.estimate_home_field(frame))
+    assert estimate["n_pairs"] == 1
+    assert estimate["within_season"] is True
+
+
+def test_a_neutral_site_leg_is_not_a_home_and_home_leg() -> None:
+    """A neutral site has no host, so it cannot contribute to a venue estimate."""
+    frame = _home_and_home_frame().with_columns(
+        neutral_site=pl.Series([True, False, False])
+    )
+    assert l2_results.home_and_home_estimate(frame)["n_pairs"] == 0
+
+
+def test_pooling_across_seasons_finds_pairs_that_a_single_season_cannot() -> None:
+    """The measurement that makes ADR 0008 a question rather than a preference.
+
+    College football schedules home-and-home ACROSS years, not inside one, so the
+    within-season form - the only one constraint 2 allows today - almost never has
+    a sample. This is that fact in four rows.
+    """
+    frame = pl.DataFrame(
+        {
+            "season": [2021, 2022],
+            "home_team": ["A", "B"],
+            "away_team": ["B", "A"],
+            "home_points": [24, 18],
+            "away_points": [14, 14],
+            "neutral_site": [False, False],
+        }
+    )
+    assert l2_results.home_and_home_estimate(frame, within_season=True)["n_pairs"] == 0
+    pooled = l2_results.home_and_home_estimate(frame, within_season=False)
+    assert pooled["n_pairs"] == 1 and pooled["h"] == pytest.approx(7.0)
+
+
+# ------------------------------------------- campaign 2: C = inf is a value, not an error
+
+
+def test_the_uncompressed_limit_is_a_real_value_of_c() -> None:
+    """`c = inf` is the top of the widened grid because it is the LIMIT of the
+    family: `C*tanh(m/C) -> m`. numpy would evaluate `inf * tanh(m/inf)` as
+    `inf * 0 = nan` and take the poll down quietly, so the limit is taken
+    explicitly in `design.tanh_term` and every caller goes through it."""
+    margin = np.array([-45.0, -3.0, 0.0, 3.0, 45.0])
+    beta = 7.0
+    assert np.allclose(
+        design.compress_margin_array(margin, float("inf"), beta),
+        margin + beta * np.sign(margin),
+    )
+    assert design.compress_margin(45.0, float("inf"), beta) == pytest.approx(52.0)
+    # and it really is the limit: a very large finite C is very close to it
+    assert np.allclose(
+        design.compress_margin_array(margin, 1e9, beta),
+        design.compress_margin_array(margin, float("inf"), beta),
+    )

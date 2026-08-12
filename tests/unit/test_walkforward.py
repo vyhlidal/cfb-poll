@@ -743,12 +743,18 @@ def test_the_harness_gives_every_system_its_own_walk_forward_sigma() -> None:
     by_system = {
         name: [r for r in weekly if r["system"] == name] for name in ("l3", "colley", "winpct")
     }
+    floor = float(CONFIG["resume"]["sigma"])
     for rows in by_system.values():
         assert rows[0]["sigma_source"] == "config_fallback_thin_window"
         assert rows[-1]["sigma_source"] == "walk_forward_residuals"
-        # it settles rather than wandering: the last three buckets agree closely
-        tail = [r["sigma"] for r in rows[-3:]]
-        assert max(tail) - min(tail) < 1.0
+        # Never below the floor, and never absurd. THIS ASSERTION USED TO BE "the
+        # last three buckets agree within 1.0 point", and that was a property of the
+        # CUMULATIVE window rather than of sigma: a cumulative mean settles because
+        # each new bucket is a small fraction of everything accumulated. Campaign 2
+        # made the window TRAILING on purpose (ADR 0009), and a trailing estimator
+        # is supposed to move - that responsiveness is the whole of what it buys, and
+        # the test below measures it rather than forbidding it.
+        assert all(floor <= r["sigma"] <= 2.5 * floor for r in rows)
 
     # and the systems genuinely differ, which is the point of doing it per system
     finals = {name: rows[-1]["sigma"] for name, rows in by_system.items()}
@@ -757,6 +763,43 @@ def test_the_harness_gives_every_system_its_own_walk_forward_sigma() -> None:
 
     assert "PER SYSTEM, PER BUCKET" in result["protocol"]["sigma"]
     assert result["protocol"]["sigma_fallback"] == CONFIG["resume"]["sigma"]
+    assert result["protocol"]["sigma_trailing_buckets"] == CONFIG["resume"][
+        "sigma_trailing_buckets"
+    ]
+
+
+@needs_archive
+def test_the_trailing_window_is_what_makes_sigma_track_the_season() -> None:
+    """The property the previous test used to assert, measured rather than assumed.
+
+    A cumulative sigma settles: by week 12 it is an average over ten weeks and one
+    more bucket barely moves it. That is exactly the defect campaign 1 diagnosed -
+    over the published window the cumulative estimate averaged 18.46 while the
+    realised RMSE of those same games was 16.55, because the estimate still carried
+    the near-noise weeks the poll declines to publish. A trailing window is supposed
+    to move, and this asserts the direction of that difference on the live config
+    rather than pinning a magnitude that a future search may legitimately change.
+    """
+    import copy
+
+    trailing = CONFIG
+    cumulative = copy.deepcopy(CONFIG)
+    cumulative["resume"]["sigma_trailing_buckets"] = 0
+
+    def _tail_spread(config: dict) -> float:
+        rows = [
+            r
+            for r in walkforward.run_backtest([2023], ["l3"], config=config)["weekly"]
+            if r["system"] == "l3"
+        ]
+        tail = [r["sigma"] for r in rows[-4:]]
+        return max(tail) - min(tail)
+
+    assert int(trailing["resume"]["sigma_trailing_buckets"]) > 0, (
+        "this test is about the trailing window; if the live config goes back to "
+        "cumulative it should be deleted rather than made to pass"
+    )
+    assert _tail_spread(trailing) > _tail_spread(cumulative)
 
 
 @needs_archive
@@ -788,3 +831,164 @@ def test_estimating_sigma_does_not_close_the_calibration_gap() -> None:
     assert a["mae"] == pytest.approx(b["mae"])
     assert a["rmse"] == pytest.approx(b["rmse"])
     assert a["su_accuracy"] == pytest.approx(b["su_accuracy"])
+
+
+# ------------------------------------- campaign 2: the shape of the accumulation window
+
+
+def _pool_with_buckets() -> walkforward._Calibration:
+    """Five buckets of one game each, whose margins say which bucket they are in.
+
+    Bucket k contributes a game with margin 10*k and no rating spread, so any
+    estimator that reads the last K buckets and nothing else has an arithmetic
+    answer that can be asserted rather than eyeballed.
+    """
+    pool = walkforward._Calibration()
+    for order in range(1, 6):
+        pool.add(
+            np.zeros(1),
+            np.zeros(1),
+            np.array([10.0 * order]),
+            predicted=np.zeros(1),
+            bucket_order=order,
+        )
+    return pool
+
+
+def test_a_trailing_calibration_window_reads_the_last_k_buckets_and_nothing_else() -> None:
+    """Campaign 2's second lead, in the smallest frame that can show it.
+
+    The cumulative fit averages every bucket; a trailing-2 fit averages the last
+    two. Both are out of sample - every row was predicted before it was scored -
+    which is the distinction the campaign turns on and the reason a trailing
+    window is not a relaxation of the walk-forward rule.
+    """
+    pool = _pool_with_buckets()
+    cumulative = pool.coefficients()
+    trailing = pool.coefficients(trailing=2)
+    assert cumulative[0] == pytest.approx(30.0)  # mean of 10..50
+    assert trailing[0] == pytest.approx(45.0)  # mean of 40, 50
+    assert pool.n_fitted() == 5
+    assert pool.n_fitted(trailing=2) == 2
+
+
+def test_a_trailing_window_wider_than_the_season_is_the_cumulative_window() -> None:
+    pool = _pool_with_buckets()
+    assert pool.coefficients(trailing=99)[0] == pytest.approx(pool.coefficients()[0])
+    assert pool.n_fitted(trailing=99) == pool.n_fitted()
+
+
+def test_a_thin_trailing_slice_falls_back_to_the_full_accumulation() -> None:
+    """The fallback declared in the protocol before any number was read, and the
+    conservative one of the two available: falling back to the FULL accumulation
+    keeps every trailing arm strictly nested inside the information set the
+    cumulative estimator already had, so a trailing window can never see a game
+    the incumbent could not."""
+    pool = _pool_with_buckets()
+    assert pool.n_fitted(trailing=2, minimum=40) == 5
+
+
+def test_a_trailing_sigma_reads_the_same_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    import copy
+
+    pool = walkforward._Calibration()
+    for order, residual in enumerate([40.0, 40.0, 40.0, 20.0], start=1):
+        pool.add(
+            np.zeros(1),
+            np.zeros(1),
+            np.array([residual]),
+            predicted=np.zeros(1),
+            bucket_order=order,
+        )
+    cfg = copy.deepcopy(CONFIG)
+    cfg["resume"]["sigma_min_out_of_sample_games"] = 1
+    cfg["resume"]["sigma_trailing_buckets"] = 0  # the cumulative window, set explicitly
+    assert pool.sigma(cfg).value == pytest.approx(np.sqrt((3 * 1600 + 400) / 4))
+    cfg["resume"]["sigma_trailing_buckets"] = 1
+    assert pool.sigma(cfg).value == pytest.approx(20.0)
+
+
+# ------------------------------------------- campaign 2: the home-field anchor, and its lock
+
+
+def test_anchoring_h_holds_the_site_coefficient_and_fits_the_rest_around_it() -> None:
+    """`_fit_affine(fixed_site=h)` is the identification strategy of ADR 0008.
+
+    The coefficient this regression produces unaided averages 6.39 points with a
+    standard deviation of 4.34 across published weeks, because only 37 of 1,585
+    scored games are at neutral sites and the intercept and site column are very
+    nearly collinear. Holding h and fitting the rest on `margin - h*site` is the
+    only proposal anyone has made about that - and whether the project MAY do it
+    is a constraint question, not an arithmetic one.
+    """
+    delta = np.array([1.0, -1.0, 2.0, -2.0])
+    site = np.array([1.0, 1.0, 0.0, 0.0])
+    margin = 3.0 + 5.0 * delta + 2.0 * site
+
+    free = walkforward._fit_affine(delta, site, margin)
+    assert free == pytest.approx((3.0, 5.0, 2.0))
+
+    anchored = walkforward._fit_affine(delta, site, margin, fixed_site=2.0)
+    assert anchored == pytest.approx((3.0, 5.0, 2.0))
+    assert walkforward._fit_affine(delta, site, margin, fixed_site=0.0)[2] == 0.0
+
+
+def test_the_harness_refuses_a_prior_season_anchor_while_the_constraint_stands() -> None:
+    """A constraint enforced only by a comment is a preference.
+
+    Anchoring h on earlier seasons would be this project's FIRST cross-season
+    fitted quantity - not an extension of a precedent, because [ep].fit_scope is
+    "training_window" and every other fitted quantity is within-season. The
+    question is open in ADR 0008, so until it is answered the harness fails
+    closed.
+    """
+    import copy
+
+    cfg = copy.deepcopy(CONFIG)
+    assert cfg["homefield"]["anchor_h_by_season"] == {}
+    assert walkforward.homefield_anchor(cfg) == {}
+
+    cfg["homefield"]["anchor_h_by_season"] = {"2023": 1.88}
+    cfg["homefield"]["anchor_provenance"] = "prior_season_home_and_home"
+    assert cfg["constraints"]["allow_prior_season_data"] is False
+    with pytest.raises(walkforward.PriorSeasonLocked, match="ADR 0008"):
+        walkforward.homefield_anchor(cfg)
+
+    cfg["constraints"]["allow_prior_season_data"] = True
+    assert walkforward.homefield_anchor(cfg) == {2023: 1.88}
+
+
+
+# ------------------------ campaign 2: trailing_index, the whole of the mechanism
+
+
+def test_trailing_index_returns_none_for_every_setting_that_means_all_of_them() -> None:
+    """`None` is the answer for the cumulative window AND for the thin-window
+    fallback, because they are the same instruction: use everything."""
+    buckets = [1, 1, 2, 2, 3, 3]
+    assert _l3().trailing_index(buckets, 0) is None  # the estimator that runs today
+    assert _l3().trailing_index(buckets, 3) is None  # the window covers the season
+    assert _l3().trailing_index(buckets, 9) is None  # wider than the season
+    assert _l3().trailing_index([], 2) is None  # nothing accumulated yet
+    assert _l3().trailing_index(buckets, 2, minimum=40) is None  # too thin, fall back
+
+
+def test_trailing_index_keeps_exactly_the_last_k_buckets() -> None:
+    buckets = [1, 1, 2, 2, 3, 3]
+    assert list(_l3().trailing_index(buckets, 2)) == [2, 3, 4, 5]
+    assert list(_l3().trailing_index(buckets, 1)) == [4, 5]
+
+
+def test_trailing_index_orders_by_bucket_and_not_by_position() -> None:
+    """The unit is `ingest/windows.py`'s bucket order, by first kickoff, precisely
+    because week numbers collide - the 2023 postseason carries a week 1 alongside
+    weeks 11-15 - so "the last K weeks" derived from the week column would mean
+    something else in December."""
+    assert list(_l3().trailing_index([3, 1, 2, 3], 1)) == [0, 3]
+
+
+def _l3():
+    """`l3_power` imported lazily, so these run on a machine with no play archive."""
+    from cfbpoll.model import l3_power
+
+    return l3_power

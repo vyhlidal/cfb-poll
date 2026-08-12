@@ -13,7 +13,14 @@ no permission from anyone.
 > (ridge on compressed scoring margin), the **L4 résumé rating — the headline
 > poll**, the full R(N, K) retroactive grid (`cfbpoll grid`), `cfbpoll rank`, and
 > the walk-forward backtest against every baseline (`cfbpoll backtest`). Real
-> output is committed under [`demo/`](demo/).
+> output is committed under [`demo/`](demo/):
+>
+> - [**The 2023 final poll**](demo/2023-final-poll.md) — résumé and power, live and
+>   hindsight, and what a transparent system says about undefeated Florida State
+> - [2023 retroactive movers](demo/2023-retro-movers.md) — who the model was wrong
+>   about, in its own words, plus the divergence curve
+> - [2021: Cincinnati](demo/2021-cincinnati.md) — the first Group of Five playoff team
+> - [The poll at week 10, 2023](demo/2023-w10-top25.md) · [walk-forward backtest](demo/backtest-2021-2023.md)
 >
 > **What does not:** L1 efficiency and the L3 blend. Report 02 §3.4 reads
 > opponent quality off L3; L3 does not exist, so **Power is L2 rescaled to

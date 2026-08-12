@@ -63,6 +63,7 @@ __all__ = [
     "cell",
     "grid",
     "hindsight_surface",
+    "divergence",
     "live_surface",
     "movers",
     "movers_by_week",
@@ -306,6 +307,27 @@ def movers(
         descending=[False, True, True, False],
     )
     return joined.head(top_n) if top_n is not None else joined
+
+
+def divergence(live: pl.DataFrame, hindsight: pl.DataFrame) -> pl.DataFrame:
+    """Mean and max |rank(R(N,N)) - rank(R(N,final))| per evaluation week.
+
+    Report 02 §5.2 lists retro-vs-live divergence as a STABILITY metric and says
+    it must decline in N or the retroactive product itself is unstable: the later
+    the week, the less the rest of the season can teach us about it, and at
+    N = final there is nothing left to learn and the divergence is zero by
+    definition. Publishing the curve is how that claim stays falsifiable.
+    """
+    table = movers(live, hindsight)
+    return (
+        table.group_by(["eval_order", "eval_label"])
+        .agg(
+            mean_abs_rank_delta=pl.col("abs_rank_delta").mean(),
+            max_abs_rank_delta=pl.col("abs_rank_delta").max(),
+            n_teams=pl.len(),
+        )
+        .sort("eval_order")
+    )
 
 
 def movers_by_week(

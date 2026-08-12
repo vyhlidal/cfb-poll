@@ -9,6 +9,17 @@
     ],
     "holdout_touched": false,
     "min_training_games": 20,
+    "prediction_source_note": "a system whose prediction source is not itself is a RETRODICTIVE rating scored on violations, and predicts through the rating it was built on (report 02 \u00a73.5, backtest/baselines/__init__.py)",
+    "prediction_sources": {
+      "colley": "colley",
+      "elo": "elo",
+      "home_team": "home_team",
+      "l2": "l2",
+      "random_walker": "random_walker",
+      "resume": "l2",
+      "srs": "srs",
+      "winpct": "winpct"
+    },
     "prior_seasons_used": false,
     "seasons": [
       2021,
@@ -18,6 +29,7 @@
     "sigma": 15.3,
     "spec": "report 02 \u00a75.1",
     "systems": [
+      "resume",
       "l2",
       "colley",
       "srs",
@@ -41,10 +53,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": true
       },
       "rank_churn": {
         "by_bucket": [
@@ -1137,10 +1148,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": false
       },
       "rank_churn": {
         "by_bucket": [
@@ -2989,10 +2999,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": false
       },
       "rank_churn": {
         "by_bucket": [
@@ -4085,10 +4094,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": false
       },
       "rank_churn": {
         "by_bucket": [
@@ -5170,6 +5178,1101 @@
         }
       }
     },
+    "resume": {
+      "gate": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": true
+      },
+      "rank_churn": {
+        "by_bucket": [
+          {
+            "bucket": "2021-regu-w03",
+            "churn_all": 23.29230769230769,
+            "churn_top25": 23.914285714285715,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w04",
+            "churn_all": 17.96923076923077,
+            "churn_top25": 18.09090909090909,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w05",
+            "churn_all": 12.584615384615384,
+            "churn_top25": 4.793103448275862,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w06",
+            "churn_all": 13.723076923076922,
+            "churn_top25": 12.32258064516129,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w07",
+            "churn_all": 9.046153846153846,
+            "churn_top25": 5.620689655172414,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w08",
+            "churn_all": 7.892307692307693,
+            "churn_top25": 4.862068965517241,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w09",
+            "churn_all": 7.707692307692308,
+            "churn_top25": 5.655172413793103,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w10",
+            "churn_all": 7.061538461538461,
+            "churn_top25": 6.206896551724138,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w11",
+            "churn_all": 6.461538461538462,
+            "churn_top25": 5.333333333333333,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w12",
+            "churn_all": 5.184615384615385,
+            "churn_top25": 2.5555555555555554,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w13",
+            "churn_all": 4.2153846153846155,
+            "churn_top25": 2.4074074074074074,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w14",
+            "churn_all": 4.184615384615385,
+            "churn_top25": 2.1923076923076925,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2021-regu-w15",
+            "churn_all": 1.2923076923076924,
+            "churn_top25": 2.6538461538461537,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w03",
+            "churn_all": 25.450381679389313,
+            "churn_top25": 24.52777777777778,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w04",
+            "churn_all": 17.328244274809162,
+            "churn_top25": 21.25,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w05",
+            "churn_all": 14.229007633587786,
+            "churn_top25": 14.666666666666666,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w06",
+            "churn_all": 11.526717557251908,
+            "churn_top25": 7.933333333333334,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w07",
+            "churn_all": 9.16030534351145,
+            "churn_top25": 4.275862068965517,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w08",
+            "churn_all": 9.587786259541986,
+            "churn_top25": 6.724137931034483,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w09",
+            "churn_all": 7.541984732824427,
+            "churn_top25": 3.7037037037037037,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w10",
+            "churn_all": 5.32824427480916,
+            "churn_top25": 2.8,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w11",
+            "churn_all": 5.877862595419847,
+            "churn_top25": 4.517241379310345,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w12",
+            "churn_all": 5.343511450381679,
+            "churn_top25": 4.535714285714286,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w13",
+            "churn_all": 4.824427480916031,
+            "churn_top25": 2.8518518518518516,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w14",
+            "churn_all": 4.396946564885496,
+            "churn_top25": 3.8275862068965516,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-regu-w15",
+            "churn_all": 1.1908396946564885,
+            "churn_top25": 0.8,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w03",
+            "churn_all": 24.76691729323308,
+            "churn_top25": 31.08108108108108,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w04",
+            "churn_all": 15.8796992481203,
+            "churn_top25": 12.766666666666667,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w05",
+            "churn_all": 13.293233082706767,
+            "churn_top25": 9.580645161290322,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w06",
+            "churn_all": 9.398496240601503,
+            "churn_top25": 7.5,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w07",
+            "churn_all": 9.954887218045112,
+            "churn_top25": 9.516129032258064,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w08",
+            "churn_all": 8.135338345864662,
+            "churn_top25": 5.413793103448276,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w09",
+            "churn_all": 6.887218045112782,
+            "churn_top25": 3.9642857142857144,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w10",
+            "churn_all": 5.7443609022556394,
+            "churn_top25": 3.7037037037037037,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w11",
+            "churn_all": 6.7669172932330826,
+            "churn_top25": 3.4444444444444446,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w12",
+            "churn_all": 6.0,
+            "churn_top25": 1.7307692307692308,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w13",
+            "churn_all": 4.646616541353383,
+            "churn_top25": 2.4444444444444446,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w14",
+            "churn_all": 3.6240601503759398,
+            "churn_top25": 1.4230769230769231,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-regu-w15",
+            "churn_all": 0.9774436090225563,
+            "churn_top25": 2.4074074074074074,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          },
+          {
+            "bucket": "2023-post-w01",
+            "churn_all": 0.24060150375939848,
+            "churn_top25": 0.16,
+            "n": 133.0,
+            "season": 2023,
+            "system": "resume"
+          }
+        ],
+        "mean_all": 8.967935840776338,
+        "mean_top25": 7.353961968635494
+      },
+      "retrodictive_violation_rate": 0.19629963898916966,
+      "retrodictive_violations": [
+        {
+          "games": 732.0,
+          "season": 2021,
+          "violation_rate": 0.18442622950819673,
+          "violations": 135.0
+        },
+        {
+          "games": 734.0,
+          "season": 2022,
+          "violation_rate": 0.21662125340599456,
+          "violations": 159.0
+        },
+        {
+          "games": 750.0,
+          "season": 2023,
+          "violation_rate": 0.188,
+          "violations": 141.0
+        }
+      ],
+      "segments": {
+        "bowl": {
+          "brier": 0.2925019797130173,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.14390730097176524,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.24485146730934673,
+              "n": 6.0,
+              "observed_rate": 0.3333333333333333
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.356089331404865,
+              "n": 12.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.44650084659975303,
+              "n": 8.0,
+              "observed_rate": 0.625
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5554060269634821,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6496189565749556,
+              "n": 3.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.719970568452021,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.7893506035313683,
+          "mae": 18.28081078895477,
+          "max_calibration_deviation_pp": null,
+          "n_games": 39,
+          "rmse": 21.89509702980261,
+          "su_accuracy": 0.38461538461538464
+        },
+        "cfp": {
+          "brier": 0.2831380946970765,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.3471304622026917,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5400178309473471,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.763458446984118,
+          "mae": 12.313141773437856,
+          "max_calibration_deviation_pp": null,
+          "n_games": 3,
+          "rmse": 13.604003040476709,
+          "su_accuracy": 0.6666666666666666
+        },
+        "fbs_vs_fbs": {
+          "brier": 0.20562305461017893,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 1.0,
+              "mean_predicted": 0.06105736793425213,
+              "n": 53.0,
+              "observed_rate": 0.11320754716981132
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 1.0,
+              "mean_predicted": 0.15453034354593861,
+              "n": 90.0,
+              "observed_rate": 0.12222222222222222
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 1.0,
+              "mean_predicted": 0.24963222371468052,
+              "n": 153.0,
+              "observed_rate": 0.2875816993464052
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 1.0,
+              "mean_predicted": 0.3510605896182781,
+              "n": 169.0,
+              "observed_rate": 0.378698224852071
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 1.0,
+              "mean_predicted": 0.4513221062407148,
+              "n": 219.0,
+              "observed_rate": 0.45662100456621
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5498572183863507,
+              "n": 245.0,
+              "observed_rate": 0.5265306122448979
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6503039260517254,
+              "n": 306.0,
+              "observed_rate": 0.6013071895424836
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7518264343896748,
+              "n": 300.0,
+              "observed_rate": 0.7033333333333334
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8498759873837436,
+              "n": 277.0,
+              "observed_rate": 0.7833935018050542
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9478427632517259,
+              "n": 249.0,
+              "observed_rate": 0.8433734939759037
+            }
+          ],
+          "log_loss": 0.6091364905111761,
+          "mae": 13.877995419087505,
+          "max_calibration_deviation_pp": 10.446926927582222,
+          "n_games": 2061,
+          "rmse": 17.59100702545348,
+          "su_accuracy": 0.6841339155749636
+        },
+        "fbs_vs_fcs": {
+          "brier": 0.14951915498548063,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": 0.05829563458938719,
+              "n": 4.0,
+              "observed_rate": 0.75
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.15055113277444246,
+              "n": 3.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.24247861432458448,
+              "n": 9.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.3415147012074821,
+              "n": 13.0,
+              "observed_rate": 0.7692307692307693
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4642401645055454,
+              "n": 16.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5596123738066332,
+              "n": 23.0,
+              "observed_rate": 0.8695652173913043
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6574425671108739,
+              "n": 36.0,
+              "observed_rate": 0.9166666666666666
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7483324406657287,
+              "n": 33.0,
+              "observed_rate": 0.9393939393939394
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8453673238705708,
+              "n": 32.0,
+              "observed_rate": 0.96875
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9657546611254715,
+              "n": 64.0,
+              "observed_rate": 0.96875
+            }
+          ],
+          "log_loss": 0.458659933102228,
+          "mae": 22.47021674596453,
+          "max_calibration_deviation_pp": 30.995284358467114,
+          "n_games": 233,
+          "rmse": 27.57501557473052,
+          "su_accuracy": 0.7811158798283262
+        }
+      },
+      "segments_from_headline_week": {
+        "bowl": {
+          "brier": 0.2925019797130173,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.14390730097176524,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.24485146730934673,
+              "n": 6.0,
+              "observed_rate": 0.3333333333333333
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.356089331404865,
+              "n": 12.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.44650084659975303,
+              "n": 8.0,
+              "observed_rate": 0.625
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5554060269634821,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6496189565749556,
+              "n": 3.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.719970568452021,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.7893506035313683,
+          "mae": 18.28081078895477,
+          "max_calibration_deviation_pp": null,
+          "n_games": 39,
+          "rmse": 21.89509702980261,
+          "su_accuracy": 0.38461538461538464
+        },
+        "cfp": {
+          "brier": 0.2831380946970765,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.3471304622026917,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5400178309473471,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.763458446984118,
+          "mae": 12.313141773437856,
+          "max_calibration_deviation_pp": null,
+          "n_games": 3,
+          "rmse": 13.604003040476709,
+          "su_accuracy": 0.6666666666666666
+        },
+        "fbs_vs_fbs": {
+          "brier": 0.1977517827932449,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 1.0,
+              "mean_predicted": 0.06340096619743386,
+              "n": 46.0,
+              "observed_rate": 0.06521739130434782
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 1.0,
+              "mean_predicted": 0.15511728467397065,
+              "n": 78.0,
+              "observed_rate": 0.10256410256410256
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 1.0,
+              "mean_predicted": 0.24843741246962528,
+              "n": 136.0,
+              "observed_rate": 0.3014705882352941
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 1.0,
+              "mean_predicted": 0.35291420240135984,
+              "n": 142.0,
+              "observed_rate": 0.3591549295774648
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 1.0,
+              "mean_predicted": 0.45152037663573835,
+              "n": 181.0,
+              "observed_rate": 0.4530386740331492
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5485291711468933,
+              "n": 201.0,
+              "observed_rate": 0.5422885572139303
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6512751870746231,
+              "n": 238.0,
+              "observed_rate": 0.6050420168067226
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7526872556240973,
+              "n": 214.0,
+              "observed_rate": 0.719626168224299
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8513416483583182,
+              "n": 201.0,
+              "observed_rate": 0.8258706467661692
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9443468268697286,
+              "n": 148.0,
+              "observed_rate": 0.8716216216216216
+            }
+          ],
+          "log_loss": 0.5829587421435638,
+          "mae": 13.207134776468846,
+          "max_calibration_deviation_pp": 7.2725205248107,
+          "n_games": 1585,
+          "rmse": 16.695833420972075,
+          "su_accuracy": 0.694006309148265
+        },
+        "fbs_vs_fcs": {
+          "brier": 0.10473664918736207,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.14641253446213887,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.23960967686281057,
+              "n": 3.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.3538998227268129,
+              "n": 3.0,
+              "observed_rate": 0.3333333333333333
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.447012032541165,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5399060799560566,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6844631786428037,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7731595706519319,
+              "n": 5.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": 0.8539616122622569,
+              "n": 6.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": 0.9697656788522026,
+              "n": 18.0,
+              "observed_rate": 1.0
+            }
+          ],
+          "log_loss": 0.3239201100671113,
+          "mae": 16.99510583537351,
+          "max_calibration_deviation_pp": null,
+          "n_games": 40,
+          "rmse": 21.108554443540665,
+          "su_accuracy": 0.85
+        }
+      }
+    },
     "srs": {
       "gate": {
         "brier_beats_all_baselines": null,
@@ -5181,10 +6284,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": false
       },
       "rank_churn": {
         "by_bucket": [
@@ -6277,10 +7379,9 @@
         "su_accuracy": false,
         "undecided": [
           "brier_beats_all_baselines",
-          "retro_vs_live_monotone",
-          "violations_vs_baselines"
+          "retro_vs_live_monotone"
         ],
-        "violations_vs_baselines": null
+        "violations_vs_baselines": true
       },
       "rank_churn": {
         "by_bucket": [

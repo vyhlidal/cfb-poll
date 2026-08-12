@@ -67,6 +67,8 @@ __all__ = [
     "BlendWeights",
     "L3Fit",
     "SeasonState",
+    "SigmaEstimate",
+    "estimate_sigma",
     "fit",
     "fit_blend_weights",
     "power_from_l3",
@@ -74,6 +76,82 @@ __all__ = [
     "rate",
     "season_power",
 ]
+
+
+@dataclass(frozen=True)
+class SigmaEstimate:
+    """sigma, where it came from, and how many games it was estimated on.
+
+    THE REVIEW'S S6 IN ONE OBJECT. sigma is the denominator of every win
+    probability the poll publishes and therefore of the headline rank key, and it
+    used to be the constant 15.3 - a sound estimate of the residual SD of margin
+    around a GOOD PUBLIC MODEL's prediction, which is not the same thing as around
+    ours. This is ours, measured, with the literature value kept as the
+    thin-window fallback and as a floor.
+    """
+
+    value: float
+    source: str
+    n_games: int
+    estimate: float | None = None
+    floor: float = 0.0
+
+    def as_params(self) -> dict[str, Any]:
+        return {
+            "sigma": self.value,
+            "sigma_source": self.source,
+            "sigma_n_out_of_sample_games": self.n_games,
+            "sigma_walk_forward_estimate": self.estimate,
+            "sigma_floor": self.floor,
+        }
+
+
+def estimate_sigma(
+    residuals: Any,
+    config: dict[str, Any],
+    n_games: int | None = None,
+) -> SigmaEstimate:
+    """Root-mean-square walk-forward residual, with the config value as fallback.
+
+    `residuals` are OUT-OF-SAMPLE prediction errors in points: each one is a game
+    predicted by a fit that had not seen it. The rule, stated once here and used
+    everywhere:
+
+      * fewer than `[resume].sigma_min_out_of_sample_games` residuals -> the
+        config's sigma, because the estimate would be noise;
+      * an estimate below the config's sigma -> the config's sigma, as a FLOOR.
+        A spuriously small sigma makes every tail too small, and because the
+        headline key is a product over 9 to 13 games the error compounds. The
+        literature value is the right thing to refuse to go below;
+      * otherwise the estimate.
+
+    `[resume].sigma_estimator = "config"` restores the pre-2026-08-12 behaviour,
+    so the old choice stays reachable and measurable rather than asserted away.
+    """
+    res = config["resume"]
+    floor = float(res["sigma"])
+    minimum = int(res.get("sigma_min_out_of_sample_games", 40))
+    if str(res.get("sigma_estimator", "walk_forward_residuals")) != "walk_forward_residuals":
+        return SigmaEstimate(value=floor, source="config", n_games=0, floor=floor)
+
+    array = np.asarray(list(residuals), dtype=np.float64)
+    n = int(array.size if n_games is None else n_games)
+    if array.size < minimum:
+        return SigmaEstimate(
+            value=floor, source="config_fallback_thin_window", n_games=n, floor=floor
+        )
+    estimate = float(np.sqrt(np.mean(array**2)))
+    if estimate < floor:
+        return SigmaEstimate(
+            value=floor, source="config_floor", n_games=n, estimate=estimate, floor=floor
+        )
+    return SigmaEstimate(
+        value=estimate,
+        source="walk_forward_residuals",
+        n_games=n,
+        estimate=estimate,
+        floor=floor,
+    )
 
 LAYER = "L3 power rating"
 VERSION = "v1"
@@ -131,6 +209,12 @@ class SeasonState:
     results: list[float] = field(default_factory=list)
     site: list[float] = field(default_factory=list)
     margin: list[float] = field(default_factory=list)
+    #: The walk-forward residual of each accumulated game: actual margin minus the
+    #: margin the fit that PREDICTED it forecast. Stored at the moment of
+    #: prediction rather than recomputed later with the current weights, because
+    #: the current weights have since seen the game and the residual would flatter
+    #: the model by exactly the amount sigma is supposed to measure.
+    residual: list[float] = field(default_factory=list)
     cache: dict[tuple[Any, ...], L3Fit] = field(default_factory=dict)
 
     def __len__(self) -> int:
@@ -141,10 +225,16 @@ class SeasonState:
             return
         eff, res, site = fitted.features(games)
         actual = (games["home_points"] - games["away_points"]).to_numpy().astype(np.float64)
+        predicted = fitted.predict(games)
         self.efficiency.extend(eff.tolist())
         self.results.extend(res.tolist())
         self.site.extend(site.tolist())
         self.margin.extend(actual.tolist())
+        self.residual.extend((actual - predicted).tolist())
+
+    def sigma(self, config: dict[str, Any]) -> SigmaEstimate:
+        """The walk-forward sigma from everything accumulated so far."""
+        return estimate_sigma(self.residual, config)
 
     def weights(self) -> BlendWeights:
         return fit_blend_weights(
@@ -361,6 +451,7 @@ def season_power(
     season: int,
     config: dict[str, Any] | None = None,
     buckets: list[Any] | None = None,
+    season_sigma: dict[int, SigmaEstimate] | None = None,
 ) -> dict[int, L3Fit]:
     """bucket.order -> the L3 fit whose Power is live as of that bucket.
 
@@ -386,8 +477,10 @@ def season_power(
     season_games = games.filter(pl.col("season") == season)
     all_buckets = buckets if buckets is not None else windows.season_buckets(season_games, season)
 
+    season_sigma = {} if season_sigma is None else season_sigma
     state = SeasonState()
     out: dict[int, L3Fit] = {}
+    sigmas: dict[int, SigmaEstimate] = {}
     previous: L3Fit | None = None
     for bucket in all_buckets:
         if previous is not None:
@@ -401,12 +494,24 @@ def season_power(
         window_plays = None if plays is None else plays_for(plays, window)
         fitted = fit(window, window_plays, cfg, state=state)
         out[bucket.order] = fitted
+        # sigma AS OF THIS BUCKET: estimated on residuals from games already
+        # predicted, so it is walk-forward in the same sense the blend weights are.
+        sigmas[bucket.order] = state.sigma(cfg)
         previous = fitted
+    season_sigma.update(sigmas)
     return out
 
 
-def power_source_for(fitted: L3Fit) -> l4_resume.PowerSource:
-    """Wrap an already-computed L3 fit as opponent quality for the résumé."""
+def power_source_for(
+    fitted: L3Fit, sigma: SigmaEstimate | None = None
+) -> l4_resume.PowerSource:
+    """Wrap an already-computed L3 fit as opponent quality for the résumé.
+
+    `sigma` is the walk-forward estimate measured on the state that produced this
+    fit. Passing None leaves the résumé and the headline ordering on the config's
+    fallback, which is correct for a caller with no walk behind it and is recorded
+    as `sigma_source = "config"` rather than left to be assumed.
+    """
     return l4_resume.PowerSource(
         ratings=dict(sorted(fitted.ratings.items())),
         home_field=fitted.home_field,
@@ -417,6 +522,9 @@ def power_source_for(fitted: L3Fit) -> l4_resume.PowerSource:
         n_scale_games=fitted.weights.n_games,
         l2=fitted.l2,
         l3=fitted,
+        sigma=None if sigma is None else sigma.value,
+        sigma_source=("config" if sigma is None else sigma.source),
+        sigma_n_games=0 if sigma is None else sigma.n_games,
         # Power = w1*k*(alpha - beta) + w2*rho, and the blend regression's
         # response is already points, so the results core enters multiplied by
         # w2 and a compressed-response standard error is carried across by w2.

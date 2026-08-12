@@ -118,11 +118,48 @@ alpha = 0.8
 # L4 resume root-solve — report 02 §3.4, sigma from §5.4
 ####################################################################################
 [resume]
-# sigma — residual SD of game margin around a good prediction. 15.3 points,
-# confirmed twice independently: the Prediction Tracker RMSE band for good public
-# models, and a conditional-SD estimate of 15.35 for the 2021 season derived by a
-# completely different method.
-sigma = 15.3                                # report 02 §3.4, §5.4
+# sigma — residual SD of game margin around a good prediction.
+#
+# IT IS NO LONGER THIS CONSTANT. Until 2026-08-12 sigma was 15.3 everywhere, and
+# the fresh-eyes review (S6) was right about why that is wrong: 15.3 is the
+# Prediction Tracker RMSE band for GOOD PUBLIC MODELS, independently confirmed by
+# a conditional-SD estimate of 15.35 for 2021 - so it is a sound estimate of the
+# residual SD of margin around a good prediction, and the antecedent is the
+# problem. THIS SYSTEM'S PREDICTIONS ARE NOT YET THAT GOOD. Its own walk-forward
+# RMSE over the published window is 16.55. Using 15.3 as the denominator of every
+# win probability asserts a forecasting precision the model has not demonstrated,
+# and does so inside the number that becomes the headline rank - where, because
+# the key is a PRODUCT over 9 to 13 games, the distortion compounds rather than
+# cancels.
+#
+# The tension was visible in the project's own gate, which sets the STRETCH RMSE
+# target at exactly 15.3: the system would have to become as accurate as the
+# sigma it already assumed in order to earn the assumption.
+#
+# So sigma is now ESTIMATED from this system's own walk-forward residuals -
+# out-of-sample games only, accumulated as the season is walked, per data window -
+# and the estimate is published on model_params.json every week beside the number
+# of games it came from and the rule that produced it. See
+# [resume].sigma_estimator below.
+#
+# 15.3 SURVIVES AS THE FALLBACK AND THE FLOOR, which is what it is actually good
+# for: in a thin window (week 5, forty out-of-sample games) the residual SD is
+# itself badly estimated, and a spuriously small one would make every tail too
+# small. The literature value is the right thing to fall back to and the right
+# floor to refuse to go below.
+sigma = 15.3                                # report 02 §3.4, §5.4 - FALLBACK AND FLOOR
+
+# "walk_forward_residuals" estimates sigma as the root-mean-square walk-forward
+# residual of the Power model's own margin predictions, over the out-of-sample
+# games accumulated so far in the season. "config" pins it at `sigma` above and is
+# offered so the pre-2026-08-12 behaviour stays reachable and measurable rather
+# than being asserted away.
+sigma_estimator = "walk_forward_residuals"  # walk_forward_residuals | config
+
+# Below this many out-of-sample games the estimate is noise and `sigma` above is
+# used instead. Same number and same reasoning as
+# [blend].min_out_of_sample_games and [backtest].calibration_min_out_of_sample_games.
+sigma_min_out_of_sample_games = 40
 q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §3.4
 bisection_max_iter = 60                     # ~40 gets machine precision
 gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
@@ -500,7 +537,13 @@ min_training_games = 20                     # below this a week is scored but fl
 # because the tanh response is not the identity. SU accuracy is invariant to a
 # positive affine map, so this changes no straight-up number.
 calibrate_ratings_to_points = true
-sigma_source = "resume.sigma"               # win prob = Phi(margin / sigma), §3.4
+# win prob = Phi(margin / sigma), §3.4. Since 2026-08-12 sigma is the WALK-FORWARD
+# residual SD of each system's own predictions, accumulated out-of-sample and
+# recomputed before every bucket, with [resume].sigma as the thin-window fallback
+# and floor. Each system therefore gets its own sigma, which is the only way a
+# Brier or a calibration decile means the same thing across the table: scoring a
+# system's probabilities with somebody else's error dispersion measures neither.
+sigma_source = "walk_forward_residuals"     # walk_forward_residuals | resume.sigma
 
 # The calibration is fitted on OUT-OF-SAMPLE games - the walk-forward
 # predictions already accumulated earlier in the same season - exactly as report

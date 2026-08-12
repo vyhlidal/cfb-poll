@@ -177,6 +177,14 @@ class PowerSource:
     #: What the published error bar does and does NOT propagate. Never None: a
     #: number with an unstated scope is worse than no number.
     se_note: str = ""
+    #: sigma, ESTIMATED FROM THIS SYSTEM'S OWN WALK-FORWARD RESIDUALS over the
+    #: data window this Power source belongs to, with the config's 15.3 as the
+    #: thin-window fallback and floor (l3_power.estimate_sigma, review S6). None
+    #: only when no walk produced one, in which case the config value is used and
+    #: `sigma_for` records that it did.
+    sigma: float | None = None
+    sigma_source: str = ""
+    sigma_n_games: int = 0
 
     def rating(self, team: str) -> float:
         """Unseen teams sit at 0.0 - the league-average prior, not a guess."""
@@ -217,6 +225,9 @@ class PowerSource:
             "power_scale_n_games": self.n_scale_games,
             "power_se_scale": self.se_scale,
             "power_se_note": self.se_note,
+            "power_sigma": self.sigma,
+            "power_sigma_source": self.sigma_source or "config",
+            "power_sigma_n_out_of_sample_games": self.sigma_n_games,
         }
         if self.l2 is not None and self.l2.sandwich is not None:
             params["power_se_median_points"] = float(
@@ -258,6 +269,20 @@ def power_source(
     if requested not in ("L2", "L3"):
         raise ValueError(f"unknown resume.power_source {requested!r}; expected L2 | L3")
     return power_from_l2(games, cfg, l2fit=l2fit)
+
+
+def sigma_for(power: PowerSource | None, config: dict[str, Any]) -> tuple[float, str]:
+    """(sigma, source) for a fit reading opponent quality off `power`.
+
+    THE ONE PLACE sigma IS DECIDED, so the résumé, the headline ordering and the
+    bootstrap cannot disagree about the denominator of a win probability. A Power
+    source that came out of a walk carries the estimate measured on that walk; one
+    that did not falls back to `[resume].sigma` and says so.
+    """
+    fallback = float(config["resume"]["sigma"])
+    if power is None or power.sigma is None:
+        return fallback, "config"
+    return float(power.sigma), power.sigma_source or "walk_forward_residuals"
 
 
 def _fit_points_scale(games: pl.DataFrame, ratings: dict[str, float]) -> tuple[float, float, int]:
@@ -615,7 +640,6 @@ def fit(
     res = cfg["resume"]
     c = float(cfg["margin"]["c"])
     beta_w = float(cfg["margin"]["beta_w"])
-    sigma = float(res["sigma"])
     lo, hi = (float(x) for x in res["q_bounds"])
     max_iter = int(res["bisection_max_iter"])
     nodes = int(res["gauss_hermite_nodes"])
@@ -628,6 +652,10 @@ def fit(
     games = games.sort("game_id")
     if power is None:
         power = power_source(games, cfg, plays=plays, state=state)
+    # sigma comes from the Power source's own walk-forward residuals, not from the
+    # config constant (review S6). Resolved AFTER power, which is why it is here
+    # and not with the other constants above.
+    sigma, sigma_source = sigma_for(power, cfg)
 
     window = games if resume_games is None else resume_games.sort("game_id")
     if window.is_empty():
@@ -683,6 +711,7 @@ def fit(
             "n_resume_teams": n_teams,
             "gauss_hermite_nodes": nodes,
             "bisection_max_iter": max_iter,
+            "sigma_source": sigma_source,
             "resume_target": "raw wins, and raw compressed margin; game weights "
             "shape the Power fit, not the accomplishment",
         },

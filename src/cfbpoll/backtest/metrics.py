@@ -55,14 +55,27 @@ __all__ = [
 _EPS = 1e-9
 
 
-def win_probability(predicted_margin: np.ndarray, sigma: float) -> np.ndarray:
+def win_probability(predicted_margin: np.ndarray, sigma: float | np.ndarray) -> np.ndarray:
     """P(home wins) = Phi(predicted margin / sigma), report 02 §3.4 and §5.4.
 
-    sigma = 15.3 points, confirmed twice independently: the Prediction Tracker
-    RMSE band for good public models, and a conditional-SD estimate of 15.35 for
-    the 2021 season derived by a completely different method.
+    `sigma` MAY BE AN ARRAY, one entry per game, and in the harness it is. Until
+    2026-08-12 it was the constant 15.3 - a sound estimate of the residual SD of
+    margin around a GOOD PUBLIC MODEL's prediction, and therefore the wrong
+    denominator for a system whose own walk-forward RMSE is 16.5 (fresh-eyes
+    review S6). It is now each system's own walk-forward residual SD, recomputed
+    before every bucket from games already predicted, with the config's 15.3 as
+    the thin-window fallback and floor.
+
+    Per system matters as much as per week: scoring one system's probabilities
+    with another's error dispersion measures neither, and a Brier or a calibration
+    decile computed that way is not comparable across the table.
     """
-    return np.asarray(norm.cdf(np.asarray(predicted_margin, dtype=np.float64) / sigma))
+    return np.asarray(
+        norm.cdf(
+            np.asarray(predicted_margin, dtype=np.float64)
+            / np.asarray(sigma, dtype=np.float64)
+        )
+    )
 
 
 def straight_up_accuracy(predicted_margin: np.ndarray, actual_margin: np.ndarray) -> float:
@@ -203,16 +216,22 @@ def rank_churn(
 def summarize(
     predicted_margin: np.ndarray,
     actual_margin: np.ndarray,
-    sigma: float,
+    sigma: float | np.ndarray,
 ) -> dict[str, Any]:
-    """Every predictive metric for one set of games, in one call."""
+    """Every predictive metric for one set of games, in one call.
+
+    `sigma` may be a scalar or one value per game; the harness passes the latter,
+    because the sigma that was live when a game was predicted is a property of
+    that game and not of the pooled segment it later lands in."""
     predicted_margin = np.asarray(predicted_margin, dtype=np.float64)
     actual_margin = np.asarray(actual_margin, dtype=np.float64)
     prob = win_probability(predicted_margin, sigma)
     won = (actual_margin > 0).astype(np.float64)
     table = calibration_table(prob, won)
+    sigma_array = np.asarray(sigma, dtype=np.float64)
     return {
         "n_games": int(actual_margin.size),
+        "sigma_mean": float(np.mean(sigma_array)) if sigma_array.size else float(sigma_array),
         "su_accuracy": straight_up_accuracy(predicted_margin, actual_margin),
         **margin_errors(predicted_margin, actual_margin),
         "brier": brier(prob, won),

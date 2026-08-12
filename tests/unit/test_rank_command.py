@@ -138,7 +138,6 @@ def test_params_carry_every_published_constant(ranked: Path) -> None:
     assert params["lambda"] in cfg["ridge"]["l2_grid"]
     assert params["cv"]["grid"] == sorted(float(x) for x in cfg["ridge"]["l2_grid"])
     assert params["weight_bowl_non_cfp"] == cfg["weights"]["bowl_non_cfp"]
-    assert params["sigma"] == cfg["resume"]["sigma"]
     assert params["q_bounds"] == cfg["resume"]["q_bounds"]
     assert params["saturation_tiebreak"] == cfg["resume"]["saturation_tiebreak"]
     # The units bridge, published rather than implicit. With Power = L3 there is
@@ -146,6 +145,34 @@ def test_params_carry_every_published_constant(ranked: Path) -> None:
     # the scale is exactly 1.0 and the home field is the blend's own h.
     assert params["power_scale_b"] == 1.0
     assert params["power_home_field_points"] > 0.0
+
+
+def test_sigma_is_measured_rather_than_assumed(ranked: Path) -> None:
+    """ADAPTED 2026-08-12, and the asserted truth genuinely changed.
+
+    `params["sigma"] == cfg["resume"]["sigma"]` used to be part of the
+    published-constants test, and it stopped being true on purpose. The
+    fresh-eyes review (S6) was right that 15.3 is the residual SD of margin
+    around a GOOD PUBLIC MODEL's prediction, and that using it as the denominator
+    of every win probability asserts a forecasting precision this system has not
+    demonstrated - inside the number that becomes the headline rank, where the
+    key is a product over 9 to 13 games and the distortion compounds.
+
+    sigma is now estimated from this system's own walk-forward residuals, and the
+    config value survives as the thin-window fallback and floor. What is asserted
+    here is the SHAPE the constraint-5 promise needs: the number is published,
+    the rule that produced it is published, and the sample it came from is
+    published, so a reader can tell an estimate from a constant."""
+    params = json.loads((ranked / "model_params.json").read_text())
+    cfg = load_config()
+    assert params["sigma_source"] == "walk_forward_residuals"
+    assert params["sigma"] != cfg["resume"]["sigma"]
+    assert params["sigma"] > cfg["resume"]["sigma"]  # the floor held; the model is worse
+    assert params["power_sigma_n_out_of_sample_games"] > 400
+    assert params["power_sigma"] == params["sigma"]
+    # the résumé and the headline ordering must agree about the denominator of a
+    # win probability - they are published on the same row
+    assert params["sigma_source"] == params["power_sigma_source"]
 
 
 def test_run_record_is_traceable(ranked: Path) -> None:

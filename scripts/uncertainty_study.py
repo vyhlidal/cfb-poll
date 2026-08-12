@@ -194,7 +194,10 @@ def run() -> dict[str, Any]:
     l2_power = l4_resume.power_from_l2(window, l2_cfg)
     l2_odds = schedule_odds.fit(window, l2_cfg, power=l2_power, classes=classes)
     l2_ranks = published_ranks(l2_odds, classes)
-    l2_draws = bootstrap.run(window, l2_power, l2_cfg, classes=classes, draws=REVIEW_DRAWS)
+    # The review ran sigma = 15.3, so the replication does too, explicitly.
+    l2_draws = bootstrap.run(
+        window, l2_power, l2_cfg, classes=classes, draws=REVIEW_DRAWS, sigma=15.3
+    )
     l2_intervals = bootstrap.intervals(l2_draws, 0.90)
 
     ranked = sorted(live_ranks)
@@ -395,8 +398,9 @@ def report(data: dict[str, Any]) -> str:
         "",
         f"The live configuration is `power_source = \"{live['power_source']}\"` with "
         f"{live['draws']:,} draws,",
-        f"σ = {live['sigma']}, seed {live['seed']}, λ = {live['lambda']:g}. These are the "
-        "numbers that",
+        f"σ = {live['sigma']:.2f} (estimated from this system's own walk-forward residuals,",
+        f"review S6 - not the 15.3 constant), seed {live['seed']}, λ = {live['lambda']:g}.",
+        "These are the numbers that",
         "reach `poll.csv`, `poll.json`, `rank_intervals.parquet` and the console table.",
         "",
         "| Team | Published | Bootstrap median | 90% rank interval | P(top 10) | P(top 25) |",
@@ -500,8 +504,13 @@ def report(data: dict[str, Any]) -> str:
         "3. **It conditions on the model being right.** A parametric bootstrap redraws from",
         "   the fitted model, so it cannot tell you that the model is wrong — only how much",
         "   the ranking would move if the model were right and the season were replayed. The",
-        "   normal margin distribution, the constant σ and the single latent strength",
-        "   dimension are all assumptions inside the interval rather than things it tests.",
+        "   normal margin distribution, the homoskedastic σ and the single latent",
+        "   strength dimension are all assumptions inside the interval rather than things",
+        "   it tests. σ itself is now estimated from this system's own walk-forward",
+        "   residuals rather than assumed at 15.3 (review S6), but it is still ONE number",
+        "   for every game, and the review's §5 objection to that - a 90-play rock fight",
+        "   and a 160-play track meet do not have the same margin variance - stands",
+        "   unmeasured.",
         "4. **It says nothing about the counterfactual.** \"Would James Madison survive the",
         "   Big Ten\" is a question about a season-long workload, and no interval on a rank",
         "   answers it (review §4d).",

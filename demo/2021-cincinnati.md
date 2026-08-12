@@ -66,24 +66,24 @@ independent judge reached, and it was one of the two findings that decided
 
 | # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | ± | Gap | Résumé # | Power # | Hindsight # |
 |---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1–20 | Alabama | 12-1 | 2.291 | 0.0051 | 39.49 | 35.09 | 31.23 | 3.14 | +8.26 | 2 | 2 | 1 (—) |
-| 2 | 1–28 | Michigan | 12-1 | 1.920 | 0.0120 | 37.65 | 34.10 | 29.37 | 3.19 | +8.28 | 3 | 4 | 2 (—) |
-| 3 | 1–14 | Georgia | 12-1 | 1.858 | 0.0139 | 37.13 | 39.58 | 34.35 | 3.15 | +2.78 | 4 | 1 | 3 (—) |
-| 4 | 2–31 | Cincinnati | 13-0 | 1.857 | 0.0139 | 60.00\* | 32.86 | 27.27 | 3.16 | +32.73 | 1 | 5 | 4 (—) |
-| 5 | 2–43 | Notre Dame | 11-1 | 1.355 | 0.0442 | 33.79 | 27.60 | 24.98 | 3.23 | +8.81 | 5 | 6 | 5 (—) |
-| 6 | 6–66 | Michigan State | 10-2 | 1.161 | 0.0691 | 30.37 | 22.95 | 20.37 | 3.29 | +10.01 | 6 | 14 | 6 (—) |
-| 7 | 3–56 | Ole Miss | 10-2 | 1.118 | 0.0762 | 29.96 | 24.47 | 21.82 | 3.25 | +8.14 | 7 | 10 | 7 (—) |
-| 8 | 2–41 | Oklahoma State | 11-2 | 1.115 | 0.0767 | 29.05 | 25.18 | 24.60 | 3.24 | +4.45 | 9 | 7 | 8 (—) |
-| 9 | 1–30 | Ohio State | 10-2 | 1.081 | 0.0830 | 29.57 | 32.58 | 29.61 | 3.29 | -0.04 | 8 | 3 | 9 (—) |
-| 10 | 4–63 | Baylor | 11-2 | 0.995 | 0.1011 | 28.77 | 23.13 | 20.37 | 3.24 | +8.40 | 10 | 13 | 10 (—) |
-| 11 | 7–73 | UTSA | 12-1 | 0.750 | 0.1777 | 28.65 | 18.17 | 15.78 | 3.15 | +12.87 | 11 | 36 | 11 (—) |
-| 12 | 6–73 | Oklahoma | 10-2 | 0.745 | 0.1800 | 26.73 | 20.77 | 18.63 | 3.33 | +8.10 | 13 | 20 | 12 (—) |
+| 1 | 1–25 | Alabama | 12-1 | 2.288 | 0.0052 | 42.70 | 36.51 | 31.23 | 3.14 | +11.47 | 2 | 2 | 1 (—) |
+| 2 | 1–39 | Cincinnati | 13-0 | 2.007 | 0.0098 | 60.00\* | 34.63 | 27.27 | 3.16 | +32.73 | 1 | 5 | 2 (—) |
+| 3 | 1–34 | Michigan | 12-1 | 1.960 | 0.0110 | 40.78 | 35.57 | 29.37 | 3.19 | +11.41 | 3 | 4 | 3 (—) |
+| 4 | 1–18 | Georgia | 12-1 | 1.918 | 0.0121 | 40.35 | 41.40 | 34.35 | 3.15 | +6.00 | 4 | 1 | 4 (—) |
+| 5 | 2–49 | Notre Dame | 11-1 | 1.461 | 0.0346 | 37.06 | 28.88 | 24.98 | 3.23 | +12.08 | 5 | 6 | 5 (—) |
+| 6 | 5–74 | Michigan State | 10-2 | 1.199 | 0.0633 | 32.48 | 23.67 | 20.37 | 3.29 | +12.11 | 6 | 14 | 6 (—) |
+| 7 | 2–48 | Oklahoma State | 11-2 | 1.189 | 0.0647 | 31.48 | 26.16 | 24.60 | 3.24 | +6.87 | 10 | 7 | 7 (—) |
+| 8 | 3–60 | Ole Miss | 10-2 | 1.160 | 0.0692 | 32.11 | 25.29 | 21.82 | 3.25 | +10.30 | 7 | 10 | 8 (—) |
+| 9 | 1–34 | Ohio State | 10-2 | 1.126 | 0.0748 | 31.74 | 33.95 | 29.61 | 3.29 | +2.12 | 9 | 3 | 9 (—) |
+| 10 | 4–70 | Baylor | 11-2 | 1.056 | 0.0879 | 30.95 | 23.99 | 20.37 | 3.24 | +10.58 | 12 | 13 | 10 (—) |
+| 11 | 7–79 | UTSA | 12-1 | 0.894 | 0.1278 | 31.94 | 19.19 | 15.78 | 3.15 | +16.15 | 8 | 36 | 11 (—) |
+| 12 | 10–84 | Louisiana | 12-1 | 0.823 | 0.1502 | 31.29 | 17.15 | 14.25 | 3.19 | +17.04 | 11 | 41 | 12 (—) |
 
 > **The interval is the honest part of this table.** Every rank carries a 90%
 > interval from 1,000 parametric draws on the FIXED schedule: each draw redraws
 > every game's margin from the fitted model, refits, and re-ranks with the same
 > code the poll uses. The median interval width across all 130 ranked
-> teams is **68 places**. A poll that prints an integer for a quantity
+> teams is **74 places**. A poll that prints an integer for a quantity
 > that moves that far is claiming a precision it does not have.
 >
 > Two things follow that a reader should expect rather than discover. The
@@ -108,12 +108,12 @@ data window, so R(N, N) and R(N, final) are the same fit. The retroactive view o
 
 | Team | Rec | −log10 P | P(W ≥ W_t) | Poll # | Résumé | Résumé # | Power | Power # |
 |---|:---:|---:|---:|---:|---:|---:|---:|---:|
-| Cincinnati | 13-0 | 1.857 | 0.0139 | 4 | 60.00\* | 1 | 27.27 | 5 |
-| Alabama | 12-1 | 2.291 | 0.0051 | 1 | 39.49 | 2 | 31.23 | 2 |
-| Michigan | 12-1 | 1.920 | 0.0120 | 2 | 37.65 | 3 | 29.37 | 4 |
-| Georgia | 12-1 | 1.858 | 0.0139 | 3 | 37.13 | 4 | 34.35 | 1 |
+| Cincinnati | 13-0 | 2.007 | 0.0098 | 2 | 60.00\* | 1 | 27.27 | 5 |
+| Alabama | 12-1 | 2.288 | 0.0052 | 1 | 42.70 | 2 | 31.23 | 2 |
+| Michigan | 12-1 | 1.960 | 0.0110 | 3 | 40.78 | 3 | 29.37 | 4 |
+| Georgia | 12-1 | 1.918 | 0.0121 | 4 | 40.35 | 4 | 34.35 | 1 |
 
-**Cincinnati is poll #4, résumé #1, power #5. The committee put it at #4.**
+**Cincinnati is poll #2, résumé #1, power #5. The committee put it at #4.**
 
 The agreement with the committee is worth noticing and is emphatically **not** a
 target: report 02 §5.5 is explicit that fitting toward committee agreement would
@@ -123,9 +123,9 @@ committee said fourth, and the margin-aware résumé says fourth too (study §7)
 ordering this project used to publish was the only one that said **first** — and it
 said first because it could not say anything else.
 
-The poll number says 13-0 against this schedule is a 1.39-in-100 event for a reference-quality
-team: 0.511 in 100 for Alabama's 12-1, 1.203 for Michigan's and 1.387 for Georgia's,
-against 1.390 for Cincinnati's. Three teams did something less likely than Cincinnati
+The poll number says 13-0 against this schedule is a 0.98-in-100 event for a reference-quality
+team: 0.516 in 100 for Alabama's 12-1, 1.096 for Michigan's and 1.207 for Georgia's,
+against 0.985 for Cincinnati's. Three teams did something less likely than Cincinnati
 did, and Georgia's 12-1 and Cincinnati's 13-0 are close enough that they separate in
 the third decimal place — which is a far more honest description of that argument
 than either #1 or #5.
@@ -156,21 +156,21 @@ free to move, and does.
 
 | Week | Live # | Hindsight # | Move | Résumé # live → hindsight | Power live | Power hindsight |
 |---|---:|---:|---:|---:|---:|---:|
-| `2021-regu-w01` | 65 | 28 | ▲37 | 26 → 7 | 10.87 | 27.27 |
-| `2021-regu-w02` | 43 | 30 | ▲13 | 3 → 5 | 6.60 | 27.27 |
-| `2021-regu-w03` | 16 | 24 | ▼8 | 4 → 9 | 8.28 | 27.27 |
-| `2021-regu-w04` | 21 | 30 | ▼9 | 3 → 6 | 13.35 | 27.27 |
-| `2021-regu-w05` | 10 | 7 | ▲3 | 4 → 3 | 16.52 | 27.27 |
-| `2021-regu-w06` | 10 | 8 | ▲2 | 2 → 2 | 17.17 | 27.27 |
-| `2021-regu-w07` | 6 | 5 | ▲1 | 2 → 2 | 22.99 | 27.27 |
-| `2021-regu-w08` | 8 | 4 | ▲4 | 3 → 2 | 19.95 | 27.27 |
-| `2021-regu-w09` | 5 | 3 | ▲2 | 2 → 2 | 21.83 | 27.27 |
-| `2021-regu-w10` | 5 | 2 | ▲3 | 2 → 2 | 22.06 | 27.27 |
-| `2021-regu-w11` | 4 | 3 | ▲1 | 2 → 2 | 22.71 | 27.27 |
+| `2021-regu-w01` | 65 | 28 | ▲37 | 26 → 8 | 10.87 | 27.27 |
+| `2021-regu-w02` | 42 | 30 | ▲12 | 3 → 5 | 6.60 | 27.27 |
+| `2021-regu-w03` | 17 | 24 | ▼7 | 3 → 9 | 8.28 | 27.27 |
+| `2021-regu-w04` | 22 | 28 | ▼6 | 3 → 6 | 13.35 | 27.27 |
+| `2021-regu-w05` | 13 | 8 | ▲5 | 4 → 3 | 16.52 | 27.27 |
+| `2021-regu-w06` | 10 | 11 | ▼1 | 2 → 2 | 17.17 | 27.27 |
+| `2021-regu-w07` | 6 | 6 | — | 2 → 2 | 22.99 | 27.27 |
+| `2021-regu-w08` | 7 | 5 | ▲2 | 3 → 2 | 19.95 | 27.27 |
+| `2021-regu-w09` | 5 | 4 | ▲1 | 2 → 2 | 21.83 | 27.27 |
+| `2021-regu-w10` | 4 | 2 | ▲2 | 2 → 2 | 22.06 | 27.27 |
+| `2021-regu-w11` | 3 | 2 | ▲1 | 2 → 2 | 22.71 | 27.27 |
 | `2021-regu-w12` | 2 | 2 | — | 2 → 2 | 25.63 | 27.27 |
-| `2021-regu-w13` | 4 | 4 | — | 2 → 2 | 26.56 | 27.27 |
-| `2021-regu-w14` | 4 | 4 | — | 1 → 1 | 27.13 | 27.27 |
-| `2021-regu-w15` | 4 | 4 | — | 1 → 1 | 27.27 | 27.27 |
+| `2021-regu-w13` | 3 | 2 | ▲1 | 2 → 2 | 26.56 | 27.27 |
+| `2021-regu-w14` | 2 | 2 | — | 1 → 1 | 27.13 | 27.27 |
+| `2021-regu-w15` | 2 | 2 | — | 1 → 1 | 27.27 | 27.27 |
 
 Week 1 is the interesting row: live, Cincinnati is nowhere, because after one game
 against nobody in particular a zero-prior ridge knows nothing. In hindsight it is
@@ -205,4 +205,4 @@ uv run cfbpoll grid --season 2021 --out out/
 ```
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `f1c76c4` - config `configs/default.toml` sha256 `0f7999e5d90bcb94...`
+Code `c3132c9` - config `configs/default.toml` sha256 `ab906806951a114b...`

@@ -2,7 +2,7 @@
   "live": {
     "draws": 1000,
     "lambda": 0.5,
-    "median_interval_width": 82.0,
+    "median_interval_width": 87.0,
     "median_team_se_points": 1.8759386704961232,
     "pair_se": {
       "James Madison vs a Big Ten team": {
@@ -33,91 +33,91 @@
     "power_source": "L3",
     "rows": [
       {
-        "bootstrap_median": 4,
-        "hi": 25,
+        "bootstrap_median": 5,
+        "hi": 26,
         "lo": 1,
-        "p_top10": 0.734,
-        "p_top25": 0.957,
+        "p_top10": 0.722,
+        "p_top25": 0.946,
         "published_rank": 1,
         "team": "Ohio State"
       },
       {
         "bootstrap_median": 16,
-        "hi": 55,
+        "hi": 58,
         "lo": 2,
-        "p_top10": 0.372,
-        "p_top25": 0.724,
+        "p_top10": 0.333,
+        "p_top25": 0.663,
         "published_rank": 2,
         "team": "Washington"
       },
       {
-        "bootstrap_median": 11,
-        "hi": 46,
-        "lo": 2,
-        "p_top10": 0.489,
-        "p_top25": 0.793,
+        "bootstrap_median": 14,
+        "hi": 52,
+        "lo": 1,
+        "p_top10": 0.416,
+        "p_top25": 0.748,
         "published_rank": 3,
         "team": "Florida State"
       },
       {
         "bootstrap_median": 20,
-        "hi": 59,
+        "hi": 64,
         "lo": 2,
-        "p_top10": 0.262,
-        "p_top25": 0.671,
-        "published_rank": 5,
+        "p_top10": 0.278,
+        "p_top25": 0.646,
+        "published_rank": 6,
         "team": "Alabama"
       },
       {
-        "bootstrap_median": 25,
-        "hi": 66,
+        "bootstrap_median": 27,
+        "hi": 70,
         "lo": 3,
-        "p_top10": 0.18,
-        "p_top25": 0.54,
+        "p_top10": 0.196,
+        "p_top25": 0.483,
         "published_rank": 4,
         "team": "James Madison"
       },
       {
-        "bootstrap_median": 13,
-        "hi": 49,
+        "bootstrap_median": 14,
+        "hi": 54,
         "lo": 2,
-        "p_top10": 0.354,
-        "p_top25": 0.726,
-        "published_rank": 6,
+        "p_top10": 0.331,
+        "p_top25": 0.676,
+        "published_rank": 5,
         "team": "Georgia"
       },
       {
         "bootstrap_median": 7,
-        "hi": 23,
+        "hi": 31,
         "lo": 3,
-        "p_top10": 0.695,
-        "p_top25": 0.963,
+        "p_top10": 0.597,
+        "p_top25": 0.926,
         "published_rank": 9,
         "team": "Michigan"
       },
       {
-        "bootstrap_median": 23,
-        "hi": 66,
-        "lo": 6,
-        "p_top10": 0.198,
-        "p_top25": 0.547,
+        "bootstrap_median": 31,
+        "hi": 79,
+        "lo": 5,
+        "p_top10": 0.158,
+        "p_top25": 0.474,
         "published_rank": 12,
         "team": "Liberty"
       },
       {
-        "bootstrap_median": 42,
-        "hi": 89,
-        "lo": 9,
-        "p_top10": 0.077,
-        "p_top25": 0.291,
-        "published_rank": 17,
+        "bootstrap_median": 41,
+        "hi": 94,
+        "lo": 8,
+        "p_top10": 0.073,
+        "p_top25": 0.294,
+        "published_rank": 16,
         "team": "Tulane"
       }
     ],
     "se_note": "ridge sandwich on the L2 half only (report 02 \u00a73.3), carried onto the points scale by w2. THE EFFICIENCY HALF IS HELD AT ITS POINT ESTIMATE: a play-level covariance over ~2,000 coefficients and 170,000 correlated rows is a different object and is not built, so this is a LOWER BOUND on the uncertainty of an L3 rating. The parametric bootstrap inherits the same limitation and says so",
     "se_scale": 0.49762535346748604,
     "seed": 20260812,
-    "sigma": 15.3
+    "sigma": 17.442310588753383
   },
   "n_ranked_teams": 133,
   "naive_resample_diagnostic": {
@@ -132,9 +132,9 @@
     "verdict": "INVALID for a schedule graph; not used anywhere in this package"
   },
   "provenance": {
-    "config_sha256": "01c3ab291309b0becc051c945cfab919bd93a21b04314ef4e961405048156efb",
+    "config_sha256": "ab906806951a114b3fdd9a7e4e0899d3caa424cc5933ca3fd4aed6de1dda28f2",
     "generated_at": "2026-08-12",
-    "git_sha": "f1c76c4"
+    "git_sha": "c3132c9"
   },
   "review_replication": {
     "draws": 300,

@@ -292,8 +292,17 @@ def season_power(
     if plays is not None and str(cfg["resume"]["power_source"]).upper() == "L3":
         from cfbpoll.model import l3_power
 
-        walk = l3_power.season_power(season_games, plays, season, cfg, buckets=all_buckets)
-        return {order: l3_power.power_source_for(f) for order, f in walk.items()}
+        # sigma is walked forward exactly as the blend weights are: the estimate
+        # attached to bucket K is measured on residuals from games predicted
+        # before K (review S6, l3_power.estimate_sigma).
+        sigmas: dict[int, l3_power.SigmaEstimate] = {}
+        walk = l3_power.season_power(
+            season_games, plays, season, cfg, buckets=all_buckets, season_sigma=sigmas
+        )
+        return {
+            order: l3_power.power_source_for(f, sigmas.get(order))
+            for order, f in walk.items()
+        }
 
     return {
         b.order: l4_resume.power_from_l2(_through(season_games, b), cfg) for b in all_buckets

@@ -696,3 +696,95 @@ def test_the_planted_plays_do_change_L1_once_they_are_in_the_window() -> None:
         - honest.params["garbage_time_plays_dropped"]
     )
     assert zeroed >= 45, f"garbage time zeroed only {zeroed} of 60 planted blowout plays"
+
+
+# ------------------------------------------------- sigma, measured rather than assumed
+
+
+def test_sigma_falls_back_and_floors_rather_than_trusting_a_thin_window() -> None:
+    """The rule, stated once in `l3_power.estimate_sigma` and used everywhere.
+
+    Fresh-eyes review S6: 15.3 is a sound estimate of the residual SD of margin
+    around a GOOD PUBLIC MODEL's prediction and the wrong denominator for a
+    system whose own walk-forward RMSE is 16.5. It survives as the thin-window
+    fallback and as a floor, because a spuriously small sigma makes every tail
+    too small and the headline key is a PRODUCT over 9 to 13 games."""
+    from cfbpoll.model import l3_power
+
+    floor = float(CONFIG["resume"]["sigma"])
+    minimum = int(CONFIG["resume"]["sigma_min_out_of_sample_games"])
+
+    thin = l3_power.estimate_sigma([30.0] * (minimum - 1), CONFIG)
+    assert thin.value == floor and thin.source == "config_fallback_thin_window"
+
+    small = l3_power.estimate_sigma([1.0] * (minimum + 10), CONFIG)
+    assert small.value == floor and small.source == "config_floor"
+    assert small.estimate is not None and small.estimate < floor
+
+    real = l3_power.estimate_sigma([20.0] * (minimum + 10), CONFIG)
+    assert real.value == pytest.approx(20.0) and real.source == "walk_forward_residuals"
+
+    import copy
+
+    pinned = copy.deepcopy(CONFIG)
+    pinned["resume"]["sigma_estimator"] = "config"
+    assert l3_power.estimate_sigma([20.0] * 500, pinned).value == floor
+
+
+@needs_archive
+def test_the_harness_gives_every_system_its_own_walk_forward_sigma() -> None:
+    """Per system and per bucket. Scoring one system's probabilities with
+    another's error dispersion measures neither, and a Brier or a calibration
+    decile computed that way is not comparable across the table. The estimate is
+    also strictly walk-forward: at bucket N it has seen only games predicted
+    before N."""
+    result = walkforward.run_backtest([2023], ["l3", "colley", "winpct"])
+    weekly = result["weekly"]
+    by_system = {
+        name: [r for r in weekly if r["system"] == name] for name in ("l3", "colley", "winpct")
+    }
+    for rows in by_system.values():
+        assert rows[0]["sigma_source"] == "config_fallback_thin_window"
+        assert rows[-1]["sigma_source"] == "walk_forward_residuals"
+        # it settles rather than wandering: the last three buckets agree closely
+        tail = [r["sigma"] for r in rows[-3:]]
+        assert max(tail) - min(tail) < 1.0
+
+    # and the systems genuinely differ, which is the point of doing it per system
+    finals = {name: rows[-1]["sigma"] for name, rows in by_system.items()}
+    assert len(set(round(v, 6) for v in finals.values())) == 3
+    assert finals["winpct"] > finals["l3"]  # a worse predictor has a wider sigma
+
+    assert "PER SYSTEM, PER BUCKET" in result["protocol"]["sigma"]
+    assert result["protocol"]["sigma_fallback"] == CONFIG["resume"]["sigma"]
+
+
+@needs_archive
+def test_estimating_sigma_does_not_close_the_calibration_gap() -> None:
+    """MEASURED, AND IT GOES THE OTHER WAY. The review (S6) expected a fitted
+    sigma to help the criterion the gate misses by the widest relative margin. It
+    does not: the deviation grows, because the miss is an ASYMMETRY in the low
+    deciles rather than an error of scale, and a scale parameter cannot fix a
+    shape problem. Pinned here so nobody later assumes the fix worked, and
+    reported in demo/backtest-2021-2023.md with both decile tables."""
+    import copy
+
+    pinned = copy.deepcopy(CONFIG)
+    pinned["resume"]["sigma_estimator"] = "config"
+    systems = ["schedule_odds", "l3"]
+    after = walkforward.run_backtest([2021, 2022, 2023], systems, config=CONFIG)
+    before = walkforward.run_backtest([2021, 2022, 2023], systems, config=pinned)
+
+    a = after["systems"]["schedule_odds"]["segments_from_headline_week"]["fbs_vs_fbs"]
+    b = before["systems"]["schedule_odds"]["segments_from_headline_week"]["fbs_vs_fbs"]
+    threshold = CONFIG["gate"]["calibration_max_decile_deviation_pp"]
+
+    assert b["sigma_mean"] == pytest.approx(CONFIG["resume"]["sigma"])
+    assert a["sigma_mean"] > b["sigma_mean"]  # this system's own error is wider
+    assert a["max_calibration_deviation_pp"] > b["max_calibration_deviation_pp"] > threshold
+
+    # sigma enters the probability and not the predicted margin, so nothing about
+    # the point forecast may move
+    assert a["mae"] == pytest.approx(b["mae"])
+    assert a["rmse"] == pytest.approx(b["rmse"])
+    assert a["su_accuracy"] == pytest.approx(b["su_accuracy"])

@@ -150,19 +150,38 @@ def calibrate(
 
 @dataclass
 class _Calibration:
-    """Accumulates a season's out-of-sample (delta, site, margin) triples."""
+    """A season's out-of-sample (delta, site, margin) triples, and its residuals.
+
+    The residuals are what sigma is estimated from (review S6). They are the
+    error of the prediction AS IT WAS MADE - stored at prediction time rather
+    than recomputed later with the current calibration, because the current
+    calibration has since seen the game and the residual would flatter the system
+    by exactly the amount sigma is supposed to measure."""
 
     delta: list[float] = field(default_factory=list)
     site: list[float] = field(default_factory=list)
     margin: list[float] = field(default_factory=list)
+    residual: list[float] = field(default_factory=list)
 
-    def add(self, delta: np.ndarray, site: np.ndarray, margin: np.ndarray) -> None:
+    def add(
+        self,
+        delta: np.ndarray,
+        site: np.ndarray,
+        margin: np.ndarray,
+        predicted: np.ndarray | None = None,
+    ) -> None:
         self.delta.extend(delta.tolist())
         self.site.extend(site.tolist())
         self.margin.extend(margin.tolist())
+        if predicted is not None:
+            self.residual.extend((margin - predicted).tolist())
 
     def coefficients(self) -> tuple[float, float, float]:
         return _fit_affine(np.array(self.delta), np.array(self.site), np.array(self.margin))
+
+    def sigma(self, config: dict[str, Any]) -> l3_power.SigmaEstimate:
+        """This system's own walk-forward sigma, from everything predicted so far."""
+        return l3_power.estimate_sigma(self.residual, config)
 
     def __len__(self) -> int:
         return len(self.margin)
@@ -219,6 +238,12 @@ def _ranking(ratings: dict[str, float], teams: set[str]) -> dict[str, int]:
 class _Accumulator:
     predicted: list[float] = field(default_factory=list)
     actual: list[float] = field(default_factory=list)
+    #: The sigma that was LIVE when each game was predicted. Pooled segments are
+    #: scored with it per game rather than with one number for the whole pool,
+    #: because "what did this system believe about its own error when it made
+    #: this forecast" is a property of the forecast and not of the bucket it
+    #: later lands in.
+    sigma: list[float] = field(default_factory=list)
 
 
 def _pooled_rate(rows: list[dict[str, Any]]) -> float | None:
@@ -254,7 +279,7 @@ def run_backtest(
     """
     cfg = config if config is not None else load_config()
     bt = cfg["backtest"]
-    sigma = float(cfg["resume"]["sigma"])
+    sigma_fallback = float(cfg["resume"]["sigma"])
 
     seasons = sorted(int(s) for s in seasons)
     locked = set(int(s) for s in bt["holdout_seasons"])
@@ -411,6 +436,13 @@ def run_backtest(
                     coef = calibrate(predict_with, train_fbs)
                     coef_source = "training_window"
 
+                # THIS SYSTEM'S OWN SIGMA, AS OF THIS BUCKET (review S6). It is
+                # estimated from the walk-forward residuals accumulated so far,
+                # so it has seen only games already predicted, and it falls back
+                # to [resume].sigma while the window is thin. Computed before the
+                # bucket is scored and used for every probability in it.
+                sigma_now = pool.sigma(cfg)
+
                 in_headline = bucket.season_type != "regular" or bucket.week >= headline_week
                 for segment in sorted(test["segment"].unique().to_list()):
                     sub = test.filter(pl.col("segment") == segment)
@@ -420,13 +452,15 @@ def run_backtest(
                         acc = pooled.setdefault((name, segment, cut), _Accumulator())
                         acc.predicted.extend(predicted.tolist())
                         acc.actual.extend(actual.tolist())
+                        acc.sigma.extend([sigma_now.value] * len(actual))
                     if segment == "fbs_vs_fbs":
                         pool.add(
                             rating_deltas(predict_with, sub),
                             np.where(sub["neutral_site"].to_numpy(), 0.0, 1.0),
                             actual,
+                            predicted,
                         )
-                        summary = metrics.summarize(predicted, actual, sigma)
+                        summary = metrics.summarize(predicted, actual, sigma_now.value)
                         summary.pop("calibration")
                         rows.append(
                             {
@@ -440,6 +474,7 @@ def run_backtest(
                                 "calib_intercept": coef[0],
                                 "calib_slope": coef[1],
                                 "calib_site": coef[2],
+                                **sigma_now.as_params(),
                                 **summary,
                             }
                         )
@@ -538,7 +573,9 @@ def run_backtest(
                 if acc is None or not acc.actual:
                     continue
                 target[segment] = metrics.summarize(
-                    np.array(acc.predicted), np.array(acc.actual), sigma
+                    np.array(acc.predicted),
+                    np.array(acc.actual),
+                    np.array(acc.sigma),
                 )
         churn = [c for c in churn_rows if c["system"] == name and np.isfinite(c["churn_all"])]
         violations_rows = final_violations.get(name, [])
@@ -616,7 +653,16 @@ def run_backtest(
             "universe": bt["universe"],
             "first_eval_week": min_week,
             "min_training_games": min_training,
-            "sigma": sigma,
+            "sigma_fallback": sigma_fallback,
+            "sigma_estimator": str(cfg["resume"].get("sigma_estimator", "config")),
+            "sigma": (
+                "PER SYSTEM, PER BUCKET: the root-mean-square walk-forward residual "
+                "of that system's own predictions over the out-of-sample games "
+                "accumulated so far, with [resume].sigma as the thin-window "
+                "fallback and floor (review S6). `weekly[].sigma` carries the value "
+                "that was live for each row and `segments[].sigma_mean` the mean "
+                "over a pooled segment"
+            ),
             "holdout_seasons": sorted(locked),
             "holdout_touched": bool(trespass),
             "headline_start_week": headline_week,

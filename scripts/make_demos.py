@@ -1221,6 +1221,108 @@ def backtest_result() -> dict:
     return _BACKTEST["result"]  # type: ignore[return-value]
 
 
+def backtest_result_constant_sigma() -> dict:
+    """The same run with sigma pinned at the config constant, for the comparison.
+
+    `[resume].sigma_estimator = "config"` restores the pre-2026-08-12 behaviour.
+    Keeping the old choice RUNNABLE rather than described is what makes "we
+    estimated sigma and here is what it changed" a measurement."""
+    if "constant" not in _BACKTEST:
+        import copy
+
+        cfg = copy.deepcopy(load_config())
+        cfg["resume"]["sigma_estimator"] = "config"
+        _BACKTEST["constant"] = walkforward.run_backtest(
+            seasons=TUNE_SEASONS, systems=SYSTEMS, config=cfg
+        )
+    return _BACKTEST["constant"]  # type: ignore[return-value]
+
+
+def sigma_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
+    """Did estimating sigma close the calibration gap? Measured, both ways."""
+    constant = backtest_result_constant_sigma()["systems"]
+    after = systems[headline]["segments_from_headline_week"]["fbs_vs_fbs"]
+    before = constant[headline]["segments_from_headline_week"]["fbs_vs_fbs"]
+    threshold = load_config()["gate"]["calibration_max_decile_deviation_pp"]
+
+    def deciles(block: dict) -> list[str]:
+        rows = [
+            "| Predicted decile | n | Mean predicted | Observed | Deviation |",
+            "|---|---:|---:|---:|---:|",
+        ]
+        for r in block["calibration"]:
+            if not r["counted"]:
+                continue
+            dev = 100.0 * (r["observed_rate"] - r["mean_predicted"])
+            rows.append(
+                f"| {r['bin_low']:.1f}–{r['bin_high']:.1f} | {int(r['n'])} "
+                f"| {r['mean_predicted']:.3f} | {r['observed_rate']:.3f} | {dev:+.2f} pp |"
+            )
+        return rows
+
+    lines = [
+        "",
+        "## Did estimating σ close the calibration gap? No — it widened it",
+        "",
+        "σ is the denominator of every win probability the poll publishes and therefore of",
+        "the headline rank key. It was the constant **15.3** until 2026-08-12: a sound",
+        "estimate of the residual SD of margin around a *good public model's* prediction,",
+        "which the [independent review](../docs/analysis/fresh-eyes-review.md) (S6) correctly",
+        "pointed out is not the same thing as around ours. Our own walk-forward RMSE over",
+        f"this window is {after['rmse']:.2f}. So σ is now **estimated** from this system's own",
+        "walk-forward residuals, per system, recomputed before every bucket, with 15.3 kept as",
+        "the thin-window fallback and floor.",
+        "",
+        "**The review expected this to help the calibration criterion, which the gate misses",
+        "by the widest relative margin. It does not. It makes it worse, and the decile table",
+        "says why.**",
+        "",
+        "| | σ = 15.3 (before) | σ estimated (after) | Gate |",
+        "|---|---:|---:|---:|",
+        f"| Max decile calibration deviation | {before['max_calibration_deviation_pp']:.2f} pp "
+        f"| {after['max_calibration_deviation_pp']:.2f} pp | ≤ {threshold} pp |",
+        f"| Mean σ over the window | 15.30 | {after['sigma_mean']:.2f} | — |",
+        f"| Brier | {before['brier']:.4f} | {after['brier']:.4f} | — |",
+        f"| Log loss | {before['log_loss']:.4f} | {after['log_loss']:.4f} | — |",
+        "",
+        "Straight-up accuracy, MAE and RMSE are **unchanged** by construction: σ enters only",
+        "the probability, not the predicted margin.",
+        "",
+        "### Before: σ = 15.3",
+        "",
+        *deciles(before),
+        "",
+        "### After: σ estimated from walk-forward residuals",
+        "",
+        *deciles(after),
+        "",
+        "**The miss is not a scale error, so a scale parameter cannot fix it.** Look at the",
+        "shape: in the low deciles the observed win rate is far *below* the predicted one —",
+        "when this model says a team has a 25% chance, that team wins about 16% of the time —",
+        "while the high deciles are close to honest. That is an **asymmetry**, not an",
+        "over- or under-confidence in width. Raising σ pushes every probability toward 0.5,",
+        "which moves the low deciles up and away from the observed rate, so the worst",
+        "deviation grows.",
+        "",
+        "Two things follow, and the second is the important one:",
+        "",
+        "1. **The estimated σ stays**, because the argument for it was never that it would",
+        "   fix calibration. It is that a system may not assert a forecasting precision it",
+        "   has not demonstrated, least of all inside the number that becomes the headline",
+        f"   rank. 15.3 was the error of the class of models this one aspires to join; "
+        f"{after['sigma_mean']:.2f}",
+        "   is its own, and the gate's stretch RMSE target of 15.3 is a reminder that the",
+        "   system would have to *become* as accurate as the σ it used to assume in order to",
+        "   have earned it.",
+        "2. **The calibration criterion is missed for a reason nobody has diagnosed yet.** The",
+        "   asymmetry lives in the low deciles, which are mostly road underdogs, and the",
+        "   suspects are the single home-field constant and the normal margin assumption in",
+        "   the tail — not σ. That is the next thing to measure, and until it is measured this",
+        "   criterion is reported as failing rather than explained away.",
+    ]
+    return lines
+
+
 def gate_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
     """THE GATE, RENDERED FROM THE HARNESS'S OWN JSON. Criterion by criterion.
 
@@ -1388,8 +1490,11 @@ def backtest_report() -> str:
         f"  `{protocol['prior_seasons_used']}`).",
         "- Evaluation universe: FBS-vs-FBS. FBS-vs-FCS games, non-CFP bowls and CFP games",
         "  are scored separately below, because they measure different things.",
-        f"- Win probability = Phi(margin / sigma) with sigma = {protocol['sigma']}"
-        " (report 02 §3.4, §5.4).",
+        "- Win probability = Phi(margin / sigma), and **sigma is estimated, not assumed**:"
+        " each system's own root-mean-square walk-forward residual over the out-of-sample"
+        f" games accumulated so far, with {protocol['sigma_fallback']} (report 02 §5.4) as the"
+        " thin-window fallback and floor. See the section below for what that did and did"
+        " not fix.",
         "- Every system's ratings are mapped to the points scale by one OLS per system per",
         "  week, fitted on the out-of-sample predictions already accumulated that season.",
         "  Elo lives on a 400-point logit scale and win percentage on [0, 1]; without this",
@@ -1425,6 +1530,7 @@ def backtest_report() -> str:
     lines += table("segments_from_headline_week", "Weeks 5+ (the published window)")
     lines += table("segments", "Weeks 2+ (everything the harness can score)")
     lines += gate_section(systems)
+    lines += sigma_section(systems)
 
     h = systems["l3"]["segments_from_headline_week"]["fbs_vs_fbs"]
     b = systems["l2"]["segments_from_headline_week"]["fbs_vs_fbs"]

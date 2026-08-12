@@ -86,37 +86,37 @@ the same week, re-scored with the season's answers.
 
 | # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | ± | Gap | Résumé # | Power # | Hindsight # |
 |---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 2–41 | Washington | 13-0 | 3.601 | 0.0003 | 60.00\* | 29.18 | 23.38 | 1.87 | +36.62 | 3 | 10 | 1 (—) |
-| 2 | 1–20 | Michigan | 13-0 | 2.574 | 0.0027 | 60.00\* | 38.72 | 31.87 | 1.85 | +28.13 | 1 | 1 | 2 (—) |
-| 3 | 2–36 | Florida State | 13-0 | 2.406 | 0.0039 | 60.00\* | 31.24 | 23.21 | 1.82 | +36.79 | 2 | 11 | 3 (—) |
-| 4 | 2–36 | Alabama | 12-1 | 2.167 | 0.0068 | 36.76 | 28.65 | 23.98 | 1.82 | +12.79 | 6 | 8 | 4 (—) |
-| 5 | 1–32 | Texas | 12-1 | 2.064 | 0.0086 | 36.49 | 31.41 | 25.44 | 1.85 | +11.05 | 7 | 7 | 5 (—) |
-| 6 | 1–24 | Ohio State | 11-1 | 1.905 | 0.0124 | 37.58 | 34.39 | 29.22 | 1.90 | +8.36 | 5 | 3 | 6 (—) |
-| 7 | 1–27 | Georgia | 12-1 | 1.591 | 0.0256 | 33.74 | 31.88 | 25.95 | 1.83 | +7.79 | 8 | 5 | 7 (—) |
-| 8 | 5–60 | Ole Miss | 10-2 | 1.034 | 0.0924 | 28.03 | 21.99 | 18.03 | 1.89 | +10.00 | 9 | 20 | 9 (▼1) |
-| 9 | 1–22 | Oregon | 11-2 | 1.026 | 0.0941 | 27.39 | 32.50 | 30.51 | 1.88 | -3.12 | 10 | 2 | 11 (▼2) |
-| 10 | 5–56 | Liberty | 13-0 | 1.024 | 0.0946 | 60.00\* | 22.35 | 18.72 | 1.85 | +41.28 | 4 | 17 | 8 (▲2) |
-| 11 | 3–50 | Missouri | 10-2 | 0.986 | 0.1032 | 27.11 | 23.25 | 20.81 | 1.88 | +6.31 | 11 | 13 | 10 (▲1) |
-| 12 | 2–35 | Oklahoma | 10-2 | 0.943 | 0.1140 | 26.51 | 27.25 | 25.75 | 1.91 | +0.76 | 14 | 6 | 12 (—) |
-| 13 | 1–33 | Penn State | 10-2 | 0.852 | 0.1407 | 26.91 | 31.38 | 26.30 | 1.91 | +0.61 | 13 | 4 | 13 (—) |
-| 14 | 6–60 | James Madison | 11-1 | 0.744 | 0.1804 | 27.08 | 20.55 | 17.38 | 1.89 | +9.70 | 12 | 23 | 14 (—) |
-| 15 | 3–53 | LSU | 9-3 | 0.611 | 0.2447 | 22.90 | 23.98 | 20.67 | 1.89 | +2.23 | 15 | 14 | 15 (—) |
-| 16 | 5–56 | Troy | 11-2 | 0.495 | 0.3201 | 22.01 | 20.76 | 17.57 | 1.82 | +4.44 | 16 | 22 | 16 (—) |
-| 17 | 5–59 | Louisville | 10-3 | 0.467 | 0.3414 | 20.83 | 18.05 | 18.06 | 1.83 | +2.77 | 19 | 19 | 17 (—) |
-| 18 | 27–110 | Iowa | 10-3 | 0.424 | 0.3768 | 20.77 | 12.84 | 7.39 | 1.85 | +13.38 | 20 | 63 | 18 (—) |
-| 19 | 13–88 | Tulane | 11-2 | 0.420 | 0.3804 | 20.89 | 13.74 | 10.72 | 1.82 | +10.18 | 18 | 44 | 19 (—) |
-| 20 | 5–56 | SMU | 11-2 | 0.419 | 0.3810 | 21.58 | 20.24 | 18.60 | 1.82 | +2.97 | 17 | 18 | 21 (▼1) |
-| 21 | 2–42 | Notre Dame | 9-3 | 0.414 | 0.3854 | 20.49 | 26.43 | 23.53 | 1.87 | -3.03 | 21 | 9 | 20 (▲1) |
-| 22 | 17–96 | Oklahoma State | 9-4 | 0.413 | 0.3865 | 19.66 | 14.29 | 11.32 | 1.85 | +8.34 | 23 | 41 | 23 (▼1) |
-| 23 | 14–86 | NC State | 9-3 | 0.399 | 0.3986 | 19.94 | 16.03 | 12.28 | 1.90 | +7.66 | 22 | 36 | 22 (▲1) |
-| 24 | 4–55 | Arizona | 9-3 | 0.363 | 0.4334 | 19.40 | 20.31 | 19.47 | 1.92 | -0.06 | 24 | 16 | 24 (—) |
-| 25 | 2–51 | Kansas State | 8-4 | 0.349 | 0.4474 | 18.91 | 24.70 | 21.53 | 1.91 | -2.61 | 26 | 12 | 26 (▼1) |
+| 1 | 2–42 | Washington | 13-0 | 3.545 | 0.0003 | 60.00\* | 29.91 | 23.38 | 1.87 | +36.62 | 3 | 10 | 1 (—) |
+| 2 | 1–21 | Michigan | 13-0 | 2.614 | 0.0024 | 60.00\* | 39.98 | 31.87 | 1.85 | +28.13 | 1 | 1 | 2 (—) |
+| 3 | 2–40 | Florida State | 13-0 | 2.492 | 0.0032 | 60.00\* | 32.31 | 23.21 | 1.82 | +36.79 | 2 | 11 | 3 (—) |
+| 4 | 2–38 | Alabama | 12-1 | 2.188 | 0.0065 | 38.98 | 29.45 | 23.98 | 1.82 | +15.00 | 6 | 8 | 4 (—) |
+| 5 | 1–34 | Texas | 12-1 | 2.093 | 0.0081 | 38.66 | 32.34 | 25.44 | 1.85 | +13.22 | 7 | 7 | 5 (—) |
+| 6 | 1–26 | Ohio State | 11-1 | 1.912 | 0.0122 | 39.40 | 35.36 | 29.22 | 1.90 | +10.18 | 5 | 3 | 6 (—) |
+| 7 | 1–32 | Georgia | 12-1 | 1.653 | 0.0222 | 35.93 | 32.93 | 25.95 | 1.83 | +9.97 | 8 | 5 | 7 (—) |
+| 8 | 5–60 | Liberty | 13-0 | 1.179 | 0.0663 | 60.00\* | 23.46 | 18.72 | 1.85 | +41.28 | 4 | 17 | 8 (—) |
+| 9 | 1–25 | Oregon | 11-2 | 1.074 | 0.0843 | 28.89 | 33.53 | 30.51 | 1.88 | -1.62 | 11 | 2 | 9 (—) |
+| 10 | 5–67 | Ole Miss | 10-2 | 1.060 | 0.0871 | 29.37 | 22.52 | 18.03 | 1.89 | +11.34 | 9 | 20 | 11 (▼1) |
+| 11 | 3–54 | Missouri | 10-2 | 1.032 | 0.0928 | 28.61 | 23.88 | 20.81 | 1.88 | +7.81 | 12 | 13 | 10 (▲1) |
+| 12 | 2–40 | Oklahoma | 10-2 | 0.996 | 0.1010 | 28.06 | 28.09 | 25.75 | 1.91 | +2.31 | 14 | 6 | 12 (—) |
+| 13 | 1–34 | Penn State | 10-2 | 0.900 | 0.1258 | 28.25 | 32.31 | 26.30 | 1.91 | +1.95 | 13 | 4 | 13 (—) |
+| 14 | 6–63 | James Madison | 11-1 | 0.842 | 0.1439 | 29.28 | 21.39 | 17.38 | 1.89 | +11.90 | 10 | 23 | 14 (—) |
+| 15 | 3–57 | LSU | 9-3 | 0.635 | 0.2315 | 23.81 | 24.57 | 20.67 | 1.89 | +3.14 | 15 | 14 | 15 (—) |
+| 16 | 5–63 | Troy | 11-2 | 0.574 | 0.2664 | 23.63 | 21.56 | 17.57 | 1.82 | +6.07 | 16 | 22 | 16 (—) |
+| 17 | 5–61 | Louisville | 10-3 | 0.513 | 0.3067 | 21.93 | 18.54 | 18.06 | 1.83 | +3.87 | 19 | 19 | 17 (—) |
+| 18 | 13–91 | Tulane | 11-2 | 0.496 | 0.3195 | 22.50 | 14.27 | 10.72 | 1.82 | +11.78 | 18 | 44 | 18 (—) |
+| 19 | 4–62 | SMU | 11-2 | 0.480 | 0.3311 | 22.95 | 21.02 | 18.60 | 1.82 | +4.35 | 17 | 18 | 20 (▼1) |
+| 20 | 26–112 | Iowa | 10-3 | 0.478 | 0.3329 | 21.89 | 13.17 | 7.39 | 1.85 | +14.50 | 20 | 63 | 19 (▲1) |
+| 21 | 2–45 | Notre Dame | 9-3 | 0.446 | 0.3579 | 21.38 | 27.20 | 23.53 | 1.87 | -2.15 | 21 | 9 | 21 (—) |
+| 22 | 14–99 | Oklahoma State | 9-4 | 0.442 | 0.3616 | 20.42 | 14.46 | 11.32 | 1.85 | +9.10 | 24 | 41 | 23 (▼1) |
+| 23 | 13–91 | NC State | 9-3 | 0.440 | 0.3634 | 20.95 | 16.40 | 12.28 | 1.90 | +8.67 | 22 | 36 | 22 (▲1) |
+| 24 | 4–61 | Arizona | 9-3 | 0.406 | 0.3922 | 20.44 | 20.92 | 19.47 | 1.92 | +0.97 | 23 | 16 | 24 (—) |
+| 25 | 2–54 | Kansas State | 8-4 | 0.370 | 0.4270 | 19.52 | 25.32 | 21.53 | 1.91 | -2.00 | 27 | 12 | 26 (▼1) |
 
 > **The interval is the honest part of this table.** Every rank carries a 90%
 > interval from 1,000 parametric draws on the FIXED schedule: each draw redraws
 > every game's margin from the fitted model, refits, and re-ranks with the same
 > code the poll uses. The median interval width across all 133 ranked
-> teams is **73 places**. A poll that prints an integer for a quantity
+> teams is **77 places**. A poll that prints an integer for a quantity
 > that moves that far is claiming a precision it does not have.
 >
 > Two things follow that a reader should expect rather than discover. The
@@ -160,12 +160,12 @@ three numbers and both surfaces:
 
 | | Poll # | −log10 P | P(W ≥ W_t) | Résumé # | Résumé | Power # | Power | Gap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Live** R(N, N) | 3 | 2.406 | 0.0039 | 2 | 60.00\* | 11 | 23.21 | +36.79 |
-| **Hindsight** R(N, final) | 3 | 2.301 | 0.0050 | 2 | 60.00\* | 11 | 22.06 | +37.94 |
+| **Live** R(N, N) | 3 | 2.492 | 0.0032 | 2 | 60.00\* | 11 | 23.21 | +36.79 |
+| **Hindsight** R(N, final) | 3 | 2.408 | 0.0039 | 2 | 60.00\* | 11 | 22.06 | +37.94 |
 
 **The poll and the power rating disagree by 8 places, and that disagreement is the
 entire product.** The poll says a reference-quality team would have gone 13-0 against
-Florida State's schedule about 0.4 times in 100 — the 3rd-least likely
+Florida State's schedule about 0.3 times in 100 — the 3rd-least likely
 record in the country. The power rating says its *play* was worth about
 22.1 points against an average team, 11th, because it won a lot of close
 games. Both are true, and neither is hidden. The committee was answering a third
@@ -183,7 +183,7 @@ would be circular, and this construction cannot do it.
 
 Georgia was 12-1 with its only loss in the SEC championship game and lands at **#7**
 live, **#7** in hindsight, on power #5 and #4. Liberty went 13-0 in Conference USA
-and lands at **#10** live, **#8** in hindsight, on power #17.
+and lands at **#8** live, **#8** in hindsight, on power #17.
 
 **An undefeated team is ranked below a one-loss team, and that is the decision of
 2026-08-12 doing exactly what it was chosen to do.** Under the ordering this project
@@ -193,8 +193,8 @@ saturates at the published bracket, so no team with a loss can outrank it, howev
 soft the schedule. That was a theorem, not a finding.
 
 The poll now makes a different claim, and it is a claim that can be checked:
-13-0 against Liberty's schedule is a 9.5-in-100 event for a reference-quality team, and 12-1
-against Georgia's is a 2.6-in-100 event. Georgia's was harder. Nothing in that
+13-0 against Liberty's schedule is a 6.6-in-100 event for a reference-quality team, and 12-1
+against Georgia's is a 2.2-in-100 event. Georgia's was harder. Nothing in that
 computation knows what a conference is — no conference identity may enter any design
 matrix (constraint 2) — so the ordering is derived from Liberty's actual opponents
 rather than assumed from the letters "C-USA". That distinction is the whole point:
@@ -203,7 +203,7 @@ assuming it is how you get AP-poll-style conference bias.
 The model publishes the head-to-head beside it, so the reader does not have to take
 the ranking's word for anything: Georgia by about 8 points on a neutral field,
 which Liberty wins roughly 3 times in 10. And the retroactive column moves Liberty
-up 2 places between the two surfaces — under the résumé ordering it moved
+down 0 places between the two surfaces — under the résumé ordering it moved
 **zero**, in this week and every week from week 11 onward, because there was nothing
 downstream of opponent quality left to move.
 
@@ -213,7 +213,7 @@ Alabama; on the ranking they do not agree about what a 13-0 season is worth, and
 difference between them is now a probability rather than a preference.
 
 The margin-aware résumé is in the same table and disagrees with both, putting
-Liberty at 22.35 against Michigan's 38.72. It is published because report 02 §3.4 says to
+Liberty at 23.46 against Michigan's 39.98. It is published because report 02 §3.4 says to
 publish both, and it is **not** the rank key: the study found it ranks an 8-4 Kansas
 State 12th and a 7-5 Texas A&M 23rd, above an 11-1 James Madison and a 13-0 Liberty.
 
@@ -245,4 +245,4 @@ uv run cfbpoll grid --season 2023 --out out/
 triangle, both surfaces and the movers table are written by the second command.
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `f1c76c4` - config `configs/default.toml` sha256 `0f7999e5d90bcb94...`
+Code `c3132c9` - config `configs/default.toml` sha256 `ab906806951a114b...`

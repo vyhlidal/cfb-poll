@@ -493,17 +493,21 @@ def fit(
     `team_classes`). `plays` and `state` are forwarded to the Power source and are
     what make `[resume].power_source = "L3"` reachable from here.
     """
+    from cfbpoll.model import l4_resume
+
     cfg = config if config is not None else load_config()
     odds_cfg = cfg.get("schedule_odds", {})
-    sigma = float(cfg["resume"]["sigma"])
     method = q_ref_method or str(odds_cfg.get("q_ref_method", "power_rank_25"))
     fixed_value = float(odds_cfg.get("q_ref_fixed_points", 0.0))
 
     games = games.sort("game_id")
     if power is None:
-        from cfbpoll.model import l4_resume
-
         power = l4_resume.power_source(games, cfg, plays=plays, state=state)
+    # ONE PLACE DECIDES sigma, and it is l4_resume.sigma_for. The résumé and this
+    # ordering must not disagree about the denominator of a win probability: they
+    # are published on the same row and a reader is entitled to assume the two
+    # numbers were computed against the same assumption (review S6).
+    sigma, sigma_source = l4_resume.sigma_for(power, cfg)
 
     if classes is None:
         classes = team_classes(games)
@@ -521,7 +525,7 @@ def fit(
             q_ref=q_ref,
             power=power,
             sigma=sigma,
-            params={"n_record_games": 0, "n_teams": 0},
+            params={"n_record_games": 0, "n_teams": 0, "sigma_source": sigma_source},
         )
 
     sched = _schedule(window, power)
@@ -562,6 +566,7 @@ def fit(
             "n_record_games": int(window.height),
             "n_teams": len(sched.teams),
             "max_games_one_team": int(np.bincount(sched.team_index).max()),
+            "sigma_source": sigma_source,
         },
     )
 

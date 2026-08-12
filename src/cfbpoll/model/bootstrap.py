@@ -302,7 +302,15 @@ def run(
     boot = cfg["bootstrap"]
     n_draws = int(draws if draws is not None else boot["draws"])
     root_seed = int(seed if seed is not None else boot["seed"])
-    sigma = float(sigma if sigma is not None else cfg["resume"]["sigma"])
+    # sigma comes from the SAME place the résumé and the headline ordering get it
+    # (l4_resume.sigma_for): this system's own walk-forward residuals, with the
+    # config constant as the thin-window fallback and floor. Simulating from a
+    # sigma the poll does not use would make the interval an interval on a
+    # different model (review S6).
+    sigma_source = "explicit_argument"
+    if sigma is None:
+        sigma, sigma_source = l4_resume.sigma_for(power, cfg)
+    sigma = float(sigma)
 
     if classes is None:
         classes = schedule_odds.team_classes(games)
@@ -385,6 +393,7 @@ def run(
                 "SeedSequence.spawn, so parallelising later cannot move a "
                 "published number (report 03 §9.3 item 2)"
             ),
+            "bootstrap_sigma_source": sigma_source,
             "bootstrap_lambda_note": (
                 "held at the value the real data's CV selected; the bootstrap "
                 "propagates sampling uncertainty at a fixed hyperparameter"

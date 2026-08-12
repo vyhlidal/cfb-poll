@@ -22,20 +22,28 @@ The system names here must stay in sync with the `system` column of
 cfb_backtest_metrics in report 03 §5.6:
     ours | colley | srs | elo | random_walker | closing_line | cfp
 
-`l1`, `l2`, `l3` and `resume` are our own layers and are registered here
-alongside the baselines so the harness scores every system through one identical
-code path. That is not bookkeeping: the whole claim under test in report 02 §3.3
-is that the L3 blend beats the L2 results core, and the only way to make that
-falsifiable is for both to be scored by the same code on the same games.
+`l1`, `l2`, `l3`, `resume` and `schedule_odds` are our own layers and are
+registered here alongside the baselines so the harness scores every system through
+one identical code path. That is not bookkeeping: the whole claim under test in
+report 02 §3.3 is that the L3 blend beats the L2 results core, and the only way to
+make that falsifiable is for both to be scored by the same code on the same games.
 `l1` is registered for the same reason - efficiency alone is not expected to beat
 either, and publishing it is how the blend's contribution stays visible rather
 than asserted. `home_team` has no ratings at all and is handled in the harness as
 a constant-prediction system.
 
-WHY `resume` NEEDS A PREDICTION PROXY. The résumé rating is retrodictive by
-construction (report 02 §3.4, §3.5): it answers "what quality do these results
-imply", not "who wins next week". Two consequences make it uninterpretable as a
-margin predictor and both are properties of the estimator, not accidents:
+`schedule_odds` IS THE HEADLINE ORDERING and `resume` IS THE ONE IT REPLACED, and
+BOTH stay in the scored set permanently (ADR 0005, 2026-08-12). The decision
+between them was made on measured retrodictive violations and measured forward
+ordering accuracy; leaving the loser out of the table afterwards would make the
+decision unfalsifiable from that week on. They are within 0.4 percentage points of
+each other on violations over 2021-2024 and the harness is where anyone - us
+included - finds out if that stops being true.
+
+WHY BOTH NEED A PREDICTION PROXY. Each is retrodictive by construction (report 02
+§3.4, §3.5): they answer "what do these results imply", not "who wins next week".
+For the résumé two consequences make it uninterpretable as a margin predictor, and
+both are properties of the estimator rather than accidents:
 
   1. Every undefeated team sits on the same q bound, so the rating difference
      between an unbeaten team and anyone else is a truncation artefact.
@@ -43,10 +51,15 @@ margin predictor and both are properties of the estimator, not accidents:
      one affine map the harness fits per week cannot be right for both ends of
      the table at once.
 
-So `resume` PREDICTS with the Power source it was built on and is SCORED on the
+Schedule odds has the same problem in a different shape: -log10 of a tail
+probability is a log-scale quantity that grows with the number of games played, so
+a week-5 key and a week-13 key are not on the same scale, and no single affine map
+takes it to points.
+
+So both PREDICT with the Power source they were built on and are SCORED on the
 retrodictive metrics - violations first, which is the gate the L2-only build
 rightly missed (report 02 §5.4, `[gate].violations_must_beat`). Reporting a
-margin MAE for the résumé's own rating scale would be measuring the wrong thing
+margin MAE for either one's own rating scale would be measuring the wrong thing
 and flattering nobody. Which Power source that is comes from the config, so
 `prediction_source` is a function of it rather than a constant.
 """
@@ -59,12 +72,13 @@ from typing import Any
 import polars as pl
 
 from cfbpoll.backtest.baselines import colley, elo, random_walker, srs, winpct
-from cfbpoll.model import l1_efficiency, l2_results, l3_power, l4_resume
+from cfbpoll.model import l1_efficiency, l2_results, l3_power, l4_resume, schedule_odds
 
 __all__ = [
     "PLAY_LEVEL_SYSTEMS",
     "PREDICTION_SOURCE",
     "RATERS",
+    "RETRODICTIVE_SYSTEMS",
     "SYSTEMS",
     "cfp_committee",
     "closing_line",
@@ -73,6 +87,7 @@ __all__ = [
 ]
 
 SYSTEMS = (
+    "schedule_odds",
     "resume",
     "l3",
     "l2",
@@ -89,6 +104,7 @@ SYSTEMS = (
 
 #: system name -> rate(games, plays, through_week) -> {team: rating}
 RATERS: dict[str, Callable[..., dict[str, float]]] = {
+    "schedule_odds": schedule_odds.rate,
     "resume": l4_resume.rate,
     "l3": l3_power.rate,
     "l2": l2_results.rate,
@@ -100,32 +116,40 @@ RATERS: dict[str, Callable[..., dict[str, float]]] = {
     "random_walker": random_walker.rate,
 }
 
+#: Systems that ORDER rather than predict. Their margin columns come from their
+#: Power source and their own column is `retrodictive_violation_rate`; see the
+#: module docstring. Named so a reader of backtest_metrics.json can tell which
+#: rows are being scored on the metric they exist for.
+RETRODICTIVE_SYSTEMS: frozenset[str] = frozenset({"schedule_odds", "resume"})
+
 #: Systems that cannot be fitted from the scoreboard alone. The harness loads the
 #: play archive only when one of these is asked for, so a scores-only run costs
 #: nothing (report 03 §7.3: a challenger declares what it needs).
 PLAY_LEVEL_SYSTEMS: frozenset[str] = frozenset({"l1", "l3"})
 
 #: system name -> the system whose ratings produce its MARGIN predictions. Absent
-#: means "its own". See the module docstring: the résumé is a desert measure and
-#: predicts with its Power source - which is `[resume].power_source`, so the
-#: mapping is a function of the config rather than a constant. The dict is the
-#: L2-era default and `prediction_source` is what the harness calls.
-PREDICTION_SOURCE: dict[str, str] = {"resume": "l2"}
+#: means "its own". See the module docstring: both retrodictive orderings are
+#: desert measures and predict with their Power source - which is
+#: `[resume].power_source`, so the mapping is a function of the config rather than
+#: a constant. The dict is the L2-era default and `prediction_source` is what the
+#: harness calls.
+PREDICTION_SOURCE: dict[str, str] = {"resume": "l2", "schedule_odds": "l2"}
 
 
 def prediction_source(name: str, config: dict[str, Any] | None = None) -> str:
     """The system whose ratings produce `name`'s margin predictions.
 
-    The résumé predicts with the Power source it was built on (see the module
-    docstring), and that source is `[resume].power_source`. Flipping the config
-    from L2 to L3 must therefore move the résumé's prediction proxy with it, or
-    the harness would score the résumé through a layer the résumé did not use -
+    The two retrodictive orderings predict with the Power source they were built
+    on (see the module docstring), and that source is `[resume].power_source`.
+    Flipping the config from L2 to L3 must therefore move their prediction proxy
+    with it, or the harness would score them through a layer they did not use -
     which would be a silent, invisible lie in the one table that is supposed to
     settle whether L3 beat L2.
     """
-    if name == "resume" and config is not None:
+    if name in RETRODICTIVE_SYSTEMS and config is not None:
         return "l3" if str(config["resume"]["power_source"]).upper() == "L3" else "l2"
     return PREDICTION_SOURCE.get(name, name)
+
 
 #: Names accepted on the command line, mapped to the canonical name written to
 #: backtest_metrics.json and to cfb_backtest_metrics (report 03 §5.6).
@@ -134,6 +158,11 @@ ALIASES: dict[str, str] = {
     "l2_results": "l2",
     "l4": "resume",
     "l4_resume": "resume",
+    "odds": "schedule_odds",
+    "schedule-odds": "schedule_odds",
+    "scheduleodds": "schedule_odds",
+    "sor": "schedule_odds",
+    "headline": "schedule_odds",
     "walker": "random_walker",
     "l1_efficiency": "l1",
     "efficiency": "l1",

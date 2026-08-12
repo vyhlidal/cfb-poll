@@ -407,9 +407,12 @@ def backtest(
     systems: Annotated[
         str,
         typer.Option(
-            help="Comma-separated systems, e.g. resume,l3,l2,l1,colley,srs,elo,walker,winpct."
+            help=(
+                "Comma-separated systems, e.g. "
+                "schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct."
+            )
         ),
-    ] = "resume,l3,l2,l1,colley,srs,elo,walker,winpct",
+    ] = "schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct",
     seasons: Annotated[
         str, typer.Option(help="Seasons: '2021-2023' or '2021,2022,2023'.")
     ] = "2021-2023",

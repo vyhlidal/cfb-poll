@@ -259,7 +259,97 @@ def test_segment_labels_cover_every_game() -> None:
     assert sum(got.values()) == games.height
 
 
-# --------------------------------------------------- the resume as a scored system
+# ------------------------------- the two retrodictive orderings as scored systems
+
+
+@needs_archive
+def test_schedule_odds_is_a_permanently_scored_system() -> None:
+    """ADR 0005: the headline ordering and the ordering it replaced are BOTH in
+    the scored set, forever.
+
+    The decision between them was made on measured violations and measured forward
+    ordering accuracy (docs/analysis/headline-ordering-study.md). Dropping the
+    loser from the table afterwards would make that decision unfalsifiable from
+    that week on, which is the opposite of what a backtest is for. They were
+    within 0.4 percentage points of each other on violations across 2021-2024 and
+    this is where anyone finds out if that stops being true."""
+    from cfbpoll.backtest import baselines
+
+    assert "schedule_odds" in baselines.SYSTEMS
+    assert "schedule_odds" in baselines.RATERS
+    assert baselines.RETRODICTIVE_SYSTEMS == {"schedule_odds", "resume"}
+    for alias in ("odds", "sor", "schedule-odds", "headline"):
+        assert baselines.resolve(alias) == "schedule_odds"
+
+    result = walkforward.run_backtest([2023], ["schedule_odds", "resume", "l3"])
+    for name in ("schedule_odds", "resume"):
+        block = result["systems"][name]
+        assert block["retrodictive_violation_rate"] is not None
+        assert block["rank_churn"]["mean_all"] is not None
+        assert block["retrodictive_violations"][0]["games"] > 700
+
+
+@needs_archive
+def test_schedule_odds_predicts_through_its_power_source_like_the_resume() -> None:
+    """Both orderings are retrodictive by construction, so both borrow the Power
+    rating they were built on for the margin columns and are scored on violations
+    for the column that is about them (backtest/baselines/__init__.py)."""
+    result = walkforward.run_backtest([2023], ["schedule_odds", "resume", "l3", "l2"])
+    sources = result["protocol"]["prediction_sources"]
+    expected = "l3" if result["protocol"]["power_source"].upper() == "L3" else "l2"
+    assert sources["schedule_odds"] == expected == sources["resume"]
+
+    odds = result["systems"]["schedule_odds"]["segments"]["fbs_vs_fbs"]
+    proxy = result["systems"][expected]["segments"]["fbs_vs_fbs"]
+    assert odds["su_accuracy"] == proxy["su_accuracy"]
+    assert odds["mae"] == pytest.approx(proxy["mae"], abs=1e-12)
+
+    # ...and the number that IS about the ordering is a different number
+    assert (
+        result["systems"]["schedule_odds"]["retrodictive_violation_rate"]
+        != result["systems"][expected]["retrodictive_violation_rate"]
+    )
+
+
+@needs_archive
+def test_schedule_odds_beats_its_own_power_rating_on_violations() -> None:
+    """A desert ordering must respect results better than the margin-based power
+    rating it is built on, or it is not doing its job (report 02 §5.4).
+
+    AND THE PART THAT IS NOT FLATTERING, pinned here so it cannot quietly go away.
+    On this harness's protocol - a full-season fit, regular season and conference
+    championships only, blend weights in-sample because there is no walk to do -
+    the headline ordering is at ~0.199 and Colley is at ~0.196, so it does NOT
+    clear `[gate].violations_must_beat`, and the résumé ordering it replaced does
+    (~0.194). That is a genuine cost of ADR 0005 and it is reported in
+    demo/backtest-2021-2023.md rather than buried.
+
+    It is also NOT the number the decision was made on, and the difference is not
+    a dodge - the two measure different things:
+
+      * the study (§3a) ranks at each season's final poll bucket with WALK-FORWARD
+        Power and scores every FBS-vs-FBS game including the postseason, and there
+        the two orderings are tied (tune 0.1997 vs 0.2011, validate 0.1930 vs
+        0.1942);
+      * this harness refits on the whole season with `state=None`, so the L3 blend
+        weights are fitted in-sample, and scores the fbs_vs_fbs segment only.
+
+    The in-sample blend flatters the résumé more than it flatters the tail, which
+    is exactly the effect report 02 §3.3 warns about and the reason the live
+    pipeline never fits weights that way. Both numbers are true about their own
+    protocol; neither is allowed to be quoted as the other."""
+    result = walkforward.run_backtest(
+        [2021, 2022, 2023], ["schedule_odds", "resume", "l2", "l3", "colley", "srs"]
+    )
+    rate = {n: result["systems"][n]["retrodictive_violation_rate"] for n in result["systems"]}
+    assert rate["schedule_odds"] < rate["l2"]
+    assert rate["schedule_odds"] < rate["l3"]
+    assert rate["schedule_odds"] <= rate["srs"]
+    # the two orderings are close, and the résumé is ahead on THIS protocol
+    assert rate["resume"] < rate["schedule_odds"] < rate["resume"] + 0.01
+    assert rate["schedule_odds"] > rate["colley"]
+    assert result["systems"]["schedule_odds"]["gate"]["violations_vs_baselines"] is False
+    assert result["systems"]["resume"]["gate"]["violations_vs_baselines"] is True
 
 
 @needs_archive

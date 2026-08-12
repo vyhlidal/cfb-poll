@@ -56,3 +56,11 @@ All 26 assets on the `cfb_crosswalk` tag share one timestamp (2026-06-13). The b
 ## 11. Kickoffs carry a dummy `down = 1`
 
 A `down BETWEEN 1 AND 4` filter is **not** a scrimmage-play filter: kickoff rows are recorded with `down = 1, distance = 10, yards_to_goal = 65`. **Rule:** classify on `play_type` first, then apply the down/field-position guard.
+
+## 12. The play file's own scoring columns are not usable; the scoreboard is
+
+`score_pts` ("points on this play") and `score_diff_start` ("margin before the snap") both depend on the row's possession label, and that label is unreliable on kickoff rows. Worked example, 2023 Vanderbilt–Hawai'i (`401520147`): play 22 is a Vanderbilt kickoff-return touchdown recorded with `score_pts = -8`; play 23 is a kickoff recorded with `score_diff_start = +7` when the offense in fact trailed by 7. Summing `score_pts` to the home side reconciles with the official final score in only **429 of 792** FBS-vs-FBS games in 2023.
+
+`pos_team_score` / `def_pos_team_score` — the scoreboard after the play — are sound, and mapping them to home/away by string-comparing `pos_team` against the **games table's** `home_team` is immune to the possession-label problem. After a monotone repair (a scoreboard never decreases; 792 of 254,090 rows in 2023 record a decrease, concentrated on Timeout, Penalty and Kickoff rows) the reconstruction reaches the official final score in **763 of 792** games; the residual is almost entirely overtime, which every play-level fit excludes anyway.
+
+**Rule:** derive points-on-a-play and pre-snap margin from the repaired scoreboard, never from `score_pts` or `score_diff_start`. `ingest/plays.py::attach_games` is the implementation.

@@ -109,12 +109,20 @@ DEFAULT_ARCHIVE = REPO_ROOT / "archive" / "sportsdataverse"
 #:   yards_gained      published context and the fallback play value
 #:   play_type         classification: rush / pass / special teams / not a play
 #:   play_text         kneel and spike detection (report 02 §3.1, zero weight)
-#:   score_pts         points scored ON this play, signed to the offense. This is
-#:                     the SCOREBOARD, not a model: it is what our own
+#:   pos_team_score    the SCOREBOARD after this play, offense's side. Not a
+#:                     model: it is the scoreboard, and it is what our own
 #:                     expected-points layer is fitted to.
-#:   score_diff_start  score margin BEFORE the snap, offense's perspective - the
-#:                     garbage-time input. Using the post-play score would let a
-#:                     touchdown put its own scoring play into garbage time.
+#:   def_pos_team_score  the scoreboard after this play, defense's side.
+#:
+#: DELIBERATELY NOT READ, though both look like exactly what we want:
+#:   score_pts         the feed's own "points on this play". It disagrees with
+#:                     the scoreboard on 25% of scoring rows and its sign is
+#:                     wrong on kickoff-return and kickoff-safety rows.
+#:   score_diff_start  the feed's own pre-snap margin. Correct on scrimmage rows,
+#:                     WRONG on kickoff rows, where the possession label the sign
+#:                     depends on is itself unreliable (2023 Vanderbilt-Hawai'i,
+#:                     play 23: recorded +7 when the offense trailed by 7).
+#: Both are derived here from the scoreboard instead - see `attach_games`.
 RAW_COLUMNS: tuple[str, ...] = (
     "game_id",
     "game_row_number",
@@ -131,8 +139,8 @@ RAW_COLUMNS: tuple[str, ...] = (
     "yards_gained",
     "play_type",
     "play_text",
-    "score_pts",
-    "score_diff_start",
+    "pos_team_score",
+    "def_pos_team_score",
 )
 
 CANONICAL_COLUMNS: tuple[str, ...] = (
@@ -151,8 +159,8 @@ CANONICAL_COLUMNS: tuple[str, ...] = (
     "yards_gained",
     "play_type",
     "play_class",
-    "points_scored",
-    "score_margin",
+    "offense_score_after",
+    "defense_score_after",
     "is_snap",
     "is_kneel",
     "is_spike",
@@ -329,10 +337,8 @@ def load_plays(
             distance=pl.col("distance").cast(pl.Int32),
             yards_to_goal=pl.col("yards_to_goal").cast(pl.Int32),
             yards_gained=pl.col("yards_gained").cast(pl.Float64),
-            # `+ 0.0` normalises the source's occasional -0.0 to 0.0 so that a
-            # written artifact never differs from another only in a sign bit.
-            points_scored=(pl.col("score_pts").fill_null(0.0) + 0.0).cast(pl.Float64),
-            score_margin=(pl.col("score_diff_start").fill_null(0.0) + 0.0).cast(pl.Float64),
+            offense_score_after=pl.col("pos_team_score").fill_null(0).cast(pl.Int32),
+            defense_score_after=pl.col("def_pos_team_score").fill_null(0).cast(pl.Int32),
             pbp_home=pl.col("home"),
             pbp_away=pl.col("away"),
         )
@@ -357,7 +363,8 @@ _GAME_COLUMNS: tuple[str, ...] = (
 
 
 def attach_games(plays: pl.DataFrame, games: pl.DataFrame) -> pl.DataFrame:
-    """Join week, season type, game type and site off the GAMES table. Inner join.
+    """Join week, season type, game type and site off the GAMES table, and rebuild
+    the scoreboard. Inner join.
 
     Inner is the point: a play whose game is not in `games` must not reach a fit,
     and a game the harness has not released yet is exactly such a play. This is
@@ -368,17 +375,61 @@ def attach_games(plays: pl.DataFrame, games: pl.DataFrame) -> pl.DataFrame:
     `offense_is_home` is derived from the GAMES table's `home_team`, not from the
     play file's own `home` column, for the same reason: one authority per fact.
     `join_report` cross-checks the two and the test suite asserts they agree.
+
+    THE SCOREBOARD, AND WHY IT IS REBUILT HERE RATHER THAN READ.
+    `pos_team_score` / `def_pos_team_score` are the scoreboard AFTER the play, on
+    the offense's and defense's side. Mapping them onto home and away needs a
+    home label, and the only trustworthy one is a string comparison against the
+    GAMES table - which is exactly why this happens after the join and not
+    before. Two corrections are then applied, both published rules:
+
+      1. MONOTONE REPAIR. A scoreboard never goes down. 792 rows of the 254,090
+         in 2023 record a decrease - concentrated on Timeout, Penalty and Kickoff
+         rows - so each side's score is replaced by its running maximum within
+         the game. That is 0.3% of rows and it is provably a no-op wherever the
+         feed is already right.
+      2. POINTS ON A PLAY are the change in the repaired scoreboard at that row,
+         signed to the offense. This attributes any scoring on an intervening
+         non-play row (a kickoff-return touchdown: 337 in five seasons) to the
+         preceding play, which is the only ordering the feed supports.
+
+    Residual known error: for 29 of 792 FBS-vs-FBS games in 2023 the play file's
+    scoreboard never reaches the official final, almost all of them overtime
+    games. Overtime is excluded from L1 and from the expected-points fit anyway,
+    and 3.7% of games missing their last scoring event is noise at 500k plays,
+    but it is a real limit of this feed and it is not hidden.
     """
-    joined = plays.join(games.select(_GAME_COLUMNS), on="game_id", how="inner")
+    joined = plays.join(games.select(_GAME_COLUMNS), on="game_id", how="inner").sort(
+        ["game_id", "play_index"]
+    )
+    is_home = pl.col("offense") == pl.col("home_team")
+    joined = joined.with_columns(
+        offense_is_home=is_home,
+        offense_class=pl.when(is_home).then(pl.col("home_class")).otherwise(pl.col("away_class")),
+        defense_class=pl.when(is_home).then(pl.col("away_class")).otherwise(pl.col("home_class")),
+        home_score_after=pl.when(is_home)
+        .then(pl.col("offense_score_after"))
+        .otherwise(pl.col("defense_score_after")),
+        away_score_after=pl.when(is_home)
+        .then(pl.col("defense_score_after"))
+        .otherwise(pl.col("offense_score_after")),
+    )
+    joined = joined.with_columns(
+        home_score_after=pl.col("home_score_after").cum_max().over("game_id"),
+        away_score_after=pl.col("away_score_after").cum_max().over("game_id"),
+    )
+    offense_sign = pl.when(pl.col("offense_is_home")).then(1.0).otherwise(-1.0)
+    margin_after = (pl.col("home_score_after") - pl.col("away_score_after")).cast(pl.Float64)
+    margin_before = margin_after.shift(1).over("game_id").fill_null(0.0)
     return joined.with_columns(
-        offense_is_home=(pl.col("offense") == pl.col("home_team")),
-        offense_class=pl.when(pl.col("offense") == pl.col("home_team"))
-        .then(pl.col("home_class"))
-        .otherwise(pl.col("away_class")),
-        defense_class=pl.when(pl.col("offense") == pl.col("home_team"))
-        .then(pl.col("away_class"))
-        .otherwise(pl.col("home_class")),
-    ).sort(["game_id", "play_index"])
+        # Offense's perspective, both of them, because that is the frame every
+        # downstream rule is written in: garbage time is "how far ahead is the
+        # team with the ball", and a play's value is "what did it do for them".
+        # `+ 0.0` normalises IEEE negative zero so that no written artifact ever
+        # differs from another only in a sign bit (report 03 §9.3).
+        score_margin=(margin_before * offense_sign + 0.0),
+        points_scored=((margin_after - margin_before) * offense_sign + 0.0),
+    )
 
 
 def plays_for(plays: pl.DataFrame, games: pl.DataFrame) -> pl.DataFrame:
@@ -409,8 +460,9 @@ def join_report(plays: pl.DataFrame, games: pl.DataFrame) -> dict[str, object]:
     disagree = joined.filter(
         (pl.col("pbp_home") != pl.col("home_team")) | (pl.col("pbp_away") != pl.col("away_team"))
     )
+    known = sorted(t for t in PLAY_TYPE_CLASS if t is not None)
     unknown_types = (
-        plays.filter(~pl.col("play_type").is_in(sorted(t for t in PLAY_TYPE_CLASS if t is not None)))
+        plays.filter(~pl.col("play_type").is_in(known))
         .filter(pl.col("play_type").is_not_null())
         .select("play_type")
         .unique()

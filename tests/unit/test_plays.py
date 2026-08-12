@@ -177,14 +177,46 @@ def test_kneels_and_spikes_are_detected(plays: pl.DataFrame) -> None:
     assert kneels.filter(pl.col("play_class") == "rush").height / kneels.height > 0.9
 
 
-def test_score_margin_is_the_pre_snap_score(plays: pl.DataFrame) -> None:
+def test_score_margin_is_the_pre_snap_score(plays: pl.DataFrame, games: pl.DataFrame) -> None:
     """Garbage time is decided on the score BEFORE the snap. Using the post-play
     score would let a touchdown push its own scoring play into garbage time."""
-    scoring = plays.filter(pl.col("points_scored") > 0)
-    assert scoring.height > 0
-    # The first play of every game is at 0-0 whatever happens on it.
-    firsts = plays.group_by("game_id").agg(pl.col("score_margin").sort_by("play_index").first())
+    joined = attach_games(plays, games)
+    firsts = joined.group_by("game_id").agg(pl.col("score_margin").sort_by("play_index").first())
     assert firsts["score_margin"].abs().max() == 0.0
+
+
+def test_the_rebuilt_scoreboard_is_monotone_and_reaches_the_final_score(
+    plays: pl.DataFrame,
+) -> None:
+    """The monotone repair is the published rule; the final-score agreement is
+    the check that the repair did not invent anything. 29 of 792 games in 2023
+    fall short, almost all overtime - see attach_games' docstring."""
+    fbs = load_games([2023], universe="fbs_vs_fbs")
+    joined = attach_games(plays.filter(pl.col("season") == 2023), fbs)
+    for side in ("home_score_after", "away_score_after"):
+        drops = joined.select(pl.col(side).diff().over("game_id").fill_null(0).min())
+        assert drops.item() >= 0
+    final = joined.group_by("game_id").agg(
+        h=pl.col("home_score_after").max(), a=pl.col("away_score_after").max()
+    ).join(fbs.select("game_id", "home_points", "away_points"), on="game_id")
+    matched = ((final["h"] == final["home_points"]) & (final["a"] == final["away_points"])).sum()
+    assert matched / final.height > 0.95
+
+
+def test_points_on_a_play_are_football_point_values(
+    plays: pl.DataFrame, games: pl.DataFrame
+) -> None:
+    """The feed's own score_pts produces swings of +/-14, +/-28 and +/-34 because
+    its sign is wrong on kickoff rows. The scoreboard-derived value does not."""
+    joined = attach_games(plays.filter(pl.col("season") == 2023), games)
+    scoring = joined.filter(pl.col("points_scored") != 0)
+    assert scoring.height > 5000
+    # 0.9% of scoring rows across 2021-2023 exceed a single score's value,
+    # because the feed's scoreboard occasionally skips a row and the monotone
+    # repair then collapses two events into one. model/ep.py snaps magnitudes to
+    # the published {2, 3, 7}; what matters here is that the tail is small.
+    implausible = scoring.filter(pl.col("points_scored").abs() > 9.0)
+    assert implausible.height / scoring.height < 0.02
 
 
 def test_play_type_class_table_is_exhaustive_and_valid() -> None:

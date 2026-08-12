@@ -11,12 +11,25 @@ résumé window is frozen at week N; only the *opponents' Power ratings* are
 replaced. That is the whole retroactive mechanism, and it is one substitution
 (report 02 §3.4).
 
-> **Power is L2, version v0.** Report 02 §3.4 reads opponent quality off the L3
-> blend of efficiency and results. L1 and L3 are not built (report 02 Appendix B
-> puts them fourth and fifth), so the Power rating here is the L2 results core
-> rescaled to points by one no-intercept OLS per fit. Every artifact stamps
-> `power_source = "L2"`, `power_version = "v0"`. When L3 lands, this number
-> changes and the résumé equation does not.
+> **Power is L3, version v1 — the blend.** Report 02 §3.4 reads opponent quality
+> off L3, and L3 now exists:
+>
+> ```
+> Power_t = w1 · k · (alpha_t − beta_t)  +  w2 · rho_t
+> ```
+>
+> `alpha` and `beta` are the L1 opponent-adjusted offence and defence ratings, in
+> our own expected-points units per play; `k` converts them to points; `rho` is the
+> L2 results core. `w1` and `w2` are fitted on **out-of-sample games only** — games
+> already predicted by a fit that had not seen them — per report 02 §3.3, and they
+> are published every week. There is no rescaling constant: the blend regression's
+> response is actual game margin, so Power is already in points.
+>
+> The expected-points model is **ours**. The archive ships an `EPA` column and it is
+> a third party's fitted model, which report 01 §5.6 bans as an input, so
+> `model/ep.py` fits a next-score model from the scoreboard instead. It correlates
+> with the shipped column at **r = 0.847** over 221,945 plays — reported as a
+> validation diagnostic, never fed in.
 
 ## Biggest moves, weeks 5+ (the published window)
 
@@ -25,21 +38,21 @@ out to be better than they looked at the time.
 
 | Week | Team | Live # | Hindsight # | Move | Résumé live → hindsight | Power live → hindsight |
 |---|---|---:|---:|---:|---:|---:|
-| `2023-regu-w05` | Mississippi State | 89 | 63 | ▲26 | 2.11 → 13.53 | -2.10 → 7.62 |
-| `2023-regu-w05` | Toledo | 79 | 57 | ▲22 | 5.00 → 15.71 | 3.77 → 15.41 |
-| `2023-regu-w05` | Temple | 93 | 115 | ▼22 | 0.79 → -6.46 | -4.92 → -10.73 |
-| `2023-regu-w05` | Oklahoma State | 92 | 72 | ▲20 | 0.93 → 10.89 | 0.04 → 20.04 |
-| `2023-regu-w06` | Kansas State | 55 | 36 | ▲19 | 16.02 → 23.00 | 22.21 → 30.57 |
-| `2023-regu-w05` | Miami (OH) | 32 | 51 | ▼19 | 24.16 → 16.96 | 15.61 → 14.49 |
-| `2023-regu-w07` | UCF | 75 | 57 | ▲18 | 9.33 → 14.57 | 11.37 → 17.00 |
-| `2023-regu-w05` | Arkansas | 78 | 96 | ▼18 | 5.20 → 2.65 | 11.37 → 9.11 |
-| `2023-regu-w07` | Tulsa | 69 | 87 | ▼18 | 10.90 → 5.45 | 8.37 → -2.82 |
-| `2023-regu-w05` | Navy | 110 | 128 | ▼18 | -5.29 → -13.70 | -1.03 → -0.93 |
-| `2023-regu-w05` | Rice | 63 | 80 | ▼17 | 9.13 → 8.02 | 4.04 → 5.17 |
-| `2023-regu-w06` | Toledo | 69 | 53 | ▲16 | 9.70 → 17.12 | 7.98 → 15.41 |
-| `2023-regu-w06` | Marshall | 49 | 33 | ▲16 | 17.98 → 24.19 | 12.18 → 5.64 |
-| `2023-regu-w07` | Wake Forest | 93 | 77 | ▲16 | 4.74 → 8.32 | 5.00 → 5.69 |
-| `2023-regu-w06` | Arkansas | 80 | 96 | ▼16 | 7.23 → 2.17 | 15.64 → 9.11 |
+| `2023-regu-w05` | Mississippi State | 89 | 66 | ▲23 | 0.18 → 7.55 | -4.66 → 2.70 |
+| `2023-regu-w05` | Oklahoma State | 92 | 72 | ▲20 | -0.17 → 6.42 | -1.03 → 11.17 |
+| `2023-regu-w07` | Tulsa | 68 | 87 | ▼19 | 6.15 → 2.57 | 3.40 → -4.65 |
+| `2023-regu-w05` | Miami (OH) | 33 | 52 | ▼19 | 19.59 → 12.93 | 13.67 → 8.90 |
+| `2023-regu-w05` | Toledo | 68 | 50 | ▲18 | 6.05 → 13.06 | 4.92 → 11.64 |
+| `2023-regu-w06` | Mississippi State | 79 | 61 | ▲18 | 3.45 → 9.03 | -2.17 → 2.70 |
+| `2023-regu-w07` | UCF | 72 | 54 | ▲18 | 5.34 → 9.95 | 6.20 → 12.10 |
+| `2023-regu-w05` | Arkansas | 78 | 95 | ▼17 | 2.88 → 0.17 | 9.44 → 5.36 |
+| `2023-regu-w05` | Temple | 95 | 112 | ▼17 | -0.35 → -6.28 | -6.65 → -9.84 |
+| `2023-regu-w05` | South Alabama | 108 | 92 | ▲16 | -5.04 → 0.76 | 4.52 → 9.36 |
+| `2023-regu-w06` | UCF | 74 | 59 | ▲15 | 3.98 → 9.95 | 4.93 → 12.10 |
+| `2023-regu-w07` | Auburn | 66 | 51 | ▲15 | 6.57 → 11.14 | 5.33 → 9.92 |
+| `2023-regu-w06` | Houston | 101 | 86 | ▲15 | -2.17 → 1.38 | 0.42 → 0.74 |
+| `2023-regu-w06` | Memphis | 44 | 30 | ▲14 | 13.28 → 20.60 | 7.24 → 10.36 |
+| `2023-regu-w05` | UCF | 61 | 47 | ▲14 | 8.29 → 13.57 | 10.49 → 12.10 |
 
 ## The divergence curve, which is a falsifiable claim
 
@@ -50,19 +63,19 @@ all 133 ranked teams:
 
 | Evaluation week | Mean \|Δrank\| | Max \|Δrank\| |
 |---|---:|---:|
-| `2023-regu-w05` | 5.76 | 26 |
-| `2023-regu-w06` | 4.50 | 19 |
-| `2023-regu-w07` | 3.94 | 18 |
-| `2023-regu-w08` | 3.17 | 12 |
-| `2023-regu-w09` | 2.86 | 13 |
-| `2023-regu-w10` | 1.83 | 12 |
-| `2023-regu-w11` | 1.26 | 6 |
-| `2023-regu-w12` | 0.92 | 4 |
-| `2023-regu-w13` | 0.35 | 3 |
-| `2023-regu-w14` | 0.45 | 2 |
-| `2023-regu-w15` | 0.44 | 4 |
+| `2023-regu-w05` | 5.31 | 23 |
+| `2023-regu-w06` | 4.38 | 18 |
+| `2023-regu-w07` | 3.14 | 19 |
+| `2023-regu-w08` | 2.56 | 12 |
+| `2023-regu-w09` | 2.23 | 12 |
+| `2023-regu-w10` | 1.73 | 8 |
+| `2023-regu-w11` | 1.23 | 8 |
+| `2023-regu-w12` | 0.80 | 4 |
+| `2023-regu-w13` | 0.45 | 2 |
+| `2023-regu-w14` | 0.44 | 4 |
+| `2023-regu-w15` | 0.41 | 3 |
 
-Mean divergence falls from **5.76 places** at `2023-regu-w05` to **0.44** at `2023-regu-w15`, and the decline is monotone except at the very end of the season, where the final data window adds the postseason and moves a handful of teams that the previous window had already settled.
+Mean divergence falls from **5.31 places** at `2023-regu-w05` to **0.41** at `2023-regu-w15`, monotonically.
 
 That shape is the thing to check, not the individual rows. A retroactive poll whose
 week-12 ranking still moved 6 places in hindsight would be telling you its week-12
@@ -88,4 +101,4 @@ uv run cfbpoll grid --season 2023 --out out/
 group-by away.
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `dfd6342` - config `configs/default.toml` sha256 `d51df72ef70172b6...`
+Code `0fc0735` - config `configs/default.toml` sha256 `9cbd0331ca1732a0...`

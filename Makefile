@@ -50,10 +50,12 @@ archive: .venv
 
 # Real. Single-threaded BLAS is not optional: multi-threaded reductions sum in a
 # nondeterministic order and the replay job asserts byte-equality (report 03 §9.3).
+# With L1 and L3 in the systems list this reads the play archive (~0.3 GB for the
+# tune seasons) and takes about a minute; scores-only runs never touch it.
 backtest: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run cfbpoll backtest --config $(CONFIG) \
-	    --systems resume,l2,colley,srs,elo,walker,winpct \
+	    --systems resume,l3,l2,l1,colley,srs,elo,walker,winpct \
 	    --seasons 2021-2023 --out $(OUT)
 	@echo
 	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"

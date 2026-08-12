@@ -6,12 +6,25 @@ the quality `q` whose *expected* results against that exact schedule equal the
 every team (report 02 §3.4, §3.5). It is shown twice — as the poll would have read
 on championship Saturday, and as it reads with the whole season's answers in hand.
 
-> **Power is L2, version v0.** Report 02 §3.4 reads opponent quality off the L3
-> blend of efficiency and results. L1 and L3 are not built (report 02 Appendix B
-> puts them fourth and fifth), so the Power rating here is the L2 results core
-> rescaled to points by one no-intercept OLS per fit. Every artifact stamps
-> `power_source = "L2"`, `power_version = "v0"`. When L3 lands, this number
-> changes and the résumé equation does not.
+> **Power is L3, version v1 — the blend.** Report 02 §3.4 reads opponent quality
+> off L3, and L3 now exists:
+>
+> ```
+> Power_t = w1 · k · (alpha_t − beta_t)  +  w2 · rho_t
+> ```
+>
+> `alpha` and `beta` are the L1 opponent-adjusted offence and defence ratings, in
+> our own expected-points units per play; `k` converts them to points; `rho` is the
+> L2 results core. `w1` and `w2` are fitted on **out-of-sample games only** — games
+> already predicted by a fit that had not seen them — per report 02 §3.3, and they
+> are published every week. There is no rescaling constant: the blend regression's
+> response is actual game margin, so Power is already in points.
+>
+> The expected-points model is **ours**. The archive ships an `EPA` column and it is
+> a third party's fitted model, which report 01 §5.6 bans as an input, so
+> `model/ep.py` fits a next-score model from the scoreboard instead. It correlates
+> with the shipped column at **r = 0.847** over 221,945 plays — reported as a
+> validation diagnostic, never fed in.
 
 ## The window, precisely
 
@@ -43,31 +56,31 @@ final): the same week, re-scored with the season's answers.
 
 | # | Team | Rec | Résumé | Margin résumé | Power | Gap | Power # | Hindsight # |
 |---:|---|:---:|---:|---:|---:|---:|---:|---:|
-| 1 | Michigan | 13-0 | 60.00\* | 45.54 | 39.47 | +20.53 | 1 | 1 (—) |
-| 2 | Florida State | 13-0 | 60.00\* | 36.14 | 33.81 | +26.19 | 8 | 2 (—) |
-| 3 | Washington | 13-0 | 60.00\* | 35.53 | 33.98 | +26.02 | 7 | 3 (—) |
-| 4 | Liberty | 13-0 | 60.00\* | 24.92 | 24.01 | +35.99 | 20 | 4 (—) |
-| 5 | Texas | 12-1 | 44.58 | 38.72 | 37.18 | +7.40 | 3 | 7 (▼2) |
-| 6 | Alabama | 12-1 | 44.54 | 35.09 | 33.79 | +10.75 | 9 | 6 (—) |
-| 7 | Ohio State | 11-1 | 44.40 | 40.52 | 37.54 | +6.86 | 2 | 5 (▲2) |
-| 8 | Georgia | 12-1 | 40.89 | 38.00 | 35.01 | +5.88 | 5 | 8 (—) |
-| 9 | Oregon | 11-2 | 35.35 | 39.93 | 36.81 | -1.46 | 4 | 9 (—) |
-| 10 | Ole Miss | 10-2 | 35.11 | 27.87 | 26.49 | +8.62 | 16 | 10 (—) |
-| 11 | Missouri | 10-2 | 33.78 | 29.21 | 28.75 | +5.04 | 13 | 12 (▼1) |
-| 12 | Oklahoma | 10-2 | 33.62 | 33.85 | 33.19 | +0.43 | 10 | 13 (▼1) |
-| 13 | Penn State | 10-2 | 33.56 | 37.76 | 34.62 | -1.07 | 6 | 11 (▲2) |
-| 14 | James Madison | 11-1 | 31.50 | 24.26 | 24.12 | +7.38 | 19 | 14 (—) |
-| 15 | LSU | 9-3 | 30.06 | 30.47 | 28.72 | +1.35 | 14 | 15 (—) |
-| 16 | Louisville | 10-3 | 27.26 | 23.95 | 23.27 | +3.99 | 22 | 17 (▼1) |
-| 17 | Iowa | 10-3 | 27.19 | 18.55 | 18.60 | +8.59 | 36 | 16 (▲1) |
-| 18 | Troy | 11-2 | 26.67 | 24.74 | 24.59 | +2.08 | 18 | 18 (—) |
-| 19 | Notre Dame | 9-3 | 26.62 | 32.06 | 29.42 | -2.80 | 12 | 19 (—) |
-| 20 | Oklahoma State | 9-4 | 26.37 | 20.44 | 20.00 | +6.37 | 33 | 20 (—) |
-| 21 | SMU | 11-2 | 26.34 | 23.65 | 21.86 | +4.48 | 26 | 22 (▼1) |
-| 22 | Kansas State | 8-4 | 26.24 | 31.92 | 30.67 | -4.44 | 11 | 21 (▲1) |
-| 23 | Arizona | 9-3 | 25.84 | 26.45 | 26.27 | -0.42 | 17 | 23 (—) |
-| 24 | Utah | 8-4 | 25.70 | 21.70 | 21.06 | +4.64 | 29 | 24 (—) |
-| 25 | NC State | 9-3 | 25.22 | 20.85 | 20.28 | +4.94 | 30 | 25 (—) |
+| 1 | Michigan | 13-0 | 60.00\* | 38.72 | 31.87 | +28.13 | 1 | 1 (—) |
+| 2 | Florida State | 13-0 | 60.00\* | 31.24 | 23.21 | +36.79 | 11 | 2 (—) |
+| 3 | Washington | 13-0 | 60.00\* | 29.18 | 23.38 | +36.62 | 10 | 3 (—) |
+| 4 | Liberty | 13-0 | 60.00\* | 22.35 | 18.72 | +41.28 | 17 | 4 (—) |
+| 5 | Ohio State | 11-1 | 37.58 | 34.39 | 29.22 | +8.36 | 3 | 5 (—) |
+| 6 | Alabama | 12-1 | 36.76 | 28.65 | 23.98 | +12.79 | 8 | 6 (—) |
+| 7 | Texas | 12-1 | 36.49 | 31.41 | 25.44 | +11.05 | 7 | 7 (—) |
+| 8 | Georgia | 12-1 | 33.74 | 31.88 | 25.95 | +7.79 | 5 | 8 (—) |
+| 9 | Ole Miss | 10-2 | 28.03 | 21.99 | 18.03 | +10.00 | 20 | 9 (—) |
+| 10 | Oregon | 11-2 | 27.39 | 32.50 | 30.51 | -3.12 | 2 | 12 (▼2) |
+| 11 | Missouri | 10-2 | 27.11 | 23.25 | 20.81 | +6.31 | 13 | 11 (—) |
+| 12 | James Madison | 11-1 | 27.08 | 20.55 | 17.38 | +9.70 | 23 | 13 (▼1) |
+| 13 | Penn State | 10-2 | 26.91 | 31.38 | 26.30 | +0.61 | 4 | 10 (▲3) |
+| 14 | Oklahoma | 10-2 | 26.51 | 27.25 | 25.75 | +0.76 | 6 | 14 (—) |
+| 15 | LSU | 9-3 | 22.90 | 23.98 | 20.67 | +2.23 | 14 | 15 (—) |
+| 16 | Troy | 11-2 | 22.01 | 20.76 | 17.57 | +4.44 | 22 | 16 (—) |
+| 17 | SMU | 11-2 | 21.58 | 20.24 | 18.60 | +2.97 | 18 | 17 (—) |
+| 18 | Tulane | 11-2 | 20.89 | 13.74 | 10.72 | +10.18 | 44 | 19 (▼1) |
+| 19 | Louisville | 10-3 | 20.83 | 18.05 | 18.06 | +2.77 | 19 | 20 (▼1) |
+| 20 | Iowa | 10-3 | 20.77 | 12.84 | 7.39 | +13.38 | 63 | 18 (▲2) |
+| 21 | Notre Dame | 9-3 | 20.49 | 26.43 | 23.53 | -3.03 | 9 | 21 (—) |
+| 22 | NC State | 9-3 | 19.94 | 16.03 | 12.28 | +7.66 | 36 | 22 (—) |
+| 23 | Oklahoma State | 9-4 | 19.66 | 14.29 | 11.32 | +8.34 | 41 | 23 (—) |
+| 24 | Arizona | 9-3 | 19.40 | 20.31 | 19.47 | -0.06 | 16 | 24 (—) |
+| 25 | Utah | 8-4 | 19.05 | 15.40 | 13.17 | +5.88 | 32 | 25 (—) |
 
 **Why every undefeated team shows 60.00 and a `*`.** `E[W|q]` approaches the
 number of games from below, so an undefeated team's résumé equation has **no
@@ -91,14 +104,14 @@ numbers and both surfaces:
 
 | | Résumé rank | Résumé | Margin résumé | Power rank | Power | Gap |
 |---|---:|---:|---:|---:|---:|---:|
-| **Live** R(N, N) | 2 | 60.00\* | 36.14 | 8 | 33.81 | +26.19 |
-| **Hindsight** R(N, final) | 2 | 60.00\* | 36.12 | 9 | 33.16 | +26.84 |
+| **Live** R(N, N) | 2 | 60.00\* | 31.24 | 11 | 23.21 | +36.79 |
+| **Hindsight** R(N, final) | 2 | 60.00\* | 30.93 | 11 | 22.06 | +37.94 |
 
-**The two numbers disagree by 7 places, and
+**The two numbers disagree by 9 places, and
 that disagreement is the entire product.** The résumé says Florida State did the
 2nd-best job of beating the schedule in front of it — nobody with a loss can
 outrank an unbeaten team on that number, by construction. The power rating says its
-play was worth about 33.2 points against an average team, 9th
+play was worth about 22.1 points against an average team, 11th
 in the country, because it won a lot of close games. Both are true. The committee
 was answering a third question — who would we most like to watch play for a title —
 and it is the only one of the three that is not written down anywhere.
@@ -113,21 +126,21 @@ decision would be circular, and this construction cannot do it.
 ## Georgia, and the sanity check
 
 Georgia was 12-1 with its only loss in the SEC championship game. Résumé 8 live,
-8 in hindsight; power 5 live and 5 in hindsight. That gap runs the other way from Florida
+8 in hindsight; power 5 live and 4 in hindsight. That gap runs the other way from Florida
 State's — the model thinks Georgia *played* better than its résumé, which is what
 losing one game to a good opponent looks like from the inside.
 
-Alabama, whom the committee took over Florida State, is résumé 6 and power 9
+Alabama, whom the committee took over Florida State, is résumé 6 and power 8
 here (live). On the power number the committee and this model broadly agree about
 Alabama; on the résumé number they do not agree about what a 13-0 season is worth.
 
 ## The uncomfortable row
 
 Liberty went 13-0 in Conference USA and lands at résumé 4 with a power rating of
-24.01 — 20th. This is the saturation property doing exactly what it says it
+18.72 — 17th. This is the saturation property doing exactly what it says it
 does, and it is the single strongest argument against publishing the wins-based
 résumé alone. The margin-aware résumé, in the same table, puts Liberty at
-24.92 against Michigan's 45.54, which is a far more useful
+22.35 against Michigan's 38.72, which is a far more useful
 sentence about the season. Report 02 §3.4 says to publish both because they answer
 different questions; this row is why that instruction is load-bearing rather than
 decorative.
@@ -160,4 +173,4 @@ uv run cfbpoll grid --season 2023 --out out/
 triangle, both surfaces and the movers table are written by the second command.
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `dfd6342` - config `configs/default.toml` sha256 `d51df72ef70172b6...`
+Code `0fc0735` - config `configs/default.toml` sha256 `9cbd0331ca1732a0...`

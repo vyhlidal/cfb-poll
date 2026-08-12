@@ -224,6 +224,11 @@ class L3Fit:
             "blend_n_games": self.weights.n_games,
             "lambda_l1": self.l1.lam,
             "lambda_l2": self.l2.lam,
+            # The layers below, in full and nested so nothing collides. Constraint
+            # 5 says every constant the model used is published every week, and
+            # that includes L1's garbage-time thresholds and the shape of our own
+            # expected-points curve, not just the two blend weights.
+            "l1": self.l1.as_params(),
             **self.params,
         }
 

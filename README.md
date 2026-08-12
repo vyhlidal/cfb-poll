@@ -7,13 +7,15 @@ No human polls. No recruiting rankings. No reputation. No black boxes. Every
 number on every page recomputable by a stranger with no API key, no account, and
 no permission from anyone.
 
-> ## ⚠️ Status: the poll exists. Two of its four layers do not.
+> ## ⚠️ Status: all four layers exist. The bootstrap does not.
 >
-> **What runs today:** the games loader over the MIT archive, the L2 results core
-> (ridge on compressed scoring margin), the **L4 résumé rating — the headline
-> poll**, the full R(N, K) retroactive grid (`cfbpoll grid`), `cfbpoll rank`, and
-> the walk-forward backtest against every baseline (`cfbpoll backtest`). Real
-> output is committed under [`demo/`](demo/):
+> **What runs today:** the games and play loaders over the MIT archive, **our own
+> expected-points model**, the L1 efficiency core (ridge on play value), the L2
+> results core (ridge on compressed scoring margin), the L3 blend that stacks
+> them out-of-sample, the **L4 résumé rating — the headline poll**, the full
+> R(N, K) retroactive grid (`cfbpoll grid`), `cfbpoll rank`, and the walk-forward
+> backtest against every baseline (`cfbpoll backtest`). Real output is committed
+> under [`demo/`](demo/):
 >
 > - [**The 2023 final poll**](demo/2023-final-poll.md) — résumé and power, live and
 >   hindsight, and what a transparent system says about undefeated Florida State
@@ -22,12 +24,17 @@ no permission from anyone.
 > - [2021: Cincinnati](demo/2021-cincinnati.md) — the first Group of Five playoff team
 > - [The poll at week 10, 2023](demo/2023-w10-top25.md) · [walk-forward backtest](demo/backtest-2021-2023.md)
 >
-> **What does not:** L1 efficiency and the L3 blend. Report 02 §3.4 reads
-> opponent quality off L3; L3 does not exist, so **Power is L2 rescaled to
-> points**, and every artifact stamps `power_source = "L2"`, `power_version =
-> "v0"` rather than letting a reader assume otherwise. The bootstrap rank
-> intervals, publishing and the site are also still stubs, and they raise
-> `NotImplementedError` rather than pretending.
+> **The expected-points model is ours.** The archive ships an `EPA` column and it
+> is a third party's fitted model, which report 01 §5.6 bans as an input, so
+> `model/ep.py` fits a next-score model from the scoreboard instead — about a
+> hundred lines, every constant in the config. It correlates with the shipped
+> column at **r = 0.847** over 221,945 plays, reported as a validation diagnostic
+> and never fed in.
+>
+> **What does not run:** the block bootstrap and its rank intervals, publishing,
+> and the site. They are stubs and they raise `NotImplementedError` rather than
+> pretending. A season with no play archive falls back to `power_source = "L2"`
+> and stamps that on every artifact rather than letting a reader assume otherwise.
 >
 > See [Status](#status) for what exists versus what is coming.
 
@@ -208,8 +215,19 @@ cfbpoll site build                      build the static site
 
 - The canonical games loader over the local MIT archive (2021–2025), with the
   binding week-bucket rules of `docs/data-findings.md`
+- The canonical **play loader** (`ingest/plays.py`), a 17-column allow-list out of
+  a 362-column feed, with four new binding data findings recorded in
+  `docs/data-findings.md` §8–§12
+- **Our own expected-points model** (`model/ep.py`) — the Carter/Romer/Burke
+  next-score construction, fitted from the scoreboard, because the archive's
+  `EPA` column is someone else's model and is banned as an input
+- **L1 efficiency core** — ridge on garbage-time-filtered play value, one offence
+  and one defence coefficient per team plus home field, λ by grouped CV on
+  `game_id`; rush/pass unit splits for explanation only
 - **L2 results core** — ridge on compressed scoring margin, every FBS *and* FCS
   team with its own coefficient under the same penalty
+- **L3 power rating** — the blend of L1 and L2, with `w1` and `w2` fitted on
+  out-of-sample games only and published every week
 - **L4 résumé rating — the headline poll.** Root-solve for the quality `q` whose
   expected results against that exact schedule equal the actual ones, in both the
   wins-based and margin-aware variants, with Power and the résumé-minus-power gap
@@ -238,8 +256,8 @@ cfbpoll site build                      build the static site
    the retroactive product
 6. `reproducibility.yml` with the first golden fixture
 7. `weekly.yml` end to end, run manually before any clock is attached
-8. **L1 efficiency → L3 blend** — which is what replaces `power_source = "L2"`
-   with the real thing — then bootstrap rank intervals
+8. ~~**L1 efficiency → L3 blend**~~ — done; `power_source` is now `"L3"`. Next:
+   bootstrap rank intervals
 9. The static site, the sandbox web app, and the challenge harness
 
 **Known gaps, recorded rather than glossed**
@@ -247,8 +265,10 @@ cfbpoll site build                      build the static site
 - Cloudflare R2 is not provisioned; the private-archive push target is a stub
 - No CFBD key is configured, and the terms snapshot in
   `docs/terms-snapshots/` has not been taken (it requires a browser render)
-- FCS-vs-FCS play-by-play coverage is unconfirmed, and it changes the FCS design
-  (`configs/default.toml` records this as an open dependency)
+- FCS-vs-FCS play-by-play coverage is real but incomplete (1,492 of 1,603
+  model-universe games in 2023 have a play feed; FBS-vs-FBS is complete). A team
+  with no plays gets an L1 coefficient of zero — league average — which is what
+  ridge would shrink it to anyway, and its L2 coefficient is unaffected
 - The clock (n8n on the VPS) does not exist yet, deliberately
 
 ---

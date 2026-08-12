@@ -166,7 +166,9 @@ class L1Fit:
                 unit: {"lambda": u.lam, "n_plays": u.n_plays, "home_field": u.home_field}
                 for unit, u in sorted(self.units.items())
             },
-            **self.ep_model.as_params(),
+            # Nested, not merged: the expected-points model declares its own
+            # `layer` and `version` and spreading it here would overwrite L1's.
+            "ep": self.ep_model.as_params(),
             **self.params,
         }
 

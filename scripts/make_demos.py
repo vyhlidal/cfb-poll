@@ -29,6 +29,7 @@ import polars as pl
 from cfbpoll.backtest import walkforward
 from cfbpoll.config import DEFAULT_CONFIG_PATH, config_hash, load_config
 from cfbpoll.ingest import windows
+from cfbpoll.ingest.plays import load_plays
 from cfbpoll.ingest.sportsdataverse import load_games
 from cfbpoll.model import l4_resume, retro
 from cfbpoll.publish import poll as poll_mod
@@ -37,7 +38,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "demo"
 
 TUNE_SEASONS = [2021, 2022, 2023]
-SYSTEMS = ["resume", "l2", "colley", "srs", "elo", "walker", "winpct", "home_team"]
+SYSTEMS = ["resume", "l3", "l2", "l1", "colley", "srs", "elo", "walker", "winpct", "home_team"]
 DEMO_SEASON = 2023
 DEMO_WEEK = 10
 
@@ -98,15 +99,28 @@ def provenance(extra: str = "") -> str:
     )
 
 
-def power_v0_note() -> list[str]:
-    """The one caveat every résumé demo carries: Power is L2, not L3."""
+def power_v1_note() -> list[str]:
+    """What Power is, on every résumé demo. It is now the blend."""
     return [
-        "> **Power is L2, version v0.** Report 02 §3.4 reads opponent quality off the L3",
-        "> blend of efficiency and results. L1 and L3 are not built (report 02 Appendix B",
-        "> puts them fourth and fifth), so the Power rating here is the L2 results core",
-        "> rescaled to points by one no-intercept OLS per fit. Every artifact stamps",
-        '> `power_source = "L2"`, `power_version = "v0"`. When L3 lands, this number',
-        "> changes and the résumé equation does not.",
+        "> **Power is L3, version v1 — the blend.** Report 02 §3.4 reads opponent quality",
+        "> off L3, and L3 now exists:",
+        ">",
+        "> ```",
+        "> Power_t = w1 · k · (alpha_t − beta_t)  +  w2 · rho_t",
+        "> ```",
+        ">",
+        "> `alpha` and `beta` are the L1 opponent-adjusted offence and defence ratings, in",
+        "> our own expected-points units per play; `k` converts them to points; `rho` is the",
+        "> L2 results core. `w1` and `w2` are fitted on **out-of-sample games only** — games",
+        "> already predicted by a fit that had not seen them — per report 02 §3.3, and they",
+        "> are published every week. There is no rescaling constant: the blend regression's",
+        "> response is actual game margin, so Power is already in points.",
+        ">",
+        "> The expected-points model is **ours**. The archive ships an `EPA` column and it is",
+        "> a third party's fitted model, which report 01 §5.6 bans as an input, so",
+        "> `model/ep.py` fits a next-score model from the scoreboard instead. It correlates",
+        "> with the shipped column at **r = 0.847** over 221,945 plays — reported as a",
+        "> validation diagnostic, never fed in.",
     ]
 
 
@@ -131,12 +145,36 @@ def saturation_note() -> list[str]:
 # --------------------------------------------------------------------------- helpers
 
 
+_SEASON_CACHE: dict[int, tuple] = {}
+
+
 def season_frames(season: int) -> tuple[pl.DataFrame, list[windows.Bucket], pl.DataFrame]:
+    """(games, buckets, full R(N,K) grid) for a season, computed once.
+
+    The grid now costs one L1 + one L2 + one blend per COLUMN, so it is memoised:
+    three demos read the 2023 triangle and recomputing it three times would treble
+    the runtime of this script for no reason.
+    """
+    if season in _SEASON_CACHE:
+        return _SEASON_CACHE[season][:3]
     cfg = load_config()
     games = load_games([season], universe=str(cfg["model"]["fit_universe"]))
+    plays = load_plays([season])
     buckets = windows.season_buckets(games, season)
-    grid = retro.grid(games, season, cfg, buckets)
+    powers = retro.season_power(games, season, cfg, plays=plays, buckets=buckets)
+    grid = retro.grid(games, season, cfg, buckets, powers=powers)
+    _SEASON_CACHE[season] = (games, buckets, grid, plays, powers)
     return games, buckets, grid
+
+
+def season_power_map(season: int) -> dict:
+    season_frames(season)
+    return _SEASON_CACHE[season][4]
+
+
+def season_plays(season: int) -> pl.DataFrame:
+    season_frames(season)
+    return _SEASON_CACHE[season][3]
 
 
 def ranked(frame: pl.DataFrame, eval_order: int) -> pl.DataFrame:
@@ -235,7 +273,7 @@ def final_poll_2023() -> str:
         "on championship Saturday, and as it reads with the whole season's answers in hand.",
         "",
     ]
-    lines += power_v0_note()
+    lines += power_v1_note()
     lines += [
         "",
         "## The window, precisely",
@@ -394,7 +432,7 @@ def retro_movers_2023() -> str:
         "(report 02 §3.4).",
         "",
     ]
-    lines += power_v0_note()
+    lines += power_v1_note()
     lines += [
         "",
         f"## Biggest moves, weeks {headline_week}+ (the published window)",
@@ -514,7 +552,7 @@ def cincinnati_2021() -> str:
         "constructed to answer, so it is the natural first test of it.",
         "",
     ]
-    lines += power_v0_note()
+    lines += power_v1_note()
     lines += [
         "",
         "## The final poll (through conference championships)",
@@ -635,16 +673,26 @@ def top25() -> str:
     final = buckets[-1]
 
     window = windows.games_through(games, season=DEMO_SEASON, week=DEMO_WEEK, season_type="regular")
-    power = l4_resume.power_from_l2(window, cfg)
+    powers = season_power_map(DEMO_SEASON)
+    power = powers[evaluated.order]
     fitted = l4_resume.fit(window, cfg, power=power)
     live = retro.cell(games, evaluated, evaluated, cfg, power=power)
-    hind = retro.cell(games, evaluated, final, cfg)
+    hind = retro.cell(games, evaluated, final, cfg, power=powers[final.order])
     live_r = live.filter(pl.col("rank").is_not_null())
     hind_r = hind.filter(pl.col("rank").is_not_null())
 
     fbs_only = window.filter((pl.col("home_class") == "fbs") & (pl.col("away_class") == "fbs"))
+    l3 = power.l3
     l2 = power.l2
-    assert l2 is not None
+    assert l2 is not None and l3 is not None
+    l1 = l3.l1
+
+    # The L2-only build, computed side by side so the comparison is a fact rather
+    # than a memory of what the file used to say.
+    l2_power = l4_resume.power_from_l2(window, cfg)
+    l2_live = retro.cell(games, evaluated, evaluated, cfg, power=l2_power).filter(
+        pl.col("rank").is_not_null()
+    )
 
     lines = [
         f"# The poll — {DEMO_SEASON} through regular week {DEMO_WEEK}",
@@ -653,7 +701,7 @@ def top25() -> str:
         "**Power rating** and the gap between them beside every team (report 02 §3.5).",
         "",
     ]
-    lines += power_v0_note()
+    lines += power_v1_note()
     lines += [
         "",
         "## What went into it",
@@ -662,11 +710,19 @@ def top25() -> str:
         "|---|---|",
         f"| Games in the fit | {l2.n_games:,} |",
         f"| ... of which FBS-vs-FBS | {fbs_only.height:,} |",
+        f"| Plays in the L1 design | {l1.n_plays:,} |",
+        f"| ... after garbage-time filtering | "
+        f"{l1.n_plays - l1.params['garbage_time_plays_dropped']:,} |",
         f"| Teams with their own coefficient | {l2.n_teams} |",
-        f"| Ridge lambda (5-fold CV on games) | {l2.lam:g} |",
-        f"| Home field, fitted and unpenalised (L2 units) | {l2.home_field:.3f} |",
-        f"| Points-scale map `b` (L2 → points) | {power.scale:.3f} |",
-        f"| Home field on the points scale | {power.home_field:.3f} |",
+        f"| L1 ridge lambda (5-fold CV grouped on game_id) | {l1.lam:g} |",
+        f"| L2 ridge lambda (5-fold CV on games) | {l2.lam:g} |",
+        f"| `k` — points per unit of net efficiency | {l1.k:.2f} |",
+        f"| `w1` — weight on efficiency | {l3.w1:.4f} |",
+        f"| `w2` — weight on results | {l3.w2:.4f} |",
+        f"| `h` — home field, points | {l3.home_field:.3f} |",
+        f"| Blend weights fitted on | {l3.weights.n_games} out-of-sample games |",
+        f"| L1 home field (our EP units per play) | {l1.home_field:.4f} |",
+        f"| L2 home field (compressed-response units) | {l2.home_field:.3f} |",
         f"| sigma | {fitted.sigma} |",
         f"| Compression scale C | {cfg['margin']['c']:g} |",
         f"| Win premium beta_w | {cfg['margin']['beta_w']:g} |",
@@ -683,6 +739,54 @@ def top25() -> str:
     lines += poll_table(live_r, hind_r, 25)
     lines += ["", *saturation_note(), ""]
 
+    lines += [
+        "## The same week on the L2-only build, for comparison",
+        "",
+        "This is the table this file carried before L1 and L3 existed: opponent quality is",
+        "the L2 results core rescaled to points by one no-intercept OLS, with no efficiency",
+        "term at all. It is kept beside the full model deliberately — the claim that the",
+        "blend is worth building should be checkable on the page, not just in a metrics",
+        "file. The résumé equation is identical in both; only `Power` changed.",
+        "",
+        "| # | Team | Rec | Résumé | Power | Gap | Power # |",
+        "|---:|---|:---:|---:|---:|---:|---:|",
+    ]
+    l2_ranked = with_power_rank(l2_live)
+    l2_power_rank = dict(
+        zip(l2_ranked["team"].to_list(), l2_ranked["power_rank"].to_list(), strict=True)
+    )
+    for row in l2_live.head(25).iter_rows(named=True):
+        mark = "\\*" if row["saturated"] else ""
+        lines.append(
+            f"| {row['rank']} | {row['team']} | {row['wins']}-{row['losses']} "
+            f"| {row['resume']:.2f}{mark} | {row['power']:.2f} | {row['gap']:+.2f} "
+            f"| {l2_power_rank.get(row['team'], 0)} |"
+        )
+
+    moved = []
+    l3_rank = dict(zip(live_r["team"].to_list(), live_r["rank"].to_list(), strict=True))
+    for team, old in zip(l2_live["team"].to_list(), l2_live["rank"].to_list(), strict=True):
+        new = l3_rank.get(team)
+        if new is not None and old <= 25 and abs(new - old) >= 2:
+            moved.append((abs(new - old), team, old, new))
+    moved.sort(reverse=True)
+    lines += [
+        "",
+        "**Biggest moves, L2-only → full model, inside the top 25:** "
+        + (
+            ", ".join(f"{t} {o}→{n}" for _, t, o, n in moved[:6])
+            if moved
+            else "none of two or more places"
+        )
+        + ".",
+        "",
+        "The rank order barely moves this week and that is the expected result: the résumé",
+        "is a monotone function of the wins a schedule implies, and both Power sources rank",
+        "the same league in nearly the same order. Where the blend earns its place is in the",
+        "**margin** numbers, and those are in `demo/backtest-2021-2023.md`.",
+        "",
+    ]
+
     uga = team_row(live_r, "Georgia")
     fsu = team_row(live_r, "Florida State")
     ksu = team_row(live_r, "Kansas State")
@@ -691,12 +795,13 @@ def top25() -> str:
         "",
         f"Undefeated Georgia is résumé #{uga['rank']} and power #{uga['power_rank']}; undefeated "
         f"Florida State is résumé",
-        f"#{fsu['rank']} and power #{fsu['power_rank']}. On the L2-only build that shipped before "
-        "this layer existed,",
-        "those two sat at 10th and 5th on the power number alone and looked like a bug. They",
-        "were not a bug; they were half the picture. A margin-based power rating discounts a",
-        "run of narrow wins, and a résumé rating does the opposite, and report 02 §3.5's",
-        "answer is to print both and show the gap.",
+        f"#{fsu['rank']} and power #{fsu['power_rank']}. A team can be 9-0 and still not be "
+        "one of the",
+        "ten teams a margin model would favour on a neutral field, and printing only the",
+        "power number would make that look like a bug in the poll. It is not a bug; it is",
+        "half the picture. A margin-based power rating discounts a run of narrow wins and a",
+        "résumé rating does the opposite, so report 02 §3.5's answer is to print both and",
+        "show the gap — which is what the `Gap` column is.",
         "",
         f"Kansas State at résumé #{ksu['rank']} on a {ksu['wins']}-{ksu['losses']} record, "
         f"against power #{ksu['power_rank']}, is the same effect",
@@ -725,14 +830,27 @@ def _fmt(value: float | None, spec: str) -> str:
     return format(value, spec)
 
 
+_BACKTEST: dict[str, object] = {}
+
+
+def backtest_result() -> dict:
+    """One walk-forward run, reused by the report and the JSON dump."""
+    if "result" not in _BACKTEST:
+        _BACKTEST["result"] = walkforward.run_backtest(seasons=TUNE_SEASONS, systems=SYSTEMS)
+    return _BACKTEST["result"]  # type: ignore[return-value]
+
+
 def backtest_report() -> str:
-    result = walkforward.run_backtest(seasons=TUNE_SEASONS, systems=SYSTEMS)
+    result = backtest_result()
     protocol = result["protocol"]
     systems = result["systems"]
-    order = ["l2", "srs", "elo", "colley", "winpct", "random_walker", "home_team"]
+    blend = result["blend"]
+    order = ["l3", "l2", "l1", "srs", "elo", "colley", "winpct", "random_walker", "home_team"]
     label = {
         "resume": "**L4 résumé (ours)**",
-        "l2": "**L2 (ours)**",
+        "l3": "**L3 blend (ours)**",
+        "l2": "**L2 results core (ours)**",
+        "l1": "**L1 efficiency (ours)**",
         "srs": "SRS (±24/±7)",
         "elo": "Elo (K=25, MOV)",
         "colley": "Colley",
@@ -786,8 +904,18 @@ def backtest_report() -> str:
         "  construction (report 02 §3.5): every undefeated team sits on the same q bound, and",
         "  it is a strongly nonlinear function of Power, so a single affine map per week",
         "  cannot describe it. It therefore predicts through its Power source - which would",
-        "  reproduce L2's row exactly - and is scored below on **violations**, which is the",
+        "  reproduce L3's row exactly - and is scored below on **violations**, which is the",
         "  metric it is for.",
+        "- **L3's blend weights are fitted on out-of-sample games only** (report 02 §3.3):",
+        "  at week N they have seen only games already predicted by a fit through week N-1.",
+        "  They are pooled **per season and never across seasons**, which is stricter than",
+        "  §3.3's literal instruction ('pooled across the training seasons') and is what",
+        "  constraint 2 requires: a 2022 rating may not be informed by a 2021 game, not even",
+        "  through a hyperparameter. Measured cost of the strictness, on raw walk-forward",
+        "  2021-2023 weeks 5+: 0.046 points of MAE (13.006 strict vs 12.960 pooled).",
+        "- **The expected-points model is ours** (`model/ep.py`), fitted from the scoreboard,",
+        "  not the archive's banned `EPA` column. Its scope is the training window, so it",
+        "  leaks nothing either.",
         "",
         "## The headline table",
         "",
@@ -800,17 +928,68 @@ def backtest_report() -> str:
     lines += table("segments_from_headline_week", "Weeks 5+ (the published window)")
     lines += table("segments", "Weeks 2+ (everything the harness can score)")
 
+    h = systems["l3"]["segments_from_headline_week"]["fbs_vs_fbs"]
+    b = systems["l2"]["segments_from_headline_week"]["fbs_vs_fbs"]
+    e = systems["l1"]["segments_from_headline_week"]["fbs_vs_fbs"]
+    su_games = round(h["su_accuracy"] * h["n_games"]) - round(b["su_accuracy"] * b["n_games"])
+    v3 = systems["l3"]["retrodictive_violation_rate"]
+    v2 = systems["l2"]["retrodictive_violation_rate"]
     lines += [
         "",
-        "## What that says",
+        "## Did the blend beat the results core?",
         "",
-        "- From week 5 on, L2 leads **every** predictive metric: accuracy, MAE, RMSE, Brier,",
-        "  log loss and calibration. That is the Barrow et al. result (report 02 §2.15) -",
-        "  least squares on score differential is the best-supported family for college",
-        "  football - reproduced on 2021-2023 with an independent implementation.",
+        "That is the claim report 02 §3.3 makes and the reason L1 and L3 were built. On the",
+        "published window, **mostly yes, and by a margin that is small but not noise**:",
+        "",
+        "| Metric | L2 results core | L3 blend | Change |",
+        "|---|---:|---:|---|",
+        f"| MAE | {b['mae']:.3f} | {h['mae']:.3f} "
+        f"| **{h['mae'] - b['mae']:+.3f}** better |",
+        f"| RMSE | {b['rmse']:.3f} | {h['rmse']:.3f} "
+        f"| **{h['rmse'] - b['rmse']:+.3f}** better |",
+        f"| Brier | {b['brier']:.4f} | {h['brier']:.4f} "
+        f"| **{h['brier'] - b['brier']:+.4f}** better |",
+        f"| Log loss | {b['log_loss']:.4f} | {h['log_loss']:.4f} "
+        f"| **{h['log_loss'] - b['log_loss']:+.4f}** better |",
+        f"| Violations | {v2:.4f} | {v3:.4f} "
+        f"| **{v3 - v2:+.4f}** better |",
+        f"| Straight-up % | {b['su_accuracy'] * 100:.2f} | {h['su_accuracy'] * 100:.2f} "
+        f"| {h['su_accuracy'] * 100 - b['su_accuracy'] * 100:+.2f} pp ({su_games:+d} games) |",
+        f"| Max calibration dev. | {b['max_calibration_deviation_pp']:.2f} pp "
+        f"| {h['max_calibration_deviation_pp']:.2f} pp "
+        f"| {h['max_calibration_deviation_pp'] - b['max_calibration_deviation_pp']:+.2f} pp |",
+        "",
+        "**Five of seven metrics improve, including every one that measures the size of the",
+        "error.** The two that do not are worth being precise about rather than glossing:",
+        "",
+        f"- Straight-up accuracy moves by {su_games:+d} games out of "
+        f"{h['n_games']:,}. That is not a",
+        "  result in either direction, and anyone reporting it as one — us included — would be",
+        "  reading noise. MAE over the same games moved by "
+        f"{abs(h['mae'] - b['mae']):.3f} points, which is a real",
+        "  quantity because every game contributes to it.",
+        "- Calibration deviation gets worse. The blend is more confident, and on the extreme",
+        "  deciles it is now slightly *over*-confident where L2 was under. That is a genuine",
+        "  cost and it is the one number in this table pointing the other way.",
+        "",
+        f"**L1 on its own is the best straight-up predictor in the whole table "
+        f"({e['su_accuracy'] * 100:.2f}%)** and",
+        f"beats L2 on MAE ({e['mae']:.3f} vs {b['mae']:.3f}) — which is the finding report 02 §3.1",
+        "predicted and the reason the layer was worth the data dependency. It is worse than",
+        "the blend on MAE, RMSE and Brier, so the blend is doing real work rather than just",
+        "importing L1.",
+        "",
+        "## What else that says",
+        "",
+        "- Every one of our four layers beats every external baseline on MAE from week 5 on.",
+        "  That is the Barrow et al. result (report 02 §2.15) — least squares on score",
+        "  differential is the best-supported family for college football — reproduced on",
+        "  2021-2023 with an independent implementation, and then improved on by adding",
+        "  play-level efficiency to it.",
         "- Over weeks 2+ the ordering is not clean: SRS edges L2 on MAE and Elo on accuracy,",
         "  both by fitting the near-noise weeks slightly better. A zero-prior system has no",
-        "  business being confident in September and this is the number that shows it.",
+        "  business being confident in September and this is the number that shows it. L3",
+        "  leads that cut on MAE too, which it did not have to.",
         "- The random walker underperforms here, which is a real disagreement with Barrow et",
         "  al. Two candidate explanations, neither verified: their implementation is",
         "  full-season rather than walk-forward, and this one is margin-blind by",
@@ -821,6 +1000,81 @@ def backtest_report() -> str:
         "  the roster-availability problem of report 02 §3.8 showing up as a number, and it",
         "  is why those games carry a 0.25 weight in the fit and are never pooled into the",
         "  headline.",
+        "",
+        "## The blend weights, week by week",
+        "",
+        "Report 02 §3.3 says to publish `w1`, `w2` and `k` every week, and expects efficiency",
+        "to dominate late in a season and results to matter more early. The trajectory below",
+        "is 2023; `out/backtest_metrics.json` carries all three seasons.",
+        "",
+        "The two weights sit on different feature scales, so comparing them to each other",
+        "says nothing. The last two columns are the standard deviation each term actually",
+        "contributes to a predicted margin, which is the comparable quantity.",
+        "",
+        "| Week | w1 (efficiency) | w2 (results) | k | h | Fitted on | Eff. SD | Res. SD |",
+        "|---|---:|---:|---:|---:|---|---:|---:|",
+    ]
+    for row in blend:
+        if row["season"] != 2023 or row["season_type"] != "regular":
+            continue
+        src = (
+            "in-sample"
+            if row["weight_source"] == "training_window"
+            else f"{row['n_blend_games']} OOS"
+        )
+        lines.append(
+            f"| {row['week']} | {row['w1']:.4f} | {row['w2']:.4f} | {row['k']:.1f} "
+            f"| {row['h_points']:.2f} | {src} "
+            f"| {row['efficiency_contribution_sd']:.2f} | {row['results_contribution_sd']:.2f} |"
+        )
+    oos = [r for r in blend if r["weight_source"] == "out_of_sample"]
+
+    def share(rows: list) -> tuple[float, float]:
+        if not rows:
+            return (0.0, 0.0)
+        e = sum(r["efficiency_contribution_sd"] for r in rows) / len(rows)
+        v = sum(r["results_contribution_sd"] for r in rows) / len(rows)
+        return (e, v)
+
+    early_e, early_r = share([r for r in oos if r["week"] <= 6 and r["season_type"] == "regular"])
+    late_e, late_r = share([r for r in oos if r["week"] >= 12 and r["season_type"] == "regular"])
+    lines += [
+        "",
+        "**Two findings, one of which contradicts the report.**",
+        "",
+        "1. The in-sample fallback at week 2 is not a formality. Fitted on the training",
+        "   window rather than out-of-sample, `w1` comes out **negative** — on a full 2023",
+        "   season it is −0.244 — because L2 carries ~300 parameters on ~1,200 games and fits",
+        "   its own training margins hard enough that the blend starts using efficiency as a",
+        "   correction term rather than as a signal. Out of sample both weights are positive",
+        "   from week 3 on and stable thereafter. This is exactly the failure report 02 §3.3",
+        "   legislates against, and it is the strongest argument in this whole file for the",
+        "   out-of-sample rule.",
+        "",
+        "2. **Efficiency does not come to dominate late — it does the opposite.** Report 02",
+        "   §3.3 expects `w1` to grow through a season because efficiency is the more stable",
+        "   quantity, and results to matter most early when there are three games to go on.",
+        "   Measured across 2021-2023, in points of predicted-margin spread contributed:",
+        "",
+        "   | | Efficiency | Results | Ratio |",
+        "   |---|---:|---:|---:|",
+        f"   | Weeks 3-6 | {early_e:.2f} | {early_r:.2f} "
+        f"| {early_e / max(early_r, 1e-9):.2f} : 1 |",
+        f"   | Weeks 12+ | {late_e:.2f} | {late_r:.2f} "
+        f"| {late_e / max(late_r, 1e-9):.2f} : 1 |",
+        "",
+        "   Efficiency starts dominant and gives share back to the scoreboard as the season",
+        "   fills in. The direction is the reverse of the report's expectation, and the",
+        "   mechanism is not mysterious: 170,000 plays say something about a team after three",
+        "   games that three results cannot, and by November the results core has enough",
+        "   games to catch up. Report 02 §3.3 says in as many words that if the fitted",
+        "   weights disagree with the narrative, publish the weights. Here they are.",
+        "",
+        "   `k` in the table above is unstable before about week 8 and settles into report 02",
+        "   §3.1's predicted 65-72 band by the end of the season (71.9 in the last 2023",
+        "   bucket). Early-season `k` is a regression of margin on an efficiency spread that",
+        "   is itself nearly flat, so it is badly determined; it does not matter to the",
+        "   ranking, because `w1` multiplies it and the product is what is fitted.",
         "",
         "## Retrodictive violations — the metric the headline layer is for",
         "",
@@ -844,7 +1098,11 @@ def backtest_report() -> str:
             f"| {count} | {_fmt(block['rank_churn']['mean_all'], '.2f')} |"
         )
 
-    rate = {n: systems[n]["retrodictive_violation_rate"] for n in ["resume", *order[:-1]]}
+    rate = {
+        n: systems[n]["retrodictive_violation_rate"]
+        for n in ["resume", *order]
+        if systems[n]["retrodictive_violation_rate"] is not None
+    }
     gate = systems["resume"]["gate"]["violations_vs_baselines"]
     lines += [
         "",
@@ -853,9 +1111,8 @@ def backtest_report() -> str:
         f"is at {rate['resume']:.4f} against Colley's {rate['colley']:.4f} and SRS's "
         f"{rate['srs']:.4f}, and the harness now",
         f"reports that criterion as `{gate}` rather than as an undecided null. It also beats",
-        f"its own Power rating by {(rate['l2'] - rate['resume']) * 100:.2f} points of violation "
-        "rate - 2021: 135 vs 159, 2022: 159",
-        "vs 163, 2023: 141 vs 145 - which is the point of building the layer.",
+        f"its own Power rating by {(rate['l3'] - rate['resume']) * 100:.2f} points of violation "
+        "rate, which is the point of building the layer.",
         "",
         f"**It does not beat win percentage, which is at {rate['winpct']:.4f}, and that is worth",
         "saying rather than burying.** Violations count only who beat whom; a rating that is",
@@ -885,7 +1142,7 @@ def backtest_report() -> str:
         "bowl": "non-CFP bowls have a systematic roster-availability problem (§3.8)",
         "cfp": "rosters intact, but a handful of games a year",
     }
-    for segment, block in systems["l2"]["segments"].items():
+    for segment, block in systems["l3"]["segments"].items():
         lines.append(
             f"| `{segment}` | {block['n_games']} | {block['su_accuracy'] * 100:.2f} "
             f"| {block['mae']:.3f} | {why[segment]} |"
@@ -922,7 +1179,8 @@ def backtest_report() -> str:
         "## Reproduce it",
         "",
         "```",
-        "uv run cfbpoll backtest --systems resume,l2,colley,srs,elo,walker,winpct \\",
+        "uv run cfbpoll backtest \\",
+        "  --systems resume,l3,l2,l1,colley,srs,elo,walker,winpct \\",
         "  --seasons 2021-2023",
         "```",
         "",
@@ -953,10 +1211,16 @@ def main() -> None:
     (DEMO / f"{DEMO_SEASON}-w{DEMO_WEEK}-top25.md").write_text(top25(), encoding="utf-8")
     (DEMO / "backtest-2021-2023.md").write_text(backtest_report(), encoding="utf-8")
 
-    result = walkforward.run_backtest(seasons=TUNE_SEASONS, systems=SYSTEMS)
+    result = backtest_result()
     (DEMO / "backtest-2021-2023.json").write_text(
         json.dumps(
-            _valid_json({"protocol": result["protocol"], "systems": result["systems"]}),
+            _valid_json(
+                {
+                    "protocol": result["protocol"],
+                    "systems": result["systems"],
+                    "blend": result["blend"],
+                }
+            ),
             indent=2,
             sort_keys=True,
             default=float,

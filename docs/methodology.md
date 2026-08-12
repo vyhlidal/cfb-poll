@@ -4,11 +4,13 @@
 > every constant, every week — because constraint 5 requires it. Until then, this
 > is a map to the research that specifies it.
 >
-> **Built so far:** the L2 results core, the **L4 résumé rating (the headline
-> poll)**, and the R(N, K) retroactive surface. **Not built:** L1 efficiency and
-> the L3 blend, so opponent quality inside the résumé is L2 rescaled to points and
-> every artifact says so (`power_source = "L2"`, `power_version = "v0"`). Real
-> output, with the reasoning written out, is under [`demo/`](../demo/).
+> **Built so far:** all four layers — L1 efficiency, L2 results, the L3 blend and
+> the **L4 résumé rating (the headline poll)** — plus our own expected-points
+> model (`model/ep.py`) and the R(N, K) retroactive surface. Opponent quality
+> inside the résumé is L3 (`power_source = "L3"`, `power_version = "v1"`), with L2
+> kept available and stamped on the artifact whenever it is what actually ran.
+> **Not built:** the block bootstrap and its rank intervals. Real output, with the
+> reasoning written out, is under [`demo/`](../demo/).
 
 ## Where the real specification lives
 
@@ -31,7 +33,7 @@ Four layers, all batch refits, all regularized (report 02 §1):
 
 | Layer | What it is | Output |
 |---|---|---|
-| **L1 — Efficiency core** | Ridge on garbage-time-filtered play-level EPA, one offense and one defense coefficient per team, plus home field | Opponent-adjusted offensive and defensive ratings in EPA/play |
+| **L1 — Efficiency core** | Ridge on garbage-time-filtered play value from **our own** expected-points model (`model/ep.py`, never the archive's banned `EPA` column), one offense and one defense coefficient per team, plus home field | Opponent-adjusted offensive and defensive ratings in EPA/play |
 | **L2 — Results core** | Ridge on game-level compressed scoring margin (`tanh` cap plus explicit win premium) | Opponent-adjusted team rating in points |
 | **L3 — Power rating** | Walk-forward stacked blend of L1 (rescaled to points) and L2 | Predictive: expected margin vs an average team on a neutral field |
 | **L4 — Résumé rating** | Root-solve for the quality `q` whose *expected* results against this exact schedule equal the *actual* results, using L3 for opponent quality | Retrodictive: "these results are what a +18.4 team would produce against this schedule" |

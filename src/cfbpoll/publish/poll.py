@@ -1,19 +1,28 @@
 """Turn a fit into the two published tables: full ratings, and the poll.
 
-THE POLL IS THE RESUME (report 02 §3.5, and [publication] in the config). The
-rank order is the L4 résumé rating - "given who they played and where, these
-results are what a +18.4 team would be expected to produce" - and the L3 Power
-rating sits beside every team with the gap between them shown. Never hide the
-power number: the two most common fan complaints ("you're just ranking who'd
-win" and "you're ignoring that they got blown out") both need an on-page answer,
-and the gap IS the answer.
+THE POLL IS ORDERED BY SCHEDULE ODDS (`[publication].headline_ordering`, decided
+2026-08-12, docs/adr/0005-headline-ordering.md). The rank key is
+`-log10 P(W >= W_t)`: how improbable it is that a team of reference quality q_ref
+would have gone at least this well against this exact schedule. In one sentence a
+fan can parse - THE HARDER IT WAS TO DO WHAT YOU DID, THE HIGHER YOU GO, measured
+from results and never assumed from a conference name.
 
-Every published row carries BOTH variants (wins-based and margin-aware) and BOTH
-surfaces (live R(N,N), hindsight R(N,final)), because report 02 §3.4 and §3.6
-say to publish both and because a poll that shows only the flattering surface is
-the failure this project exists to avoid.
+NOTHING WAS REMOVED WHEN THAT CHANGED. Every published row still carries the L4
+résumé on the points scale ("these results are what a +18.4 team would be expected
+to produce"), its margin-aware variant, its saturation flag, and the L3 Power
+rating with the résumé-minus-power gap. Report 02 §3.5's argument is unaltered:
+the two most common fan complaints ("you're just ranking who'd win" and "you're
+ignoring that they got blown out") both need an on-page answer, and the Power
+column and the gap ARE the answer. What changed on 2026-08-12 is which column
+sorts the table.
 
-Three further presentation decisions live here and all are stated on the
+Every published row also carries BOTH surfaces (live R(N,N), hindsight
+R(N,final)), because report 02 §3.6 says to publish both and because a poll that
+shows only the flattering surface is the failure this project exists to avoid. The
+hindsight columns now move for unbeaten teams too, which they could not do under
+the résumé ordering (study §5b) - that is the substantive gain from the change.
+
+Four further presentation decisions live here and all are stated on the
 methodology page rather than hidden in code:
 
 1. THE POLL RANKS FBS TEAMS. FCS and lower-division teams hold real coefficients
@@ -28,12 +37,18 @@ methodology page rather than hidden in code:
 2. BEFORE `headline_start_week` THE OUTPUT IS LABELLED PROVISIONAL, not
    suppressed (report 02 §4, recommendation item 2, and configs/default.toml
    [publication]). The estimator runs from week 1; the headline poll does not.
+   This is unchanged by the ordering decision and was not revisited.
 
-3. SATURATED TEAMS ARE MARKED IN THE TABLE. An undefeated team's wins-based
-   résumé has no finite root (model/l4_resume.py explains why), so every
-   unbeaten team sits on the published bracket and the order among them comes
-   from the margin-aware variant. That rule is `[resume].saturation_tiebreak`
-   and it belongs on the page, not in a footnote.
+3. SATURATED TEAMS ARE STILL MARKED IN THE TABLE. An undefeated team's wins-based
+   résumé has no finite root (model/l4_resume.py explains why), so every unbeaten
+   team sits on the published bracket. It no longer decides anything - the poll is
+   not ordered on that column - and the flag stays precisely so a reader can see
+   the property that made the résumé unusable as the headline.
+
+4. q_ref IS ON THE ROW, WITH THE TEAM IT CAME FROM. The one free constant in the
+   headline ordering is published per row rather than in a footnote, so any reader
+   can look up that team in the same week's poll and check the constant against
+   it (constraint 5).
 """
 
 from __future__ import annotations
@@ -44,8 +59,12 @@ import polars as pl
 
 __all__ = [
     "HEADLINE_COLUMNS",
+    "HEADLINE_ORDERINGS",
+    "ORDERING_LAYER",
     "fbs_teams",
     "headline_frame",
+    "headline_ordering",
+    "order_by",
     "poll_frame",
     "publication_status",
     "ratings_frame",
@@ -53,20 +72,50 @@ __all__ = [
     "team_records",
 ]
 
-#: The published poll table, in order. `resume` is the rank key; `power` and
-#: `gap` are never omitted (report 02 §3.5); the `*_hindsight` block is the same
-#: week re-scored with the season's answers (report 02 §3.6).
+#: Every ordering the pipeline can be pointed at, mapped to the human-readable
+#: layer name that appears on poll.json and model_params.json. `schedule_odds` is
+#: the decision of 2026-08-12; `L4_resume` is what it replaced and remains
+#: reachable, because a choice that cannot be switched back is not a choice.
+ORDERING_LAYER: dict[str, str] = {
+    "schedule_odds": "C_schedule_odds",
+    "L4_resume": "L4_resume",
+}
+HEADLINE_ORDERINGS: tuple[str, ...] = tuple(ORDERING_LAYER)
+
+#: (columns, descending) for each ordering, as a sort applied to a résumé/odds
+#: table. Ascending tail then ascending mid-p then team is exactly
+#: `schedule_odds.OddsFit.order_key`; mid-p only ever separates winless teams.
+#: The odds sort deliberately keys on `tail_p` rather than on `odds_key`, because
+#: `odds_key` is clamped at MAX_KEY and two different tails could share it.
+ORDER_KEYS: dict[str, tuple[tuple[str, ...], tuple[bool, ...]]] = {
+    "schedule_odds": (("tail_p", "mid_p", "team"), (False, False, False)),
+    "L4_resume": (("resume", "resume_margin", "team"), (True, True, False)),
+}
+
+#: The published poll table, in order. The rank key is `odds_key` (and `tail_p`,
+#: which is what it is a transform of); `resume`, `power` and `gap` are never
+#: omitted (report 02 §3.5); the `*_hindsight` block is the same week re-scored
+#: with the season's answers (report 02 §3.6).
 HEADLINE_COLUMNS: tuple[str, ...] = (
     "rank",
     "team",
     "wins",
     "losses",
+    "odds_key",
+    "tail_p",
+    "mid_p",
+    "expected_wins",
+    "surprise",
+    "q_ref",
+    "q_ref_team",
     "resume",
     "resume_margin",
     "power",
     "gap",
     "saturated",
     "rank_hindsight",
+    "odds_key_hindsight",
+    "tail_p_hindsight",
     "resume_hindsight",
     "resume_margin_hindsight",
     "power_hindsight",
@@ -74,6 +123,42 @@ HEADLINE_COLUMNS: tuple[str, ...] = (
     "rank_delta",
     "team_class",
 )
+
+
+def headline_ordering(config: dict[str, Any]) -> str:
+    """The ordering the poll is published in, validated against its display name.
+
+    `[publication]` carries two strings that must agree: `headline_ordering`, which
+    every code path reads, and `headline_layer`, which is the human-readable name
+    stamped on artifacts and has been published since the L2 build. Two names for
+    one fact is a drift hazard, so this turns it into an assertion: they are
+    checked on every run rather than trusted.
+    """
+    pub = config["publication"]
+    ordering = str(pub.get("headline_ordering", "schedule_odds"))
+    if ordering not in ORDERING_LAYER:
+        raise ValueError(
+            f"unknown [publication].headline_ordering {ordering!r}; "
+            f"expected one of {HEADLINE_ORDERINGS}"
+        )
+    declared = str(pub.get("headline_layer", ORDERING_LAYER[ordering]))
+    if declared != ORDERING_LAYER[ordering]:
+        raise ValueError(
+            f"[publication].headline_layer is {declared!r} but headline_ordering is "
+            f"{ordering!r}, whose layer is {ORDERING_LAYER[ordering]!r}. One of the two "
+            "is wrong and an artifact would carry the wrong name (constraint 5)."
+        )
+    return ordering
+
+
+def order_by(frame: pl.DataFrame, ordering: str, prefix: tuple[str, ...] = ()) -> pl.DataFrame:
+    """Sort a published table into the headline order. The ONE place that rule lives.
+
+    `prefix` is the leading key the caller needs (the grid sorts within each
+    (N, K) cell), always ascending.
+    """
+    columns, descending = ORDER_KEYS[ordering]
+    return frame.sort([*prefix, *columns], descending=[*([False] * len(prefix)), *descending])
 
 
 def fbs_teams(games: pl.DataFrame) -> set[str]:
@@ -145,23 +230,53 @@ def poll_frame(ratings_tbl: pl.DataFrame, restrict_to: set[str] | None = None) -
     )
 
 
+#: Columns taken from BOTH surfaces, so the hindsight view of each is on the row.
+#: Everything else (record, saturation flag, q_ref provenance, classification) is
+#: a property of the evaluation week and is taken from the live table only.
+_BOTH_SURFACES: tuple[str, ...] = (
+    "rank",
+    "odds_key",
+    "tail_p",
+    "resume",
+    "resume_margin",
+    "power",
+    "gap",
+)
+
+
 def headline_frame(live: pl.DataFrame, hindsight: pl.DataFrame) -> pl.DataFrame:
-    """The published poll: résumé ranks, Power beside them, both surfaces, one row.
+    """The published poll: schedule-odds ranks, résumé and Power beside them, both
+    surfaces, one row per team.
 
-    Both arguments are single-evaluation-week résumé tables from `model/retro.py`
-    (the same schema the grid writes). Only ranked teams appear, which is the FBS
-    restriction of decision 1 above; `ratings_live.parquet` keeps everyone.
+    Both arguments are single-evaluation-week tables from `model/retro.py` (the
+    same schema the grid writes), already sorted into the headline order and
+    already ranked. Only ranked teams appear, which is the FBS restriction of
+    decision 1 above; `ratings_live.parquet` keeps everyone.
 
-    Rank order is the LIVE résumé - R(N, N) is the poll as of week N. The
-    hindsight columns are the retroactive view of the same week, and
-    `rank_delta` is positive when a team rises in hindsight, i.e. when the live
-    poll under-rated it.
+    Rank order is the LIVE ordering - R(N, N) is the poll as of week N. The
+    hindsight columns are the retroactive view of the same week, and `rank_delta`
+    is positive when a team rises in hindsight, i.e. when the live poll under-rated
+    it. Since 2026-08-12 that delta is non-zero for unbeaten teams as well, which
+    it structurally could not be under the résumé ordering.
     """
-    keep = ["team", "rank", "resume", "resume_margin", "power", "gap"]
+    keep = ["team", *_BOTH_SURFACES]
     a = live.filter(pl.col("rank").is_not_null())
     b = hindsight.filter(pl.col("rank").is_not_null()).select(keep)
     joined = (
-        a.select([*keep, "wins", "losses", "saturated", "team_class"])
+        a.select(
+            [
+                *keep,
+                "wins",
+                "losses",
+                "mid_p",
+                "expected_wins",
+                "surprise",
+                "q_ref",
+                "q_ref_team",
+                "saturated",
+                "team_class",
+            ]
+        )
         .join(b, on="team", how="left", suffix="_hindsight")
         .with_columns(rank_delta=pl.col("rank") - pl.col("rank_hindsight"))
     )

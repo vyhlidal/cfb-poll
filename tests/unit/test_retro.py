@@ -195,3 +195,92 @@ def test_2021_has_no_postseason_rows(games: pl.DataFrame) -> None:
     """docs/data-findings.md, and the caveat every 2021/2022 demo must carry:
     "final" in these seasons means through conference championships."""
     assert set(games["season_type"].unique().to_list()) == {"regular"}
+
+
+# ---------------------------------------------- the headline ordering, ADR 0005
+
+
+def test_cells_are_ranked_by_the_headline_ordering(triangle: pl.DataFrame) -> None:
+    """`rank` is monotone in the published key inside every (N, K) cell, and the
+    file reads top-down exactly as the poll does (publish/poll.ORDER_KEYS)."""
+    for (n, k), cell_rows in triangle.group_by(["eval_order", "data_order"]):
+        ranked_rows = cell_rows.filter(pl.col("rank").is_not_null()).sort("rank")
+        assert ranked_rows["tail_p"].is_sorted(), (n, k)
+        assert ranked_rows["rank"].to_list() == list(range(1, ranked_rows.height + 1))
+
+
+def test_both_orderings_numbers_are_on_every_row(triangle: pl.DataFrame) -> None:
+    """Ordering on one of them is a config decision; computing only one of them
+    would make the study's comparison unreproducible from published artifacts."""
+    for column in ("odds_key", "tail_p", "resume", "resume_margin", "power", "gap", "q_ref"):
+        assert triangle[column].null_count() == 0, column
+    assert triangle["saturated"].null_count() == 0
+
+
+def test_the_retroactive_surface_moves_unbeaten_teams(
+    triangle: pl.DataFrame, buckets: list[windows.Bucket]
+) -> None:
+    """THE POINT OF ADR 0005, asserted on real data rather than argued.
+
+    Under the wins-based résumé an unbeaten team's rating was the published q
+    bound, which is not a function of the schedule and therefore not a function of
+    the data window K - so `movers` reported a rank delta of zero for every
+    unbeaten team, always, and the retroactive re-ranking of constraint 4 simply
+    did not apply to them. A tail probability has no such degeneracy.
+
+    This asserts the mechanism, not a particular season's numbers: some unbeaten
+    team, in some evaluation week of this fixture, has a non-zero live-to-hindsight
+    rank delta, AND its résumé is identical on both surfaces - which is precisely
+    the pair of facts that made the résumé ordering retro-inert."""
+    live, hindsight = retro.surfaces(triangle)
+    table = retro.movers(live, hindsight)
+    unbeaten = table.join(
+        live.filter(pl.col("losses") == 0).select("eval_order", "team"),
+        on=["eval_order", "team"],
+        how="semi",
+    )
+    assert unbeaten.height > 0
+    assert unbeaten.filter(pl.col("rank_delta") != 0).height > 0
+    # ...and the résumé could not have produced that movement: it is the same
+    # number on both surfaces for every one of these teams.
+    assert (unbeaten["resume_live"] - unbeaten["resume_hindsight"]).abs().max() == 0.0
+
+
+def test_movers_carries_the_headline_quantity(triangle: pl.DataFrame) -> None:
+    """`odds_delta` is the change in the number the poll is ordered on; the résumé
+    delta is kept beside it because a row where the two disagree is exactly what
+    this view exists to surface."""
+    live, hindsight = retro.surfaces(triangle)
+    table = retro.movers(live, hindsight)
+    for column in ("odds_key_live", "odds_key_hindsight", "odds_delta", "resume_delta"):
+        assert column in table.columns
+    delta = table["odds_key_hindsight"] - table["odds_key_live"]
+    assert table["odds_delta"].to_list() == delta.to_list()
+
+
+def test_switching_the_ordering_back_changes_only_the_order(
+    games: pl.DataFrame, buckets: list[windows.Bucket], triangle: pl.DataFrame
+) -> None:
+    """`headline_ordering = "L4_resume"` is still reachable and still correct.
+
+    Both orderings read the same fits, so flipping the knob must permute the rows
+    without changing a single published number. If that ever stopped being true,
+    the ordering would be doing something other than ordering."""
+    import copy
+
+    cfg = copy.deepcopy(CONFIG)
+    cfg["publication"]["headline_ordering"] = "L4_resume"
+    cfg["publication"]["headline_layer"] = "L4_resume"
+    other = retro.grid(games, SEASON, cfg, buckets)
+
+    key = ["eval_order", "data_order", "team"]
+    assert_frame_equal(
+        triangle.drop("rank").sort(key),
+        other.drop("rank").sort(key),
+        check_exact=True,
+    )
+    ranked_rows = other.filter(pl.col("rank").is_not_null()).sort(
+        ["eval_order", "data_order", "rank"]
+    )
+    for _, cell_rows in ranked_rows.group_by(["eval_order", "data_order"]):
+        assert cell_rows.sort("rank")["resume"].is_sorted(descending=True)

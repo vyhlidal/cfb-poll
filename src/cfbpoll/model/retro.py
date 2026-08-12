@@ -7,14 +7,29 @@ Specified by report 02 §3.6. The whole of constraint 4 is this one definition:
     live week N       = R(N, N)
     hindsight week N  = R(N, final)          [variant A, frozen form]
 
-and the substitution that produces it is a single argument to `l4_resume.fit`:
-Power comes from the K window, the resume is solved over each team's games in
-the N window. Nothing else changes between the two surfaces - not sigma, not the
-bracket, not the compression constants, not a line of code. That is what report
-02 §3.6 means by "one substitution", and it is only available because every
-layer is a batch refit over a SET of games rather than a sequence. An Elo, SP+'s
-Bayesian updating and FPI's iterative updating are all path-dependent; none of
-them can produce R(5, final) without breaking their own recursion.
+and the substitution that produces it is a single argument to `l4_resume.fit` and
+to `schedule_odds.fit`: Power comes from the K window, the record is scored over
+each team's games in the N window. Nothing else changes between the two surfaces -
+not sigma, not the bracket, not q_ref's method, not the compression constants, not
+a line of code. That is what report 02 §3.6 means by "one substitution", and it is
+only available because every layer is a batch refit over a SET of games rather
+than a sequence. An Elo, SP+'s Bayesian updating and FPI's iterative updating are
+all path-dependent; none of them can produce R(5, final) without breaking their
+own recursion.
+
+WHAT THE HEADLINE ORDERING CHANGED HERE, on 2026-08-12 (ADR 0005). Every cell now
+computes the schedule-odds fit beside the résumé fit, off the identical Power
+source and the identical windows, and the cell is ordered and ranked on schedule
+odds by default (`[publication].headline_ordering`). The résumé, its margin
+variant, its saturation flag and Power all remain columns on every row.
+
+That is not cosmetic for THIS module in particular, because it is what makes the
+retroactive product real for the whole league. Under the résumé ordering an
+unbeaten team's rating was the published bracket +60, which is not a function of
+the schedule and therefore not a function of K, so substituting end-of-season
+Power could not move it: `movers` reported 0.00 for every unbeaten team in 2023
+from week 11 onward. A tail probability has no such degeneracy, so the movement
+this module exists to publish now exists for every team (study §5b, §5c).
 
 VARIANT A, AND WHY NOT B. Frozen-form hindsight answers "given what we now know
 about how good those opponents actually were, how good were the first N weeks of
@@ -58,11 +73,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import polars as pl
 
 from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
-from cfbpoll.model import l4_resume
+from cfbpoll.model import l4_resume, schedule_odds
 from cfbpoll.publish import poll as poll_mod
 
 __all__ = [
@@ -99,12 +115,23 @@ GRID_COLUMNS: tuple[str, ...] = (
     "team_class",
     "wins",
     "losses",
+    "odds_key",
+    "tail_p",
+    "mid_p",
+    "expected_wins",
+    "surprise",
+    "q_ref",
+    "q_ref_team",
     "resume",
     "resume_margin",
     "power",
     "gap",
     "saturated",
 )
+
+#: The per-team columns a cell carries, before the (N, K) coordinates are attached.
+#: `_cell_frame` builds exactly these and `_label` prepends the rest.
+_TEAM_COLUMNS: tuple[str, ...] = tuple(GRID_COLUMNS[11:])
 
 
 def _through(games: pl.DataFrame, bucket: windows.Bucket) -> pl.DataFrame:
@@ -136,6 +163,53 @@ def _label(
     ).select(GRID_COLUMNS)
 
 
+def _cell_frame(
+    fitted: l4_resume.L4Fit,
+    odds: schedule_odds.OddsFit,
+    classes: dict[str, str],
+    ordering: str,
+) -> pl.DataFrame:
+    """One team per row: the headline key, the résumé, Power, and the provenance.
+
+    Both fits are read off the SAME Power source over the SAME windows, so a
+    difference between the two ranked orders is a difference between ordering
+    rules and can never be a difference in data. That is the property the study
+    was built on and it survives into the published artifact.
+
+    Ranks go to FBS teams only - the poll is a college football poll - while every
+    team in the fit keeps its row and its classification, so the same file supports
+    an all-divisions ranking for anyone who wants one (report 02 §7.9).
+    """
+    teams = sorted(fitted.resume)
+    frame = pl.DataFrame(
+        {
+            "team": teams,
+            "team_class": [classes.get(t, "unknown") for t in teams],
+            "wins": pl.Series([fitted.wins[t] for t in teams], dtype=pl.Int32),
+            "losses": pl.Series([fitted.losses[t] for t in teams], dtype=pl.Int32),
+            "odds_key": [odds.key.get(t, 0.0) for t in teams],
+            "tail_p": [odds.tail.get(t, 1.0) for t in teams],
+            "mid_p": [odds.mid_p.get(t, 1.0) for t in teams],
+            "expected_wins": [odds.expected_wins.get(t, 0.0) for t in teams],
+            "surprise": [odds.surprise(t) for t in teams],
+            "q_ref": [odds.q_ref.value] * len(teams),
+            "q_ref_team": [odds.q_ref.team] * len(teams),
+            "resume": [fitted.resume[t] for t in teams],
+            "resume_margin": [fitted.resume_margin[t] for t in teams],
+            "power": [fitted.power.rating(t) for t in teams],
+            "gap": [fitted.gap(t) for t in teams],
+            "saturated": pl.Series([fitted.saturated[t] for t in teams], dtype=pl.Int8),
+        }
+    )
+    frame = poll_mod.order_by(frame, ordering)
+    is_fbs = frame["team_class"] == "fbs"
+    ranks = np.full(frame.height, 0, dtype=np.int32)
+    ranks[is_fbs.to_numpy()] = np.arange(1, int(is_fbs.sum()) + 1, dtype=np.int32)
+    return frame.with_columns(
+        rank=pl.when(is_fbs).then(pl.Series(ranks)).otherwise(None).cast(pl.Int32)
+    ).select(_TEAM_COLUMNS)
+
+
 def cell(
     games: pl.DataFrame,
     evaluated: windows.Bucket,
@@ -148,10 +222,16 @@ def cell(
 ) -> pl.DataFrame:
     """One R(N, K). `games` is the whole season; this function does the slicing.
 
-    `power` short-circuits the L2 fit for the K window, which is how `grid`
+    `power` short-circuits the Power fit for the K window, which is how `grid`
     pays for one fit per column instead of one per cell. `classes` and
     `final_order` likewise avoid recomputing something stable; all three are
     pure caches and none of them can change a number.
+
+    Both orderings' numbers are computed here, always. Ranking on one of them is a
+    config decision (`[publication].headline_ordering`); computing only one of them
+    would make the comparison in docs/analysis/headline-ordering-study.md
+    unreproducible from published artifacts, which is not a trade worth the
+    microseconds.
     """
     cfg = config if config is not None else load_config()
     if data.order < evaluated.order:
@@ -167,8 +247,15 @@ def cell(
 
         window_plays = None if plays is None else plays_for(plays, power_window)
         power = l4_resume.power_source(power_window, cfg, plays=window_plays)
+    team_class = classes or poll_mod.team_classes(season_games)
     fitted = l4_resume.fit(power_window, cfg, power=power, resume_games=resume_window)
-    table = l4_resume.resume_frame(fitted, classes or poll_mod.team_classes(season_games))
+    # q_ref is read off the POWER window, which is the K of R(N, K) - so the
+    # reference team is the one that was 25th when the data window closed, exactly
+    # as the résumé's opponent quality is.
+    odds = schedule_odds.fit(
+        power_window, cfg, power=power, resume_games=resume_window, classes=team_class
+    )
+    table = _cell_frame(fitted, odds, team_class, poll_mod.headline_ordering(cfg))
     if final_order is None:
         final_order = _season_buckets(games, evaluated.season)[-1].order
     return _label(table, evaluated, data, final_order)
@@ -235,7 +322,7 @@ def live_surface(
         )
         for b in all_buckets
     ]
-    return _finalize(pl.concat(frames, how="vertical"))
+    return _finalize(pl.concat(frames, how="vertical"), poll_mod.headline_ordering(cfg))
 
 
 def hindsight_surface(
@@ -267,7 +354,7 @@ def hindsight_surface(
         cell(season_games, b, final, cfg, power=power, classes=classes, final_order=final.order)
         for b in all_buckets
     ]
-    return _finalize(pl.concat(frames, how="vertical"))
+    return _finalize(pl.concat(frames, how="vertical"), poll_mod.headline_ordering(cfg))
 
 
 def grid(
@@ -310,14 +397,19 @@ def grid(
                     final_order=all_buckets[-1].order,
                 )
             )
-    return _finalize(pl.concat(frames, how="vertical"))
+    return _finalize(pl.concat(frames, how="vertical"), poll_mod.headline_ordering(cfg))
 
 
-def _finalize(frame: pl.DataFrame) -> pl.DataFrame:
-    """Impose the one sort order every writer uses. No other module re-sorts."""
-    return frame.select(GRID_COLUMNS).sort(
-        ["eval_order", "data_order", "resume", "resume_margin", "team"],
-        descending=[False, False, True, True, False],
+def _finalize(frame: pl.DataFrame, ordering: str) -> pl.DataFrame:
+    """Impose the one sort order every writer uses. No other module re-sorts.
+
+    Within each (N, K) cell the rows come out in the published headline order, so
+    the file reads top-down as the poll does and `rank` is monotone in it. The rule
+    itself lives in `publish/poll.ORDER_KEYS` because it is a publication decision,
+    not a modelling one.
+    """
+    return poll_mod.order_by(
+        frame.select(GRID_COLUMNS), ordering, prefix=("eval_order", "data_order")
     )
 
 
@@ -343,8 +435,29 @@ def movers(
     Only ranked (FBS) teams appear: a rank delta is meaningless for a team that
     was never in the poll. `eval_order` restricts to one evaluation week;
     `top_n` keeps the largest absolute moves.
+
+    THE RANKS ARE THE HEADLINE RANKS, so since 2026-08-12 this table finally does
+    what report 02 §3.6 advertised for the whole league. Under the wins-based
+    résumé an unbeaten team's rating was the published q bound, which does not
+    depend on the schedule and therefore does not depend on the data window, so
+    every unbeaten team's `rank_delta` was structurally pinned near zero and was
+    exactly zero from week 11 of 2023 onward. A tail probability moves, so they
+    move (study §5b). `odds_delta` is the headline quantity's own change and
+    `resume_delta` is kept beside it, because a row where the two disagree is
+    exactly the kind of thing this view exists to surface.
     """
-    keep = ["eval_order", "eval_label", "team", "rank", "resume", "resume_margin", "power", "gap"]
+    keep = [
+        "eval_order",
+        "eval_label",
+        "team",
+        "rank",
+        "odds_key",
+        "tail_p",
+        "resume",
+        "resume_margin",
+        "power",
+        "gap",
+    ]
     a = live.filter(pl.col("rank").is_not_null()).select(keep)
     b = hindsight.filter(pl.col("rank").is_not_null()).select(keep)
     if eval_order is not None:
@@ -355,6 +468,8 @@ def movers(
     joined = joined.rename(
         {
             "rank": "rank_live",
+            "odds_key": "odds_key_live",
+            "tail_p": "tail_p_live",
             "resume": "resume_live",
             "resume_margin": "resume_margin_live",
             "power": "power_live",
@@ -364,10 +479,11 @@ def movers(
         # A team that RISES in hindsight has a smaller rank number, so the signed
         # delta is live minus hindsight: positive means "we under-rated them".
         rank_delta=pl.col("rank_live") - pl.col("rank_hindsight"),
+        odds_delta=pl.col("odds_key_hindsight") - pl.col("odds_key_live"),
         resume_delta=pl.col("resume_hindsight") - pl.col("resume_live"),
     )
     joined = joined.with_columns(abs_rank_delta=pl.col("rank_delta").abs()).sort(
-        ["eval_order", "abs_rank_delta", "resume_delta", "team"],
+        ["eval_order", "abs_rank_delta", "odds_delta", "team"],
         descending=[False, True, True, False],
     )
     return joined.head(top_n) if top_n is not None else joined

@@ -1,8 +1,22 @@
-"""Schedule odds - candidate headline ordering C. How improbable is this record?
+"""Schedule odds - THE HEADLINE ORDERING. How improbable is this record?
 
-This is the third of the three candidate orderings compared in
-docs/analysis/headline-ordering-study.md. It is ESPN's Strength-of-Record
-(report 02 §2.4) taken at its literal word:
+Adopted as the headline on 2026-08-12 by the project owner, on the evidence of
+docs/analysis/headline-ordering-study.md, where this module was candidate C.
+The decision and the rejected alternatives are docs/adr/0005-headline-ordering.md;
+the knob is `[publication].headline_ordering`. The promise the poll now makes:
+
+    THE HARDER IT WAS TO DO WHAT YOU DID, THE HIGHER YOU GO - measured, never
+    assumed.
+
+That last clause is the whole point and it is what this module buys. An unbeaten
+Group of Five team probably would not survive a Big Ten schedule; a poll may only
+say so if it DERIVED it from on-field results. Assuming it is how you get AP-style
+conference bias. Nothing in this file knows what a conference is: opponent quality
+arrives as a Power rating fitted from results, and the answer for 2023 Liberty
+(#10 live, #8 in hindsight, behind a 12-1 Georgia at #7) is an output rather than
+an input.
+
+It is ESPN's Strength-of-Record (report 02 §2.4) taken at its literal word:
 
     SOR = "the chance of an average Top-25 team having the team's record or
            better, given the opponents the team has played"
@@ -29,10 +43,10 @@ schedule a reference team beats 90% of the time at every stop is a 0.25
 probability event; going 12-1 through a schedule it beats 60% of the time is a
 0.013 event. The second one is harder, and this ordering says so.
 
-That is the whole methodological content of candidate C, and it is the reason C
-exists in the study at all: A cannot answer the owner's question by construction,
-and B can only answer it by importing margin. C answers it using nothing but who
-you played, where, and whether you won.
+That is the whole methodological content of this ordering, and it is the reason it
+became the headline: the wins-based résumé cannot answer the owner's question by
+construction, and the margin-aware variant can only answer it by importing margin.
+This answers it using nothing but who you played, where, and whether you won.
 
 MARGIN NEVER ENTERS. Not as a tie-break, not as a secondary key, nowhere. The
 schedule flattener below carries opponent Power, site, and a boolean win - there
@@ -68,7 +82,10 @@ Top-25 team" is the Power rating of the 25th-ranked Power team that week:
 
 `mean_top_25`, `power_rank_10`, `mean_fbs` and `fixed` are all implemented so the
 sensitivity of the ordering to this choice can be measured instead of asserted;
-docs/analysis/headline-ordering-study.md §9 reports it.
+docs/analysis/headline-ordering-study.md §9 reports it and the answer is that the
+constant is safe: across a 16-point swing in reference quality, Kendall's tau
+against the default never dropped below 0.985, the mean rank change never reached
+one place, and at most one team entered or left the top 25 in any season.
 
 INVARIANCE, which is the property that makes the choice defensible. Shift every
 Power rating by a constant c and every rank-derived q_ref shifts by c too, so
@@ -84,7 +101,11 @@ itself read off Power). Pass through-week-N Power and you get the live ordering
 R(N, N); pass end-of-season Power and you get the hindsight ordering R(N, final).
 Unlike the wins-based résumé, an unbeaten team's number MOVES between the two
 surfaces, because a tail probability is not saturated - which is the structural
-point the study set out to test.
+point the study set out to test, and the reason constraint 4 is now satisfied for
+every team rather than for every team that has lost a game. Measured over
+2021-2024, restricted to unbeaten teams: this ordering moves them 1.34 places on
+average between the two surfaces where the wins-based résumé moves them 0.395,
+and from week 11 of 2023 onward the résumé moved them exactly zero.
 
 PURITY AND DETERMINISM. Every function is pure: no I/O, no state, no RNG. Teams
 are sorted by name, games by game_id, mappings are built in sorted order, and the
@@ -113,9 +134,11 @@ __all__ = [
     "mid_p_at_least",
     "odds_frame",
     "poisson_binomial_pmf",
+    "rate",
     "reference_quality",
     "schedule_odds",
     "tail_at_least",
+    "team_classes",
     "win_probabilities",
 ]
 
@@ -146,6 +169,33 @@ MAX_KEY = 300.0
 
 
 # --------------------------------------------------------------- reference quality
+
+
+def team_classes(games: pl.DataFrame) -> dict[str, str]:
+    """team -> division, read off the game frame, preferring the highest seen.
+
+    THIS EXISTS SO THE q_ref POOL CANNOT SILENTLY GO WRONG. `reference_quality`
+    treats an unclassified team as FBS, which is the right default for a
+    hand-built test frame and precisely the wrong one for a real window: a season
+    frame carries ~250 FCS and lower-division teams, and letting them into the
+    pool would move "the 25th-best team" by whatever the fit happened to say about
+    them. `fit` therefore derives the classification from the Power window itself
+    whenever the caller does not supply one, rather than defaulting the whole
+    league to FBS. Duplicated from publish/poll.py on purpose: a model module may
+    not import a publish module, and this is four lines.
+    """
+    order = {"fbs": 0, "fcs": 1, "ii": 2, "iii": 3, "unknown": 4}
+    out: dict[str, str] = {}
+    if "home_class" not in games.columns or "away_class" not in games.columns:
+        return out
+    pairs = sorted(
+        list(zip(games["home_team"].to_list(), games["home_class"].to_list(), strict=True))
+        + list(zip(games["away_team"].to_list(), games["away_class"].to_list(), strict=True))
+    )
+    for team, klass in pairs:
+        if team not in out or order.get(klass, 4) < order.get(out[team], 4):
+            out[team] = klass
+    return out
 
 
 @dataclass(frozen=True)
@@ -422,17 +472,26 @@ def fit(
     resume_games: pl.DataFrame | None = None,
     classes: dict[str, str] | None = None,
     q_ref_method: str | None = None,
+    plays: pl.DataFrame | None = None,
+    state: Any = None,
 ) -> OddsFit:
     """Schedule odds for every team. Pure function of its arguments.
 
-    The argument surface deliberately mirrors `l4_resume.fit`, so the study can
+    The argument surface deliberately mirrors `l4_resume.fit`, so the study could
     hand all three candidate orderings the identical Power source and the
-    identical windows and know that nothing but the ordering rule differs.
+    identical windows and know that nothing but the ordering rule differs - and so
+    that the harness, the grid and the CLI can call either one interchangeably now
+    that this one is the headline.
 
     `games` is the POWER window (the K of R(N, K)) and also the window q_ref is
     read off; `resume_games` is the RECORD window (the N), defaulting to `games`
     for the live surface. That split is the entire retroactive mechanism, exactly
     as it is for the résumé.
+
+    `classes` defaults to the classification carried by `games` itself, so the
+    q_ref pool is FBS-only without the caller having to remember (see
+    `team_classes`). `plays` and `state` are forwarded to the Power source and are
+    what make `[resume].power_source = "L3"` reachable from here.
     """
     cfg = config if config is not None else load_config()
     odds_cfg = cfg.get("schedule_odds", {})
@@ -444,8 +503,10 @@ def fit(
     if power is None:
         from cfbpoll.model import l4_resume
 
-        power = l4_resume.power_source(games, cfg)
+        power = l4_resume.power_source(games, cfg, plays=plays, state=state)
 
+    if classes is None:
+        classes = team_classes(games)
     q_ref = reference_quality(power, classes, method=method, fixed_value=fixed_value)
     window = games if resume_games is None else resume_games.sort("game_id")
 
@@ -546,3 +607,29 @@ def odds_frame(fitted: OddsFit, classes: dict[str, str] | None = None) -> pl.Dat
         "surprise",
         "power",
     )
+
+
+def rate(
+    games: pl.DataFrame,
+    plays: pl.DataFrame | None = None,
+    through_week: int | None = None,
+    state: Any = None,
+) -> dict[str, float]:
+    """Challenger-protocol entry point (report 03 §7.3): the headline poll's number.
+
+    `games` and `plays` arrive ALREADY truncated by the harness - no system selects
+    its own rows - and `through_week` is informational.
+
+    Returns `-log10 P(W >= W_t)`, higher is better, which is the published rank
+    key. ONE THING THIS SCALAR CANNOT CARRY, stated so nobody discovers it as a
+    surprise: the published order breaks exact ties on mid-p, and the only exact
+    ties are among WINLESS teams, whose plain tail is 1.0 by definition and whose
+    key is therefore 0.0 for all of them. A harness that sorts on a single float
+    breaks those ties by team name instead. It cannot affect retrodictive
+    violations - a winless team is never the winner of anything, so no tie at zero
+    can appear in a winner/loser pair - and it moves rank churn only among teams
+    that have not won a game. The full ordering, mid-p included, is what
+    `OddsFit.order_key` and every published artifact use.
+    """
+    del through_week
+    return fit(games, plays=plays, state=state).key

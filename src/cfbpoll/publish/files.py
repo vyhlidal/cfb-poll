@@ -150,7 +150,11 @@ def write_rank_outputs(
                     "through",
                     "layer",
                     "version",
+                    "resume_layer",
+                    "resume_version",
+                    "headline_ordering",
                     "headline_layer",
+                    "headline_decided",
                     "companion_layer",
                     "power_source",
                     "power_version",
@@ -158,6 +162,12 @@ def write_rank_outputs(
                     "hindsight_data_bucket",
                     "hindsight_is_live",
                     "saturation_tiebreak",
+                    # The headline ordering's one free constant, with the team it
+                    # was read off, on the poll itself rather than in a footnote.
+                    "q_ref",
+                    "q_ref_method",
+                    "q_ref_team",
+                    "ranking_key",
                 )
             },
             "provisional": params.get("provisional"),
@@ -231,10 +241,10 @@ def canonicalize(src: Path, dest: Path) -> Path:
     carries a wall-clock timestamp by design.
     """
     ratings = pl.read_parquet(src / "ratings_live.parquet").sort(["eval_order", "team"])
-    lines = ["eval_label,team,resume,resume_margin,power"]
+    lines = ["eval_label,team,odds_key,tail_p,resume,resume_margin,power"]
     lines += [
-        f"{row['eval_label']},{row['team']},{row['resume']:.10g},"
-        f"{row['resume_margin']:.10g},{row['power']:.10g}"
+        f"{row['eval_label']},{row['team']},{row['odds_key']:.10g},{row['tail_p']:.10g},"
+        f"{row['resume']:.10g},{row['resume_margin']:.10g},{row['power']:.10g}"
         for row in ratings.iter_rows(named=True)
     ]
     dest.parent.mkdir(parents=True, exist_ok=True)

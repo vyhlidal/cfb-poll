@@ -256,12 +256,19 @@ def rank(
 ) -> None:
     """Fit the model and write the ratings, the poll and the run record.
 
-    THE HEADLINE IS THE RESUME (report 02 §3.5). Teams are ranked by the L4
-    resume rating - the quality q whose expected results against that exact
-    schedule equal the actual ones - with the Power rating and the
-    resume-minus-power gap printed beside every team. Both resume variants
-    (wins-based and margin-aware) and both surfaces (live R(N,N) and hindsight
-    R(N,final)) reach poll.json and poll.csv.
+    THE HEADLINE IS SCHEDULE ODDS (`[publication].headline_ordering`, decided
+    2026-08-12, docs/adr/0005-headline-ordering.md). Teams are ranked by
+    -log10 P(W >= W_t): how improbable it is that a team of reference quality
+    q_ref would have gone at least this well against this exact schedule. The
+    harder it was to do what you did, the higher you go - measured from results,
+    never assumed.
+
+    NOTHING WAS DROPPED. The L4 resume on the points scale, its margin-aware
+    variant, its saturation flag, and the Power rating with the resume-minus-power
+    gap are printed beside every team and are columns on every published row
+    (report 02 §3.4, §3.5). Both surfaces (live R(N,N) and hindsight R(N,final))
+    reach poll.json and poll.csv, and the hindsight column now moves for unbeaten
+    teams too - which it structurally could not do under the resume ordering.
 
     OPPONENT QUALITY IS L3, the walk-forward blend of L1 efficiency and L2
     results, whenever `[resume].power_source` says so and the play archive is
@@ -284,7 +291,7 @@ def rank(
     from cfbpoll.config import load_config
     from cfbpoll.ingest import windows
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
-    from cfbpoll.model import l4_resume, retro
+    from cfbpoll.model import l4_resume, retro, schedule_odds
     from cfbpoll.publish import files
     from cfbpoll.publish import poll as poll_mod
 
@@ -311,24 +318,35 @@ def rank(
     window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
     powers = retro.season_power(games, season_i, cfg, plays=plays, buckets=buckets)
     power = powers[evaluated.order]
+    classes = poll_mod.team_classes(games)
     fitted = l4_resume.fit(window, cfg, power=power)
+    odds = schedule_odds.fit(window, cfg, power=power, classes=classes)
 
-    live = retro.cell(games, evaluated, evaluated, cfg, power=power)
-    hindsight = retro.cell(games, evaluated, final, cfg, power=powers[final.order])
+    live = retro.cell(games, evaluated, evaluated, cfg, power=power, classes=classes)
+    hindsight = retro.cell(games, evaluated, final, cfg, power=powers[final.order], classes=classes)
     table = poll_mod.headline_frame(live, hindsight)
     provisional, label = poll_mod.publication_status(week_i, cfg)
+    ordering = poll_mod.headline_ordering(cfg)
 
     l2 = power.l2
     params = {
+        # The résumé's block first, then the headline ordering's, so the two
+        # `layer`/`version` pairs cannot collide: the headline's wins the key and
+        # the résumé's is preserved under `resume_layer` / `resume_version`.
         **fitted.as_params(),
         **(l2.as_params() if l2 is not None else {}),
-        "layer": l4_resume.LAYER,
-        "version": l4_resume.VERSION,
+        "resume_layer": l4_resume.LAYER,
+        "resume_version": l4_resume.VERSION,
+        **odds.as_params(),
+        "layer": schedule_odds.LAYER,
+        "version": schedule_odds.VERSION,
         "season": season_i,
         "through": {"season_type": evaluated.season_type, "week": evaluated.week},
         "provisional": provisional,
         "provisional_label": label,
+        "headline_ordering": ordering,
         "headline_layer": cfg["publication"]["headline_layer"],
+        "headline_decided": "2026-08-12, docs/adr/0005-headline-ordering.md",
         "companion_layer": cfg["publication"]["companion_layer"],
         "hindsight_variant": retro.HINDSIGHT_VARIANT,
         "hindsight_data_bucket": final.label,
@@ -350,23 +368,33 @@ def rank(
 
     saturated = int(table.filter(pl.col("saturated") != 0).height)
     typer.echo(
-        f"L4 resume v0 (Power = {params['power_source']} {params['power_version']}) - "
+        f"{schedule_odds.LAYER} {schedule_odds.VERSION} - the headline ordering "
+        f"(Power = {params['power_source']} {params['power_version']}) - "
         f"{season_i} through {evaluated.label}: {window.height} games, "
         f"{live.height} teams, {table.height} ranked, "
         f"lambda_l2={l2.lam:g} h={power.home_field:.3f}"
         if l2 is not None
-        else f"L4 resume v0 - {season_i} through {evaluated.label}"
+        else f"{schedule_odds.LAYER} - {season_i} through {evaluated.label}"
     )
     typer.echo(
-        f"  {saturated} ranked team(s) saturated at the q bound (*); order among them "
-        "from the margin variant ([resume].saturation_tiebreak)"
-        + ("  [PROVISIONAL]" if provisional else "")
+        f"  rank key -log10 P(W >= W_t), q_ref = {odds.q_ref.value:.2f} points"
+        + (f" ({odds.q_ref.team})" if odds.q_ref.team else "")
+        + f" by {odds.q_ref.method}; margin never enters the key"
     )
-    typer.echo(f"{'#':>3}  {'team':<26}{'resume':>8}{'power':>8}{'gap':>7}   rec   retro")
+    typer.echo(
+        f"  {saturated} ranked team(s) saturated at the q bound (*) on the RESUME "
+        "column, which is published beside the key and no longer orders the poll "
+        "(docs/adr/0005-headline-ordering.md)" + ("  [PROVISIONAL]" if provisional else "")
+    )
+    typer.echo(
+        f"{'#':>3}  {'team':<24}{'-log10P':>9}{'P':>10}{'resume':>9}"
+        f"{'power':>8}{'gap':>7}   rec   retro"
+    )
     for row in table.head(25).iter_rows(named=True):
         mark = "*" if row["saturated"] else " "
         typer.echo(
-            f"{row['rank']:>3}  {row['team']:<26}{row['resume']:>7.2f}{mark}"
+            f"{row['rank']:>3}  {row['team']:<24}{row['odds_key']:>9.3f}"
+            f"{row['tail_p']:>10.2e}{row['resume']:>8.2f}{mark}"
             f"{row['power']:>8.2f}{row['gap']:>7.2f}"
             f"  {row['wins']}-{row['losses']}  {row['rank_delta']:+d}"
         )
@@ -404,11 +432,14 @@ def backtest(
     The home-team-always-wins floor is always included, whether or not it is
     named in --systems: a table without its floor is not a table.
 
-    `resume` is the headline layer and is a RETRODICTIVE rating, so it is scored
-    on violations and predicts margins through its Power source - which is
-    `[resume].power_source`, so its predictive columns are L3's (or L2's) by
-    construction, and the violations column is the one that is about L4
-    (report 02 §3.5, §5.4).
+    `schedule_odds` is the HEADLINE ORDERING (ADR 0005) and `resume` is the
+    ordering it replaced. Both are RETRODICTIVE ratings, so both are scored on
+    violations and both predict margins through their shared Power source - which
+    is `[resume].power_source`, so their predictive columns are L3's (or L2's) by
+    construction, and the violations column is the one that is about them
+    (report 02 §3.5, §5.4). Keeping the old headline permanently in the table is
+    the point: the decision that replaced it stays checkable every week rather
+    than being frozen in a document.
 
     THE CLAIM UNDER TEST is report 02 §3.3: the L3 blend beats the L2 results
     core. Both are in the default --systems list, scored by the same code on the
@@ -502,6 +533,7 @@ def grid(
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
     from cfbpoll.model import retro
     from cfbpoll.publish import files
+    from cfbpoll.publish import poll as poll_mod
 
     if season is None or str(season).strip() == "":
         raise typer.BadParameter("--season is required. Try --season 2023.")
@@ -520,8 +552,12 @@ def grid(
     final = buckets[-1]
     has_postseason = any(b.season_type == "postseason" for b in buckets)
     params = {
-        "layer": "L4 resume rating",
+        "layer": "C schedule odds",
         "version": "v0",
+        "resume_layer": "L4 resume rating",
+        "resume_version": "v0",
+        "headline_ordering": poll_mod.headline_ordering(cfg),
+        "headline_decided": "2026-08-12, docs/adr/0005-headline-ordering.md",
         "season": season_i,
         "hindsight_variant": retro.HINDSIGHT_VARIANT,
         "n_buckets": len(buckets),
@@ -541,6 +577,7 @@ def grid(
         "headline_layer": cfg["publication"]["headline_layer"],
         "companion_layer": cfg["publication"]["companion_layer"],
         **{k: v for k, v in cfg["resume"].items()},
+        **{f"schedule_odds_{k}": v for k, v in cfg["schedule_odds"].items()},
         **powers[final.order].as_params(),
     }
     run = {

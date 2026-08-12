@@ -189,11 +189,30 @@ fit_out_of_sample_only = true
 # probability).
 individual_coefficients = true
 pool_into_single_node = false
-# OPEN DATA DEPENDENCY (report 02 §3.7, §7.5): individual FCS coefficients need
-# FCS-vs-FCS coverage. If FCS-vs-FCS scores exist but play-by-play does not (the
-# likely case), FCS teams get coefficients in L2 only and L2 feeds L1's opponent
-# adjustment. Confirm coverage before implementation.
-fcs_vs_fcs_coverage_confirmed = false
+# CLOSED (was an open data dependency, report 02 §3.7, §7.5): individual FCS
+# coefficients need FCS-vs-FCS coverage, and the archive has it - 635 completed
+# FCS-vs-FCS games in 2023 alone, in the same cfb_schedules series as the FBS
+# games (tests/unit/test_loader.py::test_model_universe_is_wider_than_fbs...).
+# Play-by-play for those games is a separate question and is L1's problem; L2
+# needs only final scores, which is exactly the fallback report 02 §3.7
+# anticipated.
+fcs_vs_fcs_coverage_confirmed = true
+
+####################################################################################
+# Fit universe — which games enter the design matrix at all.
+# Added during the L2 build; report 02 §3.7 argues the policy, the archive
+# fixes the boundary (docs/data-findings.md §5: cfb_schedules_* is all-divisions).
+####################################################################################
+[model]
+# "model" = every completed game with at least one FBS or FCS participant.
+# Wider than FBS-vs-FBS because FBS-vs-FCS games are ~10% of the FBS schedule and
+# cluster in the weeks we are most data-starved (report 02 §3.7); wider than that
+# again because FCS-vs-FCS games are what identify individual FCS coefficients
+# instead of the pooled node that cost ESPN 31 spots of Iowa State in 2013.
+# Excluded: D-II-vs-D-II and D-III-vs-D-III, which reach no FBS team through any
+# chain that matters. D-II teams that play an FCS opponent still get their own
+# shrunken coefficient.
+fit_universe = "model"                      # all | model | fbs_vs_fbs
 
 ####################################################################################
 # Bootstrap — report 02 §3.3, determinism from report 03 §9.3
@@ -216,6 +235,22 @@ holdout_seasons = [2025]                    # SINGLE SHOT. Touch it once.
 holdout_locked = true                       # challenge.yml refuses to score on it
 universe = "fbs_vs_fbs"                     # FBS-vs-FCS and bowls reported separately
 walk_forward_strict = true                  # fit through week N-1 only. No exceptions.
+
+# Evaluation starts at week 2 (week 1 has no prior games to fit on) but the
+# headline table is reported from `headline_start_week` onward as well, because
+# weeks 2-4 are the near-noise regime report 02 §4 declines to publish.
+first_eval_week = 2
+min_training_games = 20                     # below this a week is scored but flagged
+
+# Every system's ratings are mapped onto the points scale by ONE walk-forward
+# OLS per system per week: margin ~ a * (r_home - r_away) + h * site, fit on the
+# training window only. Without it the baselines cannot be compared on MAE at
+# all - Elo lives on a 400-point logit scale, win percentage on [0, 1], Colley on
+# [0, 1] around 0.5 - and even L2's own ratings are in compressed-response units,
+# not points, because the tanh response is not the identity. SU accuracy is
+# invariant to a positive affine map, so this changes no straight-up number.
+calibrate_ratings_to_points = true
+sigma_source = "resume.sigma"               # win prob = Phi(margin / sigma), §3.4
 
 ####################################################################################
 # Publication gate — report 02 §5.4, on held-out 2025, FBS-vs-FBS, walk-forward

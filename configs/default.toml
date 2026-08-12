@@ -82,6 +82,38 @@ q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §
 bisection_max_iter = 60                     # ~40 gets machine precision
 gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
 
+# Opponent quality is the POWER rating (report 02 §3.4). L1 and L3 do not exist
+# yet — Appendix B builds them fourth and fifth — so Power is L2 today, and that
+# is recorded in model_params.json, in poll.json and in every row of the
+# retroactive grid. When L3 lands, this one value changes and the résumé math
+# does not: the résumé depends on opponent quality ONLY through Power.
+power_source = "L2"
+power_version = "v0"
+
+# L2 ratings are in COMPRESSED-RESPONSE units, not points — the tanh response is
+# not the identity, so a rating difference of 1.0 is not one point — and sigma is
+# in points. One OLS per fit maps them, with NO intercept, because a zero rating
+# difference at a neutral site must mean a zero expected margin:
+#     actual_margin ~ b * (rating_home − rating_away) + h_points * site
+# Then Power_t = b * rho_t. b and h_points are published every week beside
+# lambda and beta_w. The universe is FBS-vs-FBS because that is where sigma =
+# 15.3 came from; thin windows fall back to the whole fit universe.
+power_scale = "ols_to_points"
+power_scale_universe = "fbs_vs_fbs"
+power_scale_min_games = 40
+
+# SATURATION. E[W|q] approaches n from below, so an undefeated team has no finite
+# root and a winless team has none at the bottom. This is Bradley-Terry's
+# separation problem in deterministic clothes (report 02 §2.10), and q_bounds IS
+# the regularization: it is where an unbounded estimate gets truncated, at a
+# published number, with every saturated team flagged in every artifact.
+# Saturated teams all land on the same bound, so the published ORDER among them
+# comes from the margin-aware variant, which is finite for every team and is
+# published in the same table (report 02 §3.4). "none" leaves them tied and
+# breaks by team name, which is worse and is offered only so the choice is
+# visible rather than assumed.
+saturation_tiebreak = "margin"              # margin | none
+
 ####################################################################################
 # Garbage-time filtering — report 02 §3.1, thresholds from §2.3 (Connelly)
 ####################################################################################

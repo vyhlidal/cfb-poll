@@ -885,6 +885,52 @@ def stage_calibration(store: dict[str, Any], workers: int) -> None:
         "residual_by_mismatch_non_neutral": site_by_mismatch,
     }
 
+    # -- NOT A CANDIDATE: what sigma is, and what it would have to be ----------
+    # This block adopts nothing. It exists because a diagnosis that names four
+    # suspects and eliminates all four owes the reader the thing it found while
+    # looking. sigma is the ACCUMULATED walk-forward RMS residual, which at week
+    # N includes the near-noise weeks 2-4 that the poll declines to publish; over
+    # the published window the system's own RMSE is smaller. An estimator that is
+    # right about the season as a whole is too wide for the part of the season
+    # being scored, and too wide is exactly the shape the decile table has.
+    #
+    # The oracle row cannot be run walk-forward - it reads the RMSE of the games
+    # it is scoring - and is here as a BOUND, not a proposal. Adopting anything
+    # from this block would be choosing a fix that was not pre-declared, which is
+    # the failure the protocol exists to prevent.
+    oracle_sigma = float(np.sqrt(np.mean(residual**2)))
+    sigma_rows = []
+    for label, sig in (
+        ("live: accumulated walk-forward RMS (incumbent)", sigma),
+        (
+            f"oracle: RMSE of the games being scored ({oracle_sigma:.2f}) - NOT RUNNABLE",
+            oracle_sigma,
+        ),
+        ("the old constant 15.3", float(cfg["resume"]["sigma"])),
+    ):
+        prob = metrics.win_probability(predicted, sig)
+        table = _decile_table(prob, won)
+        sigma_rows.append(
+            {
+                "sigma": label,
+                "sigma_mean": float(np.mean(np.asarray(sig, dtype=np.float64))),
+                "max_deviation_pp": _max_dev(table),
+                "brier": metrics.brier(prob, won),
+                "log_loss": metrics.log_loss(prob, won),
+                "table": table,
+            }
+        )
+    diag["sigma_diagnostic_not_a_candidate"] = {
+        "rows": sigma_rows,
+        "window_rmse": oracle_sigma,
+        "accumulated_sigma_mean": float(np.mean(sigma)),
+        "note": (
+            "DIAGNOSIS ONLY. The oracle row reads the RMSE of the games it scores "
+            "and cannot be run walk-forward. Nothing here is adopted: it was not "
+            "one of the four pre-declared candidates."
+        ),
+    }
+
     # -- candidate 4: favourite-longshot ---------------------------------------
     # The decile table's own rows, re-expressed in the quantity that would
     # explain them: for each bin, the mean predicted margin and the mean actual.
@@ -1250,6 +1296,55 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         "",
     ]
 
+    # ---------------- PART 4b ----------------
+    rank_block = store.get("ranking_impact")
+    if rank_block:
+        lines += [
+            "## PART 4b — WHAT THE FROZEN CHOICE DOES TO THE POLL",
+            "",
+            "The objective is margin MAE. **β_w is not about margin MAE.** The config calls "
+            "it the single most contested value in the system because it is the "
+            "discontinuity that makes this a football ranking rather than a scoring-margin "
+            "ranking — a statement about desert, which a predictive objective has no opinion "
+            "about. So the ranking consequence is measured with the project's own standard "
+            f"(headline-ordering study §9, ADR 0006): Kendall's τ against the "
+            f"{rank_block['tau_floor']} that the published `q_ref` sweep never dipped below. "
+            "Below it, the parameter is a **dial** and must be labelled as one.",
+            "",
+            "Final pre-postseason headline poll, each tune season, incumbent vs frozen:",
+            "",
+            "| Season | Kendall's τ | Mean \\|Δrank\\| | Max \\|Δrank\\| | Top-25 changes | Verdict |",  # noqa: E501
+            "|---|---:|---:|---:|---:|---|",
+        ]
+        for season, block in sorted(rank_block["by_season"].items()):
+            mv = block["movement"]
+            lines.append(
+                f"| {season} | {mv['kendall_tau']:.4f} | {mv['mean_abs_rank_delta']:.2f} "
+                f"| {mv['max_abs_rank_delta']} | {mv['top25_membership_changes']} "
+                f"| {'**A DIAL**' if mv['is_a_dial'] else 'a convention'} |"
+            )
+        lines += [
+            "",
+            f"**Minimum τ across the tune seasons: {rank_block['min_kendall_tau']:.4f}** — "
+            + (
+                "below the floor, so this change is a DIAL and is labelled as one in the "
+                "config and in ADR 0007."
+                if rank_block["is_a_dial"]
+                else "above the floor, so by the project's own published standard the change "
+                "is a convention rather than a dial. It is still published here, because "
+                "\"small\" is a measurement and not an assurance."
+            ),
+            "",
+            "Biggest movers, most recent tune season:",
+            "",
+            "| Team | Incumbent | Frozen |",
+            "|---|---:|---:|",
+        ]
+        latest = max(rank_block["by_season"])
+        for mover in rank_block["by_season"][latest]["movement"]["biggest_movers"]:
+            lines.append(f"| {mover['team']} | {mover['incumbent']} | {mover['frozen']} |")
+        lines += [""]
+
     # ---------------- PART 5 ----------------
     base = diag["baseline"]
     res = diag["residuals"]
@@ -1457,12 +1552,127 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
             f"| {row['deviation_pp']:+.2f} pp |"
         )
     ext = t4["extreme_predictions"]
+    sd = diag["sigma_diagnostic_not_a_candidate"]
     lines += [
         "",
         f"{ext['n_over_21']} of {diag['n_games']} predictions exceed the "
         "`prediction_compression` threshold of 21 points; they average "
         f"{ext['mean_abs_predicted_over_21']:.2f} predicted against "
         f"{ext['mean_abs_actual_over_21']:.2f} actual.",
+        "",
+        "### 5.6 What the four candidates left behind — σ is STALE, not wrong",
+        "",
+        "**This section adopts nothing.** It was not one of the four pre-declared "
+        "candidates, and a fix chosen after the fact is the failure the protocol exists to "
+        "prevent. It is here because a diagnosis that eliminates all four suspects owes the "
+        "reader the thing it found while looking.",
+        "",
+        "σ is the **accumulated** walk-forward RMS residual: at bucket N it has seen every "
+        "out-of-sample game from the first evaluable bucket onward, including the near-noise "
+        f"weeks 2-4 the poll declines to publish. Over the published window it averages "
+        f"**{sd['accumulated_sigma_mean']:.2f}**, while the realised RMSE of exactly those "
+        f"games is **{sd['window_rmse']:.2f}**. An estimator that is right about the season "
+        "as a whole is too wide for the part of the season being scored — and too wide is "
+        "precisely the shape the decile table has.",
+        "",
+        "| σ | Mean σ | Max decile deviation | Brier | Log loss |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for row in sd["rows"]:
+        lines.append(
+            f"| {row['sigma']} | {row['sigma_mean']:.2f} | {row['max_deviation_pp']:.2f} pp "
+            f"| {row['brier']:.5f} | {row['log_loss']:.5f} |"
+        )
+    lines += [
+        "",
+        "The oracle row reads the RMSE of the games it is scoring and **cannot be run "
+        "walk-forward**. It is a bound on what a better-targeted σ could buy, not a proposal. "
+        "The obvious candidate — a trailing-window σ instead of a cumulative one — is the "
+        "first item for the next campaign, and it must be pre-registered before it is run.",
+        "",
+    ]
+
+    # ---------------- 5.7 the verdict, by the rule fixed in advance -----------
+    hh_pairs = t3["home_and_home"]["n_pairs"]
+    verdicts = [
+        (
+            "1 — Student-t margins",
+            base["max_deviation_pp"] - t1["best"]["max_deviation_pp"],
+            f"best at ν = {t1['best']['df']:g}; ML fit on the residuals gives "
+            f"ν = {t1['fitted_df']:.2f}",
+        ),
+        (
+            "2 — heteroscedastic σ(\\|m̂\\|)",
+            base["max_deviation_pp"] - t2["walk_forward"]["max_deviation_pp"],
+            f"variance-on-\\|m̂\\| slope {t2['variance_on_abs_predicted']['slope']:+.3f} "
+            f"(p = {t2['variance_on_abs_predicted']['p_value']:.3g})",
+        ),
+        (
+            "3 — home-and-home h",
+            float("nan"),
+            f"NOT TESTABLE AS A LIVE ESTIMATOR: {hh_pairs} within-season pairs in three "
+            "seasons, and constraint 2 forbids the cross-season pairs that would give it a "
+            "sample",
+        ),
+        (
+            "4 — favourite-longshot",
+            float("nan"),
+            "a diagnosis, not a knob: it says WHERE the miss is, and the fix it implies is "
+            "candidate 2, which is measured above",
+        ),
+    ]
+    lines += [
+        "### 5.7 The verdict, by the rule fixed before any of this was run",
+        "",
+        "> *A fix is adopted only if it cuts the maximum decile deviation by >= "
+        f"{CALIBRATION_ADOPT_PP} pp on the tune seasons AND holds direction on 2024. "
+        "Anything that fails that rule is documented as diagnosed-but-unfixed, with the "
+        "evidence, and the config does not move.*",
+        "",
+        f"Incumbent max decile deviation: **{base['max_deviation_pp']:.2f} pp** "
+        "(gate threshold 5.0 pp).",
+        "",
+        "| Candidate | Best Δ max decile deviation | Meets the >= "
+        f"{CALIBRATION_ADOPT_PP} pp bar? | Evidence |",
+        "|---|---:|---|---|",
+    ]
+    any_adopted = False
+    for name, delta, note in verdicts:
+        if np.isfinite(delta):
+            meets = delta >= CALIBRATION_ADOPT_PP
+            any_adopted = any_adopted or meets
+            lines.append(
+                f"| {name} | {delta:+.2f} pp | {'**YES**' if meets else 'no'} | {note} |"
+            )
+        else:
+            lines.append(f"| {name} | — | no | {note} |")
+    lines += [
+        "",
+        (
+            "**No candidate clears the bar. The calibration miss is DIAGNOSED AND UNFIXED, "
+            "and the config does not move on account of it.**"
+            if not any_adopted
+            else "**At least one candidate clears the tune-season bar; the 2024 direction "
+            "check decides it.**"
+        ),
+        "",
+        "What was eliminated, and by what:",
+        "",
+        f"- **The normal tail.** Maximum likelihood puts ν at {t1['fitted_df']:.1f}; the "
+        "residuals are close enough to normal that no ν in the sweep moves the worst decile "
+        f"by {CALIBRATION_ADOPT_PP} pp. A symmetric change of shape cannot repair an "
+        "asymmetric miss, and the sweep is the measurement rather than the argument.",
+        "- **Pace-dependent variance.** The residual SD does vary with the size of the "
+        "mismatch, in the direction §5.3's table shows, and fitting it walk-forward moves "
+        f"the worst decile by {base['max_deviation_pp'] - t2['walk_forward']['max_deviation_pp']:+.2f} pp.",  # noqa: E501
+        f"- **The single home-field constant.** It cannot be replaced by the estimator the "
+        f"config names: college football schedules home-and-home ACROSS seasons, so a "
+        f"within-season sample is {hh_pairs} pairs in three years and constraint 2 forbids "
+        "reaching into the prior season for more. §5.4 publishes both numbers and the "
+        "standard error that settles it.",
+        "- **What is left is σ's TARGET, not its size** (§5.6): a cumulative estimator "
+        "scoring a window it over-covers. That is a fix for a pre-registered campaign, not "
+        "for this one.",
         "",
     ]
 

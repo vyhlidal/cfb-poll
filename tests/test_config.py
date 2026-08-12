@@ -109,3 +109,37 @@ def test_constraints_are_enforced_by_default() -> None:
     assert c["allow_prior_season_data"] is False
     assert c["allow_conference_as_feature"] is False
     assert c["allow_third_party_ratings_as_features"] is False
+
+
+def test_the_fit_universe_is_labelled_as_the_dial_it_is() -> None:
+    """ADR 0006. `fit_universe` moves the ranking by more than `q_ref` does
+    (Kendall's tau 0.9344 against the q_ref sweep's 0.985 floor), and until
+    2026-08-12 it was argued from report 02 §3.7 and never measured. The value is
+    unchanged - it won a rule fixed before the numbers were read - but a reader
+    can now tell it was a choice, which was the fresh-eyes review's actual charge
+    (S4)."""
+    cfg = load()
+    assert cfg["model"]["fit_universe"] == "model"
+    text = CONFIG_PATH.read_text(encoding="utf-8")
+    assert "THIS IS A DIAL, NOT A CONVENTION" in text
+    assert "docs/adr/0006-fit-universe.md" in text
+    # the G5 caveat is stated where the choice is made, not only in the analysis
+    assert "favourable to G5 teams" in text
+
+
+def test_sigma_is_a_fallback_and_a_floor_rather_than_the_live_value() -> None:
+    """Review S6: 15.3 is the residual SD around a GOOD PUBLIC MODEL's prediction
+    and this system's own walk-forward RMSE is 16.5, so the constant asserted a
+    precision the model had not demonstrated - inside the denominator of every
+    published win probability. It survives as what it is actually good for."""
+    res = load()["resume"]
+    assert res["sigma"] == 15.3  # report 02 §3.4, §5.4 - now the fallback and floor
+    assert res["sigma_estimator"] == "walk_forward_residuals"
+    assert res["sigma_min_out_of_sample_games"] == 40
+
+
+def test_the_violations_gate_does_not_curate_its_rivals() -> None:
+    """Review S1: the list named Colley and SRS and omitted win percentage, which
+    beats every other system in the table. A gate whose rival list is drawn around
+    the systems it clears is not a gate."""
+    assert load()["gate"]["violations_must_beat"] == "all_scored_systems"

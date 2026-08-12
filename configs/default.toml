@@ -470,6 +470,13 @@ fcs_vs_fcs_coverage_confirmed = true
 # fixes the boundary (docs/data-findings.md §5: cfb_schedules_* is all-divisions).
 ####################################################################################
 [model]
+# THIS IS A DIAL, NOT A CONVENTION, and the distinction is measured rather than
+# asserted. Kendall's tau between this ranking and the FBS-only one is 0.9344,
+# against the 0.985 floor the published q_ref sweep never dipped below; mean
+# absolute rank change 3.32 places, maximum 17. By the project's own standard
+# (study §9) that makes it a dial and it must be labelled as one.
+# See docs/analysis/fit-universe-sensitivity.md and docs/adr/0006-fit-universe.md.
+#
 # "model" = every completed game with at least one FBS or FCS participant.
 # Wider than FBS-vs-FBS because FBS-vs-FCS games are ~10% of the FBS schedule and
 # cluster in the weeks we are most data-starved (report 02 §3.7); wider than that
@@ -478,7 +485,25 @@ fcs_vs_fcs_coverage_confirmed = true
 # Excluded: D-II-vs-D-II and D-III-vs-D-III, which reach no FBS team through any
 # chain that matters. D-II teams that play an FCS opponent still get their own
 # shrunken coefficient.
-fit_universe = "model"                      # all | model | fbs_vs_fbs
+#
+# CHOSEN ON THE DATA, 2026-08-12, by a rule fixed before the numbers were read:
+# lowest walk-forward MAE on the tune seasons over the published window, with
+# retrodictive violations as the tie-break. It wins - and it wins narrowly, by
+# 0.055 points of MAE over fbs_vs_fbs, which is inside the noise floor for three
+# seasons, WHILE LOSING straight-up accuracy (69.21 vs 69.65), calibration
+# deviation (13.67pp vs 11.11pp) and violations (0.2015 vs 0.2006) to it. That is
+# recorded here rather than in a drawer: a pre-registered rule that picks one
+# column while three others disagree is a rule doing its job, and the next person
+# to look at this should know it was close.
+#
+# AND IT IS NOT NEUTRAL ABOUT THE QUESTION THIS POLL EXISTS TO ANSWER. Ridge
+# shrinks toward the mean of whatever universe is fitted, thin FCS teams are
+# shrunk hardest and pulled UP, and the FBS teams that beat them are pulled down -
+# so a mixed-division universe compresses the P4-over-G5 gap. Measured, 2023
+# through week 10: 10.83 points under this setting against 9.64 under fbs_vs_fbs.
+# The mixed universe is mildly favourable to G5 teams. That caveat is published
+# rather than left as an unstated property of a modelling choice.
+fit_universe = "model"                      # all | model | fbs_vs_fbs — ADR 0006
 
 ####################################################################################
 # Bootstrap — report 02 §3.3, determinism from report 03 §9.3

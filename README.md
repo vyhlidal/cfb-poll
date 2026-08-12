@@ -304,7 +304,9 @@ cfbpoll site build                      build the static site
 - Licenses: MIT for code, CC BY 4.0 for published ratings, upstream notices
 - The five constraints, the headline promise and the banned-input table
   (`docs/constraints.md`)
-- Five architecture decision records (`docs/adr/`)
+- Six architecture decision records (`docs/adr/`), including
+  [ADR 0006](docs/adr/0006-fit-universe.md): the fit universe stays `model`, on a
+  rule fixed before the numbers were read, and stops being called a convention
 - `weekly.yml` and `reproducibility.yml`, committed as the specification. Both are
   `workflow_dispatch` only — no schedule, so nothing fires accidentally
 

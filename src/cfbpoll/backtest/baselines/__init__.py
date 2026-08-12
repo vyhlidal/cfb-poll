@@ -22,9 +22,27 @@ The system names here must stay in sync with the `system` column of
 cfb_backtest_metrics in report 03 §5.6:
     ours | colley | srs | elo | random_walker | closing_line | cfp
 
-`l2` is our own system and is registered here alongside the baselines so the
-harness scores every system through one identical code path. `home_team` has no
-ratings at all and is handled in the harness as a constant-prediction system.
+`l2` and `resume` are our own systems and are registered here alongside the
+baselines so the harness scores every system through one identical code path.
+`home_team` has no ratings at all and is handled in the harness as a
+constant-prediction system.
+
+WHY `resume` NEEDS A PREDICTION PROXY. The résumé rating is retrodictive by
+construction (report 02 §3.4, §3.5): it answers "what quality do these results
+imply", not "who wins next week". Two consequences make it uninterpretable as a
+margin predictor and both are properties of the estimator, not accidents:
+
+  1. Every undefeated team sits on the same q bound, so the rating difference
+     between an unbeaten team and anyone else is a truncation artefact.
+  2. The résumé is a monotone but strongly nonlinear function of Power, so the
+     one affine map the harness fits per week cannot be right for both ends of
+     the table at once.
+
+So `resume` PREDICTS with the Power source it was built on and is SCORED on the
+retrodictive metrics - violations first, which is the gate the L2-only build
+rightly missed (report 02 §5.4, `[gate].violations_must_beat`). Reporting a
+margin MAE for the résumé's own rating scale would be measuring the wrong thing
+and flattering nobody.
 """
 
 from __future__ import annotations
@@ -35,11 +53,12 @@ from typing import Any
 import polars as pl
 
 from cfbpoll.backtest.baselines import colley, elo, random_walker, srs, winpct
-from cfbpoll.model import l2_results
+from cfbpoll.model import l2_results, l4_resume
 
-__all__ = ["RATERS", "SYSTEMS", "cfp_committee", "closing_line", "resolve"]
+__all__ = ["PREDICTION_SOURCE", "RATERS", "SYSTEMS", "cfp_committee", "closing_line", "resolve"]
 
 SYSTEMS = (
+    "resume",
     "l2",
     "home_team",
     "winpct",
@@ -53,6 +72,7 @@ SYSTEMS = (
 
 #: system name -> rate(games, plays, through_week) -> {team: rating}
 RATERS: dict[str, Callable[..., dict[str, float]]] = {
+    "resume": l4_resume.rate,
     "l2": l2_results.rate,
     "winpct": winpct.rate,
     "colley": colley.rate,
@@ -61,11 +81,18 @@ RATERS: dict[str, Callable[..., dict[str, float]]] = {
     "random_walker": random_walker.rate,
 }
 
+#: system name -> the system whose ratings produce its MARGIN predictions. Absent
+#: means "its own". See the module docstring: the résumé is a desert measure and
+#: predicts with its Power source, which for now is L2 (report 02 §3.4).
+PREDICTION_SOURCE: dict[str, str] = {"resume": "l2"}
+
 #: Names accepted on the command line, mapped to the canonical name written to
 #: backtest_metrics.json and to cfb_backtest_metrics (report 03 §5.6).
 ALIASES: dict[str, str] = {
     "ours": "l2",
     "l2_results": "l2",
+    "l4": "resume",
+    "l4_resume": "resume",
     "walker": "random_walker",
     "randomwalker": "random_walker",
     "win_pct": "winpct",

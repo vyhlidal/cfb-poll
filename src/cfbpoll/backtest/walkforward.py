@@ -176,6 +176,20 @@ def _predict(
     return a + b * rating_deltas(ratings, test) + h * site
 
 
+def _cached_ratings(
+    name: str,
+    train: pl.DataFrame,
+    week: int,
+    cache: dict[str, dict[str, float]],
+) -> dict[str, float]:
+    """One fit per system per bucket, memoised so a system that predicts through
+    another (baselines.PREDICTION_SOURCE) does not refit it. The cache is
+    per-bucket and every rater receives the identical already-truncated frame."""
+    if name not in cache:
+        cache[name] = baselines.RATERS[name](train, None, week)
+    return cache[name]
+
+
 def _ranking(ratings: dict[str, float], teams: set[str]) -> dict[str, int]:
     ranked = sorted((t for t in ratings if t in teams), key=lambda t: (-ratings[t], t))
     return {team: i + 1 for i, team in enumerate(ranked)}
@@ -272,24 +286,29 @@ def run_backtest(
                 }
             )
 
+            # One fit per system per bucket, shared with any system that predicts
+            # through it (baselines.PREDICTION_SOURCE). No system ever sees a
+            # frame other than `train`.
+            fits: dict[str, dict[str, float]] = {"home_team": {}}
+
             for name in canonical:
-                if name == "home_team":
-                    ratings: dict[str, float] = {}
-                else:
-                    ratings = baselines.RATERS[name](train, None, bucket.week)
+                ratings = _cached_ratings(name, train, bucket.week, fits)
+                predict_with = _cached_ratings(
+                    baselines.PREDICTION_SOURCE.get(name, name), train, bucket.week, fits
+                )
 
                 pool = calibration[name]
                 if use_oos and len(pool) >= min_oos:
                     coef = pool.coefficients()
                     coef_source = "out_of_sample"
                 else:
-                    coef = calibrate(ratings, train_fbs)
+                    coef = calibrate(predict_with, train_fbs)
                     coef_source = "training_window"
 
                 in_headline = bucket.season_type != "regular" or bucket.week >= headline_week
                 for segment in sorted(test["segment"].unique().to_list()):
                     sub = test.filter(pl.col("segment") == segment)
-                    predicted = _predict(ratings, sub, coef)
+                    predicted = _predict(predict_with, sub, coef)
                     actual = (sub["home_points"] - sub["away_points"]).to_numpy().astype(float)
                     for cut in ("all",) + (("headline",) if in_headline else ()):
                         acc = pooled.setdefault((name, segment, cut), _Accumulator())
@@ -297,7 +316,7 @@ def run_backtest(
                         acc.actual.extend(actual.tolist())
                     if segment == "fbs_vs_fbs":
                         pool.add(
-                            rating_deltas(ratings, sub),
+                            rating_deltas(predict_with, sub),
                             np.where(sub["neutral_site"].to_numpy(), 0.0, 1.0),
                             actual,
                         )
@@ -392,8 +411,18 @@ def run_backtest(
                 else None
             ),
         }
+    # The violations criterion is comparative, so it can only be evaluated once
+    # every system has a rate (report 02 §5.4, [gate].violations_must_beat).
+    violation_rates = {n: per_system[n]["retrodictive_violation_rate"] for n in canonical}
+    for name in canonical:
+        segments = per_system[name]["segments"]
         if "fbs_vs_fbs" in segments:
-            per_system[name]["gate"] = metrics.check_gate(segments["fbs_vs_fbs"], cfg["gate"])
+            per_system[name]["gate"] = metrics.check_gate(
+                segments["fbs_vs_fbs"],
+                cfg["gate"],
+                violation_rate=violation_rates[name],
+                baseline_violation_rates=violation_rates,
+            )
 
     return {
         "protocol": {
@@ -416,6 +445,14 @@ def run_backtest(
                 f"{min_oos} out-of-sample games exist"
             ),
             "calibration_out_of_sample": use_oos,
+            "prediction_sources": {
+                name: baselines.PREDICTION_SOURCE.get(name, name) for name in canonical
+            },
+            "prediction_source_note": (
+                "a system whose prediction source is not itself is a RETRODICTIVE "
+                "rating scored on violations, and predicts through the rating it "
+                "was built on (report 02 §3.5, backtest/baselines/__init__.py)"
+            ),
             "prior_seasons_used": False,
         },
         "systems": per_system,

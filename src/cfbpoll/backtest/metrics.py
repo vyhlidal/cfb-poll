@@ -220,13 +220,39 @@ def summarize(
     }
 
 
-def check_gate(results: dict[str, float], gate: dict[str, Any]) -> dict[str, Any]:
+def _check_violations(
+    rate: float | None,
+    baselines: dict[str, float | None] | None,
+    must_beat: list[str],
+) -> bool | None:
+    """At or below every named baseline's violation rate, or None if unknowable."""
+    if rate is None or not baselines or not must_beat:
+        return None
+    targets = [baselines.get(name) for name in must_beat]
+    present = [t for t in targets if t is not None]
+    if len(present) != len(targets) or not present:
+        return None  # a named baseline was not scored in this run
+    return bool(all(rate <= t + 1e-12 for t in present))
+
+
+def check_gate(
+    results: dict[str, float],
+    gate: dict[str, Any],
+    violation_rate: float | None = None,
+    baseline_violation_rates: dict[str, float | None] | None = None,
+) -> dict[str, Any]:
     """Evaluate the publication gate from configs/default.toml [gate] (report 02 §5.4).
 
     Returns a per-criterion verdict rather than a bare bool, because "which one
     failed" is the only useful answer. Criteria that need layers or data we do
     not have yet (Brier vs all baselines, MinV distance, retro-vs-live
     monotonicity) are reported as `null` - not as passes.
+
+    `violations_must_beat` is comparative, so it needs every system's rate and is
+    therefore evaluated by the caller once the whole table exists. "Beat" means
+    at or below, per report 02's wording ("retrodictive violations at or below a
+    Colley/SRS baseline"), and a system compared against itself is skipped rather
+    than trivially passed.
     """
     checks: dict[str, Any] = {}
     su = results.get("su_accuracy")
@@ -242,7 +268,9 @@ def check_gate(results: dict[str, float], gate: dict[str, Any]) -> dict[str, Any
         else bool(dev <= gate["calibration_max_decile_deviation_pp"])
     )
     checks["brier_beats_all_baselines"] = None
-    checks["violations_vs_baselines"] = None
+    checks["violations_vs_baselines"] = _check_violations(
+        violation_rate, baseline_violation_rates, gate.get("violations_must_beat", [])
+    )
     checks["retro_vs_live_monotone"] = None
     decided = [v for v in checks.values() if v is not None]
     checks["passed"] = bool(decided) and all(decided)

@@ -351,8 +351,9 @@ def rank(
 def backtest(
     config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
     systems: Annotated[
-        str, typer.Option(help="Comma-separated systems, e.g. l2,colley,srs,elo,walker,winpct.")
-    ] = "l2,colley,srs,elo,walker,winpct",
+        str,
+        typer.Option(help="Comma-separated systems, e.g. resume,l2,colley,srs,elo,walker,winpct."),
+    ] = "resume,l2,colley,srs,elo,walker,winpct",
     seasons: Annotated[
         str, typer.Option(help="Seasons: '2021-2023' or '2021,2022,2023'.")
     ] = "2021-2023",
@@ -374,6 +375,11 @@ def backtest(
 
     The home-team-always-wins floor is always included, whether or not it is
     named in --systems: a table without its floor is not a table.
+
+    `resume` is the headline layer and is a RETRODICTIVE rating, so it is scored
+    on violations and predicts margins through its Power source (L2 today). Its
+    predictive columns are therefore L2's by construction, and the violations
+    column is the one that is about L4 (report 02 §3.5, §5.4).
 
     2025 IS HELD OUT. The harness refuses to score it unless --unlock-holdout is
     passed by a human who has read report 02 §5.1 and accepts that it is a

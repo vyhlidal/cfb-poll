@@ -257,3 +257,82 @@ def test_segment_labels_cover_every_game() -> None:
     got = dict(zip(counts["segment"], counts["len"], strict=True))
     assert got["fbs_vs_fbs"] + got["cfp"] + got["bowl"] == 792
     assert sum(got.values()) == games.height
+
+
+# --------------------------------------------------- the resume as a scored system
+
+
+@needs_archive
+def test_resume_is_scored_and_predicts_through_its_power_source() -> None:
+    """report 02 §3.5: the résumé is a DESERT measure, not a forecast. It is
+    scored on violations and predicts margins through the Power rating it was
+    built on, so its predictive columns are that source's by construction."""
+    result = walkforward.run_backtest([2023], ["resume", "l2"])
+    assert result["protocol"]["prediction_sources"]["resume"] == "l2"
+    assert result["protocol"]["prediction_sources"]["l2"] == "l2"
+
+    resume = result["systems"]["resume"]["segments"]["fbs_vs_fbs"]
+    l2 = result["systems"]["l2"]["segments"]["fbs_vs_fbs"]
+    assert resume["su_accuracy"] == l2["su_accuracy"]
+    assert resume["mae"] == pytest.approx(l2["mae"], abs=1e-12)
+
+    # ...and the number that IS about L4 is a different number
+    assert (
+        result["systems"]["resume"]["retrodictive_violation_rate"]
+        != result["systems"]["l2"]["retrodictive_violation_rate"]
+    )
+
+
+@needs_archive
+def test_resume_beats_its_own_power_rating_on_violations() -> None:
+    """The gate L2 rightly missed (report 02 §5.4). A margin-based power rating is
+    not trying to respect results; the résumé is exactly the layer that does."""
+    result = walkforward.run_backtest([2021, 2022, 2023], ["resume", "l2", "colley", "srs"])
+    rate = {n: result["systems"][n]["retrodictive_violation_rate"] for n in result["systems"]}
+    assert rate["resume"] < rate["l2"]
+    assert rate["resume"] <= rate["srs"]
+    assert rate["resume"] <= rate["colley"]
+    # and the gate criterion now returns a verdict instead of a shrug
+    assert result["systems"]["resume"]["gate"]["violations_vs_baselines"] is True
+    assert result["systems"]["l2"]["gate"]["violations_vs_baselines"] is False
+
+
+@needs_archive
+def test_resume_violations_beat_power_violations_season_by_season() -> None:
+    """Not just in aggregate: every season separately, on a direct full-season fit
+    rather than through the harness, so the claim does not depend on pooling."""
+    from cfbpoll.model import l4_resume
+
+    for season in (2021, 2022, 2023):
+        games = load_games([season], universe=str(CONFIG["model"]["fit_universe"]))
+        fbs = walkforward.segment_games(games).filter(pl.col("segment") == "fbs_vs_fbs")
+        winners, losers = [], []
+        for home, away, hp, ap in zip(
+            fbs["home_team"].to_list(),
+            fbs["away_team"].to_list(),
+            fbs["home_points"].to_list(),
+            fbs["away_points"].to_list(),
+            strict=True,
+        ):
+            winners.append(home if hp > ap else away)
+            losers.append(away if hp > ap else home)
+
+        fitted = l4_resume.fit(games, CONFIG)
+        resume = metrics.violations(fitted.resume, winners, losers)
+        power = metrics.violations(fitted.power.ratings, winners, losers)
+        assert resume["violations"] <= power["violations"], season
+
+
+def test_the_violations_gate_is_at_or_below_every_named_baseline() -> None:
+    gate = dict(CONFIG["gate"])
+    rates = {"colley": 0.20, "srs": 0.22, "ours": 0.20}
+    verdict = metrics.check_gate({}, gate, violation_rate=0.20, baseline_violation_rates=rates)
+    assert verdict["violations_vs_baselines"] is True
+    worse = metrics.check_gate({}, gate, violation_rate=0.21, baseline_violation_rates=rates)
+    assert worse["violations_vs_baselines"] is False
+    # a baseline that was not scored in this run makes the criterion unknowable
+    unknown = metrics.check_gate(
+        {}, gate, violation_rate=0.20, baseline_violation_rates={"colley": 0.20}
+    )
+    assert unknown["violations_vs_baselines"] is None
+    assert "violations_vs_baselines" in unknown["undecided"]

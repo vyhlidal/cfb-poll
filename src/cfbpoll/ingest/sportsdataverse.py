@@ -115,10 +115,12 @@ CANONICAL_COLUMNS: tuple[str, ...] = (
     "away_points",
     "home_class",
     "away_class",
+    "source",
 )
 
 GAME_TYPES: tuple[str, ...] = ("regular", "conf_champ", "cfp", "bowl_non_cfp")
 CLASSES: tuple[str, ...] = ("fbs", "fcs", "ii", "iii", "unknown")
+SOURCES: tuple[str, ...] = ("sportsdataverse", "cfbd")
 
 # --------------------------------------------------------------------- game_type
 #
@@ -181,7 +183,119 @@ def _read_season(season: int, archive: Path) -> pl.DataFrame:
         pl.col("week").cast(pl.Int32),
         pl.col("home_points").cast(pl.Int32),
         pl.col("away_points").cast(pl.Int32),
+        source=pl.lit("sportsdataverse"),
     )
+
+
+# ------------------------------------------------------------ the CFBD supplement
+#
+# WHY THERE IS A SECOND SOURCE IN THE GAMES LOADER AT ALL.
+#
+# `cfb_schedules_2021.parquet` and `cfb_schedules_2022.parquet` carry NO
+# postseason rows. Not "incomplete" - absent: 2021's `season_type` column has
+# exactly one distinct value. So for the two tune seasons the archive held every
+# regular-season game and every conference championship, and none of the 38 + 42
+# bowls, including the entire College Football Playoff. The config weights CFP
+# games at 1.0 and non-CFP bowls at 0.25, which means the two seasons the
+# constants were tuned on were missing precisely the games the weights care most
+# about. That is a hole in the fit universe, not a rounding error.
+#
+# CFBD has them, at a cost of two calls per season, and the ids line up exactly -
+# see the ID FINDING below.
+#
+# THE ID FINDING (docs/data-findings.md §3, settled empirically 2026-08-12).
+# Report 01 §3.10 assumed the MIT `cfb_crosswalk` assets would map CFBD ids;
+# §3 of the findings corrected that - the crosswalk carries ESPN, Fox and Yahoo
+# columns and no CFBD column at all - and left the reconciliation open with an
+# explicit instruction not to guess. Measured, on 126 games across two seasons
+# (2021 regular week 5, n=61; 2023 regular week 10, n=65):
+#
+#     CFBD `id` == SportsDataverse `game_id`, 126 of 126, zero exceptions.
+#     Home team, away team, both scores, the neutral-site flag and the start
+#     date agreed on every one of the 126.
+#
+# CFBD game ids ARE ESPN event ids. cfbfastR is built on ESPN's feed, so both
+# pipelines are keyed to the same integers and no crosswalk, no name
+# normalisation table and no (season, date, home, away) fuzzy join is needed.
+#
+# THE MERGE KEY IS THEREFORE `game_id`, and the dedupe is an exact integer set
+# difference: a CFBD row is admitted only when its id is absent from the parquet
+# frame. Zero of the 80 postseason ids were present, which is the same fact from
+# the other direction. Where both sources hold a game the parquet wins, so the
+# published archive stays the authority on everything it covers and CFBD fills
+# holes rather than overwriting history.
+#
+# THESE 80 ROWS ARE INDEPENDENTLY CHECKABLE WITHOUT A CFBD KEY, which matters
+# because `archive/cfbd/` is private (CFBD terms §3) and a fork will not have it.
+# All 80 games ARE present in the MIT-licensed play-by-play - they are 80 of the
+# 86 "orphan" game_ids docs/data-findings.md §10 recorded as having no schedule
+# row. Reconstructing each final score from the repaired play-by-play scoreboard
+# reproduces CFBD's score in 79 of 80; the single residual is 2022 Mississippi
+# State-Illinois, an overtime game, which is the exact limitation §12 already
+# documented. `tests/unit/test_cfbd_ingest.py` pins that cross-source check, so
+# the supplement is auditable against MIT data by anyone holding the archive.
+
+#: CFBD `/games` field -> canonical column. Written out rather than inferred so
+#: that a schema change upstream fails loudly at the rename instead of silently
+#: producing a null column.
+_CFBD_FIELDS: dict[str, str] = {
+    "id": "game_id",
+    "season": "season",
+    "week": "week",
+    "seasonType": "season_type",
+    "startDate": "start_date",
+    "completed": "completed",
+    "neutralSite": "neutral_site",
+    "conferenceGame": "conference_game",
+    "homeTeam": "home_team",
+    "awayTeam": "away_team",
+    "homePoints": "home_points",
+    "awayPoints": "away_points",
+    "homeClassification": "home_class",
+    "awayClassification": "away_class",
+    "notes": "notes",
+}
+
+
+def cfbd_supplement(
+    season: int, cfbd_archive: str | Path | None = None
+) -> pl.DataFrame | None:
+    """The archived CFBD postseason rows for one season, in RAW loader shape.
+
+    Returns None when the private archive holds nothing for the season, which is
+    the fork's normal state and must not be an error. Shaped to match
+    `_read_season`'s output exactly - same columns, same dtypes - so the merge is
+    a concat and `_derive_game_type` cannot tell the two sources apart.
+    """
+    from cfbpoll.ingest import cfbd
+
+    rows = cfbd.archived_games(int(season), "postseason", cfbd_archive)
+    if not rows:
+        return None
+    records = [
+        {canonical: row.get(field) for field, canonical in _CFBD_FIELDS.items()} for row in rows
+    ]
+    frame = pl.DataFrame(records, schema_overrides={"start_date": pl.String, "notes": pl.String})
+    return frame.select(
+        pl.col("game_id").cast(pl.Int64),
+        pl.col("season").cast(pl.Int32),
+        pl.col("week").cast(pl.Int32),
+        pl.col("season_type").cast(pl.String),
+        pl.col("start_date").cast(pl.String),
+        pl.col("completed").cast(pl.Boolean),
+        pl.col("neutral_site").cast(pl.Boolean),
+        pl.col("conference_game").cast(pl.Boolean),
+        pl.col("home_team").cast(pl.String),
+        pl.col("away_team").cast(pl.String),
+        pl.col("home_points").cast(pl.Int32),
+        pl.col("away_points").cast(pl.Int32),
+        # `_read_season` calls these `home_division`/`away_division`; CFBD calls
+        # them classifications and means the same thing.
+        pl.col("home_class").cast(pl.String).alias("home_division"),
+        pl.col("away_class").cast(pl.String).alias("away_division"),
+        pl.col("notes").cast(pl.String),
+        source=pl.lit("cfbd"),
+    ).select(list(RAW_COLUMNS) + ["source"])
 
 
 def _derive_game_type(df: pl.DataFrame) -> pl.DataFrame:
@@ -194,12 +308,23 @@ def _derive_game_type(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns(_fbs_pair=fbs_pair)
 
     # Structural fallback, per season, only where a season has no usable notes.
+    #
+    # THE REGULAR-SEASON RESTRICTION IS LOAD-BEARING AND IT IS NEW. The fallback
+    # only ever labels a REGULAR-season game (a conference title game is week 14
+    # of the regular season in both 2021 and 2022), so "does this season have
+    # usable notes" has to be asked of regular-season rows only. Asked of the
+    # whole season it breaks the moment the CFBD postseason supplement lands:
+    # those 38 bowl rows carry notes, 2021 would look like a notes-bearing
+    # season, the fallback would not fire, and all ten of 2021's conference
+    # championships would silently be labelled `regular`.
     fallback_ids: set[int] = set()
     for season in sorted(df["season"].unique().to_list()):
-        season_fbs = df.filter((pl.col("season") == season) & pl.col("_fbs_pair"))
-        if season_fbs.filter(pl.col("notes").is_not_null()).height:
+        season_rows = df.filter(pl.col("season") == season)
+        season_fbs = season_rows.filter(pl.col("_fbs_pair"))
+        regular_fbs = season_fbs.filter(pl.col("season_type") == "regular")
+        if regular_fbs.filter(pl.col("notes").is_not_null()).height:
             continue  # notes are present for this season; the notes rule governs
-        fallback_ids |= _structural_conf_champs(df.filter(pl.col("season") == season), season_fbs)
+        fallback_ids |= _structural_conf_champs(season_rows, regular_fbs)
 
     is_fallback = pl.col("game_id").is_in(sorted(fallback_ids)) if fallback_ids else pl.lit(False)
 
@@ -234,7 +359,15 @@ def _structural_conf_champs(season_all: pl.DataFrame, season_fbs: pl.DataFrame) 
 
     # "Games already played" counts every game involving the team, so an FCS
     # tune-up counts - a conference champion has played 12 by title-game day.
-    played = season_all.filter(pl.col("week") < champ_week)
+    #
+    # `season_type == 'regular'` is not decoration. Postseason rows carry
+    # `week = 1` (docs/data-findings.md §1), so once the CFBD bowl supplement is
+    # merged a bare `week < champ_week` filter counts every bowl game as having
+    # been played BEFORE championship Saturday and inflates the tally that
+    # separates the ten real title games from a COVID makeup game.
+    played = season_all.filter(
+        (pl.col("season_type") == "regular") & (pl.col("week") < champ_week)
+    )
     tally: dict[str, int] = {}
     for home, away in zip(
         played["home_team"].to_list(), played["away_team"].to_list(), strict=True
@@ -260,15 +393,40 @@ def _structural_conf_champs(season_all: pl.DataFrame, season_fbs: pl.DataFrame) 
 def canonical_games(
     seasons: list[int] | tuple[int, ...],
     archive: str | Path | None = None,
+    *,
+    cfbd_archive: str | Path | None = None,
+    include_cfbd: bool = True,
 ) -> pl.DataFrame:
     """Load the requested seasons into ONE canonical frame. No filtering applied.
 
     Includes scheduled-but-unplayed games so that callers can see them; use
     `load_games` for the modelling frame, which applies the completed filter.
+
+    Every row carries `source`. When the private CFBD archive is present its
+    postseason rows are merged in, deduplicated against the parquet frame by
+    `game_id` - see the CFBD SUPPLEMENT block above for why that key is exact and
+    why the parquet wins a tie. `include_cfbd=False` reproduces the parquet-only
+    frame exactly, which is what a fork gets and what the loader tests use to
+    show the difference rather than assert it.
     """
     root = Path(archive) if archive is not None else DEFAULT_ARCHIVE
-    frames = [_read_season(int(s), root) for s in sorted(set(int(s) for s in seasons))]
+    wanted = sorted(set(int(s) for s in seasons))
+    frames = [_read_season(s, root) for s in wanted]
     df = pl.concat(frames, how="vertical")
+
+    if include_cfbd:
+        known = set(df["game_id"].to_list())
+        extra = []
+        for season in wanted:
+            supplement = cfbd_supplement(season, cfbd_archive)
+            if supplement is None:
+                continue
+            fresh = supplement.filter(~pl.col("game_id").is_in(sorted(known)))
+            if fresh.height:
+                known |= set(fresh["game_id"].to_list())
+                extra.append(fresh)
+        if extra:
+            df = pl.concat([df, *extra], how="vertical")
 
     df = df.with_columns(
         home_class=pl.col("home_division").fill_null("unknown"),
@@ -285,6 +443,9 @@ def load_games(
     seasons: list[int] | tuple[int, ...],
     archive: str | Path | None = None,
     universe: str = "model",
+    *,
+    cfbd_archive: str | Path | None = None,
+    include_cfbd: bool = True,
 ) -> pl.DataFrame:
     """The modelling frame: completed games with scores, in a chosen universe.
 
@@ -294,7 +455,7 @@ def load_games(
                      participant (the fit universe - see [model] in the config)
       "fbs_vs_fbs"   the evaluation universe of report 02 §5.1
     """
-    df = canonical_games(seasons, archive)
+    df = canonical_games(seasons, archive, cfbd_archive=cfbd_archive, include_cfbd=include_cfbd)
     df = df.filter(
         pl.col("completed")
         & pl.col("home_points").is_not_null()

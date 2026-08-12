@@ -24,7 +24,7 @@ from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
 from cfbpoll.model import l2_results, l4_resume, retro
 
 CONFIG = load_config()
-SEASON = 2021  # no postseason rows in the archive: "final" = conference championships
+SEASON = 2021  # since the 2026-08-12 backfill, "final" here includes bowls and the CFP
 
 pytestmark = pytest.mark.skipif(
     not (DEFAULT_ARCHIVE / "schedules").exists(),
@@ -191,10 +191,18 @@ def test_power_column_is_l2_rescaled_to_points(
     assert row["power"] == pytest.approx(power.scale * l2.ratings[row["team"]], abs=1e-12)
 
 
-def test_2021_has_no_postseason_rows(games: pl.DataFrame) -> None:
-    """docs/data-findings.md, and the caveat every 2021/2022 demo must carry:
-    "final" in these seasons means through conference championships."""
-    assert set(games["season_type"].unique().to_list()) == {"regular"}
+def test_2021_final_now_reaches_the_playoff(games: pl.DataFrame) -> None:
+    """The caveat every 2021/2022 demo used to carry, retired on 2026-08-12.
+
+    `cfb_schedules_2021.parquet` has no postseason rows, so "final" in this
+    season used to mean "through conference championships" and every hindsight
+    surface stopped there. The CFBD postseason backfill closed it: R(N, final)
+    for 2021 now genuinely means final."""
+    assert set(games["season_type"].unique().to_list()) == {"regular", "postseason"}
+    postseason = games.filter(pl.col("season_type") == "postseason")
+    assert postseason.height == 38
+    assert set(postseason["source"].to_list()) == {"cfbd"}
+    assert postseason.filter(pl.col("game_type") == "cfp").height == 3
 
 
 # ---------------------------------------------- the headline ordering, ADR 0005

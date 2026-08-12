@@ -23,8 +23,20 @@ from cfbpoll.ingest.sportsdataverse import (
 
 SEASONS = (2021, 2022, 2023, 2024, 2025)
 
-#: report 01, re-verified during the backfill: 3,864 completed FBS-vs-FBS games.
-EXPECTED_FBS_VS_FBS = {2021: 732, 2022: 734, 2023: 792, 2024: 798, 2025: 808}
+#: report 01, re-verified during the backfill: 3,864 completed FBS-vs-FBS games
+#: from the parquet alone. That is what a fork with no private CFBD archive sees,
+#: and `include_cfbd=False` still reproduces it exactly.
+EXPECTED_PARQUET_ONLY = {2021: 732, 2022: 734, 2023: 792, 2024: 798, 2025: 808}
+
+#: WITH THE 2026-08-12 CFBD POSTSEASON BACKFILL MERGED IN. `cfb_schedules_2021`
+#: and `cfb_schedules_2022` carry no postseason rows at all, so those two seasons
+#: were missing every bowl and the entire College Football Playoff — 38 games in
+#: 2021 and 42 in 2022. The merge adds exactly those and nothing else: 2023-2025
+#: are unchanged, because the parquet already covers their postseason and the
+#: parquet wins every tie.
+EXPECTED_FBS_VS_FBS = {2021: 770, 2022: 776, 2023: 792, 2024: 798, 2025: 808}
+
+CFBD_POSTSEASON = {2021: 38, 2022: 42}
 
 pytestmark = pytest.mark.skipif(
     not (DEFAULT_ARCHIVE / "schedules").exists(),
@@ -63,7 +75,7 @@ def test_fbs_vs_fbs_counts_match_the_backfill(raw: pl.DataFrame) -> None:
     counts = fbs_vs_fbs(completed).group_by("season").len().sort("season").to_dict(as_series=False)
     got = dict(zip(counts["season"], counts["len"], strict=True))
     assert got == EXPECTED_FBS_VS_FBS
-    assert sum(got.values()) == 3864
+    assert sum(got.values()) == 3944
 
 
 def test_canceled_app_state_liberty_is_excluded_by_the_completed_filter(
@@ -149,21 +161,67 @@ def test_2021_structural_fallback_excludes_the_covid_makeup_game(games: pl.DataF
     assert labels["Alabama"] == "conf_champ"
 
 
-def test_postseason_absent_from_2021_and_2022(raw: pl.DataFrame) -> None:
-    """A real archive fact worth failing on if it ever changes: no bowls before 2023."""
-    early = raw.filter(pl.col("season").is_in([2021, 2022]))
+def test_postseason_is_absent_from_the_parquet_for_2021_and_2022() -> None:
+    """The archive fact that made the CFBD backfill necessary, still asserted.
+
+    `cfb_schedules_2021.parquet` has exactly one distinct `season_type`. This is
+    the hole — not "incomplete", absent — and it is pinned here so that an
+    upstream fix is noticed rather than silently double-counted by the merge.
+    """
+    early = canonical_games([2021, 2022], include_cfbd=False)
     assert early["season_type"].unique().to_list() == ["regular"]
     assert set(early["game_type"].unique().to_list()) == {"regular", "conf_champ"}
+    assert set(early["source"].unique().to_list()) == {"sportsdataverse"}
+
+    parquet_only = load_games(SEASONS, universe="fbs_vs_fbs", include_cfbd=False)
+    counts = parquet_only.group_by("season").len().sort("season").to_dict(as_series=False)
+    assert dict(zip(counts["season"], counts["len"], strict=True)) == EXPECTED_PARQUET_ONLY
+
+
+def test_the_merge_adds_exactly_the_missing_postseason(games: pl.DataFrame) -> None:
+    """80 rows, all postseason, all FBS-vs-FBS, none of them a duplicate."""
+    merged = games.filter(pl.col("source") == "cfbd")
+    counts = dict(merged.group_by("season").len().sort("season").iter_rows())
+    assert counts == CFBD_POSTSEASON
+    assert set(merged["season_type"].to_list()) == {"postseason"}
+    assert set(merged["home_class"].to_list()) == {"fbs"}
+    assert set(merged["away_class"].to_list()) == {"fbs"}
+    assert games["game_id"].n_unique() == games.height
+
+
+def test_cincinnati_2021_now_has_its_playoff_semifinal(games: pl.DataFrame) -> None:
+    """The game the 2021 demo had to caveat away, now in the frame.
+
+    Cincinnati finished 13-0 and became the first Group of Five team to reach the
+    College Football Playoff. Without the postseason merge the archive stopped at
+    13-0, so nothing downstream could see what happened next.
+    """
+    row = games.filter(
+        (pl.col("season") == 2021)
+        & (pl.col("game_type") == "cfp")
+        & (
+            (pl.col("home_team") == "Cincinnati") | (pl.col("away_team") == "Cincinnati")
+        )
+    )
+    assert row.height == 1
+    game = row.row(0, named=True)
+    assert (game["home_team"], game["home_points"]) == ("Alabama", 27)
+    assert (game["away_team"], game["away_points"]) == ("Cincinnati", 6)
+    assert game["source"] == "cfbd"
+    assert game["neutral_site"] is True
 
 
 def test_cfp_and_bowls_split_correctly(games: pl.DataFrame) -> None:
-    counts = (
-        games.filter(pl.col("season") >= 2023)
-        .group_by(["season", "game_type"])
-        .len()
-        .sort(["season", "game_type"])
-    )
+    counts = games.group_by(["season", "game_type"]).len().sort(["season", "game_type"])
     got = {(int(s), t): int(n) for s, t, n in counts.iter_rows()}
+    # The two backfilled seasons, labelled by CFBD's own `notes` through exactly
+    # the same rule the parquet seasons use — "CFP Semifinal at the Goodyear
+    # Cotton Bowl Classic" matches CFP_PATTERN, and the four-team bracket is
+    # three games.
+    assert got[(2021, "cfp")] == 3
+    assert got[(2021, "bowl_non_cfp")] == 35
+    assert got[(2022, "cfp")] == 3
+    assert got[(2022, "bowl_non_cfp")] == 39
     assert got[(2023, "cfp")] == 3  # two semifinals plus the title game
     assert got[(2024, "cfp")] == 11  # the first 12-team bracket
     assert got[(2025, "cfp")] == 11

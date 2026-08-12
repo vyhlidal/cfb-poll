@@ -453,6 +453,15 @@ LAYERS: tuple[LayerSpec, ...] = (
                 "produces a game_type label. No design matrix sees it, and the "
                 "L2/L4/odds probes below prove it every run"
             ),
+            "source": (
+                "NOT A FEATURE, and deliberately not one. PROVENANCE ONLY: "
+                "'sportsdataverse' for the MIT parquet, 'cfbd' for the 80 "
+                "postseason games the parquet is missing for 2021-2022. It is "
+                "published on the run record so a reader can tell which archive "
+                "a season was fit from, and a model that treated a game "
+                "differently because of which pipeline delivered it would be "
+                "exactly the kind of hidden prior this project exists to remove"
+            ),
         },
         probe=None,
     ),

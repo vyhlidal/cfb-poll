@@ -136,20 +136,58 @@ def _plays_if_needed(cfg: dict, seasons: list[int]) -> Any:
 def ingest_cfbd(
     season: Annotated[str | None, typer.Option(help="Season; blank = current.")] = None,
     week: Annotated[str | None, typer.Option(help="Week; blank = from /calendar.")] = None,
+    postseason: Annotated[
+        bool, typer.Option(help="Pull the season's postseason /games instead of a week.")
+    ] = False,
+    teams: Annotated[
+        bool, typer.Option(help="Pull /teams/fbs for the season (colors, ids, conference).")
+    ] = False,
     abort_if_remaining_calls_below: Annotated[
         int, typer.Option(help="Quota guard: abort before spending the last N monthly calls.")
     ] = 200,
+    archive_root: Annotated[
+        Path | None, typer.Option(help="Private archive root; default archive/cfbd.")
+    ] = None,
 ) -> None:
-    """Pull one week from the CFBD REST API (22 chunky calls, quota-guarded).
+    """Pull from the CFBD REST API into the PRIVATE archive, quota-guarded.
 
-    WILL DO: the call sequence in report 01 §3.7 in its stated order - GET /info
-    first so the job fails fast on quota, GET /calendar to resolve the week so it
-    is never hardcoded, then results, detail, aggregates, benchmarks, context.
-    Every raw response body is written to the PRIVATE archive unmodified before
-    anything parses it (report 01 §5.4). Requires CFBD_API_KEY; a fork without
-    one must degrade to the SportsDataverse leg rather than fail.
+    The default is the 22-call weekly sequence of report 01 §3.7 in its stated
+    order - GET /info first so the job fails fast on quota, GET /calendar to
+    resolve the week so it is never hardcoded, then results, detail, aggregates,
+    benchmarks, context. `--postseason` and `--teams` are the narrow, cheap pulls
+    the 2021-2022 backfill and the team-color map need.
+
+    Every raw response body is written unmodified before anything parses it
+    (report 01 §5.4), and `archive/` is gitignored because CFBD terms §3 bar
+    republishing raw API data. Requires CFBD_API_KEY; a fork without one runs the
+    SportsDataverse leg and simply sees fewer games.
     """
-    _stub("ingest cfbd", "report 01 §3.7")
+    from cfbpoll.ingest import cfbd
+
+    root = archive_root or cfbd.DEFAULT_ARCHIVE
+    if season is None or not season.strip():
+        raise typer.BadParameter("--season is required for --postseason and --teams pulls")
+    year = int(season)
+
+    with cfbd.Session(archive_root=root) as session:
+        info = session.check_quota(abort_if_remaining_calls_below)
+        typer.echo(
+            f"CFBD {info.get('tierName')}: {info.get('remainingCalls')} of "
+            f"{info.get('monthlyLimit')} calls remain (resets {info.get('resetAt')})"
+        )
+        if postseason:
+            result = cfbd.pull_postseason(year, session=session)
+            typer.echo(f"{year} postseason: {len(result['games'] or [])} games archived")
+        if teams:
+            rows = cfbd.pull_teams(year, session=session)
+            typer.echo(f"{year} /teams/fbs: {len(rows)} teams archived")
+        if not (postseason or teams):
+            resolved = int(week) if week and week.strip() else cfbd.resolve_week(year)[0]
+            session.close()
+            out = cfbd.pull_week(year, resolved, root, min_remaining=0)
+            typer.echo(f"{year} week {resolved}: {out['calls']} calls archived")
+            return
+        typer.echo(f"calls spent this run: {session.calls}")
 
 
 @ingest_app.command("sportsdataverse")

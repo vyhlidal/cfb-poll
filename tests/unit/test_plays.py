@@ -29,7 +29,13 @@ SEASONS = (2021, 2022, 2023)
 #: FBS-vs-FBS play coverage is COMPLETE for the tune seasons. If this ever stops
 #: being true, L1 is quietly fitting a different universe than L2 and the demo
 #: numbers stop being comparable.
-EXPECTED_FBS_VS_FBS_GAMES = {2021: 732, 2022: 734, 2023: 792}
+#:
+#: 2021 and 2022 grew by their postseason on 2026-08-12 (770 and 776, up from 732
+#: and 734). Coverage stayed complete, and that is not luck: the 80 games the
+#: CFBD backfill added were ALREADY in the play files as 80 of the 86 orphan
+#: `game_id`s of docs/data-findings.md §10. The merge did not add plays, it gave
+#: 80 existing games a schedule row to join to.
+EXPECTED_FBS_VS_FBS_GAMES = {2021: 770, 2022: 776, 2023: 792}
 
 pytestmark = pytest.mark.skipif(
     not (DEFAULT_ARCHIVE / "pbp").exists(),

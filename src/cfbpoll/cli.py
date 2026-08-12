@@ -6,15 +6,16 @@ fork story) and §9.2 (the byte-match replay job). Every verb invoked by
 here, so that the workflows are a readable specification of the pipeline even
 before the pipeline exists.
 
-STATUS: PARTIAL. `rank`, `grid`, `backtest` and `audit-features` are real and run
-offline against the local MIT archive. `rank` publishes the schedule-odds
-ordering as the headline (ADR 0005), with opponent quality from the L3 blend of
-L1 efficiency and L2 results (`[resume].power_source`); a season with no play
-archive falls back to L2 and says so on every artifact. `rank` runs the feature
-audit BEFORE it fits anything, so no poll is published from a fit that was not
-audited (report 02 §3.10). The remaining verbs are still stubs that raise
-NotImplementedError when invoked - `--help` is accurate about what each verb WILL
-do, and no command silently pretends to have worked.
+STATUS: PARTIAL. `rank`, `grid`, `backtest`, `audit-features` and both publish
+targets (`publish postgres`, `publish fixtures`) are real and run offline against
+the local MIT archive. `rank` publishes the schedule-odds ordering as the
+headline (ADR 0005), with opponent quality from the L3 blend of L1 efficiency and
+L2 results (`[resume].power_source`); a season with no play archive falls back to
+L2 and says so on every artifact. `rank` runs the feature audit BEFORE it fits
+anything, so no poll is published from a fit that was not audited (report 02
+§3.10). The remaining verbs are still stubs that raise NotImplementedError when
+invoked - `--help` is accurate about what each verb WILL do, and no command
+silently pretends to have worked.
 
 Season/week options are typed as strings rather than integers on purpose: GitHub
 Actions passes an empty string for an omitted workflow input, and blank means
@@ -930,18 +931,112 @@ def publish_release(
 
 @publish_app.command("postgres")
 def publish_postgres(
-    out: Annotated[Path, typer.Option(help="Directory to load from.")] = Path("out"),
+    from_: Annotated[
+        Path, typer.Option("--from", help="Model output directory to load from.")
+    ] = Path("out"),
+    backtest: Annotated[
+        Path | None,
+        typer.Option(help="Gate metrics JSON. Default: <from>/backtest_metrics.json"),
+    ] = None,
+    database_url: Annotated[
+        str | None, typer.Option(help="Postgres URL. Default: $DATABASE_URL, then $POSTGRES_URL.")
+    ] = None,
+    create: Annotated[
+        bool, typer.Option(help="Run CREATE TABLE IF NOT EXISTS before loading.")
+    ] = True,
 ) -> None:
     """Load the serving subset into Postgres. Idempotent; safe to re-run.
 
-    WILL DO: write the cfb_* tables in report 03 §5.6 - and ONLY the serving
-    subset (§5.4). The full retroactive grid and the bootstrap draws stay in
-    parquet; Postgres is a cache that can be dropped and rebuilt, never the source
-    of truth. cfb_poll_published is append-only: never UPDATE, never DELETE.
+    Writes the cfb_* tables of report 03 §5.6 - and ONLY the serving subset
+    (§5.4). The full retroactive grid and the bootstrap draws stay in parquet;
+    Postgres is a cache that can be dropped and rebuilt, never the source of
+    truth. cfb_poll_published is append-only: never UPDATE, never DELETE, and the
+    first publication of a (season, week, rank) wins forever.
 
-    Skips cleanly when DATABASE_URL is unset, because a fork has no database.
+    Idempotent because `run_id` is a uuid5 over the season, the week, the git
+    sha, the config hash and the archive hash - so re-running against the same
+    out/ hits the same primary keys and converges, while a run after a code
+    change writes a genuinely new run and keeps the old one.
+
+    SKIPS CLEANLY WHEN DATABASE_URL IS UNSET, because a fork has no database and
+    must still produce a ranking. That is a success, not an error, and it says so.
     """
-    _stub("publish postgres", "report 03 §5.4, §5.6")
+    from cfbpoll.publish import postgres
+
+    resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
+    written = postgres.load(
+        from_,
+        database_url=database_url,
+        backtest=resolved if resolved.exists() else None,
+        create=create,
+    )
+    if not written:
+        typer.echo(
+            "no DATABASE_URL (or POSTGRES_URL) set - skipped the Postgres load. "
+            "The files in "
+            f"{from_} are the source of truth and are unaffected; a fork with no "
+            "database is fully supported (report 03 §5.4)."
+        )
+        return
+    total = sum(written.values())
+    typer.echo(f"loaded {total} rows into {len(written)} cfb_* tables:")
+    for table, count in sorted(written.items()):
+        typer.echo(f"  {table:<24}{count:>8}")
+
+
+@publish_app.command("fixtures")
+def publish_fixtures(
+    out: Annotated[
+        Path, typer.Option(help="Destination directory for the JSON fixture set.")
+    ] = Path("site/_data"),
+    from_: Annotated[
+        Path, typer.Option("--from", help="Model output directory to export.")
+    ] = Path("out"),
+    backtest: Annotated[
+        Path | None,
+        typer.Option(help="Gate metrics JSON. Default: <from>/backtest_metrics.json"),
+    ] = None,
+    index_only: Annotated[
+        bool, typer.Option("--index-only", help="Rebuild index.json and divergence.json only.")
+    ] = False,
+) -> None:
+    """Export the same serving rows as JSON files. The fork's data source.
+
+    Report 03 §6.3 recommends BOTH publication paths because they serve different
+    audiences: Neon is the product surface, and published artifacts are the fork.
+    This is the second one. A forker with no database gets a website with every
+    real number in it, and the sandbox app in local development renders live data
+    with POSTGRES_URL unset.
+
+    Identical documents to `publish postgres`, from the identical builder in
+    publish/serving.py, so the site's loader cannot tell which backend it is
+    talking to and no page can work against one and quietly break against the
+    other.
+
+    IDEMPOTENT AND INCREMENTAL: exporting week 7 rewrites week 7's four documents
+    and rebuilds the two season-level files from whatever is already on disk. Run
+    it fifteen times, or twice for the same week; it converges.
+    """
+    from cfbpoll.publish import fixtures
+
+    if index_only:
+        written = fixtures.rebuild_index(out)
+        typer.echo(f"rebuilt: {', '.join(str(p.relative_to(out)) for p in written)}")
+        return
+
+    resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
+    written = fixtures.export(
+        from_, out, backtest=resolved if resolved.exists() else None
+    )
+    if resolved is None or not resolved.exists():
+        typer.echo(
+            "note: no backtest_metrics.json found, so the methodology page will say the "
+            "gate has not been evaluated for this run rather than inventing one. "
+            "Run `cfbpoll backtest` first to fill it."
+        )
+    typer.echo(f"wrote {len(written)} files to {out}:")
+    for path in written:
+        typer.echo(f"  {path.relative_to(out)}")
 
 
 # --------------------------------------------------------------------------- site

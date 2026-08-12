@@ -6,9 +6,10 @@ fork story) and §9.2 (the byte-match replay job). Every verb invoked by
 here, so that the workflows are a readable specification of the pipeline even
 before the pipeline exists.
 
-STATUS: SCAFFOLD. `--help` works and is accurate about what each verb WILL do.
-Every command raises NotImplementedError when actually invoked. Nothing here
-computes, fetches, or publishes anything yet.
+STATUS: PARTIAL. `rank` and `backtest` are real and run offline against the
+local MIT archive. Everything else is still a stub that raises
+NotImplementedError when invoked - `--help` is accurate about what each verb
+WILL do, and no command silently pretends to have worked.
 
 Season/week options are typed as strings rather than integers on purpose: GitHub
 Actions passes an empty string for an omitted workflow input, and blank means
@@ -30,7 +31,8 @@ app = typer.Typer(
     name="cfbpoll",
     help=(
         "An open, bias-free college football ranking. "
-        "SCAFFOLD BUILD: every command is a stub and raises NotImplementedError."
+        "PARTIAL BUILD: `rank` and `backtest` work (L2 results core only); "
+        "every other command is a stub and raises NotImplementedError."
     ),
     epilog=_EPILOG,
     no_args_is_help=True,
@@ -70,6 +72,15 @@ def _stub(what: str, spec: str) -> None:
         f"{what} is not implemented yet. This repository is a scaffold. "
         f"Specified by {spec}. See docs/methodology.md for the build order."
     )
+
+
+def _sha256_or_none(path: Path) -> str | None:
+    """sha256 of a file for the run record, or None when it is not there."""
+    import hashlib
+
+    if not path.exists():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 # --------------------------------------------------------------------------- ingest
@@ -200,19 +211,83 @@ def rank(
     seed: Annotated[int | None, typer.Option(help="Seed for any stochastic step.")] = None,
     out: Annotated[Path, typer.Option(help="Output directory.")] = Path("out"),
 ) -> None:
-    """Fit L1-L4 and write the ratings, the poll, and the run record.
+    """Fit the model and write the ratings, the poll and the run record.
 
-    WILL DO: L1 ridge on garbage-time-filtered play EPA, L2 ridge on compressed
-    margin, L3 walk-forward blend, L4 resume root-solve - then write
-    ratings_live.parquet, ratings_hindsight.parquet, poll.json/poll.csv,
-    model_params.json (every constant, every week) and _run.json (git_sha,
-    config_hash, archive_sha) to --out. Report 03 §5.3 fixes those filenames.
+    TODAY THIS IS L2 ONLY - the results core, ridge on compressed scoring margin
+    (report 02 §3.2). It is a complete, working, constraint-compliant ranking
+    system on its own, and every artifact it writes says so: the poll is labelled
+    "L2 results core, v0" in model_params.json and poll.json. L1 efficiency, the
+    L3 blend and the L4 resume rating are not implemented, so the headline layer
+    named in configs/default.toml ([publication].headline_layer = L4_resume) is
+    NOT what is being published yet and the output says that too.
 
-    The headline poll is L4 Resume; L3 Power is always published beside it
-    (report 02 §3.5). Weeks before configs/default.toml's headline_start_week are
-    written as clearly-labelled provisional output, never as "the poll".
+    Writes ratings_live.parquet (+ .csv), poll.json/poll.csv, model_params.json
+    and _run.json to --out. Report 03 §5.3 fixes those filenames.
+
+    Weeks before configs/default.toml's headline_start_week are written as
+    clearly-labelled provisional output, never as "the poll" (report 02 §4).
     """
-    _stub("rank", "report 02 §3.1-§3.5, report 03 §5.3")
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
+    from cfbpoll.model import l2_results
+    from cfbpoll.publish import files
+    from cfbpoll.publish import poll as poll_mod
+
+    if season is None or str(season).strip() == "":
+        raise typer.BadParameter(
+            "--season is required until the CFBD /calendar resolver exists "
+            "(report 01 §3.7). Try --season 2023."
+        )
+    season_i = int(season)
+    cfg = load_config(config)
+
+    games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
+    buckets = windows.season_buckets(games, season_i)
+    regular = [b for b in buckets if b.season_type == "regular"]
+    if through_week is None or str(through_week).strip() == "":
+        week_i = max(b.week for b in regular)
+    else:
+        week_i = int(through_week)
+
+    window = windows.games_through(games, season=season_i, week=week_i, season_type="regular")
+    fit = l2_results.fit(window, cfg)
+
+    ratings = poll_mod.ratings_frame(fit.ratings, window)
+    table = poll_mod.poll_frame(ratings, restrict_to=poll_mod.fbs_teams(window))
+    provisional, label = poll_mod.publication_status(week_i, cfg)
+
+    params = {
+        **fit.as_params(),
+        "season": season_i,
+        "through": {"season_type": "regular", "week": week_i},
+        "provisional": provisional,
+        "provisional_label": label,
+        "headline_layer_when_complete": cfg["publication"]["headline_layer"],
+        "layers_implemented": ["L2"],
+        "seed": seed if seed is not None else cfg["bootstrap"]["seed"],
+    }
+    run = {
+        "season": season_i,
+        "through_week": week_i,
+        "archive": str(DEFAULT_ARCHIVE),
+        "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
+        "n_games_in_fit": fit.n_games,
+        "n_teams_in_fit": fit.n_teams,
+    }
+    written = files.write_rank_outputs(out, ratings, table, params, run, config_path=config)
+
+    typer.echo(
+        f"L2 results core v0 - {season_i} through regular week {week_i}: "
+        f"{fit.n_games} games, {fit.n_teams} teams, lambda={fit.lam:g}, h={fit.home_field:.3f}"
+        + ("  [PROVISIONAL]" if provisional else "")
+    )
+    for row in table.head(25).iter_rows(named=True):
+        typer.echo(
+            f"{row['rank']:>3}  {row['team']:<26} {row['rating']:>7.3f}"
+            f"  ({row['wins']}-{row['losses']})"
+        )
+    typer.echo("wrote: " + ", ".join(p.name for p in written))
 
 
 @app.command()

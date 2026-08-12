@@ -51,7 +51,17 @@ def test_subcommand_help_runs() -> None:
 
 
 def test_stubs_fail_loudly() -> None:
-    """A stub must raise, not return quietly. No fabricated capabilities."""
-    result = runner.invoke(app, ["rank"])
+    """A stub must raise, not return quietly. No fabricated capabilities.
+
+    `rank` is real now (L2 only), so the canary moved to `bootstrap`, which
+    belongs to a layer that genuinely does not exist yet.
+    """
+    result = runner.invoke(app, ["bootstrap"])
     assert result.exit_code != 0
     assert isinstance(result.exception, NotImplementedError)
+
+
+def test_rank_requires_a_season_until_the_calendar_resolver_exists() -> None:
+    result = runner.invoke(app, ["rank"])
+    assert result.exit_code != 0
+    assert "--season is required" in result.output

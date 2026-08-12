@@ -36,3 +36,23 @@ All 26 assets on the `cfb_crosswalk` tag share one timestamp (2026-06-13). The b
 ## 7. Repo hygiene
 
 `/cfb-poll-data/` is gitignored in the sandbox repo: four PBP files exceed GitHub's 100 MB hard-block, and the sandbox's documented `git add -A && git push` workflow would otherwise poison history. The archive's destination is the standalone repo's release assets (report 03 §5.2), never plain git.
+
+## 8. Play-by-play: 2021 contains exact duplicate rows
+
+**Date: 2026-08-12.** Found while building `ingest/plays.py` (step 4 of the build order); amends the findings above.
+
+`play_by_play_2021.parquet` contains **4,810 rows that are byte-identical repeats** of another row in the same game — 8,949 rows collapse to 4,139 distinct plays, spread across 343 games. 2022–2025 are clean (zero duplicates). Left in place they would double the weight of a random ~3% of 2021's plays in any play-level fit.
+
+**Rule:** de-duplicate play rows on `(game_id, game_row_number)` at load. `ingest/plays.py` does this and `tests/unit/test_plays.py::test_exact_duplicate_rows_in_2021_are_dropped` pins the counts, so both a silent upstream fix and a silent upstream worsening fail the build.
+
+## 9. Play ordering: `game_row_number` is the only unique key
+
+`row` restarts at 1 each half, `id_play` collides (102,461 distinct values over 254,090 rows in 2023), and `game_play_number` repeats whenever a play carries a penalty (the play and the penalty are separate rows sharing a number). **Rule:** order plays by `(game_id, game_row_number)`.
+
+## 10. 86 play-file game_ids have no schedule row
+
+15,353 plays across 86 `game_id`s in the 2021–2023 play files match no row of any `cfb_schedules_*` file. The schedule series is the authority on which games exist (§5), so those plays must be dropped. **Rule:** join plays to games with an inner join and count the orphans; never `left`.
+
+## 11. Kickoffs carry a dummy `down = 1`
+
+A `down BETWEEN 1 AND 4` filter is **not** a scrimmage-play filter: kickoff rows are recorded with `down = 1, distance = 10, yards_to_goal = 65`. **Rule:** classify on `play_type` first, then apply the down/field-position guard.

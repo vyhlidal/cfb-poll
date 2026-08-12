@@ -1,0 +1,140 @@
+# The Sunday job. Transcribed from research report 03 §4.6.
+#
+# COMMITTED AS THE SPECIFICATION. It will fail until the `cfbpoll` CLI is real -
+# every command in it currently raises NotImplementedError. That is intentional:
+# the workflow is the readable contract the pipeline is being built to satisfy.
+#
+# workflow_dispatch ONLY for now. No `schedule:`, and no external trigger, so
+# nothing can fire accidentally while this is a scaffold. When the pipeline is
+# real, the clock is an n8n Schedule Trigger on the Hostinger VPS posting to
+# POST /repos/{owner}/{repo}/actions/workflows/weekly.yml/dispatches at Sunday
+# 06:00 America/New_York - NOT GitHub's schedule event, which drifted 35-216
+# minutes and dropped ~95% of high-frequency runs in 2026, and which is
+# auto-disabled after 60 days of repo inactivity (a 7-month offseason).
+# See docs/adr/0002-scheduling.md.
+#
+# The third-string `schedule:` fallback below is deliberately left commented out
+# until the job is real and the no-op guard is proven:
+#   schedule:
+#     - cron: "43 8 * 8-12,1 SUN"      # 08:43 UTC ~= 04:43 ET
+
+name: weekly
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:  { description: "Season (blank = current)", required: false, type: string }
+      week:    { description: "Week (blank = resolve from CFBD /calendar)", required: false, type: string }
+      publish: { description: "Publish, or dry-run only", required: false, type: boolean, default: true }
+
+permissions:
+  contents: write        # push the results branch, create the release asset
+
+concurrency:
+  group: weekly
+  cancel-in-progress: false          # never cancel a half-written publication
+
+jobs:
+  rank:
+    # Pinned, NOT ubuntu-latest: the image moves and reproducibility depends on it.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENBLAS_NUM_THREADS: "1"      # deterministic reduction order (report 03 §9.3)
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+      TZ: "UTC"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync the locked environment (fails if uv.lock is stale)
+        run: uv sync --locked
+
+      - name: Skip if this week is already published
+        id: guard
+        env: { DATABASE_URL: "${{ secrets.DATABASE_URL }}" }
+        run: uv run cfbpoll guard --season "${{ inputs.season }}" --week "${{ inputs.week }}"
+        # sets steps.guard.outputs.already_published
+
+      - name: Restore the MIT archive
+        if: steps.guard.outputs.already_published != 'true'
+        uses: actions/cache@v4
+        with:
+          path: archive/sportsdataverse
+          key: sdv-${{ hashFiles('data/manifests/sportsdataverse.lock.json') }}
+
+      - name: Sync the MIT archive (sha256-verified against the manifest)
+        if: steps.guard.outputs.already_published != 'true'
+        run: uv run cfbpoll archive sync --source sportsdataverse --verify
+
+      # -- CFBD leg. Absent key => degrade to SportsDataverse. This is what makes a
+      #    fork work with zero secrets, and it is why forks cannot leak the key.
+      - name: Quota guard, then pull the week
+        id: ingest
+        if: steps.guard.outputs.already_published != 'true'
+        env: { CFBD_API_KEY: "${{ secrets.CFBD_API_KEY }}" }
+        run: |
+          if [ -z "$CFBD_API_KEY" ]; then
+            echo "::notice::No CFBD key (expected in forks) - using SportsDataverse only"
+            uv run cfbpoll ingest sportsdataverse --season "${{ inputs.season }}"
+            echo "used_cfbd=false" >> "$GITHUB_OUTPUT"
+          else
+            uv run cfbpoll ingest cfbd \
+              --season "${{ inputs.season }}" --week "${{ inputs.week }}" \
+              --abort-if-remaining-calls-below 200
+            echo "used_cfbd=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # NB: a step-level `env:` is NOT visible to that same step's `if:`, so the
+      # CFBD-vs-fallback branch is surfaced as a step output, not as an env check.
+      - name: Archive raw CFBD responses to private object storage
+        if: steps.ingest.outputs.used_cfbd == 'true'
+        env:
+          R2_ACCOUNT_ID:        ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: uv run cfbpoll archive push --target r2 --scope cfbd
+
+      - name: Data-quality gate (report 01 s5.5) - halt and publish nothing on failure
+        if: steps.guard.outputs.already_published != 'true'
+        run: uv run cfbpoll validate --season "${{ inputs.season }}" --week "${{ inputs.week }}"
+
+      - name: Poll-input leakage audit (report 02 s3.10)
+        if: steps.guard.outputs.already_published != 'true'
+        run: uv run cfbpoll audit-features --fail-on-banned
+
+      - name: Fit L1-L4 and rank
+        if: steps.guard.outputs.already_published != 'true'
+        run: uv run cfbpoll rank --config configs/default.toml --out out/
+
+      - name: Bootstrap rank intervals
+        if: steps.guard.outputs.already_published != 'true'
+        run: uv run cfbpoll bootstrap --draws 1000 --jobs 4 --seed 20260812 --out out/
+
+      - name: Publish files (parquet + csv + json) as an immutable release asset
+        if: steps.guard.outputs.already_published != 'true' && inputs.publish
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: uv run cfbpoll publish release --out out/
+
+      - name: Load the serving tables into Postgres (skipped when unconfigured)
+        if: steps.guard.outputs.already_published != 'true' && inputs.publish
+        env: { DATABASE_URL: "${{ secrets.DATABASE_URL }}" }
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice::No DATABASE_URL - files are published; skipping DB load"
+            exit 0
+          fi
+          uv run cfbpoll publish postgres --out out/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: poll-${{ inputs.season }}-w${{ inputs.week }}
+          path: out/
+          retention-days: 90

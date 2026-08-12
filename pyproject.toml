@@ -1,0 +1,58 @@
+# Dependency set is fixed by research report 03 §3 ("Concrete Python stack").
+# polars AND pyarrow AND duckdb is deliberate, not redundancy: polars for tidy
+# transforms, pyarrow for deterministic parquet writing (§9.3), duckdb for SQL
+# over parquet files including remote HTTPS (§5.5).
+[project]
+name = "cfbpoll"
+version = "0.0.1"
+description = "An open, bias-free college football ranking. The BCS, if it were invented today."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "John Vyhlidal" }]
+keywords = ["college-football", "ranking", "ridge-regression", "sports-analytics"]
+
+dependencies = [
+  "numpy>=2.1",
+  "scipy>=1.14",          # sparse linalg, brentq, milp/HiGHS, norm.cdf
+  "scikit-learn>=1.5",    # Ridge, GroupKFold, metrics, calibration
+  "polars>=1.0",          # parquet + dataframe work; lazy scans, column pruning
+  "pyarrow>=17",          # parquet writer, Arrow interchange
+  "duckdb>=1.1",          # SQL over parquet, local + CI analytics
+  "httpx>=0.27",          # CFBD REST + archive downloads
+  "typer>=0.12",          # the `cfbpoll` CLI
+  "psycopg[binary]>=3.2", # Postgres serving-table loader (optional at runtime)
+  "boto3>=1.35",          # S3-compatible client for Cloudflare R2
+]
+
+[project.urls]
+Homepage = "https://github.com/vyhlidal/cfb-poll"
+Repository = "https://github.com/vyhlidal/cfb-poll"
+
+[project.scripts]
+cfbpoll = "cfbpoll.cli:app"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cfbpoll"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

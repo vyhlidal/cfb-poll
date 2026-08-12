@@ -1,0 +1,244 @@
+####################################################################################
+# cfb-poll — the live model configuration.
+#
+# Every constant in this file is published every week (report 03 §5.3,
+# model_params.json) and every one carries a citation to the research report
+# section that fixed its starting value. If a number appears in the model and not
+# in this file, that is a bug: constraint 5 (full transparency) means the config
+# IS the methodology.
+#
+# Values here are STARTING VALUES plus the grids the backtest will search
+# (report 02 §5.1: tune on 2021-2023, validate on 2024, hold out 2025).
+# Nothing in this file has been fitted yet — the model is not implemented.
+#
+# Rules never change mid-season. Once week 1 of a season publishes, this file is
+# copied to configs/frozen/<season>.toml and that copy governs the season.
+####################################################################################
+
+[meta]
+config_version = "0.0.1"
+frozen = false                  # true only for files under configs/frozen/
+description = "Scaffold defaults. No constant has been fitted; grids are unsearched."
+
+####################################################################################
+# Publication policy — report 02 §4 (recommendation: Option B) and §3.5
+####################################################################################
+[publication]
+# The estimator runs from week 1 with pure zero-prior ridge, but the HEADLINE POLL
+# begins at week 5 — a date published in advance and never moved. Weeks 1-4 ship a
+# connectivity report plus provisional output that is clearly labelled as such.
+# (CFBD's own modeling guidance independently lands on week 5; the CFP committee's
+# first ranking does not appear until roughly week 10.)
+headline_start_week = 5                     # report 02 §4, recommendation item 2
+publish_provisional_weeks = true            # report 02 §4, recommendation item 2
+provisional_label = "PROVISIONAL — not the poll. See docs/constraints.md."
+
+# Headline poll is the resume rating; power is published beside it, always, with
+# the gap shown. Never hide the power number. (report 02 §3.5)
+headline_layer = "L4_resume"
+companion_layer = "L3_power"
+publish_rank_intervals = true               # every week, forever — report 02 §3.3
+publish_margin_resume_variant = true        # both resume flavours — report 02 §3.4
+
+####################################################################################
+# L2 response transform — report 02 §3.2
+#   s_g = C * tanh(m_g / C) + beta_w * sign(m_g)
+####################################################################################
+[margin]
+# C — the compression scale. tanh is smooth, monotone, asymptotes at +/-C, so a
+# 40-point win and a 60-point win are worth nearly the same. Answers the BCS
+# sportsmanship objection WITHOUT discarding margin, and more gracefully than a
+# hard cap (no derivative discontinuity). Precedents: Pasteur capped at 21, the
+# CFBD SRS walkthrough uses +/-28.
+c = 24.0                                    # report 02 §3.2 (start; grid 18-32)
+c_grid = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0]
+
+# beta_w — the win premium. The discontinuity at zero that makes this a FOOTBALL
+# ranking rather than a scoring-margin ranking. Two independent precedents:
+# Pasteur's range-adjusting translation, and Sports-Reference CFB SRS's +/-7 margin
+# floor, which corresponds to beta_w ~ 3.0 here.
+# PUBLISH THIS NUMBER PROMINENTLY. It is the single most contested value in the
+# system and hiding it would be a transparency failure. (report 02 §3.2, §7.4)
+beta_w = 3.0                                # report 02 §3.2 (start; grid 0-8)
+beta_w_grid = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0]
+
+# Compression of extreme PREDICTIONS, after Pasteur: if raw predicted margin
+# M > 21, replace with M* = 21 + (1/a) * [(M - 20)^a - 1].
+[margin.prediction_compression]
+enabled = true                              # report 02 §2.13
+threshold = 21.0
+alpha = 0.8
+
+####################################################################################
+# L4 resume root-solve — report 02 §3.4, sigma from §5.4
+####################################################################################
+[resume]
+# sigma — residual SD of game margin around a good prediction. 15.3 points,
+# confirmed twice independently: the Prediction Tracker RMSE band for good public
+# models, and a conditional-SD estimate of 15.35 for the 2021 season derived by a
+# completely different method.
+sigma = 15.3                                # report 02 §3.4, §5.4
+q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §3.4
+bisection_max_iter = 60                     # ~40 gets machine precision
+gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
+
+####################################################################################
+# Garbage-time filtering — report 02 §3.1, thresholds from §2.3 (Connelly)
+####################################################################################
+[garbage_time]
+# mode: "connelly" (default) | "strict" | "leverage"
+# leverage is the continuous alternative w_p = 4 * WP * (1 - WP) — most principled,
+# least explainable. Backtest all three, then choose, and publish which is live.
+# Note this choice has a public-relations dimension as well as a statistical one
+# (report 02 §7.7).
+mode = "connelly"
+connelly = { q1 = 43, q2 = 37, q3 = 29, q4 = 22 }   # report 02 §2.3, §3.1
+strict = { q1 = 28, q2 = 24, q3 = 21, q4 = 16 }     # report 02 §3.1 (alternative)
+zero_weight_plays = ["kneel", "spike", "end_of_half_heave"]   # report 02 §3.1
+
+####################################################################################
+# Play and game weights — report 02 §3.1, §3.2, §3.8
+####################################################################################
+[weights]
+# Recency is AVAILABLE and OFF BY DEFAULT. A poll that says "who earned it" should
+# not decide that September didn't count. Report its backtest effect anyway.
+recency_gamma = 1.0                         # report 02 §3.1 (1.0 = no decay)
+
+# Bowl rules — handled BY RULE, not by model (report 02 §3.8). Non-CFP bowls have a
+# severe, systematic roster-availability problem (78+ opt-outs and 431 portal
+# entries in the 2021-22 postseason; FSU lost 33 players before the 2023 Orange
+# Bowl). They measure something other than team quality. Publish the rule and the
+# weight.
+bowl_non_cfp = 0.25                         # report 02 §3.8 (0.0 = exclude entirely)
+conference_championship = 1.0               # rosters intact, stakes maximal
+cfp = 1.0
+regular_season = 1.0
+fbs_vs_fcs = 1.0                            # full weight, no special handling — §3.7
+
+# The final published poll of a season is the one computed BEFORE non-CFP bowls,
+# with a separate "final including postseason" view. Do not silently mix them.
+final_poll_excludes_non_cfp_bowls = true    # report 02 §3.8
+
+# Deliberately NOT used: Pasteur-style outcome-dependent game weights. They are
+# right for prediction and arguably wrong for desert (report 02 §2.13, §3.2).
+outcome_dependent_weights = false
+
+####################################################################################
+# Ridge penalty — report 02 §3.1, grid provenance §2.8
+####################################################################################
+[ridge]
+# lambda is chosen by cross-validation EVERY week, grouped on game_id. Plays within
+# a game are not independent; splitting them across folds leaks (report 02 §3.1).
+cv_folds = 5
+cv_group = "game_id"                        # NEVER group by play — report 02 §3.1
+
+# L1 (play level). The published CFBD ridge implementation searched
+# alphas = [75, 100, ..., 325] and landed at 150-200 for a full FBS season, noting
+# explicitly that smaller datasets need larger values — which is exactly the
+# behaviour that makes ridge the early-season stabiliser (report 02 §2.8, §4).
+l1_grid = [75.0, 100.0, 125.0, 150.0, 175.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0]
+
+# L2 (game level), log-spaced. Reference point: Colley = Massey + 2I, i.e. ridge
+# with lambda = 2 on a sign(margin)/2 response (report 02 §2.1).
+l2_grid = [0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0]
+
+# Intercept and home-field are UNPENALISED in both layers (report 02 §3.1).
+unpenalized = ["intercept", "home_field"]
+
+####################################################################################
+# Home-field advantage — report 02 §3.2
+####################################################################################
+[homefield]
+# Estimate h from home-and-home series ONLY, because the schedule is structurally
+# asymmetric: power programs buy home games that never get a return trip. Fit it
+# both ways (independent estimate vs regression coefficient), compare, publish both.
+method = "home_and_home"
+h_pasteur = 3.70                            # report 02 §2.13, §3.2
+h_recent_estimate = 2.8                     # report 02 §3.2 (0.11 pts/drive, 2005-2023)
+fit_both_and_publish = true
+
+####################################################################################
+# L1 efficiency scale and structure — report 02 §3.1
+####################################################################################
+[efficiency]
+# k rescales EPA/play to points. It should land near offensive plays per game
+# (roughly 65-72). FIT IT WALK-FORWARD; do not hard-code it.
+k_start = 68.0                              # report 02 §3.1 (65-72)
+fit_k_walk_forward = true
+special_teams = "exclude"                   # v1: leave ST to the scoreboard — §3.1
+unit_splits = true                          # rush/pass fits for explainability only
+unit_splits_in_ranking = false              # NOT used in v1's ranking — §3.1
+
+####################################################################################
+# L3 blend — report 02 §3.3
+####################################################################################
+[blend]
+# Do NOT hand-pick w1 and w2. Fit them on OUT-OF-SAMPLE games only (fit weeks <= N-1,
+# evaluate week N, pooled across training seasons). Publish w1, w2 and k every week.
+estimator = "ols"                           # ridge or OLS on out-of-sample games
+fit_out_of_sample_only = true
+# No starting values: any number here would be a thumb on the scale.
+
+####################################################################################
+# FCS handling — report 02 §3.7
+####################################################################################
+[fcs]
+# Every FCS team gets its OWN coefficient in the same fit under the same penalty.
+# Do not pool them into one node — that is exactly ESPN's pre-2015 FPI failure
+# (Iowa State fell 31 spots after losing to North Dakota State at a 97% win
+# probability).
+individual_coefficients = true
+pool_into_single_node = false
+# OPEN DATA DEPENDENCY (report 02 §3.7, §7.5): individual FCS coefficients need
+# FCS-vs-FCS coverage. If FCS-vs-FCS scores exist but play-by-play does not (the
+# likely case), FCS teams get coefficients in L2 only and L2 feeds L1's opponent
+# adjustment. Confirm coverage before implementation.
+fcs_vs_fcs_coverage_confirmed = false
+
+####################################################################################
+# Bootstrap — report 02 §3.3, determinism from report 03 §9.3
+####################################################################################
+[bootstrap]
+draws = 1000                                # 500 is the documented floor
+interval = 0.90                             # publish 90% rating AND rank intervals
+jobs = 4
+seed = 20260812                             # explicit PCG64 seed; never np.random.seed
+# Per-draw seeds are derived with SeedSequence.spawn so results are identical
+# whether the bootstrap runs on 1 core or 16 (report 03 §9.3 item 2).
+
+####################################################################################
+# Backtest protocol — report 02 §5.1
+####################################################################################
+[backtest]
+tune_seasons = [2021, 2022, 2023]
+validate_seasons = [2024]
+holdout_seasons = [2025]                    # SINGLE SHOT. Touch it once.
+holdout_locked = true                       # challenge.yml refuses to score on it
+universe = "fbs_vs_fbs"                     # FBS-vs-FCS and bowls reported separately
+walk_forward_strict = true                  # fit through week N-1 only. No exceptions.
+
+####################################################################################
+# Publication gate — report 02 §5.4, on held-out 2025, FBS-vs-FBS, walk-forward
+####################################################################################
+[gate]
+su_accuracy_min = 0.70                      # target 0.715, stretch 0.73
+mae_max = 12.8                              # target 12.5, stretch 12.3
+rmse_max = 15.8                             # target 15.5, stretch 15.3
+calibration_max_decile_deviation_pp = 5.0   # target 3.0, stretch 2.0
+brier_must_beat_all_baselines = true
+violations_must_beat = ["colley", "srs"]    # stretch: within 25% of the MinV bound
+retro_vs_live_divergence_monotone = true
+# ATS is REPORTED, NEVER OPTIMISED. Break-even at -110 juice is 52.38%. Any
+# sustained result above ~53% over 800+ games is an overfitting alarm until it
+# replicates out of sample (report 02 §5.4).
+ats_is_a_target = false
+
+####################################################################################
+# Constraint enforcement — report 02 §3.10. The allow-list lives in
+# src/cfbpoll/validate/leakage.py; the table lives in docs/constraints.md.
+####################################################################################
+[constraints]
+fail_build_on_banned_feature = true
+allow_prior_season_data = false             # constraint 2 — report 02 §4, §7.2
+allow_conference_as_feature = false         # a reputation prior in disguise
+allow_third_party_ratings_as_features = false  # SP+/FPI/Elo/EPA are BENCHMARKS ONLY

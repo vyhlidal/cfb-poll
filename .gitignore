@@ -1,0 +1,27 @@
+# Secrets - never commit. A leaked CFBD key is the one catastrophic mistake (report 03 §11).
+.env
+.env.*
+!.env.example
+
+# The raw data archive. Files are the source of truth, but they do not live in git:
+# GitHub blocks files >100 MiB and Git LFS bills the repo OWNER for every fork's
+# downloads (report 03 §5.2). The archive ships as GitHub Release assets instead.
+archive/
+
+# Model output. Regenerable from the archive by `make rankings`.
+out/
+
+# Static site build output (report 03 §7.1).
+site/_build/
+
+# Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# OS noise
+.DS_Store

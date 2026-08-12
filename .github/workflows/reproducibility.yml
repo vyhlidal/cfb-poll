@@ -1,0 +1,55 @@
+# The offline byte-match replay. Transcribed from research report 03 §9.2,
+# which answers report 01 §5.4 item 5: "a CI job that recomputes a known
+# historical week offline and asserts a byte-match."
+#
+# COMMITTED AS THE SPECIFICATION. It will fail until the `cfbpoll` CLI is real,
+# and until data/manifests/golden/2023-w10.sha256 and configs/frozen/2023.toml
+# exist. None of them do yet.
+#
+# workflow_dispatch ONLY for now, so a scaffold does not paint every push red.
+# When the pipeline is real this MUST become:
+#   on: [push, pull_request, workflow_dispatch]
+# because the entire value of this job is that a red build on an unrelated PR
+# means someone changed the numbers - which is exactly the alarm you want.
+
+name: reproducibility
+
+on:
+  workflow_dispatch:
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04                # pinned, not -latest
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+      TZ: "UTC"
+      SOURCE_DATE_EPOCH: "1700000000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true, cache-dependency-glob: "uv.lock" }
+      - run: uv sync --locked
+
+      - name: Fetch only the pinned archive slice this replay needs
+        run: uv run cfbpoll archive sync --source sportsdataverse --seasons 2023 --verify
+
+      - name: Recompute 2023 week 10 with the network disabled
+        run: |
+          uv run --frozen --offline cfbpoll rank \
+            --season 2023 --through-week 10 \
+            --config configs/frozen/2023.toml \
+            --seed 20231105 \
+            --out /tmp/replay
+          uv run --frozen --offline cfbpoll bootstrap \
+            --draws 200 --seed 20231105 --out /tmp/replay
+
+      - name: Assert byte-identical output
+        run: |
+          uv run cfbpoll canonicalize /tmp/replay --to /tmp/replay/canonical.csv
+          sha256sum -c data/manifests/golden/2023-w10.sha256
+
+      - name: Assert no banned feature reached a model matrix
+        run: uv run cfbpoll audit-features --fail-on-banned --season 2023

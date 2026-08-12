@@ -32,7 +32,6 @@ Layout, which the loader in the sandbox app depends on:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -163,12 +162,25 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
             }
         )
 
+    # `generated_at` is the newest publication in the set, NOT the wall clock.
+    # Report 03 §9.3: keep wall-clock timestamps out of everything except
+    # _run.json. A wall clock here would make every republish a diff even when
+    # not one number changed, which destroys the one property that makes a
+    # fixture set reviewable. It is also the more useful value — the site's
+    # freshness indicator wants "when was the newest poll published", not "when
+    # did someone last run the exporter".
+    published = [
+        w["published_at"]
+        for season in seasons
+        for w in season["weeks"]
+        if w.get("published_at")
+    ]
     index = dest / "index.json"
     _dump(
         index,
         {
             "schema_version": SCHEMA_VERSION,
-            "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "generated_at": max(published) if published else None,
             "generator": "cfbpoll publish fixtures",
             "seasons": seasons,
         },

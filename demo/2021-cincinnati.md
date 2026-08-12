@@ -32,7 +32,7 @@ independent judge reached, and it was one of the two findings that decided
 > ```
 >
 > `q_ref` is the Power rating of the **25th-ranked Power team** — **Houston** this week, at
-> **17.54 points**. It is the one free constant in the ordering, so it is
+> **17.76 points**. It is the one free constant in the ordering, so it is
 > published with the team it came from and you can check it against the `Power`
 > column below. Study §9 measured how much it matters: across a 16-point swing in
 > reference quality, Kendall's tau against this choice never fell below 0.985 and
@@ -66,18 +66,18 @@ independent judge reached, and it was one of the two findings that decided
 
 | # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | ± | Gap | Résumé # | Power # | Hindsight # |
 |---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1–25 | Alabama | 12-1 | 2.288 | 0.0052 | 42.70 | 36.51 | 31.23 | 3.14 | +11.47 | 2 | 2 | 1 (—) |
-| 2 | 1–39 | Cincinnati | 13-0 | 2.007 | 0.0098 | 60.00\* | 34.63 | 27.27 | 3.16 | +32.73 | 1 | 5 | 2 (—) |
-| 3 | 1–34 | Michigan | 12-1 | 1.960 | 0.0110 | 40.78 | 35.57 | 29.37 | 3.19 | +11.41 | 3 | 4 | 3 (—) |
-| 4 | 1–18 | Georgia | 12-1 | 1.918 | 0.0121 | 40.35 | 41.40 | 34.35 | 3.15 | +6.00 | 4 | 1 | 4 (—) |
-| 5 | 2–49 | Notre Dame | 11-1 | 1.461 | 0.0346 | 37.06 | 28.88 | 24.98 | 3.23 | +12.08 | 5 | 6 | 5 (—) |
-| 6 | 5–74 | Michigan State | 10-2 | 1.199 | 0.0633 | 32.48 | 23.67 | 20.37 | 3.29 | +12.11 | 6 | 14 | 6 (—) |
-| 7 | 2–48 | Oklahoma State | 11-2 | 1.189 | 0.0647 | 31.48 | 26.16 | 24.60 | 3.24 | +6.87 | 10 | 7 | 7 (—) |
-| 8 | 3–60 | Ole Miss | 10-2 | 1.160 | 0.0692 | 32.11 | 25.29 | 21.82 | 3.25 | +10.30 | 7 | 10 | 8 (—) |
-| 9 | 1–34 | Ohio State | 10-2 | 1.126 | 0.0748 | 31.74 | 33.95 | 29.61 | 3.29 | +2.12 | 9 | 3 | 9 (—) |
-| 10 | 4–70 | Baylor | 11-2 | 1.056 | 0.0879 | 30.95 | 23.99 | 20.37 | 3.24 | +10.58 | 12 | 13 | 10 (—) |
-| 11 | 7–79 | UTSA | 12-1 | 0.894 | 0.1278 | 31.94 | 19.19 | 15.78 | 3.15 | +16.15 | 8 | 36 | 11 (—) |
-| 12 | 10–84 | Louisiana | 12-1 | 0.823 | 0.1502 | 31.29 | 17.15 | 14.25 | 3.19 | +17.04 | 11 | 41 | 12 (—) |
+| 1 | 1–25 | Alabama | 12-1 | 2.289 | 0.0051 | 42.92 | 37.05 | 31.69 | 3.17 | +11.22 | 2 | 2 | 1 (—) |
+| 2 | 1–41 | Cincinnati | 13-0 | 2.002 | 0.0100 | 60.00\* | 34.18 | 27.34 | 3.18 | +32.66 | 1 | 5 | 2 (—) |
+| 3 | 1–34 | Michigan | 12-1 | 1.958 | 0.0110 | 40.93 | 35.67 | 29.65 | 3.21 | +11.29 | 3 | 4 | 3 (—) |
+| 4 | 1–17 | Georgia | 12-1 | 1.918 | 0.0121 | 40.58 | 41.58 | 34.69 | 3.17 | +5.89 | 4 | 1 | 4 (—) |
+| 5 | 2–49 | Notre Dame | 11-1 | 1.448 | 0.0356 | 37.17 | 29.42 | 25.32 | 3.25 | +11.85 | 5 | 6 | 5 (—) |
+| 6 | 2–46 | Oklahoma State | 11-2 | 1.219 | 0.0604 | 31.91 | 27.03 | 25.26 | 3.27 | +6.65 | 8 | 7 | 6 (—) |
+| 7 | 5–73 | Michigan State | 10-2 | 1.193 | 0.0641 | 32.64 | 23.93 | 20.62 | 3.31 | +12.02 | 6 | 14 | 7 (—) |
+| 8 | 3–59 | Ole Miss | 10-2 | 1.155 | 0.0700 | 32.29 | 25.78 | 22.19 | 3.28 | +10.11 | 7 | 10 | 8 (—) |
+| 9 | 1–34 | Ohio State | 10-2 | 1.118 | 0.0761 | 31.86 | 34.41 | 29.98 | 3.31 | +1.88 | 9 | 3 | 9 (—) |
+| 10 | 4–66 | Baylor | 11-2 | 1.090 | 0.0814 | 31.46 | 24.90 | 21.12 | 3.27 | +10.34 | 11 | 12 | 10 (—) |
+| 11 | 6–78 | UTSA | 12-1 | 0.864 | 0.1367 | 31.80 | 19.93 | 16.23 | 3.17 | +15.57 | 10 | 35 | 11 (—) |
+| 12 | 5–77 | Oklahoma | 10-2 | 0.835 | 0.1461 | 29.25 | 22.61 | 19.40 | 3.36 | +9.85 | 13 | 18 | 12 (—) |
 
 > **The interval is the honest part of this table.** Every rank carries a 90%
 > interval from 1,000 parametric draws on the FIXED schedule: each draw redraws
@@ -108,10 +108,10 @@ data window, so R(N, N) and R(N, final) are the same fit. The retroactive view o
 
 | Team | Rec | −log10 P | P(W ≥ W_t) | Poll # | Résumé | Résumé # | Power | Power # |
 |---|:---:|---:|---:|---:|---:|---:|---:|---:|
-| Cincinnati | 13-0 | 2.007 | 0.0098 | 2 | 60.00\* | 1 | 27.27 | 5 |
-| Alabama | 12-1 | 2.288 | 0.0052 | 1 | 42.70 | 2 | 31.23 | 2 |
-| Michigan | 12-1 | 1.960 | 0.0110 | 3 | 40.78 | 3 | 29.37 | 4 |
-| Georgia | 12-1 | 1.918 | 0.0121 | 4 | 40.35 | 4 | 34.35 | 1 |
+| Cincinnati | 13-0 | 2.002 | 0.0100 | 2 | 60.00\* | 1 | 27.34 | 5 |
+| Alabama | 12-1 | 2.289 | 0.0051 | 1 | 42.92 | 2 | 31.69 | 2 |
+| Michigan | 12-1 | 1.958 | 0.0110 | 3 | 40.93 | 3 | 29.65 | 4 |
+| Georgia | 12-1 | 1.918 | 0.0121 | 4 | 40.58 | 4 | 34.69 | 1 |
 
 **Cincinnati is poll #2, résumé #1, power #5. The committee put it at #4.**
 
@@ -123,9 +123,9 @@ committee said fourth, and the margin-aware résumé says fourth too (study §7)
 ordering this project used to publish was the only one that said **first** — and it
 said first because it could not say anything else.
 
-The poll number says 13-0 against this schedule is a 0.98-in-100 event for a reference-quality
-team: 0.516 in 100 for Alabama's 12-1, 1.096 for Michigan's and 1.207 for Georgia's,
-against 0.985 for Cincinnati's. Three teams did something less likely than Cincinnati
+The poll number says 13-0 against this schedule is a 1.00-in-100 event for a reference-quality
+team: 0.514 in 100 for Alabama's 12-1, 1.101 for Michigan's and 1.208 for Georgia's,
+against 0.996 for Cincinnati's. Three teams did something less likely than Cincinnati
 did, and Georgia's 12-1 and Cincinnati's 13-0 are close enough that they separate in
 the third decimal place — which is a far more honest description of that argument
 than either #1 or #5.
@@ -135,9 +135,9 @@ conference identity enters any design matrix (constraint 2), so the phrase
 "American Athletic Conference" appears nowhere in the computation — and the ordering
 would be identical if the conference labels were shuffled.
 
-The power rating, 27.27 points, is the model's separate estimate of how good Cincinnati
+The power rating, 27.34 points, is the model's separate estimate of how good Cincinnati
 was, and it is 5th. Publishing all three, with the résumé-minus-power gap
-(+32.73) printed between the last two, is the whole of report 02 §3.5's argument in one row.
+(+32.66) printed between the last two, is the whole of report 02 §3.5's argument in one row.
 
 The win that carries the number is on the schedule: at Notre Dame, 24-13, on
 2 October 2021. Notre Dame finished the regular season 11-1 and is power #6 here,
@@ -156,21 +156,21 @@ free to move, and does.
 
 | Week | Live # | Hindsight # | Move | Résumé # live → hindsight | Power live | Power hindsight |
 |---|---:|---:|---:|---:|---:|---:|
-| `2021-regu-w01` | 65 | 28 | ▲37 | 26 → 8 | 10.87 | 27.27 |
-| `2021-regu-w02` | 42 | 30 | ▲12 | 3 → 5 | 6.60 | 27.27 |
-| `2021-regu-w03` | 17 | 24 | ▼7 | 3 → 9 | 8.28 | 27.27 |
-| `2021-regu-w04` | 22 | 28 | ▼6 | 3 → 6 | 13.35 | 27.27 |
-| `2021-regu-w05` | 13 | 8 | ▲5 | 4 → 3 | 16.52 | 27.27 |
-| `2021-regu-w06` | 10 | 11 | ▼1 | 2 → 2 | 17.17 | 27.27 |
-| `2021-regu-w07` | 6 | 6 | — | 2 → 2 | 22.99 | 27.27 |
-| `2021-regu-w08` | 7 | 5 | ▲2 | 3 → 2 | 19.95 | 27.27 |
-| `2021-regu-w09` | 5 | 4 | ▲1 | 2 → 2 | 21.83 | 27.27 |
-| `2021-regu-w10` | 4 | 2 | ▲2 | 2 → 2 | 22.06 | 27.27 |
-| `2021-regu-w11` | 3 | 2 | ▲1 | 2 → 2 | 22.71 | 27.27 |
-| `2021-regu-w12` | 2 | 2 | — | 2 → 2 | 25.63 | 27.27 |
-| `2021-regu-w13` | 3 | 2 | ▲1 | 2 → 2 | 26.56 | 27.27 |
-| `2021-regu-w14` | 2 | 2 | — | 1 → 1 | 27.13 | 27.27 |
-| `2021-regu-w15` | 2 | 2 | — | 1 → 1 | 27.27 | 27.27 |
+| `2021-regu-w01` | 63 | 28 | ▲35 | 27 → 9 | 10.77 | 27.34 |
+| `2021-regu-w02` | 44 | 33 | ▲11 | 3 → 6 | 6.55 | 27.34 |
+| `2021-regu-w03` | 16 | 24 | ▼8 | 5 → 9 | 8.21 | 27.34 |
+| `2021-regu-w04` | 21 | 28 | ▼7 | 5 → 7 | 13.35 | 27.34 |
+| `2021-regu-w05` | 13 | 8 | ▲5 | 4 → 4 | 16.70 | 27.34 |
+| `2021-regu-w06` | 10 | 10 | — | 2 → 2 | 17.26 | 27.34 |
+| `2021-regu-w07` | 6 | 6 | — | 2 → 2 | 23.48 | 27.34 |
+| `2021-regu-w08` | 7 | 4 | ▲3 | 3 → 2 | 20.29 | 27.34 |
+| `2021-regu-w09` | 5 | 4 | ▲1 | 2 → 2 | 22.03 | 27.34 |
+| `2021-regu-w10` | 3 | 2 | ▲1 | 2 → 2 | 22.40 | 27.34 |
+| `2021-regu-w11` | 2 | 2 | — | 2 → 2 | 22.78 | 27.34 |
+| `2021-regu-w12` | 2 | 2 | — | 2 → 2 | 25.75 | 27.34 |
+| `2021-regu-w13` | 3 | 2 | ▲1 | 2 → 2 | 26.63 | 27.34 |
+| `2021-regu-w14` | 3 | 2 | ▲1 | 1 → 1 | 27.17 | 27.34 |
+| `2021-regu-w15` | 2 | 2 | — | 1 → 1 | 27.34 | 27.34 |
 
 Week 1 is the interesting row: live, Cincinnati is nowhere, because after one game
 against nobody in particular a zero-prior ridge knows nothing. In hindsight it is
@@ -205,4 +205,4 @@ uv run cfbpoll grid --season 2021 --out out/
 ```
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `c3132c9` - config `configs/default.toml` sha256 `ab906806951a114b...`
+Code `d706a06` - config `configs/default.toml` sha256 `bd6a19c152f0222c...`

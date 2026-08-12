@@ -19,7 +19,7 @@ replaced. That is the whole retroactive mechanism, and it is one substitution
 > undefeated team's row on this page read `—`, forever, and from week 11 onward that
 > was true of every unbeaten team in the country. A tail probability has no such
 > degeneracy: in the window below, **56 of 97** unbeaten-team rows move, against
-> **31 of 97** under the ordering it replaced.
+> **46 of 97** under the ordering it replaced.
 > See [ADR 0005](../docs/adr/0005-headline-ordering.md).
 
 > **Power is L3, version v1 — the blend.** Report 02 §3.4 reads opponent quality
@@ -50,21 +50,21 @@ résumé is carried beside it as the comparison column.
 
 | Week | Team | Live # | Hindsight # | Move | −log10 P live → hindsight | Résumé live → hindsight | Power live → hindsight |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `2023-regu-w05` | Mississippi State | 90 | 66 | ▲24 | 0.009 → 0.037 | -0.65 → 6.94 | -4.66 → 2.70 |
-| `2023-regu-w05` | Miami (OH) | 35 | 54 | ▼19 | 0.208 → 0.091 | 21.01 → 14.13 | 13.67 → 8.90 |
-| `2023-regu-w06` | Mississippi State | 79 | 61 | ▲18 | 0.027 → 0.048 | 3.32 → 8.88 | -2.17 → 2.70 |
-| `2023-regu-w05` | Temple | 94 | 112 | ▼18 | 0.007 → 0.001 | -0.82 → -6.65 | -6.65 → -9.84 |
-| `2023-regu-w07` | Tulsa | 68 | 85 | ▼17 | 0.042 → 0.013 | 6.01 → 2.48 | 3.40 → -4.65 |
-| `2023-regu-w05` | Oklahoma State | 87 | 71 | ▲16 | 0.010 → 0.033 | -0.19 → 6.45 | -1.03 → 11.17 |
-| `2023-regu-w05` | Texas A&M | 22 | 38 | ▼16 | 0.337 → 0.194 | 24.54 → 19.29 | 17.97 → 17.05 |
-| `2023-regu-w06` | Memphis | 44 | 29 | ▲15 | 0.162 → 0.254 | 15.32 → 21.86 | 7.24 → 10.36 |
-| `2023-regu-w05` | Toledo | 64 | 49 | ▲15 | 0.040 → 0.103 | 8.25 → 14.59 | 4.92 → 11.64 |
-| `2023-regu-w06` | Kansas State | 56 | 42 | ▲14 | 0.082 → 0.165 | 9.20 → 16.42 | 12.37 → 20.99 |
-| `2023-regu-w05` | UCF | 61 | 47 | ▲14 | 0.052 → 0.107 | 8.88 → 13.63 | 10.49 → 12.10 |
-| `2023-regu-w06` | UCF | 73 | 59 | ▲14 | 0.030 → 0.058 | 3.90 → 9.63 | 4.93 → 12.10 |
-| `2023-regu-w07` | Auburn | 66 | 52 | ▲14 | 0.045 → 0.071 | 6.34 → 10.97 | 5.33 → 9.92 |
-| `2023-regu-w07` | UCF | 72 | 58 | ▲14 | 0.036 → 0.058 | 5.25 → 9.63 | 6.20 → 12.10 |
-| `2023-regu-w05` | Boston College | 95 | 81 | ▲14 | 0.007 → 0.016 | -0.81 → 3.49 | -6.27 → 2.10 |
+| `2023-regu-w05` | Mississippi State | 91 | 66 | ▲25 | 0.008 → 0.036 | -0.49 → 7.06 | -4.39 → 2.87 |
+| `2023-regu-w05` | Miami (OH) | 35 | 54 | ▼19 | 0.199 → 0.088 | 21.14 → 14.10 | 13.76 → 8.82 |
+| `2023-regu-w06` | Mississippi State | 78 | 61 | ▲17 | 0.025 → 0.048 | 3.55 → 9.00 | -1.89 → 2.87 |
+| `2023-regu-w05` | Temple | 95 | 112 | ▼17 | 0.006 → 0.001 | -0.81 → -6.68 | -6.39 → -9.73 |
+| `2023-regu-w07` | Tulsa | 68 | 85 | ▼17 | 0.044 → 0.012 | 6.10 → 2.54 | 3.31 → -4.75 |
+| `2023-regu-w05` | Texas A&M | 21 | 38 | ▼17 | 0.327 → 0.190 | 24.76 → 19.29 | 18.36 → 17.02 |
+| `2023-regu-w05` | Oklahoma State | 87 | 71 | ▲16 | 0.009 → 0.032 | -0.12 → 6.46 | -1.07 → 11.25 |
+| `2023-regu-w06` | Memphis | 44 | 29 | ▲15 | 0.153 → 0.248 | 15.45 → 21.85 | 7.64 → 10.52 |
+| `2023-regu-w05` | Toledo | 64 | 49 | ▲15 | 0.037 → 0.102 | 8.35 → 14.65 | 5.29 → 11.78 |
+| `2023-regu-w05` | UL Monroe | 65 | 80 | ▼15 | 0.036 → 0.019 | 6.79 → 4.06 | -2.37 → -7.98 |
+| `2023-regu-w06` | Kansas State | 56 | 42 | ▲14 | 0.077 → 0.160 | 9.40 → 16.39 | 12.54 → 20.83 |
+| `2023-regu-w06` | UCF | 73 | 59 | ▲14 | 0.028 → 0.055 | 4.04 → 9.55 | 5.19 → 12.10 |
+| `2023-regu-w07` | Auburn | 66 | 52 | ▲14 | 0.047 → 0.070 | 6.41 → 11.02 | 5.54 → 10.01 |
+| `2023-regu-w07` | UCF | 73 | 59 | ▲14 | 0.036 → 0.055 | 5.20 → 9.55 | 6.26 → 12.10 |
+| `2023-regu-w05` | South Alabama | 106 | 92 | ▲14 | 0.002 → 0.007 | -5.47 → 0.46 | 4.39 → 9.38 |
 
 ## The unbeaten teams, which is what changed
 
@@ -73,8 +73,8 @@ ordering rule and nothing else.
 
 | Unbeaten-team rows that move live → hindsight | Schedule odds | Résumé (the ordering it replaced) |
 |---|---:|---:|
-| Published window, weeks 5+ | **56** of 97 | 31 of 97 |
-| Last five published weeks (`2023-regu-w11`–`2023-regu-w15`) | **7** of 26 | 0 of 26 |
+| Published window, weeks 5+ | **56** of 97 | 46 of 97 |
+| Last five published weeks (`2023-regu-w11`–`2023-regu-w15`) | **7** of 26 | 2 of 26 |
 
 The second row is the finding. Late in a season the résumé ordering has nothing left
 to say about an undefeated team — every one of them is on the bracket, the bracket
@@ -88,17 +88,17 @@ Conference USA, and the question was whether a poll could revise its September
 
 | Week | Rec | Live # | Hindsight # | Move | P(W ≥ W_t) live → hindsight |
 |---|:---:|---:|---:|---:|---:|
-| `2023-regu-w05` | 4-0 | 26 | 24 | ▲2 | 0.5139 → 0.4583 |
-| `2023-regu-w06` | 5-0 | 18 | 22 | ▼4 | 0.3778 → 0.4154 |
-| `2023-regu-w07` | 6-0 | 16 | 14 | ▲2 | 0.2748 → 0.2731 |
-| `2023-regu-w08` | 7-0 | 14 | 12 | ▲2 | 0.2099 → 0.2348 |
-| `2023-regu-w09` | 8-0 | 8 | 11 | ▼3 | 0.1168 → 0.1541 |
-| `2023-regu-w10` | 9-0 | 12 | 11 | ▲1 | 0.1171 → 0.1426 |
-| `2023-regu-w11` | 10-0 | 10 | 10 | — | 0.1034 → 0.1195 |
-| `2023-regu-w12` | 11-0 | 9 | 10 | ▼1 | 0.0795 → 0.1121 |
-| `2023-regu-w13` | 12-0 | 10 | 9 | ▲1 | 0.0941 → 0.0949 |
-| `2023-regu-w14` | 13-0 | 8 | 8 | — | 0.0702 → 0.0718 |
-| `2023-regu-w15` | 13-0 | 8 | 8 | — | 0.0663 → 0.0718 |
+| `2023-regu-w05` | 4-0 | 26 | 24 | ▲2 | 0.5288 → 0.4624 |
+| `2023-regu-w06` | 5-0 | 18 | 22 | ▼4 | 0.3942 → 0.4202 |
+| `2023-regu-w07` | 6-0 | 16 | 14 | ▲2 | 0.2687 → 0.2768 |
+| `2023-regu-w08` | 7-0 | 14 | 12 | ▲2 | 0.2160 → 0.2389 |
+| `2023-regu-w09` | 8-0 | 8 | 11 | ▼3 | 0.1240 → 0.1586 |
+| `2023-regu-w10` | 9-0 | 12 | 11 | ▲1 | 0.1239 → 0.1470 |
+| `2023-regu-w11` | 10-0 | 10 | 10 | — | 0.1071 → 0.1232 |
+| `2023-regu-w12` | 11-0 | 9 | 10 | ▼1 | 0.0798 → 0.1157 |
+| `2023-regu-w13` | 12-0 | 11 | 9 | ▲2 | 0.0903 → 0.0982 |
+| `2023-regu-w14` | 13-0 | 8 | 8 | — | 0.0731 → 0.0745 |
+| `2023-regu-w15` | 13-0 | 8 | 8 | — | 0.0691 → 0.0745 |
 
 Note the direction in the last two weeks. The hindsight probability is **higher**
 than the live one, meaning end-of-season Power judged Liberty's schedule slightly
@@ -116,19 +116,19 @@ all 133 ranked teams:
 
 | Evaluation week | Mean \|Δrank\| | Max \|Δrank\| |
 |---|---:|---:|
-| `2023-regu-w05` | 5.68 | 24 |
-| `2023-regu-w06` | 4.57 | 18 |
-| `2023-regu-w07` | 3.35 | 17 |
+| `2023-regu-w05` | 5.64 | 25 |
+| `2023-regu-w06` | 4.54 | 17 |
+| `2023-regu-w07` | 3.40 | 17 |
 | `2023-regu-w08` | 2.50 | 13 |
-| `2023-regu-w09` | 2.35 | 14 |
-| `2023-regu-w10` | 1.70 | 13 |
-| `2023-regu-w11` | 1.19 | 6 |
-| `2023-regu-w12` | 0.86 | 5 |
-| `2023-regu-w13` | 0.44 | 3 |
-| `2023-regu-w14` | 0.44 | 2 |
-| `2023-regu-w15` | 0.41 | 2 |
+| `2023-regu-w09` | 2.42 | 14 |
+| `2023-regu-w10` | 1.70 | 12 |
+| `2023-regu-w11` | 1.22 | 7 |
+| `2023-regu-w12` | 0.77 | 5 |
+| `2023-regu-w13` | 0.51 | 3 |
+| `2023-regu-w14` | 0.50 | 3 |
+| `2023-regu-w15` | 0.39 | 2 |
 
-Mean divergence falls from **5.68 places** at `2023-regu-w05` to **0.41** at `2023-regu-w15`, monotonically.
+Mean divergence falls from **5.64 places** at `2023-regu-w05` to **0.39** at `2023-regu-w15`, monotonically.
 
 That shape is the thing to check, not the individual rows. A retroactive poll whose
 week-12 ranking still moved 6 places in hindsight would be telling you its week-12
@@ -161,4 +161,4 @@ uv run cfbpoll grid --season 2023 --out out/
 group-by away.
 
 Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `c3132c9` - config `configs/default.toml` sha256 `ab906806951a114b...`
+Code `d706a06` - config `configs/default.toml` sha256 `bd6a19c152f0222c...`

@@ -9248,10 +9248,10 @@
     ]
   },
   "provenance": {
-    "commit": "95401cc8f912168eed341f3c4815f7ba82fc6218",
+    "commit": "d706a0636bd50a6f0957e66f201607977d81c85b",
     "config": "configs/default.toml",
-    "config_hash": "a197e7f5dbab6aa01e47b924758cddac6f2d407d3c652a197d0c2c431c50f8e7",
-    "generated_utc": "2026-08-12T19:49:20.996430+00:00",
+    "config_hash": "bd6a19c152f0222cbc2fd1ac8ee2dad1ef439c2df6ae1635145d5713022c4b3d",
+    "generated_utc": "2026-08-12T19:59:37.425213+00:00",
     "holdout_touched": false,
     "tune_seasons": [
       2021,

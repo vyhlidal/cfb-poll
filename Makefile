@@ -55,7 +55,7 @@ archive: .venv
 backtest: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run cfbpoll backtest --config $(CONFIG) \
-	    --systems resume,l3,l2,l1,colley,srs,elo,walker,winpct \
+	    --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct \
 	    --seasons 2021-2023 --out $(OUT)
 	@echo
 	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"

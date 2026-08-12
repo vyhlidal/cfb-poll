@@ -712,6 +712,7 @@
       "l3": "l3",
       "random_walker": "random_walker",
       "resume": "l3",
+      "schedule_odds": "l3",
       "srs": "srs",
       "winpct": "winpct"
     },
@@ -724,6 +725,7 @@
     "sigma": 15.3,
     "spec": "report 02 \u00a75.1",
     "systems": [
+      "schedule_odds",
       "resume",
       "l3",
       "l2",
@@ -8425,6 +8427,1101 @@
           "season": 2023,
           "violation_rate": 0.184,
           "violations": 138.0
+        }
+      ],
+      "segments": {
+        "bowl": {
+          "brier": 0.28506501625172215,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.16347380518408072,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.2729124833815193,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.34350030714010105,
+              "n": 11.0,
+              "observed_rate": 0.5454545454545454
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4543736542784736,
+              "n": 6.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5323158599222036,
+              "n": 7.0,
+              "observed_rate": 0.42857142857142855
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6452140122584739,
+              "n": 9.0,
+              "observed_rate": 0.3333333333333333
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7430127286566581,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.7719312746610052,
+          "mae": 17.876378177990222,
+          "max_calibration_deviation_pp": null,
+          "n_games": 39,
+          "rmse": 21.36601585741427,
+          "su_accuracy": 0.4358974358974359
+        },
+        "cfp": {
+          "brier": 0.19405583386966221,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4138944706378829,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6546298425318022,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.5765386939362597,
+          "mae": 8.384054293371635,
+          "max_calibration_deviation_pp": null,
+          "n_games": 3,
+          "rmse": 10.04506756498969,
+          "su_accuracy": 0.6666666666666666
+        },
+        "fbs_vs_fbs": {
+          "brier": 0.20450061468888583,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": 0.07239301196424014,
+              "n": 16.0,
+              "observed_rate": 0.0
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 1.0,
+              "mean_predicted": 0.15628029938961652,
+              "n": 65.0,
+              "observed_rate": 0.15384615384615385
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 1.0,
+              "mean_predicted": 0.25450670923162705,
+              "n": 111.0,
+              "observed_rate": 0.17117117117117117
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 1.0,
+              "mean_predicted": 0.3496399663322418,
+              "n": 183.0,
+              "observed_rate": 0.2896174863387978
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 1.0,
+              "mean_predicted": 0.4521635375040716,
+              "n": 228.0,
+              "observed_rate": 0.4692982456140351
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5513646066192891,
+              "n": 322.0,
+              "observed_rate": 0.5124223602484472
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6478865093041652,
+              "n": 422.0,
+              "observed_rate": 0.6232227488151659
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7504012980946433,
+              "n": 337.0,
+              "observed_rate": 0.7477744807121661
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8485167349415577,
+              "n": 233.0,
+              "observed_rate": 0.8025751072961373
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9473086353660586,
+              "n": 144.0,
+              "observed_rate": 0.8333333333333334
+            }
+          ],
+          "log_loss": 0.602194219787001,
+          "mae": 13.725495389569716,
+          "max_calibration_deviation_pp": 11.39753020327252,
+          "n_games": 2061,
+          "rmse": 17.47438617135243,
+          "su_accuracy": 0.6797671033478894
+        },
+        "fbs_vs_fcs": {
+          "brier": 0.1424517169195417,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.15245998097245755,
+              "n": 4.0,
+              "observed_rate": 0.75
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.2705059751647588,
+              "n": 7.0,
+              "observed_rate": 0.7142857142857143
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.35700142678345625,
+              "n": 12.0,
+              "observed_rate": 0.8333333333333334
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4451201582488496,
+              "n": 12.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5496653973052235,
+              "n": 29.0,
+              "observed_rate": 0.896551724137931
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6471673273238924,
+              "n": 58.0,
+              "observed_rate": 0.9310344827586207
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7499380665404625,
+              "n": 32.0,
+              "observed_rate": 0.96875
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8558976280428813,
+              "n": 32.0,
+              "observed_rate": 0.96875
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9624826788311338,
+              "n": 47.0,
+              "observed_rate": 0.9574468085106383
+            }
+          ],
+          "log_loss": 0.44265663873354455,
+          "mae": 23.41343458641698,
+          "max_calibration_deviation_pp": 34.68863268327076,
+          "n_games": 233,
+          "rmse": 28.124317190177496,
+          "su_accuracy": 0.8240343347639485
+        }
+      },
+      "segments_from_headline_week": {
+        "bowl": {
+          "brier": 0.28506501625172215,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": 0.16347380518408072,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.2729124833815193,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.34350030714010105,
+              "n": 11.0,
+              "observed_rate": 0.5454545454545454
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4543736542784736,
+              "n": 6.0,
+              "observed_rate": 0.6666666666666666
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5323158599222036,
+              "n": 7.0,
+              "observed_rate": 0.42857142857142855
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6452140122584739,
+              "n": 9.0,
+              "observed_rate": 0.3333333333333333
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7430127286566581,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.7719312746610052,
+          "mae": 17.876378177990222,
+          "max_calibration_deviation_pp": null,
+          "n_games": 39,
+          "rmse": 21.36601585741427,
+          "su_accuracy": 0.4358974358974359
+        },
+        "cfp": {
+          "brier": 0.19405583386966221,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4138944706378829,
+              "n": 1.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6546298425318022,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.5765386939362597,
+          "mae": 8.384054293371635,
+          "max_calibration_deviation_pp": null,
+          "n_games": 3,
+          "rmse": 10.04506756498969,
+          "su_accuracy": 0.6666666666666666
+        },
+        "fbs_vs_fbs": {
+          "brier": 0.1967916135963097,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": 0.06955217510726792,
+              "n": 14.0,
+              "observed_rate": 0.0
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 1.0,
+              "mean_predicted": 0.15674065352039973,
+              "n": 59.0,
+              "observed_rate": 0.11864406779661017
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 1.0,
+              "mean_predicted": 0.2533533604265817,
+              "n": 99.0,
+              "observed_rate": 0.16161616161616163
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 1.0,
+              "mean_predicted": 0.34879479811522895,
+              "n": 161.0,
+              "observed_rate": 0.2732919254658385
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 1.0,
+              "mean_predicted": 0.45298796346976583,
+              "n": 201.0,
+              "observed_rate": 0.472636815920398
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 1.0,
+              "mean_predicted": 0.5498907101162621,
+              "n": 267.0,
+              "observed_rate": 0.5393258426966292
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.6473320390579176,
+              "n": 301.0,
+              "observed_rate": 0.6345514950166113
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 1.0,
+              "mean_predicted": 0.7497523856880169,
+              "n": 246.0,
+              "observed_rate": 0.7723577235772358
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 1.0,
+              "mean_predicted": 0.8485289238340796,
+              "n": 170.0,
+              "observed_rate": 0.8117647058823529
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 1.0,
+              "mean_predicted": 0.9407105914631464,
+              "n": 67.0,
+              "observed_rate": 0.9253731343283582
+            }
+          ],
+          "log_loss": 0.5765091924318058,
+          "mae": 13.018796962702652,
+          "max_calibration_deviation_pp": 9.173719881042006,
+          "n_games": 1585,
+          "rmse": 16.54941132224072,
+          "su_accuracy": 0.6921135646687697
+        },
+        "fbs_vs_fcs": {
+          "brier": 0.11749089170377351,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": 0.27748407993649943,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.34709281559588095,
+              "n": 4.0,
+              "observed_rate": 0.75
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.4368795340335847,
+              "n": 3.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5497870072879572,
+              "n": 2.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.6558175854601637,
+              "n": 7.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7513824449109962,
+              "n": 7.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": 0.8595245720451646,
+              "n": 7.0,
+              "observed_rate": 1.0
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": 0.9485361227393405,
+              "n": 8.0,
+              "observed_rate": 1.0
+            }
+          ],
+          "log_loss": 0.378045793709244,
+          "mae": 22.24509479844354,
+          "max_calibration_deviation_pp": null,
+          "n_games": 40,
+          "rmse": 26.22598447636398,
+          "su_accuracy": 0.825
+        }
+      }
+    },
+    "schedule_odds": {
+      "gate": {
+        "brier_beats_all_baselines": null,
+        "calibration": false,
+        "mae": false,
+        "passed": false,
+        "retro_vs_live_monotone": null,
+        "rmse": false,
+        "su_accuracy": false,
+        "undecided": [
+          "brier_beats_all_baselines",
+          "retro_vs_live_monotone"
+        ],
+        "violations_vs_baselines": false
+      },
+      "rank_churn": {
+        "by_bucket": [
+          {
+            "bucket": "2021-regu-w03",
+            "churn_all": 26.246153846153845,
+            "churn_top25": 25.333333333333332,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w04",
+            "churn_all": 20.0,
+            "churn_top25": 16.65714285714286,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w05",
+            "churn_all": 13.476923076923077,
+            "churn_top25": 10.53125,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w06",
+            "churn_all": 13.23076923076923,
+            "churn_top25": 9.516129032258064,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w07",
+            "churn_all": 9.153846153846153,
+            "churn_top25": 6.321428571428571,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w08",
+            "churn_all": 8.169230769230769,
+            "churn_top25": 6.133333333333334,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w09",
+            "churn_all": 8.292307692307693,
+            "churn_top25": 4.9655172413793105,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w10",
+            "churn_all": 6.876923076923077,
+            "churn_top25": 4.862068965517241,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w11",
+            "churn_all": 6.492307692307692,
+            "churn_top25": 5.766666666666667,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w12",
+            "churn_all": 5.569230769230769,
+            "churn_top25": 3.2962962962962963,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w13",
+            "churn_all": 4.2615384615384615,
+            "churn_top25": 2.5925925925925926,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w14",
+            "churn_all": 4.2615384615384615,
+            "churn_top25": 1.9230769230769231,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2021-regu-w15",
+            "churn_all": 1.2615384615384615,
+            "churn_top25": 2.4615384615384617,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w03",
+            "churn_all": 27.267175572519083,
+            "churn_top25": 31.0,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w04",
+            "churn_all": 19.419847328244273,
+            "churn_top25": 17.27777777777778,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w05",
+            "churn_all": 16.03053435114504,
+            "churn_top25": 16.08823529411765,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w06",
+            "churn_all": 11.465648854961833,
+            "churn_top25": 6.862068965517241,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w07",
+            "churn_all": 9.893129770992367,
+            "churn_top25": 6.172413793103448,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w08",
+            "churn_all": 9.282442748091603,
+            "churn_top25": 6.0,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w09",
+            "churn_all": 8.259541984732824,
+            "churn_top25": 3.6296296296296298,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w10",
+            "churn_all": 6.824427480916031,
+            "churn_top25": 3.2962962962962963,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w11",
+            "churn_all": 6.931297709923665,
+            "churn_top25": 4.178571428571429,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w12",
+            "churn_all": 5.8320610687022905,
+            "churn_top25": 5.103448275862069,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w13",
+            "churn_all": 5.709923664122138,
+            "churn_top25": 3.2857142857142856,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w14",
+            "churn_all": 5.145038167938932,
+            "churn_top25": 4.035714285714286,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-regu-w15",
+            "churn_all": 1.5114503816793894,
+            "churn_top25": 1.7037037037037037,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w03",
+            "churn_all": 27.954887218045112,
+            "churn_top25": 34.825,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w04",
+            "churn_all": 17.68421052631579,
+            "churn_top25": 16.147058823529413,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w05",
+            "churn_all": 14.300751879699249,
+            "churn_top25": 13.818181818181818,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w06",
+            "churn_all": 10.390977443609023,
+            "churn_top25": 9.0,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w07",
+            "churn_all": 9.398496240601503,
+            "churn_top25": 8.533333333333333,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w08",
+            "churn_all": 8.466165413533835,
+            "churn_top25": 5.9655172413793105,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w09",
+            "churn_all": 6.842105263157895,
+            "churn_top25": 4.517241379310345,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w10",
+            "churn_all": 6.120300751879699,
+            "churn_top25": 4.310344827586207,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w11",
+            "churn_all": 6.7518796992481205,
+            "churn_top25": 3.6785714285714284,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w12",
+            "churn_all": 6.586466165413534,
+            "churn_top25": 2.75,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w13",
+            "churn_all": 5.157894736842105,
+            "churn_top25": 2.0384615384615383,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w14",
+            "churn_all": 4.43609022556391,
+            "churn_top25": 2.0,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-regu-w15",
+            "churn_all": 1.0526315789473684,
+            "churn_top25": 2.0,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2023-post-w01",
+            "churn_all": 0.21052631578947367,
+            "churn_top25": 0.0,
+            "n": 133.0,
+            "season": 2023,
+            "system": "schedule_odds"
+          }
+        ],
+        "mean_all": 9.655455255873093,
+        "mean_top25": 7.964441460023122
+      },
+      "retrodictive_violation_rate": 0.19945848375451264,
+      "retrodictive_violations": [
+        {
+          "games": 732.0,
+          "season": 2021,
+          "violation_rate": 0.18579234972677597,
+          "violations": 136.0
+        },
+        {
+          "games": 734.0,
+          "season": 2022,
+          "violation_rate": 0.22615803814713897,
+          "violations": 166.0
+        },
+        {
+          "games": 750.0,
+          "season": 2023,
+          "violation_rate": 0.18666666666666668,
+          "violations": 140.0
         }
       ],
       "segments": {

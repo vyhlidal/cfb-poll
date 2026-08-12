@@ -38,7 +38,19 @@ ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "demo"
 
 TUNE_SEASONS = [2021, 2022, 2023]
-SYSTEMS = ["resume", "l3", "l2", "l1", "colley", "srs", "elo", "walker", "winpct", "home_team"]
+SYSTEMS = [
+    "schedule_odds",
+    "resume",
+    "l3",
+    "l2",
+    "l1",
+    "colley",
+    "srs",
+    "elo",
+    "walker",
+    "winpct",
+    "home_team",
+]
 DEMO_SEASON = 2023
 DEMO_WEEK = 10
 
@@ -124,21 +136,59 @@ def power_v1_note() -> list[str]:
     ]
 
 
+def headline_note(q_ref) -> list[str]:
+    """What the rank key is, on every page that shows a ranking."""
+    named = f" — **{q_ref.team}** this week" if q_ref.team else ""
+    return [
+        "> **The rank key is schedule odds.** Teams are ordered by",
+        "> `−log10 P(W ≥ W_t)`: the probability that a team of reference quality `q_ref`",
+        "> would have gone **at least this well** against that exact schedule. The promise",
+        "> is *the harder it was to do what you did, the higher you go — measured, never",
+        "> assumed*. Adopted 2026-08-12 on the evidence of",
+        "> [`docs/analysis/headline-ordering-study.md`]"
+        "(../docs/analysis/headline-ordering-study.md);",
+        "> the decision and what was rejected are in",
+        "> [`docs/adr/0005-headline-ordering.md`](../docs/adr/0005-headline-ordering.md).",
+        ">",
+        "> ```",
+        "> p_g = Phi( (q_ref − Power_opponent + h · site) / sigma )      per game",
+        "> P   = P(W >= W_t),  W ~ PoissonBinomial(p_1 .. p_n)          exact, not simulated",
+        "> ```",
+        ">",
+        f"> `q_ref` is the Power rating of the **25th-ranked Power team**{named}, at",
+        f"> **{q_ref.value:.2f} points**. It is the one free constant in the ordering, so it is",
+        "> published with the team it came from and you can check it against the `Power`",
+        "> column below. Study §9 measured how much it matters: across a 16-point swing in",
+        "> reference quality, Kendall's tau against this choice never fell below 0.985 and",
+        "> at most one team entered or left the top 25.",
+        ">",
+        "> **Margin never enters the key.** Not as a tie-break, not anywhere — the module",
+        "> carries no margin column to leak from. The margin-aware résumé is in the table",
+        "> beside it, because report 02 §3.4 says to publish both.",
+    ]
+
+
 def saturation_note() -> list[str]:
     return [
-        "**Why every undefeated team shows 60.00 and a `*`.** `E[W|q]` approaches the",
-        "number of games from below, so an undefeated team's résumé equation has **no",
-        "finite root** — the results are consistent with arbitrarily high quality. That is",
-        "Bradley-Terry's separation problem (report 02 §2.10) in deterministic clothes, and",
-        "the published bracket `q_bounds = [-60, +60]` is the regularization: it is where an",
-        "unbounded estimate gets truncated, at a number printed in the config. Two",
-        "consequences, both stated rather than hidden:",
+        "**Why every undefeated team shows 60.00 and a `*` in the résumé column.** `E[W|q]`",
+        "approaches the number of games from below, so an undefeated team's résumé equation",
+        "has **no finite root** — the results are consistent with arbitrarily high quality.",
+        "That is Bradley-Terry's separation problem (report 02 §2.10) in deterministic",
+        "clothes, and the published bracket `q_bounds = [-60, +60]` is the regularization: it",
+        "is where an unbounded estimate gets truncated, at a number printed in the config.",
         "",
-        "1. On the wins-based résumé **no one-loss team can outrank an undefeated team**,",
-        "   however soft the unbeaten schedule.",
-        "2. Saturated teams all land on the same value, so the order among them comes from",
-        "   the **margin-aware résumé**, which is finite for every team and is in the table.",
-        '   The rule is `[resume].saturation_tiebreak = "margin"`.',
+        "**This is exactly why the résumé is no longer the rank key.** +60 is not a function",
+        "of the schedule, so it cannot say that one 13-0 was harder to achieve than another,",
+        "and — the part that decided it — it is not a function of the *data window* either,",
+        "so the retroactive re-ranking of constraint 4 **cannot move an unbeaten team at",
+        "all**. From week 11 of 2023 onward it moved none of them by a single place. The",
+        "column stays in the table with its flag precisely so that property is visible rather",
+        "than argued about, and the order *within* the column still comes from the",
+        'margin-aware variant (`[resume].saturation_tiebreak = "margin"`).',
+        "",
+        "See [ADR 0005](../docs/adr/0005-headline-ordering.md) for the decision and its price:",
+        "an unbeaten team can now finish behind a one-loss team, and that will need explaining",
+        "every year.",
     ]
 
 
@@ -189,20 +239,36 @@ def with_power_rank(frame: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def poll_table(live: pl.DataFrame, hind: pl.DataFrame, n: int = 25) -> list[str]:
-    """The published shape: résumé ranks, Power beside them, both surfaces."""
-    ranked_by_power = with_power_rank(live)
-    power_rank = dict(
-        zip(
-            ranked_by_power["team"].to_list(),
-            ranked_by_power["power_rank"].to_list(),
-            strict=True,
-        )
+def with_resume_rank(frame: pl.DataFrame) -> pl.DataFrame:
+    """Rank under the ordering this project published until 2026-08-12.
+
+    Exactly the key `[publication].headline_ordering = "L4_resume"` produces:
+    wins-based résumé, margin-aware variant breaking the ties among saturated
+    teams. It is carried as a labelled comparison column on every page that used
+    to show it, so a reader can see what the decision actually changed rather than
+    being told.
+    """
+    return (
+        frame.sort(["resume", "resume_margin", "team"], descending=[True, True, False])
+        .with_row_index("resume_rank", offset=1)
+        .with_columns(pl.col("resume_rank").cast(pl.Int32))
     )
+
+
+def _rank_map(frame: pl.DataFrame, column: str) -> dict[str, int]:
+    return dict(zip(frame["team"].to_list(), frame[column].to_list(), strict=True))
+
+
+def poll_table(live: pl.DataFrame, hind: pl.DataFrame, n: int = 25) -> list[str]:
+    """The published shape: schedule-odds ranks, with the two prior orderings'
+    ranks beside them as labelled comparison columns."""
+    power_rank = _rank_map(with_power_rank(live), "power_rank")
+    resume_rank = _rank_map(with_resume_rank(live), "resume_rank")
     table = poll_mod.headline_frame(live, hind)
     rows = [
-        "| # | Team | Rec | Résumé | Margin résumé | Power | Gap | Power # | Hindsight # |",
-        "|---:|---|:---:|---:|---:|---:|---:|---:|---:|",
+        "| # | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | Gap "
+        "| Résumé # | Power # | Hindsight # |",
+        "|---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in table.head(n).iter_rows(named=True):
         mark = "\\*" if row["saturated"] else ""
@@ -210,12 +276,27 @@ def poll_table(live: pl.DataFrame, hind: pl.DataFrame, n: int = 25) -> list[str]
         arrow = "—" if delta == 0 else (f"▲{delta}" if delta > 0 else f"▼{-delta}")
         rows.append(
             f"| {row['rank']} | {row['team']} | {row['wins']}-{row['losses']} "
+            f"| {row['odds_key']:.3f} | {row['tail_p']:.4f} "
             f"| {row['resume']:.2f}{mark} | {row['resume_margin']:.2f} "
             f"| {row['power']:.2f} | {row['gap']:+.2f} "
+            f"| {resume_rank.get(row['team'], 0)} "
             f"| {power_rank.get(row['team'], 0)} "
             f"| {row['rank_hindsight']} ({arrow}) |"
         )
     return rows
+
+
+def q_ref_of(power, classes: dict[str, str]):
+    """The reference team and its rating for a Power window, for the page header."""
+    from cfbpoll.model import schedule_odds
+
+    cfg = load_config()
+    return schedule_odds.reference_quality(
+        power,
+        classes,
+        method=str(cfg["schedule_odds"]["q_ref_method"]),
+        fixed_value=float(cfg["schedule_odds"]["q_ref_fixed_points"]),
+    )
 
 
 def cfp_table(season: int) -> list[str]:
@@ -234,7 +315,14 @@ def ordinal(n: int) -> str:
 
 
 def team_row(frame: pl.DataFrame, team: str) -> dict:
-    return with_power_rank(frame).filter(pl.col("team") == team).row(0, named=True)
+    """One team's published row, with the two comparison ranks attached.
+
+    `rank` is the headline (schedule odds); `resume_rank` and `power_rank` are
+    where the same team sits under the ordering this project published until
+    2026-08-12 and under the power rating.
+    """
+    ranked = with_resume_rank(with_power_rank(frame))
+    return ranked.filter(pl.col("team") == team).row(0, named=True)
 
 
 # ------------------------------------------------------------- 1. the flagship demo
@@ -258,21 +346,27 @@ def final_poll_2023() -> str:
     uga_hind = team_row(hind, "Georgia")
     bama = team_row(live, "Alabama")
     liberty = team_row(live, "Liberty")
+    liberty_hind = team_row(hind, "Liberty")
     michigan = team_row(live, "Michigan")
 
     fbs = games.filter((pl.col("home_class") == "fbs") & (pl.col("away_class") == "fbs"))
     n_saturated = int(live.filter(pl.col("saturated") == 1).height)
+    classes = poll_mod.team_classes(games)
+    q_ref = q_ref_of(season_power_map(season)[evaluated.order], classes)
 
     lines = [
-        f"# The {season} final poll — résumé and power, live and hindsight",
+        f"# The {season} final poll — schedule odds, résumé and power, live and hindsight",
         "",
-        "This is the headline product: teams ranked by the **L4 résumé rating**, which is",
-        "the quality `q` whose *expected* results against that exact schedule equal the",
-        "*actual* ones, with the **Power rating** and the résumé-minus-power gap beside",
-        "every team (report 02 §3.4, §3.5). It is shown twice — as the poll would have read",
-        "on championship Saturday, and as it reads with the whole season's answers in hand.",
+        "This is the headline product: teams ranked by **schedule odds** — how improbable it",
+        "is that a reference-quality team would have gone at least this well against that",
+        "exact schedule — with the **L4 résumé rating**, the **Power rating** and the",
+        "résumé-minus-power gap beside every team (report 02 §3.4, §3.5). It is shown twice:",
+        "as the poll would have read on championship Saturday, and as it reads with the whole",
+        "season's answers in hand.",
         "",
     ]
+    lines += headline_note(q_ref)
+    lines += [""]
     lines += power_v1_note()
     lines += [
         "",
@@ -287,6 +381,9 @@ def final_poll_2023() -> str:
         f"| Games in the season frame | {games.height:,} |",
         f"| ... of which FBS-vs-FBS | {fbs.height:,} |",
         f"| Ranked (FBS) teams | {live.height} |",
+        "| Rank key | `−log10 P(W ≥ W_t)`, exact Poisson-binomial |",
+        f"| `q_ref` ({cfg['schedule_odds']['q_ref_method']}) | {q_ref.value:.2f} points"
+        + (f" — {q_ref.team} |" if q_ref.team else " |"),
         f"| sigma | {cfg['resume']['sigma']} points |",
         f"| Compression C / win premium beta_w | {cfg['margin']['c']:g} / "
         f"{cfg['margin']['beta_w']:g} |",
@@ -302,76 +399,103 @@ def final_poll_2023() -> str:
         "",
         "## The poll",
         "",
-        "Résumé is the rank. `Power #` is where the same team sits on the power rating, so",
-        "the disagreement between the two is readable on every row. `Hindsight #` is R(N,",
-        "final): the same week, re-scored with the season's answers.",
+        "Schedule odds is the rank. `Résumé #` is where the same team sat under the ordering",
+        "this project published until 2026-08-12, and `Power #` is where it sits on the power",
+        "rating — both kept as labelled comparison columns so the disagreement between the",
+        "three is readable on every row rather than asserted. `Hindsight #` is R(N, final):",
+        "the same week, re-scored with the season's answers.",
         "",
     ]
     lines += poll_table(live, hind, 25)
     lines += ["", *saturation_note(), ""]
 
+    uga_gap = abs(uga_hind["power"] - liberty_hind["power"])
     lines += [
         "## The test this season exists for: Florida State",
         "",
         "Florida State finished 13-0, won the ACC, and was left out of a four-team playoff",
-        "for the first time in the CFP era. Here is what a transparent system says, on both",
-        "numbers and both surfaces:",
+        "for the first time in the CFP era. Here is what a transparent system says, on all",
+        "three numbers and both surfaces:",
         "",
-        "| | Résumé rank | Résumé | Margin résumé | Power rank | Power | Gap |",
-        "|---|---:|---:|---:|---:|---:|---:|",
-        f"| **Live** R(N, N) | {fsu_live['rank']} | {fsu_live['resume']:.2f}\\* "
-        f"| {fsu_live['resume_margin']:.2f} | {fsu_live['power_rank']} "
+        "| | Poll # | −log10 P | P(W ≥ W_t) | Résumé # | Résumé | Power # | Power | Gap |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        f"| **Live** R(N, N) | {fsu_live['rank']} | {fsu_live['odds_key']:.3f} "
+        f"| {fsu_live['tail_p']:.4f} | {fsu_live['resume_rank']} "
+        f"| {fsu_live['resume']:.2f}\\* | {fsu_live['power_rank']} "
         f"| {fsu_live['power']:.2f} | {fsu_live['gap']:+.2f} |",
-        f"| **Hindsight** R(N, final) | {fsu_hind['rank']} | {fsu_hind['resume']:.2f}\\* "
-        f"| {fsu_hind['resume_margin']:.2f} | {fsu_hind['power_rank']} "
+        f"| **Hindsight** R(N, final) | {fsu_hind['rank']} | {fsu_hind['odds_key']:.3f} "
+        f"| {fsu_hind['tail_p']:.4f} | {fsu_hind['resume_rank']} "
+        f"| {fsu_hind['resume']:.2f}\\* | {fsu_hind['power_rank']} "
         f"| {fsu_hind['power']:.2f} | {fsu_hind['gap']:+.2f} |",
         "",
-        f"**The two numbers disagree by {fsu_hind['power_rank'] - fsu_hind['rank']} places, and",
-        "that disagreement is the entire product.** The résumé says Florida State did the",
-        f"{ordinal(fsu_hind['rank'])}-best job of beating the schedule in front of it — "
-        "nobody with a loss can",
-        "outrank an unbeaten team on that number, by construction. The power rating says its",
-        f"play was worth about {fsu_hind['power']:.1f} points against an average team, "
-        f"{fsu_hind['power_rank']}th",
-        "in the country, because it won a lot of close games. Both are true. The committee",
-        "was answering a third question — who would we most like to watch play for a title —",
-        "and it is the only one of the three that is not written down anywhere.",
+        f"**The poll and the power rating disagree by "
+        f"{fsu_hind['power_rank'] - fsu_hind['rank']} places, and that disagreement is the",
+        "entire product.** The poll says a reference-quality team would have gone 13-0 against",
+        f"Florida State's schedule about {fsu_live['tail_p'] * 100:.1f} times in 100 — the "
+        f"{ordinal(fsu_live['rank'])}-least likely",
+        "record in the country. The power rating says its *play* was worth about",
+        f"{fsu_hind['power']:.1f} points against an average team, {fsu_hind['power_rank']}th, "
+        "because it won a lot of close",
+        "games. Both are true, and neither is hidden. The committee was answering a third",
+        "question — who would we most like to watch play for a title — and it is the only one",
+        "of the three that is not written down anywhere.",
         "",
-        "Note what hindsight does **not** do here: it does not move Florida State. The",
+        "Note what hindsight does **not** do here: it barely moves Florida State. The",
         "Orange Bowl, in which a Florida State team missing 33 players lost 63-3, is in the",
         f"hindsight *Power* fit at weight {cfg['weights']['bowl_non_cfp']} and is **not** in "
-        "the résumé, because the",
-        "résumé window is frozen at week N (variant A, report 02 §3.6). A poll that let the",
-        "January consequences of the December decision retroactively justify the December",
-        "decision would be circular, and this construction cannot do it.",
+        "the record window, because that",
+        "window is frozen at week N (variant A, report 02 §3.6). A poll that let the January",
+        "consequences of the December decision retroactively justify the December decision",
+        "would be circular, and this construction cannot do it.",
         "",
-        "## Georgia, and the sanity check",
+        "## Georgia, Liberty, and the sentence the poll now has to be able to say",
         "",
-        f"Georgia was 12-1 with its only loss in the SEC championship game. Résumé "
-        f"{uga_live['rank']} live,",
-        f"{uga_hind['rank']} in hindsight; power {uga_live['power_rank']} live and "
-        f"{uga_hind['power_rank']} in hindsight. That gap runs the other way from Florida",
-        "State's — the model thinks Georgia *played* better than its résumé, which is what",
-        "losing one game to a good opponent looks like from the inside.",
+        f"Georgia was 12-1 with its only loss in the SEC championship game and lands at "
+        f"**#{uga_live['rank']}**",
+        f"live, **#{uga_hind['rank']}** in hindsight, on power #{uga_live['power_rank']} "
+        f"and #{uga_hind['power_rank']}. Liberty went 13-0 in Conference USA",
+        f"and lands at **#{liberty['rank']}** live, **#{liberty_hind['rank']}** in hindsight, "
+        f"on power #{liberty['power_rank']}.",
         "",
-        f"Alabama, whom the committee took over Florida State, is résumé {bama['rank']} and "
-        f"power {bama['power_rank']}",
+        "**An undefeated team is ranked below a one-loss team, and that is the decision of",
+        "2026-08-12 doing exactly what it was chosen to do.** Under the ordering this project",
+        f"published until then, Liberty was **#{liberty['resume_rank']}** and Georgia was "
+        f"**#{uga_live['resume_rank']}** — the `Résumé #` column",
+        "above — and it could not have been otherwise: an unbeaten team's wins-based résumé",
+        "saturates at the published bracket, so no team with a loss can outrank it, however",
+        "soft the schedule. That was a theorem, not a finding.",
+        "",
+        "The poll now makes a different claim, and it is a claim that can be checked:",
+        f"13-0 against Liberty's schedule is a {liberty['tail_p'] * 100:.1f}-in-100 event for a "
+        f"reference-quality team, and 12-1",
+        f"against Georgia's is a {uga_live['tail_p'] * 100:.1f}-in-100 event. Georgia's was "
+        "harder. Nothing in that",
+        "computation knows what a conference is — no conference identity may enter any design",
+        "matrix (constraint 2) — so the ordering is derived from Liberty's actual opponents",
+        'rather than assumed from the letters "C-USA". That distinction is the whole point:',
+        "assuming it is how you get AP-poll-style conference bias.",
+        "",
+        "The model publishes the head-to-head beside it, so the reader does not have to take",
+        f"the ranking's word for anything: Georgia by about {uga_gap:.0f} points on a "
+        "neutral field,",
+        "which Liberty wins roughly 3 times in 10. And the retroactive column moves Liberty",
+        f"{'up' if liberty['rank'] > liberty_hind['rank'] else 'down'} "
+        f"{abs(liberty['rank'] - liberty_hind['rank'])} places between the two surfaces — "
+        "under the résumé ordering it moved",
+        "**zero**, in this week and every week from week 11 onward, because there was nothing",
+        "downstream of opponent quality left to move.",
+        "",
+        f"Alabama, whom the committee took over Florida State, is poll #{bama['rank']} and "
+        f"power #{bama['power_rank']}",
         "here (live). On the power number the committee and this model broadly agree about",
-        "Alabama; on the résumé number they do not agree about what a 13-0 season is worth.",
+        "Alabama; on the ranking they do not agree about what a 13-0 season is worth, and the",
+        "difference between them is now a probability rather than a preference.",
         "",
-        "## The uncomfortable row",
-        "",
-        f"Liberty went 13-0 in Conference USA and lands at résumé {liberty['rank']} with a "
-        f"power rating of",
-        f"{liberty['power']:.2f} — {ordinal(liberty['power_rank'])}. This is the saturation "
-        "property doing exactly what it says it",
-        "does, and it is the single strongest argument against publishing the wins-based",
-        "résumé alone. The margin-aware résumé, in the same table, puts Liberty at",
-        f"{liberty['resume_margin']:.2f} against Michigan's "
-        f"{michigan['resume_margin']:.2f}, which is a far more useful",
-        "sentence about the season. Report 02 §3.4 says to publish both because they answer",
-        "different questions; this row is why that instruction is load-bearing rather than",
-        "decorative.",
+        "The margin-aware résumé is in the same table and disagrees with both, putting",
+        f"Liberty at {liberty['resume_margin']:.2f} against Michigan's "
+        f"{michigan['resume_margin']:.2f}. It is published because report 02 §3.4 says to",
+        "publish both, and it is **not** the rank key: the study found it ranks an 8-4 Kansas",
+        "State 12th and a 7-5 Texas A&M 23rd, above an 11-1 James Madison and a 13-0 Liberty.",
         "",
         "## The committee's final ranking, for comparison — **not** a target",
         "",
@@ -414,8 +538,47 @@ def retro_movers_2023() -> str:
     published = [b.order for b in buckets if b.season_type == "regular" and b.week >= headline_week]
 
     movers = retro.movers(live, hind).filter(pl.col("eval_order").is_in(published))
-    biggest = movers.sort(["abs_rank_delta", "resume_delta"], descending=True).head(15)
+    biggest = movers.sort(["abs_rank_delta", "odds_delta"], descending=True).head(15)
     curve = retro.divergence(live, hind).filter(pl.col("eval_order").is_in(published))
+
+    # The claim ADR 0005 turns on, COMPUTED HERE rather than asserted: how far
+    # unbeaten teams move between the two surfaces under the headline ordering, and
+    # how far the same teams moved under the ordering this project published until
+    # 2026-08-12. Both are read off the same grid, so the difference is the
+    # ordering rule and nothing else.
+    #
+    # `published` is a list of bucket ORDERS and they are NOT contiguous: buckets
+    # are sequenced by first kickoff and the FCS playoff bracket (postseason weeks
+    # 11-15) interleaves with regular weeks 13-15. So "the last five published
+    # weeks" is the tail of the list, never `max(order) - 4`.
+    unbeaten = movers.join(
+        live.filter(pl.col("losses") == 0).select("eval_order", "team"),
+        on=["eval_order", "team"],
+        how="semi",
+    )
+    unbeaten_moved = unbeaten.filter(pl.col("rank_delta") != 0)
+    late_orders = published[-5:]
+    late = unbeaten.filter(pl.col("eval_order").is_in(late_orders))
+    late_moved = late.filter(pl.col("rank_delta") != 0)
+
+    resume_moves: list[dict] = []
+    for order in published:
+        lr = _rank_map(with_resume_rank(ranked(live, order)), "resume_rank")
+        hr = _rank_map(with_resume_rank(ranked(hind, order)), "resume_rank")
+        week_frame = ranked(live, order)
+        for team in week_frame.filter(pl.col("losses") == 0)["team"].to_list():
+            if team in lr and team in hr:
+                resume_moves.append(
+                    {"eval_order": order, "team": team, "resume_rank_delta": lr[team] - hr[team]}
+                )
+    resume_frame = pl.DataFrame(
+        resume_moves,
+        schema={"eval_order": pl.Int32, "team": pl.Utf8, "resume_rank_delta": pl.Int64},
+    )
+    resume_moved = resume_frame.filter(pl.col("resume_rank_delta") != 0)
+    late_resume = resume_frame.filter(pl.col("eval_order").is_in(late_orders))
+    late_resume_moved = late_resume.filter(pl.col("resume_rank_delta") != 0)
+    late_labels = [b.label for b in buckets if b.order in late_orders]
 
     lines = [
         f"# {season} retroactive movers — who the model was wrong about, in its own words",
@@ -427,9 +590,21 @@ def retro_movers_2023() -> str:
         "answers substituted in for opponent quality (`R(N, final)`, hindsight variant A).",
         "",
         "**Nothing about the team's own results changes between the two columns.** The",
-        "résumé window is frozen at week N; only the *opponents' Power ratings* are",
+        "record window is frozen at week N; only the *opponents' Power ratings* are",
         "replaced. That is the whole retroactive mechanism, and it is one substitution",
         "(report 02 §3.4).",
+        "",
+        "> **This page is the reason the headline ordering changed on 2026-08-12.** Until",
+        "> then the poll was ordered by the wins-based résumé, under which an undefeated",
+        "> team's rating is the published bracket `+60`. `+60` is not a function of the",
+        "> schedule, so it is not a function of the data window either — which means the one",
+        "> substitution above had **nothing left to move** for an unbeaten team. Every",
+        "> undefeated team's row on this page read `—`, forever, and from week 11 onward that",
+        "> was true of every unbeaten team in the country. A tail probability has no such",
+        f"> degeneracy: in the window below, **{unbeaten_moved.height} of {unbeaten.height}** "
+        "unbeaten-team rows move, against",
+        f"> **{resume_moved.height} of {resume_frame.height}** under the ordering it replaced.",
+        "> See [ADR 0005](../docs/adr/0005-headline-ordering.md).",
         "",
     ]
     lines += power_v1_note()
@@ -438,11 +613,12 @@ def retro_movers_2023() -> str:
         f"## Biggest moves, weeks {headline_week}+ (the published window)",
         "",
         "▲ means the live poll **under**-rated the team: the opponents it had beaten turned",
-        "out to be better than they looked at the time.",
+        "out to be better than they looked at the time. `−log10 P` is the rank key; the",
+        "résumé is carried beside it as the comparison column.",
         "",
-        "| Week | Team | Live # | Hindsight # | Move | Résumé live → hindsight "
-        "| Power live → hindsight |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Week | Team | Live # | Hindsight # | Move | −log10 P live → hindsight "
+        "| Résumé live → hindsight | Power live → hindsight |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in biggest.iter_rows(named=True):
         delta = row["rank_delta"]
@@ -450,9 +626,70 @@ def retro_movers_2023() -> str:
         lines.append(
             f"| `{row['eval_label']}` | {row['team']} | {row['rank_live']} "
             f"| {row['rank_hindsight']} | {arrow} "
+            f"| {row['odds_key_live']:.3f} → {row['odds_key_hindsight']:.3f} "
             f"| {row['resume_live']:.2f} → {row['resume_hindsight']:.2f} "
             f"| {row['power_live']:.2f} → {row['power_hindsight']:.2f} |"
         )
+
+    lib = movers.filter(pl.col("team") == "Liberty").sort("eval_order")
+    lines += [
+        "",
+        "## The unbeaten teams, which is what changed",
+        "",
+        "Both columns below are read off the same grid, so the difference between them is the",
+        "ordering rule and nothing else.",
+        "",
+        "| Unbeaten-team rows that move live → hindsight | Schedule odds | Résumé (the ordering "
+        "it replaced) |",
+        "|---|---:|---:|",
+        f"| Published window, weeks {headline_week}+ | **{unbeaten_moved.height}** of "
+        f"{unbeaten.height} | {resume_moved.height} of {resume_frame.height} |",
+        f"| Last five published weeks (`{late_labels[0]}`–`{late_labels[-1]}`) "
+        f"| **{late_moved.height}** of {late.height} | {late_resume_moved.height} of "
+        f"{late_resume.height} |",
+        "",
+        "The second row is the finding. Late in a season the résumé ordering has nothing left",
+        "to say about an undefeated team — every one of them is on the bracket, the bracket",
+        "does not depend on the data window, and the retroactive substitution has no surface",
+        "to act on. The teams whose ranking is argued about hardest are exactly the teams it",
+        "went silent about.",
+        "",
+        "Liberty, week by week, is the case the study was built around. It was 13-0 in",
+        "Conference USA, and the question was whether a poll could revise its September",
+        "*without being told* that Conference USA is Conference USA:",
+        "",
+        "| Week | Rec | Live # | Hindsight # | Move | P(W ≥ W_t) live → hindsight |",
+        "|---|:---:|---:|---:|---:|---:|",
+    ]
+    lib_records = dict(
+        zip(
+            live.filter(pl.col("team") == "Liberty")["eval_order"].to_list(),
+            zip(
+                live.filter(pl.col("team") == "Liberty")["wins"].to_list(),
+                live.filter(pl.col("team") == "Liberty")["losses"].to_list(),
+                strict=True,
+            ),
+            strict=True,
+        )
+    )
+    for row in lib.iter_rows(named=True):
+        delta = row["rank_delta"]
+        arrow = "—" if delta == 0 else (f"▲{delta}" if delta > 0 else f"▼{-delta}")
+        w, ll = lib_records.get(row["eval_order"], (0, 0))
+        lines.append(
+            f"| `{row['eval_label']}` | {w}-{ll} | {row['rank_live']} "
+            f"| {row['rank_hindsight']} | {arrow} "
+            f"| {10 ** -row['odds_key_live']:.4f} → {10 ** -row['odds_key_hindsight']:.4f} |"
+        )
+    lines += [
+        "",
+        "Note the direction in the last two weeks. The hindsight probability is **higher**",
+        "than the live one, meaning end-of-season Power judged Liberty's schedule slightly",
+        "*easier* than the live ratings did — and Liberty still rises, because the teams",
+        "around it were re-judged more harshly still. That is the retroactive product doing",
+        "exactly what it was built to do, and it is only visible on an ordering that has",
+        "somewhere to move.",
+    ]
 
     first = curve.row(0, named=True)
     last = curve.row(curve.height - 1, named=True)
@@ -501,6 +738,13 @@ def retro_movers_2023() -> str:
         "product is most valuable exactly where the poll is least confident, which is the",
         "opposite of how retroactive re-ranking usually gets sold.",
         "",
+        "The change of 2026-08-12 does not alter that finding and was not expected to. What",
+        "it altered is a different thing: that a specific, identifiable class of team — the",
+        "undefeated ones, who are exactly the teams the ranking gets argued about — was",
+        "excluded from this page **by construction** rather than by having a settled",
+        "ranking. Study §5a shows the league-wide convergence curves for the three candidate",
+        "orderings are within noise of each other; §5b shows the unbeaten teams were not.",
+        "",
         "## Reproduce it",
         "",
         "```",
@@ -531,6 +775,7 @@ def cincinnati_2021() -> str:
     bama = team_row(hind, "Alabama")
     uga = team_row(hind, "Georgia")
     mich = team_row(hind, "Michigan")
+    q_ref = q_ref_of(season_power_map(season)[evaluated.order], poll_mod.team_classes(games))
 
     track = (
         retro.movers(live_all, hind_all).filter(pl.col("team") == "Cincinnati").sort("eval_order")
@@ -548,10 +793,20 @@ def cincinnati_2021() -> str:
         "Power Five to make the College Football Playoff — at **#4**, behind three one-loss",
         "Power Five teams. The argument at the time was entirely about schedule: had",
         "Cincinnati actually *done* more than Alabama, Michigan and Georgia, or had it only",
-        "avoided losing to anybody good? That is precisely the question the résumé rating is",
-        "constructed to answer, so it is the natural first test of it.",
+        "avoided losing to anybody good? That is precisely the question the headline ordering",
+        "is constructed to answer, so it is the natural first test of it.",
+        "",
+        "**This page is also the sharpest illustration of what changed on 2026-08-12.** Under",
+        "the ordering this project published until then, Cincinnati was **#1** — ahead of",
+        "Alabama, Georgia and Michigan — and it was *forced* there rather than judged there:",
+        "an unbeaten team's wins-based résumé saturates at the published bracket, so no team",
+        "with a loss can outrank it, whatever either played. That was a position no",
+        "independent judge reached, and it was one of the two findings that decided",
+        "[ADR 0005](../docs/adr/0005-headline-ordering.md).",
         "",
     ]
+    lines += headline_note(q_ref)
+    lines += [""]
     lines += power_v1_note()
     lines += [
         "",
@@ -566,66 +821,101 @@ def cincinnati_2021() -> str:
         "data window, so R(N, N) and R(N, final) are the same fit. The retroactive view of",
         "2021 lives in the earlier weeks, below.",
         "",
-        "## The two numbers, side by side",
+        "## The three numbers, side by side",
         "",
-        "| Team | Rec | Résumé | Résumé # | Power | Power # | Gap |",
-        "|---|:---:|---:|---:|---:|---:|---:|",
+        "| Team | Rec | −log10 P | P(W ≥ W_t) | Poll # | Résumé | Résumé # | Power | Power # |",
+        "|---|:---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in (cin, bama, mich, uga):
         mark = "\\*" if row["saturated"] else ""
         lines.append(
-            f"| {row['team']} | {row['wins']}-{row['losses']} | {row['resume']:.2f}{mark} "
-            f"| {row['rank']} | {row['power']:.2f} | {row['power_rank']} | {row['gap']:+.2f} |"
+            f"| {row['team']} | {row['wins']}-{row['losses']} | {row['odds_key']:.3f} "
+            f"| {row['tail_p']:.4f} | {row['rank']} | {row['resume']:.2f}{mark} "
+            f"| {row['resume_rank']} | {row['power']:.2f} | {row['power_rank']} |"
         )
     lines += [
         "",
-        f"**Cincinnati is résumé #{cin['rank']} and power #{cin['power_rank']}.** The committee "
-        "put it at #4, which is",
-        "almost exactly between the two numbers — and, read charitably, is what a committee",
-        'trying to blend "what did you do" with "how good are you" would land on if it did',
-        "the blending in its head instead of on paper.",
+        f"**Cincinnati is poll #{cin['rank']}, résumé #{cin['resume_rank']}, "
+        f"power #{cin['power_rank']}. The committee put it at #4.**",
         "",
-        "The résumé number is not saying Cincinnati was the best team in the country. It is",
-        "saying that **13-0 against this schedule has no finite quality that explains it** —",
-        "the saturation property, which puts every unbeaten team on the bracket. The power",
-        f"rating, {cin['power']:.2f} points, is the model's actual estimate of how good "
-        f"Cincinnati was, and it",
-        f"is {ordinal(cin['power_rank'])}. Publishing both, with the gap "
-        f"({cin['gap']:+.2f}) printed between them, is the",
-        "whole of report 02 §3.5's argument in one row.",
+        "The agreement with the committee is worth noticing and is emphatically **not** a",
+        "target: report 02 §5.5 is explicit that fitting toward committee agreement would",
+        "reintroduce human-poll bias through the back door, a subtle but complete violation of",
+        "constraint 1. What it shows is narrower and more useful. This poll says fourth, the",
+        "committee said fourth, and the margin-aware résumé says fourth too (study §7). The",
+        "ordering this project used to publish was the only one that said **first** — and it",
+        "said first because it could not say anything else.",
+        "",
+        f"The poll number says 13-0 against this schedule is a {cin['tail_p'] * 100:.2f}-in-100 "
+        "event for a reference-quality",
+        f"team: {bama['tail_p'] * 100:.3f} in 100 for Alabama's 12-1, "
+        f"{mich['tail_p'] * 100:.3f} for Michigan's and {uga['tail_p'] * 100:.3f} for Georgia's,",
+        f"against {cin['tail_p'] * 100:.3f} for Cincinnati's. Three teams did something less "
+        "likely than Cincinnati",
+        "did, and Georgia's 12-1 and Cincinnati's 13-0 are close enough that they separate in",
+        "the third decimal place — which is a far more honest description of that argument",
+        "than either #1 or #5.",
+        "",
+        "That is a statement about schedules, derived from who those teams played. No",
+        "conference identity enters any design matrix (constraint 2), so the phrase",
+        '"American Athletic Conference" appears nowhere in the computation — and the ordering',
+        "would be identical if the conference labels were shuffled.",
+        "",
+        f"The power rating, {cin['power']:.2f} points, is the model's separate estimate of how "
+        "good Cincinnati",
+        f"was, and it is {ordinal(cin['power_rank'])}. Publishing all three, with the "
+        f"résumé-minus-power gap",
+        f"({cin['gap']:+.2f}) printed between the last two, is the whole of report 02 §3.5's "
+        "argument in one row.",
         "",
     ]
     if nd_game.height:
         g = nd_game.row(0, named=True)
         lines += [
-            "The win that carried the résumé is on the schedule: at Notre Dame, "
+            "The win that carries the number is on the schedule: at Notre Dame, "
             f"{g['away_points']}-{g['home_points']}, on",
             f"{g['start_date']:%-d %B %Y}. Notre Dame finished the regular season "
             f"{team_row(hind, 'Notre Dame')['wins']}-"
             f"{team_row(hind, 'Notre Dame')['losses']} and is power "
             f"#{team_row(hind, 'Notre Dame')['power_rank']} here,",
             "so it is a genuinely load-bearing road win against a top-ten team — which is",
-            "exactly the kind of thing a résumé rating is supposed to notice and a margin-based",
-            "power rating is supposed to under-weight.",
+            "exactly the kind of thing a desert ordering is supposed to notice and a",
+            "margin-based power rating is supposed to under-weight.",
             "",
         ]
 
     lines += [
         "## The retroactive view: Cincinnati week by week",
         "",
-        "Cincinnati was undefeated all season, so its wins-based résumé is pinned at the",
-        "bracket in every week and the rank movement below comes entirely from the",
-        "margin-aware tie-break and from what the rest of the country learned about",
-        "Cincinnati's opponents. The Power column is where the substitution shows.",
+        "Cincinnati was undefeated all season, which is precisely the case in which the",
+        "ordering this project published until 2026-08-12 could say nothing: its wins-based",
+        "résumé is pinned at the bracket in every week, and the bracket does not depend on",
+        "the data window, so the substitution had nothing to act on. The `Résumé #` column",
+        "below is that ordering's answer, carried for comparison. The poll's own column is",
+        "free to move, and does.",
         "",
-        "| Week | Live # | Hindsight # | Move | Power live | Power hindsight |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Week | Live # | Hindsight # | Move | Résumé # live → hindsight "
+        "| Power live | Power hindsight |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
+    resume_rank_live = {
+        (o, t): r
+        for o in sorted(set(live_all["eval_order"].to_list()))
+        for t, r in _rank_map(with_resume_rank(ranked(live_all, o)), "resume_rank").items()
+    }
+    resume_rank_hind = {
+        (o, t): r
+        for o in sorted(set(hind_all["eval_order"].to_list()))
+        for t, r in _rank_map(with_resume_rank(ranked(hind_all, o)), "resume_rank").items()
+    }
     for row in track.iter_rows(named=True):
         delta = row["rank_delta"]
         arrow = "—" if delta == 0 else (f"▲{delta}" if delta > 0 else f"▼{-delta}")
+        rl = resume_rank_live.get((row["eval_order"], "Cincinnati"))
+        rh = resume_rank_hind.get((row["eval_order"], "Cincinnati"))
         lines.append(
             f"| `{row['eval_label']}` | {row['rank_live']} | {row['rank_hindsight']} | {arrow} "
+            f"| {rl} → {rh} "
             f"| {row['power_live']:.2f} | {row['power_hindsight']:.2f} |"
         )
     lines += [
@@ -694,13 +984,17 @@ def top25() -> str:
         pl.col("rank").is_not_null()
     )
 
+    q_ref = q_ref_of(power, poll_mod.team_classes(games))
     lines = [
         f"# The poll — {DEMO_SEASON} through regular week {DEMO_WEEK}",
         "",
-        "The headline layer, mid-season: teams ranked by the **L4 résumé rating**, with the",
-        "**Power rating** and the gap between them beside every team (report 02 §3.5).",
+        "The headline ordering, mid-season: teams ranked by **schedule odds**, with the **L4",
+        "résumé**, the **Power rating** and the gap between the last two beside every team",
+        "(report 02 §3.4, §3.5).",
         "",
     ]
+    lines += headline_note(q_ref)
+    lines += [""]
     lines += power_v1_note()
     lines += [
         "",
@@ -726,10 +1020,13 @@ def top25() -> str:
         f"| sigma | {fitted.sigma} |",
         f"| Compression scale C | {cfg['margin']['c']:g} |",
         f"| Win premium beta_w | {cfg['margin']['beta_w']:g} |",
-        f"| Teams saturated at the q bound | {fitted.as_params()['n_saturated_high']} |",
+        f"| Teams saturated at the q bound (résumé column) | "
+        f"{fitted.as_params()['n_saturated_high']} |",
+        f"| `q_ref` — {cfg['schedule_odds']['q_ref_method']} | {q_ref.value:.2f} points"
+        + (f", {q_ref.team} |" if q_ref.team else " |"),
         "",
         "Every FCS team in the schedule holds its own coefficient in the same fit under the",
-        "same penalty — no pooled node (report 02 §3.7) — and gets its own résumé too. They",
+        "same penalty — no pooled node (report 02 §3.7) — and gets its own numbers too. They",
         "are omitted from the table below because this is a college football poll, not",
         f"because they are hidden: `out/ratings_live.parquet` carries all {live.height} teams.",
         "",
@@ -746,19 +1043,17 @@ def top25() -> str:
         "the L2 results core rescaled to points by one no-intercept OLS, with no efficiency",
         "term at all. It is kept beside the full model deliberately — the claim that the",
         "blend is worth building should be checkable on the page, not just in a metrics",
-        "file. The résumé equation is identical in both; only `Power` changed.",
+        "file. Both orderings are identical in both tables; only `Power` changed.",
         "",
-        "| # | Team | Rec | Résumé | Power | Gap | Power # |",
-        "|---:|---|:---:|---:|---:|---:|---:|",
+        "| # | Team | Rec | −log10 P | Résumé | Power | Gap | Power # |",
+        "|---:|---|:---:|---:|---:|---:|---:|---:|",
     ]
-    l2_ranked = with_power_rank(l2_live)
-    l2_power_rank = dict(
-        zip(l2_ranked["team"].to_list(), l2_ranked["power_rank"].to_list(), strict=True)
-    )
+    l2_power_rank = _rank_map(with_power_rank(l2_live), "power_rank")
     for row in l2_live.head(25).iter_rows(named=True):
         mark = "\\*" if row["saturated"] else ""
         lines.append(
             f"| {row['rank']} | {row['team']} | {row['wins']}-{row['losses']} "
+            f"| {row['odds_key']:.3f} "
             f"| {row['resume']:.2f}{mark} | {row['power']:.2f} | {row['gap']:+.2f} "
             f"| {l2_power_rank.get(row['team'], 0)} |"
         )
@@ -780,35 +1075,48 @@ def top25() -> str:
         )
         + ".",
         "",
-        "The rank order barely moves this week and that is the expected result: the résumé",
-        "is a monotone function of the wins a schedule implies, and both Power sources rank",
-        "the same league in nearly the same order. Where the blend earns its place is in the",
-        "**margin** numbers, and those are in `demo/backtest-2021-2023.md`.",
+        "The rank order barely moves this week and that is the expected result: both Power",
+        "sources rank the same league in nearly the same order, and the ordering is a monotone",
+        "function of what those ratings say about a schedule. Where the blend earns its place",
+        "is in the **margin** numbers, and those are in `demo/backtest-2021-2023.md`.",
         "",
     ]
 
     uga = team_row(live_r, "Georgia")
     fsu = team_row(live_r, "Florida State")
     ksu = team_row(live_r, "Kansas State")
+    unbeaten = live_r.filter(pl.col("losses") == 0)
+    inversions = live_r.filter((pl.col("losses") >= 1) & (pl.col("rank") < unbeaten["rank"].max()))
     lines += [
         "## Reading it honestly",
         "",
-        f"Undefeated Georgia is résumé #{uga['rank']} and power #{uga['power_rank']}; undefeated "
-        f"Florida State is résumé",
-        f"#{fsu['rank']} and power #{fsu['power_rank']}. A team can be 9-0 and still not be "
-        "one of the",
-        "ten teams a margin model would favour on a neutral field, and printing only the",
-        "power number would make that look like a bug in the poll. It is not a bug; it is",
-        "half the picture. A margin-based power rating discounts a run of narrow wins and a",
-        "résumé rating does the opposite, so report 02 §3.5's answer is to print both and",
-        "show the gap — which is what the `Gap` column is.",
+        f"Undefeated Georgia sits at poll **#{uga['rank']}**, résumé #{uga['resume_rank']}, "
+        f"power #{uga['power_rank']}. Undefeated Florida State sits at",
+        f"poll **#{fsu['rank']}**, résumé #{fsu['resume_rank']}, power #{fsu['power_rank']}. "
+        "A team can be unbeaten and still not be one of the",
+        "handful a margin model would favour on a neutral field, and printing only the power",
+        "number would make that look like a bug in the poll. It is not a bug; it is a third of",
+        "the picture. A margin-based power rating discounts a run of narrow wins and a desert",
+        "ordering does not, so report 02 §3.5's answer is to print all three and show the gap",
+        "— which is what the `Gap` column is.",
         "",
-        f"Kansas State at résumé #{ksu['rank']} on a {ksu['wins']}-{ksu['losses']} record, "
+        f"There are **{unbeaten.height} undefeated teams** in this week's table and "
+        f"**{inversions.height} teams with a loss** ranked",
+        "above the last of them. Under the ordering this project published until 2026-08-12",
+        "that count was **zero**, necessarily, in every week of every season — an unbeaten",
+        "team's wins-based résumé saturates at the published bracket and nothing with a loss",
+        "can pass it. The `Résumé #` column above is that ordering, kept for comparison. The",
+        "difference between the two columns is the decision of",
+        "[ADR 0005](../docs/adr/0005-headline-ordering.md), visible on a mid-season page",
+        "rather than only in a final poll.",
+        "",
+        f"Kansas State at #{ksu['rank']} on a {ksu['wins']}-{ksu['losses']} record, "
         f"against power #{ksu['power_rank']}, is the same effect",
         "in the other direction: three close losses to good teams. `beta_w = "
         f"{cfg['margin']['beta_w']:g}` is the knob",
-        "that governs exactly this, it is published on every artifact, and report 02 §7.4 is",
-        "explicit that its value is a decision for people rather than for a grid search.",
+        "that governs exactly this in the *margin* numbers, it is published on every artifact,",
+        "and report 02 §7.4 is explicit that its value is a decision for people rather than",
+        "for a grid search. It has no effect at all on the rank key, which never sees margin.",
         "",
         "## Reproduce it",
         "",
@@ -847,6 +1155,7 @@ def backtest_report() -> str:
     blend = result["blend"]
     order = ["l3", "l2", "l1", "srs", "elo", "colley", "winpct", "random_walker", "home_team"]
     label = {
+        "schedule_odds": "**Schedule odds (the headline)**",
         "resume": "**L4 résumé (ours)**",
         "l3": "**L3 blend (ours)**",
         "l2": "**L2 results core (ours)**",
@@ -900,12 +1209,14 @@ def backtest_report() -> str:
         "  Elo lives on a 400-point logit scale and win percentage on [0, 1]; without this",
         "  the MAE column would be meaningless for five of the seven rows. Straight-up",
         "  accuracy is unaffected - it is invariant to a positive affine map.",
-        "- **The L4 résumé is not in the predictive table.** It is a retrodictive rating by",
-        "  construction (report 02 §3.5): every undefeated team sits on the same q bound, and",
-        "  it is a strongly nonlinear function of Power, so a single affine map per week",
-        "  cannot describe it. It therefore predicts through its Power source - which would",
-        "  reproduce L3's row exactly - and is scored below on **violations**, which is the",
-        "  metric it is for.",
+        "- **Neither retrodictive ordering is in the predictive table.** Both the headline",
+        "  (schedule odds) and the L4 résumé it replaced are desert measures by construction",
+        "  (report 02 §3.5). Every undefeated team sits on the same q bound on the résumé, and",
+        "  `−log10` of a tail probability is a log-scale quantity that grows with games",
+        "  played, so a single affine map per week cannot describe either of them. Both",
+        "  therefore predict through their shared Power source - which would reproduce L3's",
+        "  row exactly - and both are scored below on **violations**, which is the metric they",
+        "  are for.",
         "- **L3's blend weights are fitted on out-of-sample games only** (report 02 §3.3):",
         "  at week N they have seen only games already predicted by a fit through week N-1.",
         "  They are pooled **per season and never across seasons**, which is stricter than",
@@ -1076,16 +1387,22 @@ def backtest_report() -> str:
         "   is itself nearly flat, so it is badly determined; it does not matter to the",
         "   ranking, because `w1` multiplies it and the product is what is fitted.",
         "",
-        "## Retrodictive violations — the metric the headline layer is for",
+        "## Retrodictive violations — the metric the headline ordering is for",
         "",
         "Violations are games whose loser the final full-season rating ranks above the",
         "winner - the canonical retrodictive metric (report 02 §2.12). Churn is the mean",
         "absolute week-over-week rank change across FBS teams.",
         "",
+        "**Schedule odds is the headline ordering and the L4 résumé is the ordering it",
+        "replaced on 2026-08-12, and both stay in this table permanently.** The decision",
+        "between them was made on measured violations and measured forward ordering accuracy",
+        "([the study](../docs/analysis/headline-ordering-study.md)); dropping the loser",
+        "afterwards would make that decision unfalsifiable from that week on.",
+        "",
         "| System | Violation rate | Violations / games | Mean rank churn |",
         "|---|---:|---:|---:|",
     ]
-    for name in ["resume", *order]:
+    for name in ["schedule_odds", "resume", *order]:
         block = systems[name]
         rows = block["retrodictive_violations"]
         count = (
@@ -1100,36 +1417,71 @@ def backtest_report() -> str:
 
     rate = {
         n: systems[n]["retrodictive_violation_rate"]
-        for n in ["resume", *order]
+        for n in ["schedule_odds", "resume", *order]
         if systems[n]["retrodictive_violation_rate"] is not None
     }
-    gate = systems["resume"]["gate"]["violations_vs_baselines"]
+    gate_odds = systems["schedule_odds"]["gate"]["violations_vs_baselines"]
+    gate_resume = systems["resume"]["gate"]["violations_vs_baselines"]
     lines += [
         "",
-        "**The résumé clears the gate the L2-only build missed.** `configs/default.toml` asks",
-        "for a violation rate at or below Colley and SRS (`violations_must_beat`); the résumé",
-        f"is at {rate['resume']:.4f} against Colley's {rate['colley']:.4f} and SRS's "
-        f"{rate['srs']:.4f}, and the harness now",
-        f"reports that criterion as `{gate}` rather than as an undecided null. It also beats",
-        f"its own Power rating by {(rate['l3'] - rate['resume']) * 100:.2f} points of violation "
-        "rate, which is the point of building the layer.",
+        "**Both desert orderings beat every power rating in the table, which is the point of",
+        f"building them.** The headline is at {rate['schedule_odds']:.4f} and the résumé at "
+        f"{rate['resume']:.4f}, against L3's",
+        f"{rate['l3']:.4f}, L2's {rate['l2']:.4f}, SRS's {rate['srs']:.4f} and Elo's "
+        f"{rate['elo']:.4f}. A margin-based rating is not",
+        "trying to respect results; these are the layers that do.",
         "",
-        f"**It does not beat win percentage, which is at {rate['winpct']:.4f}, and that is worth",
+        "**Three systems in the table are ahead of the headline ordering on this metric and",
+        "none of them is a power rating:** win percentage "
+        f"({rate['winpct']:.4f}), Colley ({rate['colley']:.4f}) and the",
+        f"random walker ({rate['random_walker']:.4f}). All three are margin-blind and two of "
+        "the three ignore",
+        "schedule almost entirely, which is precisely why they do well here and precisely why",
+        "none of them is a poll anybody wants. That does not make the next paragraph go away.",
+        "",
+        "### The headline ordering does not clear the violations gate on this protocol",
+        "",
+        "`configs/default.toml` asks for a violation rate at or below **Colley and SRS**",
+        f"(`violations_must_beat`). Colley is at {rate['colley']:.4f}. Schedule odds is at",
+        f"{rate['schedule_odds']:.4f}, so the harness reports that criterion as "
+        f"`{gate_odds}` — and the ordering it",
+        f"replaced, at {rate['resume']:.4f}, reports `{gate_resume}`. **That is a real cost of",
+        "[ADR 0005](../docs/adr/0005-headline-ordering.md) and it is stated here rather than",
+        "left for someone else to find.**",
+        "",
+        "Three things are true about that number at once and all three belong on the page:",
+        "",
+        "1. **It is not the number the decision was made on, and the two protocols differ in",
+        "   a way that matters.** The headline-ordering study measures violations at each",
+        "   season's final poll bucket using **walk-forward** Power, over every FBS-vs-FBS",
+        "   game including the postseason, and there the two orderings are tied (0.1997 vs",
+        "   0.2011 on the tune seasons; 0.1930 vs 0.1942 on the validation season). This",
+        "   harness refits on the whole season at once, which means the L3 blend weights are",
+        "   fitted **in-sample** because there is no walk left to do, and it scores the",
+        "   `fbs_vs_fbs` segment only. The in-sample blend flatters the résumé more than it",
+        "   flatters the tail — which is exactly the failure report 02 §3.3 legislates",
+        "   against, and the reason the live pipeline never fits weights that way.",
+        "2. **The gap is small and the study said not to trust a gap this size.** Study §10.4",
+        "   states plainly that the A-vs-C violations difference is not significant at four",
+        "   seasons and does not claim it is. This page is not entitled to claim it either,",
+        "   in either direction.",
+        "3. **It is checked every week from now on.** Both orderings are in the default",
+        "   `--systems` list permanently, precisely so that if this stops being a rounding",
+        "   difference, it shows up in a table rather than in an argument.",
+        "",
+        f"**Neither beats win percentage, which is at {rate['winpct']:.4f}, and that is worth",
         "saying rather than burying.** Violations count only who beat whom; a rating that is",
         "purely a function of record is close to the floor on a metric that ignores schedule",
-        "entirely. The roughly two points of violation rate the résumé gives up is the price",
-        "of caring who you played, which is constraint 3. A poll optimised for this metric",
-        "alone would be a win-percentage poll, and that is not a thing anyone wants.",
+        "entirely. The two-odd points of violation rate given up is the price of caring who",
+        "you played, which is constraint 3. A poll optimised for this metric alone would be a",
+        "win-percentage poll, and that is not a thing anyone wants.",
         "",
-        f"On the pooled 2021-2023 number the résumé and Colley are exactly tied "
-        f"({int(sum(r['violations'] for r in systems['resume']['retrodictive_violations']))} each,",
-        "of 2,216 games). They differ season by season and the aggregate coincidence is",
-        "just that.",
-        "",
-        "Saturation cannot flatter this number, and the reason is structural rather than",
-        "empirical: a team saturated at the top never lost a game, and a team saturated at",
-        "the bottom never won one, so no tie at either bound can ever appear in a",
-        "winner/loser pair.",
+        "Saturation cannot flatter the résumé's number, and the reason is structural rather",
+        "than empirical: a team saturated at the top never lost a game, and a team saturated",
+        "at the bottom never won one, so no tie at either bound can ever appear in a",
+        "winner/loser pair. The same argument covers the headline ordering's own tie at the",
+        "bottom: every winless team has a tail of exactly 1.0, and a winless team is never the",
+        "winner of anything.",
         "",
         "## Segments reported separately",
         "",
@@ -1180,7 +1532,7 @@ def backtest_report() -> str:
         "",
         "```",
         "uv run cfbpoll backtest \\",
-        "  --systems resume,l3,l2,l1,colley,srs,elo,walker,winpct \\",
+        "  --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct \\",
         "  --seasons 2021-2023",
         "```",
         "",

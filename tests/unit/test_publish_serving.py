@@ -54,6 +54,17 @@ def archive(tmp_path: Path) -> Path:
             "notes": [None, None, None],
         }
     ).write_parquet(root / "schedules" / "cfb_schedules_2023.parquet")
+
+    # The MIT crosswalk. Report 06 §8.1 sources the ESPN id from here; the join is
+    # on the integer, so Akron (2005) is deliberately absent to exercise the
+    # generated-mark path for an unresolved team.
+    (root / "crosswalk").mkdir(parents=True)
+    pl.DataFrame(
+        {
+            "espn_team_id": [194, 333],
+            "espn_abbreviation": ["OSU", "ALA"],
+        }
+    ).write_parquet(root / "crosswalk" / "cfb_teams_crosswalk_2023.parquet")
     return root
 
 
@@ -162,11 +173,17 @@ def out(tmp_path: Path) -> Path:
 
 
 class TestTeamDimension:
-    def test_reads_ids_conferences_and_logos(self, archive: Path) -> None:
+    def test_reads_ids_and_conferences(self, archive: Path) -> None:
         teams = serving.team_dimension(2023, archive)
         assert teams["Ohio State"]["team_id"] == 194
         assert teams["Ohio State"]["conference"] == "Big Ten"
-        assert teams["Ohio State"]["logo_url"].endswith("/194.png")
+
+    def test_the_abbreviation_comes_from_the_crosswalk(self, archive: Path) -> None:
+        """It is what the generated mark carries, so it is published whether or
+        not logos are."""
+        teams = serving.team_dimension(2023, archive, {"logos": False})
+        assert teams["Ohio State"]["abbreviation"] == "OSU"
+        assert teams["Ohio State"]["logo_url"] is None
 
     def test_conference_is_display_only_and_never_reaches_the_model(self) -> None:
         """Report 02 §3.10 bans conference as a feature and `audit-features`
@@ -239,6 +256,11 @@ class TestTheSiteNeverComputes:
 
     def test_record_is_pre_formatted(self, out: Path, archive: Path) -> None:
         assert serving.build(out, archive=archive).views["week"]["poll"][0]["record"] == "3-0"
+
+    def test_max_abs_gap_is_published(self, out: Path, archive: Path) -> None:
+        """The Gap bars scale against the week's largest |gap|, which is a
+        reduction over the whole table and so cannot happen in a component."""
+        assert serving.build(out, archive=archive).views["week"]["max_abs_gap"] == 65.0
 
     def test_median_interval_width_is_published(self, out: Path, archive: Path) -> None:
         """§5.1: "1-26" alone is alarming; "1-26, against a league median width of
@@ -382,8 +404,8 @@ class TestPostgres:
     def test_json_columns_are_serialised(self, out: Path, archive: Path) -> None:
         bundle = serving.build(out, archive=archive)
         plan = dict(zip(postgres.tables_present(bundle), postgres.statements(bundle), strict=True))
-        _, params = plan["cfb_connectivity"]
-        payload = params[0][postgres_column_index(bundle, "cfb_connectivity", "payload")]
+        _, params = plan["cfb_views"]
+        payload = params[0][postgres_column_index(bundle, "cfb_views", "payload")]
         assert isinstance(payload, str)
         assert json.loads(payload)["week"] == 2
 
@@ -410,11 +432,127 @@ class TestParity:
 
     def test_every_view_has_a_table_behind_it(self, out: Path, archive: Path) -> None:
         bundle = serving.build(out, archive=archive)
-        assert set(bundle.views) == {"week", "connectivity", "methodology", "data"}
-        assert bundle.tables["cfb_connectivity"]
+        assert set(bundle.views) == set(serving.VIEW_KINDS)
+        stored = {row["kind"]: row["payload"] for row in bundle.tables["cfb_views"]}
+        assert stored == bundle.views
         assert bundle.tables["cfb_artifacts"]
         assert bundle.tables["cfb_divergence"]
 
-    def test_the_connectivity_document_is_stored_whole(self, out: Path, archive: Path) -> None:
-        bundle = serving.build(out, archive=archive)
-        assert bundle.tables["cfb_connectivity"][0]["payload"] == bundle.views["connectivity"]
+    def test_the_view_kinds_match_the_fixture_filenames(self) -> None:
+        """The same string is the fixture filename stem, the `kind` in cfb_views
+        and the method name on the site's PollSource interface. Deliberately."""
+        assert set(fixtures.DOCUMENTS) == set(serving.VIEW_KINDS)
+
+    def test_the_season_index_merge_is_shared_and_idempotent(self) -> None:
+        """Both backends fold weeks in with the same function, so the strip cannot
+        differ between them, and publishing week 12 before week 3 is harmless."""
+        stub = {
+            "season": 2023, "week": 3, "season_type": "regular", "provisional": True,
+            "played": True, "published_at": "x", "n_ranked": 133,
+        }
+        once = serving.merge_season_index([], stub, [1, 2, 3, 4], 5)
+        twice = serving.merge_season_index(once, stub, [1, 2, 3, 4], 5)
+        assert once == twice
+        assert [w["week"] for w in once] == [1, 2, 3, 4]
+        assert [w["played"] for w in once] == [False, False, True, False]
+
+
+class TestLogos:
+    """Report 06: hotlink only, never possess the bytes, and make the whole thing
+    reversible with one flag."""
+
+    DISPLAY = {
+        "logos": True,
+        "logo_url_template": (
+            "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500{variant}/"
+            "{team_id}.png&w={size}&h={size}"
+        ),
+        "logo_size": 64,
+        "logo_size_2x": 128,
+        "logo_dark_variant": "-dark",
+    }
+
+    def test_all_four_variants_are_published(self, archive: Path) -> None:
+        """The site never computes, and that includes building a string."""
+        row = serving.team_dimension(2023, archive, self.DISPLAY)["Ohio State"]
+        assert row["logo_url"].endswith("500/194.png&w=64&h=64")
+        assert row["logo_url_2x"].endswith("500/194.png&w=128&h=128")
+        assert row["logo_url_dark"].endswith("500-dark/194.png&w=64&h=64")
+        assert row["logo_url_dark_2x"].endswith("500-dark/194.png&w=128&h=128")
+
+    def test_every_url_is_https(self, archive: Path) -> None:
+        """CFBD's own logos[] field mixes http and https, which silently breaks
+        ~40% of logos through mixed-content blocking. Building the string from an
+        integer means the scheme is ours and the bug cannot happen."""
+        row = serving.team_dimension(2023, archive, self.DISPLAY)["Ohio State"]
+        for key in ("logo_url", "logo_url_2x", "logo_url_dark", "logo_url_dark_2x"):
+            assert row[key].startswith("https://")
+
+    def test_an_unresolved_team_gets_no_url_rather_than_an_error(self, archive: Path) -> None:
+        """A name-matching failure must not break a Sunday build; it must produce
+        a team that renders the generated mark."""
+        row = serving.team_dimension(2023, archive, self.DISPLAY)["Akron"]
+        assert row["espn_team_id"] is None
+        assert row["logo_url"] is None
+        assert row["team_id"] == 2005  # still a real team, still ranked
+
+    def test_the_flag_turns_every_logo_off(self, archive: Path) -> None:
+        """Rule 5: the logo-free mode is a config change, not a weekend."""
+        row = serving.team_dimension(2023, archive, {**self.DISPLAY, "logos": False})
+        assert row["Ohio State"]["logo_url"] is None
+        assert row["Ohio State"]["logo_url_dark_2x"] is None
+        assert row["Ohio State"]["espn_team_id"] == 194  # the id is still the record
+
+    def test_the_live_config_carries_the_display_block(self) -> None:
+        from cfbpoll.config import DEFAULT_CONFIG_PATH, load_config
+
+        display = load_config(DEFAULT_CONFIG_PATH)["display"]
+        assert display["logos"] is True
+        assert "a.espncdn.com" in display["logo_url_template"]
+
+    def test_the_trademark_disclaimer_is_published(self) -> None:
+        """It is not a credit — no aggregator can grant these rights, and naming
+        one would advertise a source that disclaims the ability to. It is a
+        disclaimer, and it is doing real work."""
+        body = " ".join(entry["body"] for entry in serving._licenses())
+        assert "trademarks of their respective institutions" in body
+        assert "identification only" in body
+        assert "not affiliated with, endorsed by, or sponsored by" in body
+        assert "no logo files are hosted or redistributed" in body
+
+    def test_no_aggregator_is_credited(self) -> None:
+        text = " ".join(entry["body"] + entry["name"] for entry in serving._licenses()).lower()
+        for forbidden in ("sports logo history", "sportslogos.net", "powered by espn"):
+            assert forbidden not in text
+
+    def test_the_package_never_fetches_a_logo(self) -> None:
+        """RULE 1, made mechanical (report 06 §8.4). A rule that depends on
+        everyone remembering it is not a rule. The CDN host may appear in this
+        package only as a URL template that is handed to a browser — never as
+        something our own code retrieves."""
+        import cfbpoll
+
+        root = Path(cfbpoll.__file__).parent
+        offenders: list[str] = []
+        for path in sorted(root.rglob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            if "espncdn" not in text:
+                continue
+            for number, line in enumerate(text.splitlines(), 1):
+                if "espncdn" not in line:
+                    continue
+                verbs = ("httpx", "requests", "urlopen", "get(", "download")
+                if any(verb in line for verb in verbs):
+                    offenders.append(f"{path.name}:{number}")
+        assert offenders == [], f"a logo fetch reached the package: {offenders}"
+
+    def test_no_image_bytes_are_committed_to_the_package(self) -> None:
+        import cfbpoll
+
+        root = Path(cfbpoll.__file__).parent
+        images = [
+            p.name
+            for suffix in ("*.png", "*.svg", "*.webp", "*.jpg", "*.gif")
+            for p in root.rglob(suffix)
+        ]
+        assert images == [], f"image assets in the package: {images}"

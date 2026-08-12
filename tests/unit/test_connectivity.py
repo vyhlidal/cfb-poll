@@ -8,6 +8,7 @@ keeps the test suite offline.
 from __future__ import annotations
 
 import polars as pl
+import pytest
 
 from cfbpoll.model import connectivity as conn
 
@@ -221,3 +222,16 @@ class TestLayout:
         graph = conn.build_graph(_games([]))
         out = conn.layout(graph, [])
         assert out.x == () and out.y == ()
+
+    def test_the_aspect_is_published(self) -> None:
+        """Each axis is stretched to span [0, 1], which is only safe because the
+        true shape rides along — a renderer that ignores it draws ellipses."""
+        graph = conn.build_graph(_games([("A", "B"), ("B", "C"), ("X", "Y")]))
+        out = conn.layout(graph, conn.components(graph))
+        assert conn._MIN_ASPECT <= out.aspect <= conn._MAX_ASPECT
+
+    def test_a_single_component_still_gets_a_sane_aspect(self) -> None:
+        graph = conn.build_graph(_games([("A", "B"), ("B", "C"), ("C", "A")]))
+        out = conn.layout(graph, conn.components(graph))
+        assert out.aspect == pytest.approx(1.0, abs=0.35)
+        assert max(out.x) <= 1.0 and max(out.y) <= 1.0

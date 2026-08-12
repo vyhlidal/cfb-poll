@@ -66,10 +66,22 @@ DDL: tuple[str, ...] = (
       abbreviation    text,
       classification  text        NOT NULL,
       conference      text,
+      -- §5.6 declared logo_url and no file column: the design already
+      -- anticipated storing a REFERENCE rather than an asset (report 06 §8.1).
+      -- The integer is the real record; the four URLs are built from it and
+      -- stored so the site never derives a string either.
+      espn_team_id    integer,
       logo_url        text,
+      logo_url_2x     text,
+      logo_url_dark   text,
+      logo_url_dark_2x text,
       PRIMARY KEY (season, team_id)
     )
     """,
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS espn_team_id integer",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_2x text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_dark text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_dark_2x text",
     """
     CREATE TABLE IF NOT EXISTS cfb_games (
       game_id         bigint      PRIMARY KEY,
@@ -174,16 +186,31 @@ DDL: tuple[str, ...] = (
     )
     """,
     # ------------------------------------------------- extensions to §5.6
-    # A drawn graph needs node positions and the site never computes, so the
-    # whole rendered diagnostic is stored as one document per (season, week).
-    # It is keyed and versioned by run and is never queried by field.
+    # THE SERVING SURFACE. The tables above are the analytical surface and are
+    # written exactly as §5.6 specifies; this is what the website reads. See the
+    # argument in publish/serving.py: §5.6 predates ADR 0005, the published row
+    # is now twenty-plus fields (report 05 §3.1), and several of the things a
+    # page prints are properties of the WEEK rather than of any team. Storing the
+    # rendered document makes parity between the two backends a diff of two JSON
+    # objects instead of a hope that two renderers agreed.
     """
-    CREATE TABLE IF NOT EXISTS cfb_connectivity (
+    CREATE TABLE IF NOT EXISTS cfb_views (
       season  smallint NOT NULL,
       week    smallint NOT NULL,
+      kind    text     NOT NULL,
       run_id  uuid     NOT NULL REFERENCES cfb_runs(run_id),
       payload jsonb    NOT NULL,
-      PRIMARY KEY (season, week)
+      PRIMARY KEY (season, week, kind)
+    )
+    """,
+    # The week strip: every week of a season, played or not. An aggregate across
+    # weeks, so no week's row can hold it and the loader merges it in place.
+    """
+    CREATE TABLE IF NOT EXISTS cfb_season_index (
+      season              smallint NOT NULL PRIMARY KEY,
+      headline_start_week smallint NOT NULL,
+      weeks               jsonb    NOT NULL,
+      updated_at          timestamptz NOT NULL
     )
     """,
     # Mean |Δrank| per evaluation week: an aggregate ACROSS weeks, so no single
@@ -218,7 +245,17 @@ DDL: tuple[str, ...] = (
 _CONFLICT: dict[str, tuple[str, tuple[str, ...]]] = {
     "cfb_teams": (
         "(season, team_id)",
-        ("school", "abbreviation", "classification", "conference", "logo_url"),
+        (
+            "school",
+            "abbreviation",
+            "classification",
+            "conference",
+            "espn_team_id",
+            "logo_url",
+            "logo_url_2x",
+            "logo_url_dark",
+            "logo_url_dark_2x",
+        ),
     ),
     "cfb_games": (
         "(game_id)",
@@ -242,7 +279,8 @@ _CONFLICT: dict[str, tuple[str, tuple[str, ...]]] = {
     "cfb_poll_published": ("(season, week, rank)", ()),
     "cfb_predictions": ("(run_id, game_id)", ("pred_margin", "win_prob_home")),
     "cfb_backtest_metrics": ("(run_id, split, system, metric)", ("value",)),
-    "cfb_connectivity": ("(season, week)", ("run_id", "payload")),
+    "cfb_views": ("(season, week, kind)", ("run_id", "payload")),
+    "cfb_season_index": ("(season)", ("headline_start_week", "weeks", "updated_at")),
     "cfb_divergence": (
         "(season, eval_week)",
         ("run_id", "mean_abs_delta", "max_abs_delta", "n_teams"),
@@ -251,7 +289,10 @@ _CONFLICT: dict[str, tuple[str, tuple[str, ...]]] = {
 }
 
 #: JSONB columns need an explicit dump; psycopg will not guess.
-_JSON_COLUMNS: dict[str, tuple[str, ...]] = {"cfb_connectivity": ("payload",)}
+_JSON_COLUMNS: dict[str, tuple[str, ...]] = {
+    "cfb_views": ("payload",),
+    "cfb_season_index": ("weeks",),
+}
 
 #: The order tables must be written in, so foreign keys are always satisfied.
 UPSERTS: tuple[str, ...] = SERVING_TABLES
@@ -326,8 +367,42 @@ def load(
             for table, (sql, params) in zip(tables_present(bundle), plan, strict=True):
                 cur.executemany(sql, params)  # type: ignore[arg-type]
                 written[table] = len(params)
+            written["cfb_season_index"] = _merge_season_index(cur, bundle, archive)
         conn.commit()
     return written
+
+
+def _merge_season_index(cur: Any, bundle: Bundle, archive: Path | None) -> int:
+    """Fold this week into the season's week list, in place, inside the same
+    transaction.
+
+    The week strip is an aggregate across weeks, so it cannot be derived from the
+    one run being published. Read-modify-write against the stored list keeps the
+    command idempotent and order-free — publish week 12 then week 3 and the strip
+    is the same either way — and it uses `serving.merge_season_index`, the same
+    function the fixture writer uses, so the two backends cannot disagree about
+    which weeks exist.
+    """
+    from cfbpoll.publish import serving
+
+    cur.execute("SELECT weeks FROM cfb_season_index WHERE season = %s", (bundle.season,))
+    row = cur.fetchone()
+    existing = list(row[0]) if row and row[0] else []
+    start = serving.headline_start_week()
+    weeks = serving.merge_season_index(
+        existing,
+        bundle.week_stub(),
+        serving.scheduled_weeks(bundle.season, archive),
+        start,
+    )
+    cur.execute(
+        "INSERT INTO cfb_season_index (season, headline_start_week, weeks, updated_at) "
+        "VALUES (%s, %s, %s, now()) ON CONFLICT (season) DO UPDATE SET "
+        "headline_start_week = EXCLUDED.headline_start_week, weeks = EXCLUDED.weeks, "
+        "updated_at = EXCLUDED.updated_at",
+        (bundle.season, start, json.dumps(weeks, sort_keys=True)),
+    )
+    return len(weeks)
 
 
 def tables_present(bundle: Bundle) -> list[str]:

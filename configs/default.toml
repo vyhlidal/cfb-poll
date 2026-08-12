@@ -107,6 +107,43 @@ publish_rank_intervals = true               # every week, forever — report 02 
 publish_margin_resume_variant = true        # both resume flavours — report 02 §3.4
 
 ####################################################################################
+# Display-only publication settings — report 06 (logo sourcing), report 05 §8
+#
+# NOTHING IN THIS SECTION CAN REACH A DESIGN MATRIX. These are properties of the
+# website, published on cfb_teams and on every poll row, and the pre-fit feature
+# audit would fail the build if any of them appeared in a fit.
+####################################################################################
+[display]
+# TEAM LOGOS IN THE POLL TABLE. Report 05 §8 argued against them ("logos are
+# fan-blog signal and they eat the horizontal space the interval rail needs");
+# the project owner decided otherwise on 2026-08-12, and this flag is what keeps
+# that a decision rather than a fact of the code.
+#
+# Report 06 §6 rule 5: BUILD THE LOGO-FREE MODE FIRST, not as a contingency.
+# Setting this to false publishes null logo URLs, and every logo slot on the site
+# renders the project's own generated mark instead — the same mark that is
+# already the fallback for a team with no ESPN id, and the ONLY mark the share
+# cards are ever allowed to use (report 06 §8.3). If a rights holder ever asks us
+# to stop, the response is this line, not a weekend.
+logos = true
+
+# Rule 1, and it does all the legal work (report 06 §2.4, §6): NEVER POSSESS THE
+# BYTES. We construct URLs offline from the ESPN team id already sitting in the
+# MIT-licensed crosswalk archive; no logo file is downloaded by our code, written
+# to disk, committed, bundled into a release asset, or served from our origin.
+# The combiner endpoint is the only resizing mechanism ESPN honours (query
+# parameters on the raw .png path are silently ignored) and it returns ~1.5 KB at
+# display size with 24-hour caching, which answers the bandwidth objection and the
+# server test in one move.
+logo_url_template = "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500{variant}/{team_id}.png&w={size}&h={size}"
+logo_size = 64                              # 1x for a 24-28px slot — report 06 §6 rule 3
+logo_size_2x = 128
+# Dark artwork is BEST EFFORT: coverage matches the light set, and FBS assets are
+# genuinely different files, but some further down the divisions are byte-identical
+# copies of their light counterpart. Stated rather than implied.
+logo_dark_variant = "-dark"
+
+####################################################################################
 # L2 response transform — report 02 §3.2
 #   s_g = C * tanh(m_g / C) + beta_w * sign(m_g)
 ####################################################################################

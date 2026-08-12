@@ -19,20 +19,43 @@ alongside `power`. Every one of those is a division or a sort that would
 otherwise happen in a React component, where it could silently disagree with the
 static build and with Postgres.
 
-THREE TABLES HERE ARE NOT IN REPORT 03 §5.6, and each is a direct consequence of
+FOUR TABLES HERE ARE NOT IN REPORT 03 §5.6, and each is a direct consequence of
 that same rule:
 
-    cfb_connectivity   the weeks 1-4 launch product (report 05 §9.1). A drawn
-                       graph needs node positions, and computing a layout in the
-                       browser is computing. Stored as one JSONB document per
-                       (season, week) because it is a rendered diagnostic keyed
-                       and versioned by run, never queried by field.
+    cfb_views          the rendered view documents, one JSONB payload per
+                       (season, week, kind). See below — this is the one that
+                       needs an argument.
+    cfb_season_index   the week strip: every week of a season, played or not.
+                       An aggregate ACROSS weeks, so no week's row can hold it.
     cfb_divergence     mean |Δrank| per evaluation week — the curve report 05
-                       §4.1 wants on the methodology page. It is an aggregate
-                       ACROSS weeks, so no single week's page can hold it.
+                       §4.1 wants on the methodology page. Also across weeks.
     cfb_artifacts      filename, size and sha256 per run, for the /data page.
                        A page that prints a checksum it computed itself is not
                        publishing a checksum.
+
+WHY cfb_views EXISTS, stated plainly, because it looks like giving up on the
+relational schema and it is not.
+
+Report 03 §5.6 was written before ADR 0005 changed the headline ordering, and
+`cfb_poll_published` there carries seven columns. Report 05 §3.1 records what
+the published row ACTUALLY contains now — "the published row gains `odds_key`,
+`tail_p`, `mid_p`, `expected_wins`, `surprise`, `q_ref` and `q_ref_team`. It
+loses nothing" — which is twenty-plus fields, several of them (the interval
+rail's domain, the league median width, the `1 in N`) properties of the WEEK
+rather than of any team. Reconstructing that in SQL means either widening the
+append-only publication record every time the row changes, or a five-way join
+whose output the two surfaces would then have to agree about independently.
+
+So: the §5.6 tables are written exactly as specified and stay the analytical
+surface — that is what a stranger runs SQL against, and what the team pages and
+cross-season comparisons of v2 will read. `cfb_views` is the SERVING surface: the
+same documents `publish fixtures` writes to disk, stored so the Postgres backend
+returns byte-identical objects. Two backends, one interface, and parity that can
+be checked by comparing two JSON documents rather than by trusting two
+independent renderers to have agreed.
+
+Postgres is a cache that can be dropped and rebuilt from files at any time
+(report 03 §5.4), so storing a derived document in it costs nothing that matters.
 
 TEAM IDENTITY comes from the raw schedule parquet, not from the model. The model
 keys on team NAME throughout; the serving schema keys on `team_id` because a
@@ -63,12 +86,16 @@ __all__ = [
     "Bundle",
     "LOGO_TEMPLATE",
     "SERVING_TABLES",
+    "VIEW_KINDS",
     "build",
+    "headline_start_week",
+    "merge_season_index",
+    "scheduled_weeks",
     "team_dimension",
 ]
 
 #: The cfb_* tables this project serves. The first eight are report 03 §5.6
-#: verbatim; the last three are the documented extensions above.
+#: verbatim; the last four are the documented extensions above.
 SERVING_TABLES: tuple[str, ...] = (
     "cfb_teams",
     "cfb_games",
@@ -78,17 +105,25 @@ SERVING_TABLES: tuple[str, ...] = (
     "cfb_poll_published",
     "cfb_predictions",
     "cfb_backtest_metrics",
-    "cfb_connectivity",
+    "cfb_views",
+    "cfb_season_index",
     "cfb_divergence",
     "cfb_artifacts",
 )
 
-#: ESPN's team-logo CDN. The `team_id`s in the SportsDataverse schedule parquet
-#: ARE ESPN ids (cfbfastR wraps ESPN's feed), so this template resolves for every
-#: team the archive knows. It is a URL, not a download: nothing in this project
-#: redistributes a logo, and the site degrades to a monogram when it 404s or when
-#: the reader is offline.
-LOGO_TEMPLATE = "https://a.espncdn.com/i/teamlogos/ncaa/500/{team_id}.png"
+#: The four per-week documents. Filename stem in the fixture set, `kind` in
+#: `cfb_views`, and the name of the method on the site's PollSource interface —
+#: deliberately the same string in all three places.
+VIEW_KINDS: tuple[str, ...] = ("week", "connectivity", "methodology", "data")
+
+#: Fallback logo template, used only when `[display].logo_url_template` is absent
+#: from a config. The live value is the combiner endpoint in configs/default.toml;
+#: see report 06 §8.1 and the `[display]` block for why the combiner and not the
+#: raw path.
+LOGO_TEMPLATE = (
+    "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500{variant}/{team_id}.png"
+    "&w={size}&h={size}"
+)
 
 #: uuid5 namespace for run ids. A run id must be a pure function of what produced
 #: the run, or `publish postgres` could not be idempotent: re-running it against
@@ -210,10 +245,136 @@ def _extract_section(markdown: str, heading: str) -> str | None:
     return body.strip() or None
 
 
+# -------------------------------------------------------------------- season index
+
+
+def headline_start_week() -> int:
+    """`[publication].headline_start_week`. Published in advance and never moved."""
+    from cfbpoll.config import load_config
+
+    cfg = load_config(REPO_ROOT / "configs" / "default.toml")
+    return int(cfg["publication"]["headline_start_week"])
+
+
+def scheduled_weeks(season: int, archive: Path | None) -> list[int]:
+    """Every regular-season week the schedule file knows about.
+
+    Empty when the archive is not there, so a fixture set shipped without it
+    still indexes rather than failing.
+    """
+    try:
+        from cfbpoll.ingest.sportsdataverse import canonical_games
+
+        frame = canonical_games([season], archive)
+    except Exception:  # pragma: no cover - a stripped checkout has no archive
+        return []
+    regular = frame.filter(pl.col("season_type") == "regular")
+    return sorted({int(w) for w in regular["week"].to_list()})
+
+
+def merge_season_index(
+    existing: list[dict[str, Any]],
+    stub: dict[str, Any],
+    scheduled: list[int],
+    headline_start: int,
+) -> list[dict[str, Any]]:
+    """Fold one week's stub into a season's week list. Idempotent, order-free.
+
+    Shared by both publication targets so the week strip is identical whichever
+    backend serves it. THE STRIP SHOWS UNPLAYED WEEKS (report 05 §2.2): "Weeks
+    not yet played are dimmed and unclickable, not hidden. Seeing the empty
+    right-hand side of the strip is part of the season narrative." So every week
+    the schedule knows about appears, and `played` is what separates them.
+    """
+    weeks: dict[int, dict[str, Any]] = {int(w["week"]): dict(w) for w in existing}
+    weeks[int(stub["week"])] = dict(stub)
+    for week in scheduled:
+        weeks.setdefault(
+            week,
+            {
+                "season": int(stub["season"]),
+                "week": week,
+                "season_type": "regular",
+                "provisional": week < headline_start,
+                "played": False,
+                "published_at": None,
+                "n_ranked": 0,
+            },
+        )
+    return [weeks[w] for w in sorted(weeks)]
+
+
 # --------------------------------------------------------------------------- teams
 
 
-def team_dimension(season: int, archive: Path) -> dict[str, dict[str, Any]]:
+def _logo_urls(
+    espn_team_id: int | None, display: dict[str, Any] | None
+) -> dict[str, str | None]:
+    """The four logo URLs for one team, or four nulls.
+
+    NEVER POSSESSES THE BYTES (report 06 §6 rule 1, which does all the legal
+    work). This builds strings from an integer we already own, offline: no
+    network call, no CFBD quota, works in a fork, and — because the scheme is
+    ours rather than passed through from an upstream field that mixes http and
+    https — it cannot produce the mixed-content failure that silently breaks
+    ~40% of logos on sites that render CFBD's `logos[]` raw.
+
+    All four variants are published rather than derived in the browser, for the
+    same reason as every other field on the row: the site never computes.
+
+    Returns nulls when `[display].logos` is false, which is the whole point of
+    that flag — the logo-free mode is a config change, not a code change, and
+    every slot falls through to the project's own generated mark.
+    """
+    off = {"logo_url": None, "logo_url_2x": None, "logo_url_dark": None, "logo_url_dark_2x": None}
+    if espn_team_id is None or display is None or not bool(display.get("logos", True)):
+        return off
+    template = str(display.get("logo_url_template") or LOGO_TEMPLATE)
+    size = int(display.get("logo_size", 64))
+    size_2x = int(display.get("logo_size_2x", 128))
+    dark = str(display.get("logo_dark_variant", "-dark"))
+
+    def url(variant: str, px: int) -> str:
+        return template.format(variant=variant, team_id=espn_team_id, size=px)
+
+    return {
+        "logo_url": url("", size),
+        "logo_url_2x": url("", size_2x),
+        "logo_url_dark": url(dark, size),
+        "logo_url_dark_2x": url(dark, size_2x),
+    }
+
+
+def _espn_crosswalk(season: int, archive: Path) -> dict[int, str | None]:
+    """ESPN team id -> abbreviation, from the MIT-licensed crosswalk archive.
+
+    Report 06 §8.1 expects a name-matching step here and warns that its own crude
+    normalisation missed five teams. It is not needed: the SportsDataverse
+    schedule's `home_id`/`away_id` ARE ESPN ids (cfbfastR wraps ESPN's feed), so
+    this is an exact integer join and 671 of 2023's 680 scheduled teams resolve
+    with no string comparison anywhere. A team that does not resolve gets the
+    generated mark, never an error — a name-matching failure must not break a
+    Sunday build.
+
+    The abbreviation is what the generated fallback mark carries, so it is worth
+    having even for teams whose logo will never load.
+    """
+    path = archive / "crosswalk" / f"cfb_teams_crosswalk_{season}.parquet"
+    if not path.exists():
+        return {}
+    frame = pl.read_parquet(path, columns=["espn_team_id", "espn_abbreviation"])
+    return {
+        int(tid): abbr
+        for tid, abbr in zip(
+            frame["espn_team_id"].to_list(), frame["espn_abbreviation"].to_list(), strict=True
+        )
+        if tid is not None
+    }
+
+
+def team_dimension(
+    season: int, archive: Path, display: dict[str, Any] | None = None
+) -> dict[str, dict[str, Any]]:
     """Team name -> the `cfb_teams` row, read from the raw schedule parquet.
 
     Deliberately NOT read through `ingest.sportsdataverse.canonical_games`: that
@@ -221,7 +382,12 @@ def team_dimension(season: int, archive: Path) -> dict[str, dict[str, Any]]:
     out of every code path that could reach a design matrix (report 01 §5.6). The
     columns are safe HERE and nowhere upstream, so this is the one function that
     opens the file for them, and it is downstream of every fit by construction.
+
+    The same is true of `espn_team_id` and the logo URLs built from it: they are
+    publication data, they are audited as banned features upstream, and this is
+    the only place they exist.
     """
+    crosswalk = _espn_crosswalk(season, archive)
     path = archive / "schedules" / f"cfb_schedules_{season}.parquet"
     frame = pl.read_parquet(
         path,
@@ -255,12 +421,16 @@ def team_dimension(season: int, archive: Path) -> dict[str, dict[str, Any]]:
             out[name] = {
                 "season": int(season),
                 "team_id": int(tid),
+                # ESPN's id, stored as the integer rather than only as a URL:
+                # it survives ESPN changing its path scheme, and it makes every
+                # size and theme variant derivable (report 06 §8.1).
+                "espn_team_id": int(tid) if int(tid) in crosswalk else None,
                 "school": name,
-                "abbreviation": None,
+                "abbreviation": crosswalk.get(int(tid)),
                 "classification": klass,
                 # DISPLAY ONLY. Never a model feature (report 02 §3.10).
                 "conference": conf,
-                "logo_url": LOGO_TEMPLATE.format(team_id=int(tid)),
+                **_logo_urls(int(tid) if int(tid) in crosswalk else None, display),
             }
     return dict(sorted(out.items()))
 
@@ -286,6 +456,19 @@ class Bundle:
     tables: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     views: dict[str, Any] = field(default_factory=dict)
 
+    def week_stub(self) -> dict[str, Any]:
+        """This week's entry in the season index (report 05 §2.2's week strip)."""
+        view = self.views["week"]
+        return {
+            "season": self.season,
+            "week": self.week,
+            "season_type": self.season_type,
+            "provisional": bool(view["provisional"]),
+            "played": True,
+            "published_at": view["run"]["published_at"],
+            "n_ranked": len(view["poll"]),
+        }
+
 
 def build(
     out: Path,
@@ -301,9 +484,11 @@ def build(
     from it, and a run without one publishes a methodology page that says so
     rather than one that invents numbers.
     """
+    from cfbpoll.config import load_config
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE
 
     archive = archive or DEFAULT_ARCHIVE
+    display = dict(load_config(REPO_ROOT / "configs" / "default.toml").get("display") or {})
     poll = _read_json(out / "poll.json")
     params = _read_json(out / "model_params.json")
     run_meta = _read_json(out / "_run.json")
@@ -330,7 +515,7 @@ def build(
     )
     published_at = str(run_meta.get("generated_at") or datetime.now(UTC).isoformat())
 
-    teams = team_dimension(season, archive)
+    teams = team_dimension(season, archive, display)
     live = pl.read_parquet(out / "ratings_live.parquet")
     ranked = {row["team"] for row in poll["ranking"]}
     power_rank = _rank_map(live, "power", ranked)
@@ -379,6 +564,11 @@ def build(
     widths = sorted(r["interval_width"] for r in poll_rows if r["interval_width"] is not None)
     median_width = float(_median(widths)) if widths else None
     deltas = [abs(r["rank_delta"]) for r in poll_rows if r["rank_delta"] is not None]
+    # The Gap column's diverging bars are scaled against the week's own largest
+    # |gap| (report 05 §3.2). That maximum is a reduction over the table, so it
+    # is published rather than worked out in a React component.
+    gaps = [abs(r["gap"]) for r in poll_rows if r["gap"] is not None]
+    max_abs_gap = max(gaps) if gaps else 0.0
 
     model_params_doc = _params_doc(
         numeric, labels, run_row, season, week, params, poll.get("provisional", False)
@@ -394,6 +584,7 @@ def build(
         "provisional_label": poll.get("provisional_label"),
         "league_size": len(poll_rows),
         "median_interval_width": median_width,
+        "max_abs_gap": max_abs_gap,
         "hindsight_is_live": bool(params.get("hindsight_is_live", False)),
         "poll": poll_rows,
     }
@@ -415,14 +606,6 @@ def build(
         season, week, season_type, archive, params, poll, poll_rows, median_width, upcoming_weeks
     )
     bundle.views["connectivity"] = connectivity
-    bundle.tables["cfb_connectivity"] = [
-        {
-            "run_id": run_id,
-            "season": season,
-            "week": week,
-            "payload": connectivity,
-        }
-    ]
 
     # ---------------------------------------------------------------- methodology
     metrics, gate = _backtest_rows(backtest, run_id)
@@ -451,6 +634,22 @@ def build(
         "duckdb": _duckdb_one_liner(season, week),
         "licenses": _licenses(),
     }
+
+    # ---------------------------------------------------------------- the views
+    # The serving surface. Same documents `publish fixtures` writes to disk, so
+    # the two backends return byte-identical objects and parity is a diff rather
+    # than a hope.
+    bundle.tables["cfb_views"] = [
+        {
+            "season": season,
+            "week": week,
+            "kind": kind,
+            "run_id": run_id,
+            "payload": bundle.views[kind],
+        }
+        for kind in VIEW_KINDS
+    ]
+    bundle.tables["cfb_season_index"] = []  # merged across weeks by each target
     return bundle
 
 
@@ -557,10 +756,17 @@ def _poll_rows(
             {
                 "rank": int(row["rank"]),
                 "team_id": team_id,
+                "espn_team_id": dim["espn_team_id"] if dim else None,
                 "team": team,
+                # The generated fallback mark carries this when a logo does not
+                # load, and when [display].logos is off it is the only mark there
+                # is — so it is published whether or not logos are.
                 "abbreviation": dim["abbreviation"] if dim else None,
                 "conference": dim["conference"] if dim else None,
                 "logo_url": dim["logo_url"] if dim else None,
+                "logo_url_2x": dim["logo_url_2x"] if dim else None,
+                "logo_url_dark": dim["logo_url_dark"] if dim else None,
+                "logo_url_dark_2x": dim["logo_url_dark_2x"] if dim else None,
                 "wins": wins,
                 "losses": losses,
                 "record": f"{wins}-{losses}",
@@ -722,6 +928,17 @@ def _connectivity_view(
     for cid in comp:
         sizes[cid] = sizes.get(cid, 0) + 1
     component_sizes = [sizes[c] for c in sorted(sizes)]
+    # Week 1 has 125 components and a caption that prints all of them is twelve
+    # lines of "2 · 2 · 2". Pre-format it here, like every other string the page
+    # prints, so the two renderers cannot summarise it differently.
+    if len(component_sizes) <= 10:
+        sizes_display = " · ".join(str(n) for n in component_sizes)
+    else:
+        head = " · ".join(str(n) for n in component_sizes[:8])
+        rest = component_sizes[8:]
+        sizes_display = (
+            f"{head} · and {len(rest)} more, none larger than {max(rest)}"
+        )
     largest_share = (component_sizes[0] / graph.n) if graph.n else 0.0
 
     degrees = graph.degrees()
@@ -768,6 +985,12 @@ def _connectivity_view(
             }
         )
     bridge_games.sort(key=lambda g: (-min(g["splits"]), g["game_id"]))
+    # In week 2 there are 230 of these. The page names the dozen holding the most
+    # teams on, so the total has to travel with them or the prose ("there are N")
+    # and the list under it disagree — which is exactly the kind of small
+    # inconsistency that makes a reader stop trusting the big numbers.
+    bridge_games_total = len(bridge_games)
+    bridge_games_shown = min(12, bridge_games_total)
 
     # What would have to be true: next week's slate, restricted to games that
     # would weld two currently-separate components.
@@ -916,7 +1139,12 @@ def _connectivity_view(
         "nodes": nodes,
         "edges": edges,
         "component_sizes": component_sizes,
-        "bridge_games": bridge_games[:12],
+        "component_sizes_display": sizes_display,
+        # The shape of the box the coordinates above belong in. The site sets its
+        # viewBox from this rather than guessing, or the rings become ellipses.
+        "layout_aspect": positions.aspect,
+        "bridge_games": bridge_games[:bridge_games_shown],
+        "bridge_games_total": bridge_games_total,
         "would_connect": connectors,
         "what_would_have_to_be_true": sentences,
     }
@@ -1092,11 +1320,27 @@ def _licenses() -> list[dict[str, str]]:
             "body": "The pipeline is MIT licensed. See LICENSE in the repository.",
         },
         {
-            "name": "Team logos",
+            "name": "Team names and logos — trademarks of their institutions",
             "body": (
-                "Logos are hot-linked from ESPN's CDN and are the property of their respective "
-                "institutions. Nothing in this project redistributes them, and no logo is "
-                "stored in the archive or in any published artifact."
+                "Team names and logos are trademarks of their respective institutions and are "
+                "used here for identification only. This site is independent and is not "
+                "affiliated with, endorsed by, or sponsored by any school, conference, the "
+                "NCAA, or the College Football Playoff. Logo images are served by third "
+                "parties; no logo files are hosted or redistributed by this project. Marks "
+                "are shown unaltered, at small size, inside the rankings, and are never used "
+                "as this site's own mark. Any rights holder who would prefer their mark not "
+                "appear here can say so at github.com/vyhlidal/cfb-poll/issues and it will be "
+                "removed — the logo-free mode is a single configuration flag that was built "
+                "before the logos were, and the share cards this project publishes carry no "
+                "school logo at all."
+            ),
+        },
+        {
+            "name": "Data — College Football Data",
+            "body": (
+                "Some inputs come from collegefootballdata.com, whose terms say attribution "
+                "is not required but strongly encouraged. It is owed and it costs a line. "
+                "CFBD supplied data and supplied no rights in any trademark."
             ),
         },
     ]

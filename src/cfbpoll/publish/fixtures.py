@@ -107,34 +107,40 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     THE WEEK STRIP SHOWS UNPLAYED WEEKS (report 05 §2.2): "Weeks not yet played
     are dimmed and unclickable, not hidden. Seeing the empty right-hand side of
     the strip is part of the season narrative." So the index lists every regular
-    week the schedule knows about and marks `played` only where a run exists.
+    week the schedule knows about and marks `played` only where a run exists —
+    through `serving.merge_season_index`, the same function the Postgres loader
+    calls, so the two backends cannot disagree about which weeks exist.
     """
-    from cfbpoll.config import REPO_ROOT, load_config
+    from cfbpoll.publish import serving
 
-    cfg = load_config(REPO_ROOT / "configs" / "default.toml")
-    headline_start = int(cfg["publication"]["headline_start_week"])
-
+    headline_start = serving.headline_start_week()
     written: list[Path] = []
     seasons: list[dict[str, Any]] = []
     for season_dir in sorted(p for p in dest.iterdir() if p.is_dir() and p.name.isdigit()):
         season = int(season_dir.name)
-        weeks: dict[int, dict[str, Any]] = {}
+        weeks: list[dict[str, Any]] = []
         divergence: list[dict[str, Any]] = []
+        scheduled = serving.scheduled_weeks(season, archive)
 
         for path in sorted(season_dir.glob("week-*.json")):
             payload = json.loads(path.read_text(encoding="utf-8"))
             week = int(payload["week"])
             poll = payload.get("poll") or []
             deltas = [abs(r["rank_delta"]) for r in poll if r.get("rank_delta") is not None]
-            weeks[week] = {
-                "season": season,
-                "week": week,
-                "season_type": payload.get("season_type", "regular"),
-                "provisional": bool(payload.get("provisional", False)),
-                "played": True,
-                "published_at": (payload.get("run") or {}).get("published_at"),
-                "n_ranked": len(poll),
-            }
+            weeks = serving.merge_season_index(
+                weeks,
+                {
+                    "season": season,
+                    "week": week,
+                    "season_type": payload.get("season_type", "regular"),
+                    "provisional": bool(payload.get("provisional", False)),
+                    "played": True,
+                    "published_at": (payload.get("run") or {}).get("published_at"),
+                    "n_ranked": len(poll),
+                },
+                scheduled,
+                headline_start,
+            )
             if deltas:
                 divergence.append(
                     {
@@ -143,18 +149,6 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
                         "max_abs_delta": max(deltas),
                     }
                 )
-
-        for week in _scheduled_weeks(season, archive):
-            if week not in weeks:
-                weeks[week] = {
-                    "season": season,
-                    "week": week,
-                    "season_type": "regular",
-                    "provisional": week < headline_start,
-                    "played": False,
-                    "published_at": None,
-                    "n_ranked": 0,
-                }
 
         divergence.sort(key=lambda row: row["week"])
         path = season_dir / "divergence.json"
@@ -165,7 +159,7 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
             {
                 "season": season,
                 "headline_start_week": headline_start,
-                "weeks": [weeks[w] for w in sorted(weeks)],
+                "weeks": weeks,
             }
         )
 
@@ -181,16 +175,3 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     )
     written.append(index)
     return written
-
-
-def _scheduled_weeks(season: int, archive: Path | None) -> list[int]:
-    """Every regular-season week the schedule file knows about. Empty if it is
-    not there — a fixture set shipped without the archive still indexes fine."""
-    try:
-        from cfbpoll.ingest.sportsdataverse import canonical_games
-
-        frame = canonical_games([season], archive)
-    except Exception:  # pragma: no cover - no archive in a stripped checkout
-        return []
-    regular = frame.filter(frame["season_type"] == "regular")
-    return sorted({int(w) for w in regular["week"].to_list()})

@@ -324,10 +324,21 @@ def would_connect(
 
 @dataclass(frozen=True)
 class GraphLayout:
-    """Normalised node positions in [0, 1]. Deterministic given the graph."""
+    """Normalised node positions, and the shape of the box they belong in.
+
+    `x` and `y` each span [0, 1] EXACTLY, which means the renderer must know the
+    content's true aspect ratio or it will stretch the rings into ellipses. That
+    is what `aspect` (width / height of the packed content) is for: a renderer
+    draws into a viewBox of that shape and the geometry survives.
+
+    Publishing the aspect rather than baking a fixed viewBox into the site is the
+    same rule as everywhere else — the pipeline decides the picture, and the two
+    renderers cannot disagree about it.
+    """
 
     x: tuple[float, ...]
     y: tuple[float, ...]
+    aspect: float
 
 
 def layout(graph: Graph, comp: list[int], aspect: float = 1.9) -> GraphLayout:
@@ -349,7 +360,7 @@ def layout(graph: Graph, comp: list[int], aspect: float = 1.9) -> GraphLayout:
     for i, cid in enumerate(comp):
         members.setdefault(cid, []).append(i)
     if not members:
-        return GraphLayout(x=(), y=())
+        return GraphLayout(x=(), y=(), aspect=1.0)
 
     placed: list[tuple[float, float]] = [(0.0, 0.0)] * graph.n
     adj = graph.adjacency()
@@ -358,10 +369,13 @@ def layout(graph: Graph, comp: list[int], aspect: float = 1.9) -> GraphLayout:
     cursor_x = 0.0
     shelf_y = 0.0
     shelf_h = 0.0
-    width_budget = sum(2.0 * _radius(len(m)) for m in members.values())
+    # Shelf width from the total AREA the rings need, not from their total width:
+    # week 1 is 125 tiny components and week 10 is one big one, and a width-based
+    # estimate packs the first into a tall column and the second into a wide
+    # strip. Area * aspect gives a box of roughly the requested shape in both.
+    area = sum((2.0 * _radius(len(m)) + _GAP) ** 2 for m in members.values())
     biggest = _radius(max(len(m) for m in members.values()))
-    # A row about `aspect` times as wide as it is tall, given the total ring width.
-    row_width = max(math.sqrt(width_budget * aspect * biggest), 2.0 * biggest, 1e-9)
+    row_width = max(math.sqrt(area * aspect), 2.0 * biggest, 1e-9)
 
     for cid in sorted(members):
         member = members[cid]
@@ -412,19 +426,38 @@ def _ring_order(member: list[int], adj: list[list[tuple[int, int]]], deg: list[i
     return order
 
 
+#: Clamp on the published aspect. A week whose content packs into an extreme
+#: strip would otherwise ask the site for a viewBox nothing can lay out.
+_MIN_ASPECT = 0.6
+_MAX_ASPECT = 3.2
+
+
 def _normalise(points: list[tuple[float, float]]) -> GraphLayout:
-    """Scale into [0, 1]^2, preserving aspect so rings stay circular."""
+    """Each axis spans [0, 1]; the true shape rides along as `aspect`.
+
+    Stretching each axis to fill [0, 1] independently is only safe BECAUSE the
+    aspect is published with it — a renderer that honours the aspect reproduces
+    the geometry exactly, and rings stay circular. The alternative, padding the
+    short axis into a square, wastes most of a wide figure on empty margin.
+    """
     if not points:
-        return GraphLayout(x=(), y=())
+        return GraphLayout(x=(), y=(), aspect=1.0)
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
     lo_x, hi_x = min(xs), max(xs)
     lo_y, hi_y = min(ys), max(ys)
-    span = max(hi_x - lo_x, hi_y - lo_y, 1e-9)
-    # Centre the shorter axis rather than stretching it.
-    pad_x = (span - (hi_x - lo_x)) / 2.0
-    pad_y = (span - (hi_y - lo_y)) / 2.0
+    span_x = hi_x - lo_x
+    span_y = hi_y - lo_y
+    aspect = (span_x / span_y) if span_x > 1e-9 and span_y > 1e-9 else 1.0
+    aspect = min(max(aspect, _MIN_ASPECT), _MAX_ASPECT)
+
+    def scale(value: float, lo: float, span: float) -> float:
+        # A single node, or a component in a perfectly flat row, has no span on
+        # that axis. Centre it rather than dividing by zero.
+        return 0.5 if span <= 1e-9 else round((value - lo) / span, 6)
+
     return GraphLayout(
-        x=tuple(round((p[0] - lo_x + pad_x) / span, 6) for p in points),
-        y=tuple(round((p[1] - lo_y + pad_y) / span, 6) for p in points),
+        x=tuple(scale(p[0], lo_x, span_x) for p in points),
+        y=tuple(scale(p[1], lo_y, span_y) for p in points),
+        aspect=round(aspect, 4),
     )

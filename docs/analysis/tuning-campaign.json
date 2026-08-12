@@ -9248,10 +9248,10 @@
     ]
   },
   "provenance": {
-    "commit": "4d95364ceb88d88966a0ed852af6e4c2a72932db",
+    "commit": "fbc88c8eafd22d2c68471d2fed949b8ee108af15",
     "config": "configs/default.toml",
     "config_hash": "bd6a19c152f0222cbc2fd1ac8ee2dad1ef439c2df6ae1635145d5713022c4b3d",
-    "generated_utc": "2026-08-12T20:13:39.626319+00:00",
+    "generated_utc": "2026-08-12T20:19:59.187216+00:00",
     "holdout_touched": false,
     "tune_seasons": [
       2021,

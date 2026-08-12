@@ -1079,6 +1079,24 @@ def _gate_table(gate: dict[str, Any]) -> list[str]:
     ]
 
 
+def _decile_table_rows(table: list[dict[str, float]]) -> list[str]:
+    """The full decile table for one candidate, in the gate's own bins."""
+    out = [
+        "| Predicted decile | n | Mean predicted | Observed | Deviation |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for row in table:
+        if not row["n"]:
+            continue
+        dev = (row["observed_rate"] - row["mean_predicted"]) * 100.0
+        thin = "" if row["counted"] else " *(uncounted)*"
+        out.append(
+            f"| {row['bin_low']:.1f}\u2013{row['bin_high']:.1f}{thin} | {int(row['n'])} "
+            f"| {row['mean_predicted']:.3f} | {row['observed_rate']:.3f} | {dev:+.2f} pp |"
+        )
+    return out
+
+
 def _demo_cross_check(after: dict[str, Any]) -> str:
     """Assert the campaign's "after" gate equals the one the live demo computed.
 
@@ -1534,9 +1552,15 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
             f"| {row['max_deviation_pp'] - base['max_deviation_pp']:+.2f} pp "
             f"| {row['brier']:.5f} | {row['log_loss']:.5f} |"
         )
+    fitted_sweep = min(t1["sweep"], key=lambda r: abs(r["df"] - t1["fitted_df"]))
     lines += [
         f"| *normal (incumbent)* | *{base['max_deviation_pp']:.2f} pp* | — "
         f"| *{base['brier']:.5f}* | *{base['log_loss']:.5f}* |",
+        "",
+        f"The decile table at the FITTED ν = {t1['fitted_df']:.2f} — the value the protocol "
+        "declared, against the incumbent normal's table in §5.0:",
+        "",
+        *_decile_table_rows(fitted_sweep["table"]),
         "",
         "### 5.3 Candidate 2 — heteroscedastic σ(|m̂|)",
         "",
@@ -1575,6 +1599,10 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         f"| Log loss | {base['log_loss']:.5f} | {wf['log_loss']:.5f} |",
         f"| Mean σ | {base['sigma_mean']:.2f} | {wf['sigma_mean']:.2f} "
         f"(range {wf['sigma_min']:.2f}–{wf['sigma_max']:.2f}) |",
+        "",
+        "Its decile table:",
+        "",
+        *_decile_table_rows(wf["table"]),
         "",
         "### 5.4 Candidate 3 — home field, estimated the way the config says",
         "",

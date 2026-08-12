@@ -140,14 +140,455 @@ evidence, and the config does not move.
 
 ## PART 1 — THE C × β_w GRID
 
-*(filled in below, after the protocol above was committed)*
+**104 cells, the full published grid, no subsample.** 7.3 minutes of wall clock. Each cell is a complete three-season walk-forward backtest; every number is MAE on the tune seasons over the headline window, FBS-vs-FBS.
+
+**This stage holds the two mode switches at the values `configs/default.toml` declares** — `garbage_time.mode = "connelly"` and `prediction_compression.enabled = true`. The second is not what has been RUNNING (it was implemented nowhere in `src/`), which is exactly why the cell marked "incumbent" below is the incumbent *(C, β_w)* and not the incumbent *system*. Part 2 searches the modes, Part 2b searches the product, and Part 4's baseline is the system as it actually ran.
+
+### MAE over the whole grid
+
+Rows are C, columns β_w. The incumbent cell is **bold**; the optimum is *italic*. Lower is better.
+
+| C \ β_w | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **18** | 13.043 | 13.042 | 13.044 | 13.044 | 13.044 | 13.050 | 13.051 | 13.050 | 13.053 | 13.054 | 13.065 | 13.062 | 13.066 |
+| **20** | 13.044 | 13.034 | 13.034 | 13.039 | 13.037 | 13.039 | 13.040 | 13.041 | 13.048 | 13.048 | 13.050 | 13.051 | 13.065 |
+| **22** | 13.046 | 13.040 | 13.037 | 13.036 | 13.029 | 13.029 | 13.035 | 13.036 | 13.034 | 13.038 | 13.046 | 13.047 | 13.047 |
+| **24** | 13.038 | 13.042 | 13.041 | 13.038 | 13.032 | 13.032 | **13.026** | 13.025 | 13.026 | 13.034 | 13.035 | 13.043 | 13.045 |
+| **26** | 13.032 | 13.034 | 13.034 | 13.033 | 13.032 | 13.034 | 13.028 | 13.029 | 13.029 | 13.023 | 13.031 | 13.034 | 13.041 |
+| **28** | 13.037 | 13.035 | 13.029 | 13.030 | 13.029 | 13.026 | 13.027 | 13.030 | 13.032 | 13.027 | 13.021 | 13.029 | 13.032 |
+| **30** | 13.044 | 13.041 | 13.033 | 13.032 | 13.031 | 13.022 | 13.022 | 13.024 | 13.025 | 13.030 | 13.025 | 13.019 | 13.027 |
+| **32** | 13.046 | 13.043 | 13.041 | 13.038 | 13.031 | 13.030 | 13.022 | 13.020 | 13.020 | 13.028 | 13.028 | 13.018 | *13.018* |
+
+### The ten best cells, and the incumbent
+
+| C | β_w | MAE | RMSE | SU % | Brier | Max calib. dev. |
+|---:|---:|---:|---:|---:|---:|---:|
+| 32 | 8 | 13.0177 | 16.5532 | 69.46 | 0.19779 | 10.89 pp |
+| 32 | 7 | 13.0178 | 16.5547 | 69.27 | 0.19791 | 11.15 pp |
+| 30 | 7 | 13.0191 | 16.5573 | 69.40 | 0.19789 | 11.81 pp |
+| 32 | 3.5 | 13.0199 | 16.5431 | 69.02 | 0.19798 | 16.03 pp |
+| 32 | 4 | 13.0204 | 16.5458 | 69.21 | 0.19799 | 15.95 pp |
+| 28 | 6 | 13.0207 | 16.5577 | 69.46 | 0.19791 | 11.96 pp |
+| 30 | 2.5 | 13.0218 | 16.5431 | 68.90 | 0.19801 | 16.03 pp |
+| 30 | 3 | 13.0220 | 16.5457 | 68.90 | 0.19801 | 16.05 pp |
+| 32 | 3 | 13.0222 | 16.5441 | 68.83 | 0.19808 | 16.10 pp |
+| 26 | 5 | 13.0229 | 16.5589 | 69.40 | 0.19793 | 11.72 pp |
+| **24** | **3** | **13.0260** | **16.5573** | **69.21** | **0.19799** | **11.13 pp** |
+
+The bold row is the incumbent (C, β_w) — **rank 15 of 104**.
+
+**The whole grid spans 0.049 points of MAE.** The best cell (C = 32, β_w = 8) beats the incumbent (C = 24, β_w = 3) by 0.0082 points — against the 0.055 the protocol fixed as the noise floor before any of this was computed.
 
 ## PART 2 — THE MODE SWITCHES
 
+`[garbage_time].mode` and `[margin.prediction_compression].enabled`, on the grid optimum and its four neighbours, so a mode that only wins at one point in (C, β_w) cannot masquerade as a mode that wins.
+
+`[garbage_time].mode = "leverage"` **could not be searched**: it raises `NotImplementedError` because it needs a win-probability model this project does not have. That is a hole in the search, not a value that lost.
+
+`[margin.prediction_compression]` was configured `true` and implemented **nowhere in `src/`** (independent review S9), so every published number to date was produced with it OFF. It could not be searched until it was implemented; `model/design.py::compress_prediction` is that implementation, written to the config's own published formula.
+
+| C | β_w | garbage time | pred. compression | MAE | RMSE | SU % | Brier | Calib. dev. |
+|---:|---:|---|---|---:|---:|---:|---:|---:|
+| 32 | 7 | connelly | off | 13.0102 | 16.5472 | 69.27 | 0.19796 | 11.28 pp |
+| 32 | 8 | connelly | off | 13.0107 | 16.5461 | 69.46 | 0.19784 | 10.95 pp |
+| 32 | 8 | connelly | on | 13.0177 | 16.5532 | 69.46 | 0.19779 | 10.89 pp |
+| 32 | 7 | connelly | on | 13.0178 | 16.5547 | 69.27 | 0.19791 | 11.15 pp |
+| 30 | 8 | connelly | off | 13.0208 | 16.5603 | 69.53 | 0.19794 | 10.91 pp |
+| 30 | 8 | connelly | on | 13.0269 | 16.5669 | 69.53 | 0.19788 | 11.18 pp |
+| 32 | 8 | strict | off | 13.0612 | 16.5825 | 69.21 | 0.19853 | 12.51 pp |
+| 32 | 7 | strict | off | 13.0632 | 16.5845 | 69.09 | 0.19873 | 13.70 pp |
+| 32 | 8 | strict | on | 13.0671 | 16.5876 | 69.21 | 0.19848 | 13.68 pp |
+| 32 | 7 | strict | on | 13.0685 | 16.5899 | 69.09 | 0.19868 | 13.74 pp |
+| 30 | 8 | strict | off | 13.0719 | 16.5992 | 69.21 | 0.19866 | 12.73 pp |
+| 30 | 8 | strict | on | 13.0770 | 16.6036 | 69.21 | 0.19861 | 14.06 pp |
+
+**The second stage moved the optimum**: connelly / prediction compression OFF, at C = 32, β_w = 7. The protocol's own escape clause fires — *"the full 416 is run only if the second stage moves the optimum"* — so it was run, and Part 2b supersedes both stages above.
+
+The neighbourhood holds 3 points rather than five, because the stage-1 optimum sits on the EDGE of the published grid in both coordinates and the clamped neighbours collapse onto it. That is a fact about the grid and it is picked up again below.
+
+## PART 2b — THE COMPLETE FACTORIAL, WHICH IS THE ACTUAL DECISION SURFACE
+
+**416 cells** — C × β_w × garbage time × prediction compression, searched as a product rather than in two stages. 27.2 minutes of wall clock.
+
+| C | β_w | garbage time | pred. compression | MAE | RMSE | SU % | Brier | Calib. dev. |
+|---:|---:|---|---|---:|---:|---:|---:|---:|
+| 32 | 7 | connelly | off | 13.0102 | 16.5472 | 69.27 | 0.19796 | 11.28 pp |
+| 32 | 8 | connelly | off | 13.0107 | 16.5461 | 69.46 | 0.19784 | 10.95 pp |
+| 32 | 3.5 | connelly | off | 13.0118 | 16.5365 | 69.02 | 0.19804 | 16.06 pp |
+| 30 | 7 | connelly | off | 13.0118 | 16.5498 | 69.40 | 0.19795 | 11.94 pp |
+| 32 | 4 | connelly | off | 13.0124 | 16.5392 | 69.21 | 0.19805 | 16.25 pp |
+| 32 | 3 | connelly | off | 13.0133 | 16.5363 | 68.83 | 0.19814 | 16.14 pp |
+| 28 | 6 | connelly | off | 13.0135 | 16.5502 | 69.46 | 0.19796 | 11.69 pp |
+| 30 | 2.5 | connelly | off | 13.0138 | 16.5364 | 68.90 | 0.19807 | 16.06 pp |
+| 30 | 3 | connelly | off | 13.0141 | 16.5390 | 68.90 | 0.19807 | 16.07 pp |
+| 26 | 5 | connelly | off | 13.0158 | 16.5512 | 69.40 | 0.19798 | 11.43 pp |
+| 30 | 3.5 | connelly | off | 13.0162 | 16.5443 | 69.15 | 0.19810 | 16.11 pp |
+| 30 | 4 | connelly | off | 13.0169 | 16.5473 | 69.27 | 0.19811 | 16.20 pp |
+| 32 | 8 | connelly | on | 13.0177 | 16.5532 | 69.46 | 0.19779 | 10.89 pp |
+| 32 | 7 | connelly | on | 13.0178 | 16.5547 | 69.27 | 0.19791 | 11.15 pp |
+| 24 | 3.5 | connelly | off | 13.0179 | 16.5499 | 69.27 | 0.19800 | 11.16 pp |
+| **24** | **3** | **connelly** | **off** | **13.0188** | **16.5494** | **69.21** | **0.19804** | **13.67 pp** |
+
+The bold row is **the system as it actually ran** — rank 18 of 416. The winner beats it by 0.0086 points of MAE.
+
+### THE WINNER IS A CORNER SOLUTION, AND THAT IS THE FINDING
+
+**C = 32 sit on the EDGE of the published grid.** The optimum is therefore not bracketed: the data wants to keep going and the search space stops it. The protocol fixed the search space as *exactly the config grids* precisely so that this campaign could not widen the net after seeing the numbers, so the boundary is reported rather than crossed.
+
+It also says something about where those bounds came from. The independent review's §7 table lists C and β_w under *derivative without independent justification*: C's range is Pasteur's cap of 21 and the CFBD SRS walkthrough's ±28, β_w's is Sports-Reference's ±7 floor. Those are other people's answers on other people's datasets, and on this dataset the optimum leaves the interval they define. **Widening the grid is the first item for the next campaign, and it must be pre-registered before it is searched.**
+
+
 ## PART 3 — THE FROZEN CHOICE
+
+Frozen on the tune seasons, written here, and only then evaluated on 2024.
+
+| Parameter | Starting value | Frozen choice |
+|---|---|---|
+| `[margin].c` | 24 | **32** |
+| `[margin].beta_w` | 3 | **7** |
+| `[garbage_time].mode` | connelly | **connelly** |
+| `[margin.prediction_compression].enabled` | false (as it actually ran) | **false** |
+
+On the tune seasons that is **-0.0086** points of MAE against the starting values.
 
 ## PART 4 — 2024 VALIDATION, EVALUATED ONCE
 
+One evaluation, after the choice above was frozen. 2025 was not read.
+
+| | Tune 2021-2023 | | 2024 validation | |
+|---|---:|---:|---:|---:|
+| | starting | frozen | starting | frozen |
+| n games | 1585 | 1585 | 558 | 558 |
+| **MAE** | 13.0188 | 13.0102 | 12.9311 | 12.9096 |
+| RMSE | 16.5494 | 16.5472 | 16.3444 | 16.3216 |
+| SU % | 69.21 | 69.27 | 68.10 | 67.74 |
+| Brier | 0.19804 | 0.19796 | 0.20391 | 0.20361 |
+| Max calib. dev. (pp) | 13.67 | 11.28 | 14.40 | 15.82 |
+| Headline violations | 0.2015 | 0.2015 | 0.1955 | 0.1942 |
+
+**2024 MAE moves by -0.0215 points** against the starting values. The rule fixed in advance: adopt only if this is an improvement or a worsening no larger than 0.055 points.
+
+**Verdict: ADOPTED.**
+
+## PART 4b — WHAT THE FROZEN CHOICE DOES TO THE POLL
+
+The objective is margin MAE. **β_w is not about margin MAE.** The config calls it the single most contested value in the system because it is the discontinuity that makes this a football ranking rather than a scoring-margin ranking — a statement about desert, which a predictive objective has no opinion about. So the ranking consequence is measured with the project's own standard (headline-ordering study §9, ADR 0006): Kendall's τ against the 0.985 that the published `q_ref` sweep never dipped below. Below it, the parameter is a **dial** and must be labelled as one.
+
+Final pre-postseason headline poll, each tune season, incumbent vs frozen:
+
+| Season | Kendall's τ | Mean \|Δrank\| | Max \|Δrank\| | Top-25 changes | Verdict |
+|---|---:|---:|---:|---:|---|
+| 2021 | 0.9940 | 0.37 | 3 | 0 | a convention |
+| 2022 | 0.9979 | 0.14 | 2 | 0 | a convention |
+| 2023 | 0.9973 | 0.18 | 2 | 1 | a convention |
+
+**Minimum τ across the tune seasons: 0.9940** — above the floor, so by the project's own published standard the change is a convention rather than a dial. It is still published here, because "small" is a measurement and not an assurance.
+
+Biggest movers, most recent tune season:
+
+| Team | Incumbent | Frozen |
+|---|---:|---:|
+| South Carolina | 69 | 67 |
+| Navy | 105 | 103 |
+| Western Michigan | 113 | 112 |
+| Virginia Tech | 71 | 70 |
+| Utah | 26 | 25 |
+| UL Monroe | 126 | 127 |
+| TCU | 68 | 69 |
+| South Florida | 86 | 87 |
+
 ## PART 5 — THE CALIBRATION DIAGNOSIS
 
+All of this is measured on the **starting values**, tune seasons, headline window, 1585 FBS-vs-FBS games — the configuration whose decile table the demo publishes, so the diagnosis is about the miss that is actually on the page.
+
+### 5.0 The miss, with the interval the gate does not carry
+
+The gate's number is the **worst** decile, and the worst decile is usually the thinnest one. Here is every bin with a Wilson 95% interval on its observed rate.
+
+| Predicted decile | n | Wins | Mean predicted | Observed | 95% Wilson | Deviation | Predicted inside? |
+|---|---:|---:|---:|---:|---|---:|---|
+| 0.0–0.1 *(uncounted)* | 5 | 0 | 0.062 | 0.000 | 0.000–0.434 | -6.22 pp | yes |
+| 0.1–0.2 | 38 | 1 | 0.163 | 0.026 | 0.005–0.135 | -13.67 pp | **no** |
+| 0.2–0.3 | 85 | 14 | 0.250 | 0.165 | 0.101–0.258 | -8.50 pp | yes |
+| 0.3–0.4 | 173 | 43 | 0.351 | 0.249 | 0.190–0.318 | -10.22 pp | **no** |
+| 0.4–0.5 | 233 | 104 | 0.453 | 0.446 | 0.384–0.511 | -0.70 pp | yes |
+| 0.5–0.6 | 333 | 183 | 0.551 | 0.550 | 0.496–0.602 | -0.17 pp | yes |
+| 0.6–0.7 | 330 | 222 | 0.645 | 0.673 | 0.620–0.721 | +2.75 pp | yes |
+| 0.7–0.8 | 226 | 181 | 0.747 | 0.801 | 0.744–0.848 | +5.43 pp | yes |
+| 0.8–0.9 | 127 | 106 | 0.839 | 0.835 | 0.760–0.889 | -0.46 pp | yes |
+| 0.9–1.0 | 35 | 33 | 0.931 | 0.943 | 0.814–0.984 | +1.23 pp | yes |
+
+**The gate criterion is decided by a bin holding 38 games.** Its observed rate is 1 of 38, and the Wilson interval on that is 0.005–0.135. Whether the predicted 0.163 sits inside it is stated in the last column rather than argued about. This is reported as a property of the metric, **not** as a reason the criterion should be considered passed: the gate says what it says.
+
+### 5.1 What the residuals are
+
+| Quantity | Value |
+|---|---:|
+| Mean residual (actual − predicted) | -1.1035 |
+| SD | 16.5178 |
+| RMS | 16.5494 |
+| Skew | -0.0983 |
+| Excess kurtosis | +0.0200 |
+| Jarque-Bera p | 0.2753 |
+
+### 5.2 Candidate 1 — Student-t game margins
+
+Maximum likelihood on the walk-forward residuals, location fixed at zero, gives **ν = 92.73** and scale 16.370. Log likelihood -6697.0 against the normal's -6697.1.
+
+σ enters ONLY the probability: predicted margins, MAE, RMSE, straight-up accuracy and the walk-forward σ estimate itself are all untouched by the choice of distribution. So recomputing the decile table under a t is not an approximation of what the harness would do — it is exactly it, on the harness's own per-game output. The t scale is matched to the same second moment as the normal, so this is a comparison of SHAPES and not a second, uncontrolled change of width.
+
+| ν | Max decile deviation | Δ vs normal | Brier | Log loss |
+|---:|---:|---:|---:|---:|
+| 3 | 7.08 pp | -6.59 pp | 0.19666 | 0.57638 |
+| 4 | 7.83 pp | -5.84 pp | 0.19627 | 0.57512 |
+| 5 | 8.47 pp | -5.20 pp | 0.19649 | 0.57573 |
+| 6 | 9.06 pp | -4.61 pp | 0.19671 | 0.57634 |
+| 8 | 10.25 pp | -3.42 pp | 0.19703 | 0.57720 |
+| 10 | 10.49 pp | -3.18 pp | 0.19723 | 0.57774 |
+| 15 | 11.76 pp | -1.91 pp | 0.19750 | 0.57846 |
+| 30 | 11.33 pp | -2.34 pp | 0.19777 | 0.57917 |
+| 92.735 | 11.17 pp | -2.50 pp | 0.19795 | 0.57965 |
+| *normal (incumbent)* | *13.67 pp* | — | *0.19804* | *0.57987* |
+
+### 5.3 Candidate 2 — heteroscedastic σ(|m̂|)
+
+Does residual variance depend on how big a mismatch the model thinks it is looking at? Regressing the squared residual on the predicted absolute margin:
+
+| Quantity | Value |
+|---|---:|
+| Slope (variance per point of \|m̂\|) | +2.4944 |
+| Standard error | 1.5905 |
+| p | 0.117 |
+
+| Predicted \|margin\| | n | Residual SD | Residual mean | Mean predicted p | Observed |
+|---|---:|---:|---:|---:|---:|
+| 0–3 | 374 | 15.821 | -0.174 | 0.505 | 0.519 |
+| 3–7 | 454 | 15.850 | -2.330 | 0.532 | 0.504 |
+| 7–10 | 259 | 17.224 | -1.785 | 0.554 | 0.537 |
+| 10–14 | 234 | 16.204 | -0.172 | 0.601 | 0.611 |
+| 14–17 | 118 | 19.597 | -0.932 | 0.656 | 0.636 |
+| 17–21 | 80 | 17.267 | -0.147 | 0.652 | 0.662 |
+| 21–28 | 55 | 16.178 | -0.121 | 0.812 | 0.800 |
+
+Fitted walk-forward — the σ model refitted at every bucket on exactly the out-of-sample residuals the harness had accumulated at that bucket, the same rule and the same games the constant σ uses:
+
+| | Constant σ (incumbent) | σ(\|m̂\|) |
+|---|---:|---:|
+| Max decile deviation | 13.67 pp | 16.90 pp |
+| Brier | 0.19804 | 0.19836 |
+| Log loss | 0.57987 | 0.58142 |
+| Mean σ | 18.46 | 18.08 (range 15.30–25.14) |
+
+### 5.4 Candidate 3 — home field, estimated the way the config says
+
+`[homefield].method = "home_and_home"` and `fit_both_and_publish = true` have selected nothing since the config was written (independent review S9). The estimator is implemented here with the standard error the config does not carry, and **the standard error is the finding**.
+
+| Estimate | h | n pairs | SE |
+|---|---:|---:|---:|
+| Home-and-home, WITHIN season (the only form constraint 2 allows) | -0.143 | 21 | 2.377 |
+| Home-and-home, ACROSS seasons (**not usable live**) | 1.876 | 1113 | 0.339 |
+| Regression coefficient (what actually runs), mean over published weeks | 6.385 | 33 weeks | sd 4.339 |
+| `[homefield].h_pasteur` (inherited constant) | 3.70 | — | — |
+| `[homefield].h_recent_estimate` (inherited constant) | 2.80 | — | — |
+
+Per season, within-season pairs only:
+
+| Season | h | n pairs | SE |
+|---|---:|---:|---:|
+| 2021 | -0.441 | 17 | 2.619 |
+| 2022 | 6.500 | 2 | 6.500 |
+| 2023 | -4.250 | 2 | 12.250 |
+
+And where the miss actually sits, by venue and by mismatch:
+
+| Slice | n | Residual mean | Mean predicted p | Observed | Deviation |
+|---|---:|---:|---:|---:|---:|
+| home site | 1548 | -1.125 | 0.571 | 0.564 | -0.70 pp |
+| neutral site | 37 | -0.186 | 0.395 | 0.378 | -1.66 pp |
+
+| Non-neutral, predicted \|margin\| | n | Residual mean | SE |
+|---|---:|---:|---:|
+| 0–3 | 362 | -0.367 | 0.833 |
+| 3–7 | 446 | -2.348 | 0.752 |
+| 7–10 | 253 | -1.787 | 1.085 |
+| 10–14 | 230 | -0.231 | 1.055 |
+| 14–17 | 116 | -0.846 | 1.821 |
+| 17–21 | 77 | +0.360 | 1.941 |
+| 21–28 | 53 | +0.164 | 2.243 |
+
+### 5.5 Candidate 4 — favourite-longshot: where the asymmetry lives
+
+Regressing the actual margin on the predicted margin over the same games:
+
+| Quantity | Value |
+|---|---:|
+| Slope | 1.1428 |
+| Standard error | 0.0435 |
+| Intercept | -1.6057 |
+| r | 0.5508 |
+
+A slope below 1 means the model over-predicts mismatches and the extremes give points back; above 1 means it under-predicts them and the extremes are where it loses. Per decile, in points rather than in probability:
+
+| Predicted decile | n | Mean predicted margin | Mean actual margin | Residual mean | SE | Prob. deviation |
+|---|---:|---:|---:|---:|---:|---:|
+| 0.1–0.2 | 38 | -17.94 | -22.34 | -4.40 | 2.31 | -13.67 pp |
+| 0.2–0.3 | 85 | -12.25 | -14.36 | -2.11 | 1.79 | -8.50 pp |
+| 0.3–0.4 | 173 | -7.02 | -11.12 | -4.10 | 1.16 | -10.22 pp |
+| 0.4–0.5 | 233 | -2.15 | -3.18 | -1.03 | 1.12 | -0.70 pp |
+| 0.5–0.6 | 333 | +2.41 | +1.40 | -1.02 | 0.83 | -0.17 pp |
+| 0.6–0.7 | 330 | +6.98 | +6.34 | -0.64 | 0.94 | +2.75 pp |
+| 0.7–0.8 | 226 | +12.27 | +13.20 | +0.93 | 1.14 | +5.43 pp |
+| 0.8–0.9 | 127 | +18.24 | +17.24 | -0.99 | 1.62 | -0.46 pp |
+| 0.9–1.0 | 35 | +27.21 | +28.97 | +1.77 | 2.78 | +1.23 pp |
+
+66 of 1585 predictions exceed the `prediction_compression` threshold of 21 points; they average 25.17 predicted against 27.32 actual.
+
+### 5.6 What the four candidates left behind — σ is STALE, not wrong
+
+**This section adopts nothing.** It was not one of the four pre-declared candidates, and a fix chosen after the fact is the failure the protocol exists to prevent. It is here because a diagnosis that eliminates all four suspects owes the reader the thing it found while looking.
+
+σ is the **accumulated** walk-forward RMS residual: at bucket N it has seen every out-of-sample game from the first evaluable bucket onward, including the near-noise weeks 2-4 the poll declines to publish. Over the published window it averages **18.46**, while the realised RMSE of exactly those games is **16.55**. An estimator that is right about the season as a whole is too wide for the part of the season being scored — and too wide is precisely the shape the decile table has.
+
+| σ | Mean σ | Max decile deviation | Brier | Log loss |
+|---|---:|---:|---:|---:|
+| live: accumulated walk-forward RMS (incumbent) | 18.46 | 13.67 pp | 0.19804 | 0.57987 |
+| oracle: RMSE of the games being scored (16.55) - NOT RUNNABLE | 16.55 | 9.62 pp | 0.19726 | 0.57777 |
+| the old constant 15.3 | 15.30 | 9.17 pp | 0.19679 | 0.57651 |
+
+The oracle row reads the RMSE of the games it is scoring and **cannot be run walk-forward**. It is a bound on what a better-targeted σ could buy, not a proposal. The obvious candidate — a trailing-window σ instead of a cumulative one — is the first item for the next campaign, and it must be pre-registered before it is run.
+
+### 5.7 The verdict, by the rule fixed before any of this was run
+
+> *A fix is adopted only if it cuts the maximum decile deviation by >= 2.0 pp on the tune seasons AND holds direction on 2024. Anything that fails that rule is documented as diagnosed-but-unfixed, with the evidence, and the config does not move.*
+
+Incumbent max decile deviation: **13.67 pp** on tune, **14.40 pp** on 2024 (gate threshold 5.0 pp).
+
+The 2024 column freezes every candidate's parameter at its TUNE value - ν is the maximum-likelihood fit on tune residuals and is not refitted - so 2024 decides direction and nothing else.
+
+| Candidate | Tune Δ max decile dev. | Clears >= 2.0 pp? | 2024 Δ | Direction holds? | Verdict |
+|---|---:|---|---:|---|---|
+| 1 — Student-t margins | +2.50 pp | **YES** | -0.38 pp | **no** | diagnosed, not adopted |
+| 2 — heteroscedastic σ(\|m̂\|) | -3.22 pp | no | +0.81 pp | yes | diagnosed, not adopted |
+| 3 — home-and-home h | — | no | — | — | not testable as a live estimator |
+| 4 — favourite-longshot | — | no | — | — | **the diagnosis** — not a knob to turn |
+
+Evidence, per candidate:
+
+- **Candidate 1 — Student-t margins** — at the FITTED ν = 92.73, which is what the protocol declared. Jarque-Bera p = 0.275, skew -0.098, excess kurtosis +0.020: these residuals are not distinguishable from normal. Forcing ν = 3 would cut the deviation by 6.59 pp, but that is a SHARPENING device rather than a fat tail — see §5.5
+- **Candidate 2 — heteroscedastic σ(\|m̂\|)** — variance-on-\|m̂\| slope +2.494 (p = 0.117)
+- **Candidate 3 — home-and-home h** — NOT TESTABLE AS A LIVE ESTIMATOR: 21 within-season pairs in three seasons, and constraint 2 forbids the cross-season pairs that would give it a sample
+- **Candidate 4 — favourite-longshot** — **IT IS THIS ONE**, and it is a diagnosis rather than a knob. Regressing actual on predicted margin gives a slope of 1.1428 ± 0.0435 — 3.3 standard errors ABOVE one — with an intercept of -1.606. The point forecasts are under-dispersed and tilted toward the home side; there is no constant in `configs/default.toml` that sets either
+
+**NO CANDIDATE IS ADOPTED. The calibration miss is DIAGNOSED AND UNFIXED, and the config does not move on account of it.**
+
+### 5.8 WHICH SUSPECT IT WAS
+
+**Neither of the two the demo named.** The suspects on record were *the normal tail* and *the single home-field constant*. Both are eliminated by measurement, and what is left is a third thing that no constant in `configs/default.toml` controls.
+
+- **The normal tail is eliminated.** Maximum likelihood puts ν at 92.7; skew is -0.098, excess kurtosis +0.020, Jarque-Bera p = 0.275. These residuals are not distinguishable from normal. The sweep's low-ν rows do cut the deviation, and that is informative rather than exculpatory: a t with a matched SECOND MOMENT and a small ν has a narrower body, so what those rows buy is SHARPNESS, not tail weight. The instrument that helps is the one that makes the probabilities more confident.
+- **The single home-field constant is eliminated as the CAUSE**, and separately convicted of something else. The residual mean at home sites is -1.125 points against -0.186 at neutral sites — a bias, but an order of magnitude too small to make a 13.67 pp decile. What §5.4 does show is that the site coefficient the harness actually uses averages 6.39 points with a standard deviation of 4.34 across published weeks, against 1.88 ± 0.34 from 1113 home-and-home pairs. Only 37 of the 1,585 scored games are at neutral sites, so the intercept and the site term are very nearly collinear and h is barely identified. That is a real defect and it is not this one.
+
+**THE CAUSE IS UNDER-DISPERSION OF THE POINT FORECAST, TILTED TOWARD THE HOME SIDE.** Two numbers carry it, and both replicate on 2024:
+
+| | Tune 2021-2023 | 2024 |
+|---|---:|---:|
+| Slope of actual on predicted margin | 1.1428 ± 0.0435 | 1.2442 ± 0.0851 |
+| Intercept (points) | -1.606 | -2.108 |
+| Mean residual (points) | -1.104 | -0.927 |
+
+A slope of 1.143 is 3.3 standard errors above one: when this system forecasts a 20-point margin the truth averages more than 20, and when it forecasts −20 the truth averages worse than −20. Probabilities built from under-dispersed margins are too close to 0.5 — low deciles land BELOW their predicted rate, high deciles ABOVE — and the negative intercept pushes the whole curve down, which is why the low end misses by 13.67 pp and the high end by 1.23 pp. **That is the asymmetry, and it is not a distributional assumption, a variance function or a home-field constant. It is the point forecast itself.**
+
+The mechanism has a name in this codebase. Both the affine points calibration and σ are fitted on the games ACCUMULATED SO FAR in the season, and the ratings that feed them get better as the season goes on. A slope fitted on weeks 2-9 under-scales week 10, and a σ fitted on weeks 2-9 (18.46) over-covers week 10 (16.55). The two errors compound in the same direction, and §5.6's oracle row is what the σ half alone is worth.
+
+**What that does NOT license.** The out-of-sample rule those estimators follow is not the defect and must not be relaxed: fitting either of them on the training window costs L2 0.44 points of MAE and inverts the ordering against Elo (demo/backtest-2021-2023.md). The defect is the SHAPE of the accumulation window, not the fact that it is out of sample. A trailing window is out of sample too.
+
 ## PART 6 — THE GATE, BEFORE AND AFTER
+
+The headline ordering's own gate object, on the tune seasons, headline window.
+
+### Before — the starting values
+
+| Criterion | Threshold | Observed | Verdict |
+|---|---|---:|---|
+| Straight-up accuracy | >= 70.00% | 69.21% | **FAIL** |
+| Margin MAE | <= 12.8 | 13.019 | **FAIL** |
+| Margin RMSE | <= 15.8 | 16.549 | **FAIL** |
+| Max decile calibration deviation | <= 5.0 pp | 13.67 pp | **FAIL** |
+| Retrodictive violations vs every scored system | at or below all of `all_scored_systems` | 0.2015 | **FAIL** |
+
+### After — the frozen choice
+
+| Criterion | Threshold | Observed | Verdict |
+|---|---|---:|---|
+| Straight-up accuracy | >= 70.00% | 69.27% | **FAIL** |
+| Margin MAE | <= 12.8 | 13.010 | **FAIL** |
+| Margin RMSE | <= 15.8 | 16.547 | **FAIL** |
+| Max decile calibration deviation | <= 5.0 pp | 11.28 pp | **FAIL** |
+| Retrodictive violations vs every scored system | at or below all of `all_scored_systems` | 0.2015 | **FAIL** |
+
+```json
+{
+  "after": {
+    "brier_beats_all_baselines": null,
+    "calibration": false,
+    "mae": false,
+    "observed": {
+      "mae": 13.010208562688984,
+      "max_calibration_deviation_pp": 11.280101240591458,
+      "retrodictive_violation_rate": 0.20150575730735165,
+      "rmse": 16.547237038299222,
+      "su_accuracy": 0.6927444794952682
+    },
+    "passed": false,
+    "retro_vs_live_monotone": null,
+    "rmse": false,
+    "su_accuracy": false,
+    "thresholds": {
+      "calibration_max_decile_deviation_pp": 5.0,
+      "mae_max": 12.8,
+      "rmse_max": 15.8,
+      "su_accuracy_min": 0.7,
+      "violations_must_beat": "all_scored_systems"
+    },
+    "undecided": [
+      "brier_beats_all_baselines",
+      "retro_vs_live_monotone"
+    ],
+    "violations_vs_baselines": false,
+    "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+  },
+  "before": {
+    "brier_beats_all_baselines": null,
+    "calibration": false,
+    "mae": false,
+    "observed": {
+      "mae": 13.018796962702652,
+      "max_calibration_deviation_pp": 13.670847484225982,
+      "retrodictive_violation_rate": 0.20150575730735165,
+      "rmse": 16.54941132224072,
+      "su_accuracy": 0.6921135646687697
+    },
+    "passed": false,
+    "retro_vs_live_monotone": null,
+    "rmse": false,
+    "su_accuracy": false,
+    "thresholds": {
+      "calibration_max_decile_deviation_pp": 5.0,
+      "mae_max": 12.8,
+      "rmse_max": 15.8,
+      "su_accuracy_min": 0.7,
+      "violations_must_beat": "all_scored_systems"
+    },
+    "undecided": [
+      "brier_beats_all_baselines",
+      "retro_vs_live_monotone"
+    ],
+    "violations_vs_baselines": false,
+    "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+  }
+}
+```
+
+---
+
+*Generated by `scripts/tuning_campaign.py` at commit `95401cc8f9`; every number above is in `tuning-campaign.json`. Config hash `a197e7f5dbab6aa0`. Holdout touched: false.*

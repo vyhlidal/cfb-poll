@@ -982,6 +982,63 @@ def stage_calibration(store: dict[str, Any], workers: int) -> None:
     store["calibration_diagnosis"] = diag
 
 
+def stage_calibration_validate(store: dict[str, Any], workers: int) -> None:
+    """"...AND holds direction on 2024" - the second half of the adoption rule.
+
+    Pre-declared. Every candidate's parameter is frozen at its TUNE-SEASON value
+    (nu is the maximum-likelihood fit on tune residuals and is not refitted here),
+    so 2024 decides direction and nothing else. Run under both the starting values
+    and the frozen choice, because the tune-season improvement was measured under
+    the starting values and a direction check has to be like for like.
+    """
+    del workers
+    _init(VALIDATE_SEASONS)
+    cfg = load_config()
+    df = float(store["calibration_diagnosis"]["candidate_1_student_t"]["fitted_df"])
+    out: dict[str, Any] = {"student_t_df_from_tune": df, "runs": {}}
+    for label, overrides in (
+        ("starting_values", _starting_values()),
+        ("frozen", store["frozen_choice"]),
+    ):
+        run_cfg = _cell_config(cfg, **overrides)
+        result = _score(run_cfg, VALIDATE_SEASONS, GRID_SYSTEMS, collect_predictions=True)
+        all_weeks = _predictions_frame(result)
+        published = all_weeks["in_headline_window"].to_numpy()
+        frame = all_weeks.filter(pl.col("in_headline_window"))
+        predicted = frame["predicted"].to_numpy().astype(np.float64)
+        actual = frame["actual"].to_numpy().astype(np.float64)
+        sigma = frame["sigma"].to_numpy().astype(np.float64)
+        won = (actual > 0).astype(np.float64)
+        residual = actual - predicted
+
+        normal = _max_dev(_decile_table(metrics.win_probability(predicted, sigma), won))
+        student = _max_dev(_decile_table(_t_probabilities(predicted, sigma, df), won))
+        het = _sigma_walk_forward_heteroscedastic(
+            all_weeks,
+            min_games=int(cfg["resume"]["sigma_min_out_of_sample_games"]),
+            floor=float(cfg["resume"]["sigma"]),
+        )[published]
+        hetdev = _max_dev(_decile_table(metrics.win_probability(predicted, het), won))
+        slope, intercept, r_value, p_value, stderr = stats.linregress(predicted, actual)
+        out["runs"][label] = {
+            "n_games": int(frame.height),
+            "normal_max_deviation_pp": normal,
+            "student_t_max_deviation_pp": student,
+            "student_t_delta_pp": normal - student,
+            "heteroscedastic_max_deviation_pp": hetdev,
+            "heteroscedastic_delta_pp": normal - hetdev,
+            "residual_mean": float(np.mean(residual)),
+            "actual_on_predicted": {
+                "slope": float(slope),
+                "intercept": float(intercept),
+                "stderr": float(stderr),
+                "r_value": float(r_value),
+                "p_value": float(p_value),
+            },
+        }
+    store["calibration_validation"] = out
+
+
 # ----------------------------------------------------------------------------
 # render - the markdown, from the JSON, with nothing typed by hand
 # ----------------------------------------------------------------------------
@@ -1578,12 +1635,24 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
 
     # ---------------- 5.7 the verdict, by the rule fixed in advance -----------
     hh_pairs = t3["home_and_home"]["n_pairs"]
+    # THE CANDIDATE IS THE FITTED nu, NOT THE BEST nu IN THE SWEEP. The protocol
+    # says "fit df on tune residuals"; picking the sweep row with the smallest
+    # deviation would be choosing the parameter off the metric it is judged by,
+    # which is the post-hoc failure this whole document is arranged to avoid. The
+    # sweep is published above as sensitivity, and it is the sweep that carries
+    # the finding - see the note in this row.
+    fitted_row = min(t1["sweep"], key=lambda r: abs(r["df"] - t1["fitted_df"]))
     verdicts = [
         (
             "1 — Student-t margins",
-            base["max_deviation_pp"] - t1["best"]["max_deviation_pp"],
-            f"best at ν = {t1['best']['df']:g}; ML fit on the residuals gives "
-            f"ν = {t1['fitted_df']:.2f}",
+            base["max_deviation_pp"] - fitted_row["max_deviation_pp"],
+            f"at the FITTED ν = {t1['fitted_df']:.2f}, which is what the protocol "
+            f"declared. Jarque-Bera p = {res['jarque_bera_p']:.3f}, skew "
+            f"{res['skew']:+.3f}, excess kurtosis {res['excess_kurtosis']:+.3f}: these "
+            f"residuals are not distinguishable from normal. Forcing ν = "
+            f"{t1['best']['df']:g} would cut the deviation by "
+            f"{base['max_deviation_pp'] - t1['best']['max_deviation_pp']:.2f} pp, but that "
+            "is a SHARPENING device rather than a fat tail — see §5.5",
         ),
         (
             "2 — heteroscedastic σ(\\|m̂\\|)",
@@ -1601,10 +1670,22 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         (
             "4 — favourite-longshot",
             float("nan"),
-            "a diagnosis, not a knob: it says WHERE the miss is, and the fix it implies is "
-            "candidate 2, which is measured above",
+            "**IT IS THIS ONE**, and it is a diagnosis rather than a knob. Regressing "
+            f"actual on predicted margin gives a slope of {fl['slope']:.4f} ± "
+            f"{fl['stderr']:.4f} — {(fl['slope'] - 1.0) / fl['stderr']:.1f} standard errors "
+            f"ABOVE one — with an intercept of {fl['intercept']:+.3f}. The point forecasts "
+            "are under-dispersed and tilted toward the home side; there is no constant in "
+            "`configs/default.toml` that sets either",
         ),
     ]
+    cval = store.get("calibration_validation", {}).get("runs", {}).get("starting_values", {})
+    #: The tune bar and the 2024 direction check, applied mechanically. `student`
+    #: and `heteroscedastic` are the only two candidates with a number on both
+    #: sides; 3 is untestable as a live estimator and 4 is a diagnosis.
+    directions = {
+        "1": cval.get("student_t_delta_pp"),
+        "2": cval.get("heteroscedastic_delta_pp"),
+    }
     lines += [
         "### 5.7 The verdict, by the rule fixed before any of this was run",
         "",
@@ -1613,50 +1694,115 @@ def render(store: dict[str, Any]) -> None:  # noqa: PLR0915 - one long document
         "Anything that fails that rule is documented as diagnosed-but-unfixed, with the "
         "evidence, and the config does not move.*",
         "",
-        f"Incumbent max decile deviation: **{base['max_deviation_pp']:.2f} pp** "
+        f"Incumbent max decile deviation: **{base['max_deviation_pp']:.2f} pp** on tune, "
+        f"**{cval.get('normal_max_deviation_pp', float('nan')):.2f} pp** on 2024 "
         "(gate threshold 5.0 pp).",
         "",
-        "| Candidate | Best Δ max decile deviation | Meets the >= "
-        f"{CALIBRATION_ADOPT_PP} pp bar? | Evidence |",
-        "|---|---:|---|---|",
+        "The 2024 column freezes every candidate's parameter at its TUNE value - ν is "
+        "the maximum-likelihood fit on tune residuals and is not refitted - so 2024 decides "
+        "direction and nothing else.",
+        "",
+        "| Candidate | Tune Δ max decile dev. | Clears >= "
+        f"{CALIBRATION_ADOPT_PP} pp? | 2024 Δ | Direction holds? | Verdict |",
+        "|---|---:|---|---:|---|---|",
     ]
     any_adopted = False
-    for name, delta, note in verdicts:
+    for name, delta, _note in verdicts:
+        direction = directions.get(name.split(" ", 1)[0])
         if np.isfinite(delta):
-            meets = delta >= CALIBRATION_ADOPT_PP
-            any_adopted = any_adopted or meets
+            clears = delta >= CALIBRATION_ADOPT_PP
+            holds = None if direction is None else bool(direction > 0.0)
+            adopted = bool(clears and holds)
+            any_adopted = any_adopted or adopted
             lines.append(
-                f"| {name} | {delta:+.2f} pp | {'**YES**' if meets else 'no'} | {note} |"
+                f"| {name} | {delta:+.2f} pp | {'**YES**' if clears else 'no'} "
+                f"| {'—' if direction is None else format(direction, '+.2f') + ' pp'} "
+                f"| {'—' if holds is None else ('yes' if holds else '**no**')} "
+                f"| {'**ADOPTED**' if adopted else 'diagnosed, not adopted'} |"
             )
         else:
-            lines.append(f"| {name} | — | no | {note} |")
+            untestable = "not testable as a live estimator" if name.startswith("3") else (
+                "**the diagnosis** — not a knob to turn"
+            )
+            lines.append(f"| {name} | — | no | — | — | {untestable} |")
     lines += [
         "",
+        "Evidence, per candidate:",
+        "",
+        *[f"- **Candidate {name}** — {note}" for name, _delta, note in verdicts],
+        "",
         (
-            "**No candidate clears the bar. The calibration miss is DIAGNOSED AND UNFIXED, "
-            "and the config does not move on account of it.**"
+            "**NO CANDIDATE IS ADOPTED. The calibration miss is DIAGNOSED AND UNFIXED, and "
+            "the config does not move on account of it.**"
             if not any_adopted
-            else "**At least one candidate clears the tune-season bar; the 2024 direction "
-            "check decides it.**"
+            else "**At least one candidate clears both halves of the rule and is adopted.**"
         ),
         "",
-        "What was eliminated, and by what:",
+        "### 5.8 WHICH SUSPECT IT WAS",
         "",
-        f"- **The normal tail.** Maximum likelihood puts ν at {t1['fitted_df']:.1f}; the "
-        "residuals are close enough to normal that no ν in the sweep moves the worst decile "
-        f"by {CALIBRATION_ADOPT_PP} pp. A symmetric change of shape cannot repair an "
-        "asymmetric miss, and the sweep is the measurement rather than the argument.",
-        "- **Pace-dependent variance.** The residual SD does vary with the size of the "
-        "mismatch, in the direction §5.3's table shows, and fitting it walk-forward moves "
-        f"the worst decile by {base['max_deviation_pp'] - t2['walk_forward']['max_deviation_pp']:+.2f} pp.",  # noqa: E501
-        f"- **The single home-field constant.** It cannot be replaced by the estimator the "
-        f"config names: college football schedules home-and-home ACROSS seasons, so a "
-        f"within-season sample is {hh_pairs} pairs in three years and constraint 2 forbids "
-        "reaching into the prior season for more. §5.4 publishes both numbers and the "
-        "standard error that settles it.",
-        "- **What is left is σ's TARGET, not its size** (§5.6): a cumulative estimator "
-        "scoring a window it over-covers. That is a fix for a pre-registered campaign, not "
-        "for this one.",
+        "**Neither of the two the demo named.** The suspects on record were *the normal "
+        "tail* and *the single home-field constant*. Both are eliminated by measurement, "
+        "and what is left is a third thing that no constant in `configs/default.toml` "
+        "controls.",
+        "",
+        f"- **The normal tail is eliminated.** Maximum likelihood puts ν at "
+        f"{t1['fitted_df']:.1f}; skew is {res['skew']:+.3f}, excess kurtosis "
+        f"{res['excess_kurtosis']:+.3f}, Jarque-Bera p = {res['jarque_bera_p']:.3f}. These "
+        "residuals are not distinguishable from normal. The sweep's low-ν rows do cut the "
+        "deviation, and that is informative rather than exculpatory: a t with a matched "
+        "SECOND MOMENT and a small ν has a narrower body, so what those rows buy is "
+        "SHARPNESS, not tail weight. The instrument that helps is the one that makes the "
+        "probabilities more confident.",
+        f"- **The single home-field constant is eliminated as the CAUSE**, and separately "
+        "convicted of something else. The residual mean at home sites is "
+        f"{t3['residual_by_site'][0]['residual_mean']:+.3f} points against "
+        f"{t3['residual_by_site'][1]['residual_mean']:+.3f} at neutral sites — a bias, but "
+        "an order of magnitude too small to make a 13.67 pp decile. What §5.4 does show is "
+        "that the site coefficient the harness actually uses averages "
+        f"{t3['regression_coefficient']['mean']:.2f} points with a standard deviation of "
+        f"{t3['regression_coefficient']['sd']:.2f} across published weeks, against "
+        f"{t3['home_and_home_across_seasons_NOT_USABLE_LIVE']['h']:.2f} ± "
+        f"{t3['home_and_home_across_seasons_NOT_USABLE_LIVE']['standard_error']:.2f} from "
+        f"{t3['home_and_home_across_seasons_NOT_USABLE_LIVE']['n_pairs']} home-and-home "
+        "pairs. Only 37 of the 1,585 scored games are at neutral sites, so the intercept "
+        "and the site term are very nearly collinear and h is barely identified. That is a "
+        "real defect and it is not this one.",
+        "",
+        "**THE CAUSE IS UNDER-DISPERSION OF THE POINT FORECAST, TILTED TOWARD THE HOME "
+        "SIDE.** Two numbers carry it, and both replicate on 2024:",
+        "",
+        "| | Tune 2021-2023 | 2024 |",
+        "|---|---:|---:|",
+        f"| Slope of actual on predicted margin | {fl['slope']:.4f} ± {fl['stderr']:.4f} "
+        f"| {cval.get('actual_on_predicted', {}).get('slope', float('nan')):.4f} ± "
+        f"{cval.get('actual_on_predicted', {}).get('stderr', float('nan')):.4f} |",
+        f"| Intercept (points) | {fl['intercept']:+.3f} "
+        f"| {cval.get('actual_on_predicted', {}).get('intercept', float('nan')):+.3f} |",
+        f"| Mean residual (points) | {res['mean']:+.3f} "
+        f"| {cval.get('residual_mean', float('nan')):+.3f} |",
+        "",
+        f"A slope of {fl['slope']:.3f} is "
+        f"{(fl['slope'] - 1.0) / fl['stderr']:.1f} standard errors above one: when this "
+        "system forecasts a 20-point margin the truth averages more than 20, and when it "
+        "forecasts −20 the truth averages worse than −20. Probabilities built from "
+        "under-dispersed margins are too close to 0.5 — low deciles land BELOW their "
+        "predicted rate, high deciles ABOVE — and the negative intercept pushes the whole "
+        "curve down, which is why the low end misses by 13.67 pp and the high end by 1.23 "
+        "pp. **That is the asymmetry, and it is not a distributional assumption, a variance "
+        "function or a home-field constant. It is the point forecast itself.**",
+        "",
+        "The mechanism has a name in this codebase. Both the affine points calibration and "
+        "σ are fitted on the games ACCUMULATED SO FAR in the season, and the ratings that "
+        "feed them get better as the season goes on. A slope fitted on weeks 2-9 under-"
+        f"scales week 10, and a σ fitted on weeks 2-9 ({base['sigma_mean']:.2f}) over-covers "
+        f"week 10 ({sd['window_rmse']:.2f}). The two errors compound in the same direction, "
+        "and §5.6's oracle row is what the σ half alone is worth.",
+        "",
+        "**What that does NOT license.** The out-of-sample rule those estimators follow is "
+        "not the defect and must not be relaxed: fitting either of them on the training "
+        "window costs L2 0.44 points of MAE and inverts the ordering against Elo "
+        "(demo/backtest-2021-2023.md). The defect is the SHAPE of the accumulation window, "
+        "not the fact that it is out of sample. A trailing window is out of sample too.",
         "",
     ]
 
@@ -1734,8 +1880,20 @@ def main() -> None:
     parser.add_argument(
         "stages",
         nargs="*",
-        default=["grid", "modes", "full", "validate", "ranking", "calibration", "render"],
-        help="grid | modes | full | validate | ranking | calibration | render",
+        default=[
+            "grid",
+            "modes",
+            "full",
+            "validate",
+            "ranking",
+            "calibration",
+            "calibration-validate",
+            "render",
+        ],
+        help=(
+            "grid | modes | full | validate | ranking | calibration | "
+            "calibration-validate | render"
+        ),
     )
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
@@ -1763,6 +1921,10 @@ def main() -> None:
             stage_calibration(store, args.workers)
             dev = store["calibration_diagnosis"]["baseline"]["max_deviation_pp"]
             print(f"  baseline max dev: {dev}", flush=True)
+        elif stage == "calibration-validate":
+            stage_calibration_validate(store, args.workers)
+            runs = store["calibration_validation"]["runs"]
+            print("  " + json.dumps(runs, default=float)[:400], flush=True)
         elif stage == "render":
             _save_store(store)
             render(store)

@@ -207,12 +207,22 @@ bit for bit forever. It is property-tested against brute-force enumeration of al
 `2ⁿ` outcomes for every `n ≤ 12`, to `1e-14`.
 
 The two most contested numbers are published prominently rather than buried:
-**C = 24** (the compression scale — a 40-point win and a 60-point win are worth
+**C = 32** (the compression scale — a 40-point win and a 60-point win are worth
 nearly the same, which answers the BCS sportsmanship objection without discarding
-margin) and **β_w = 3.0** (the win premium — what makes this a football ranking
+margin) and **β_w = 7.0** (the win premium — what makes this a football ranking
 rather than a scoring-margin ranking). Both live in
-[`configs/default.toml`](configs/default.toml) with their citations, both are
-grid-searched in the backtest, and both ship in `model_params.json` every week.
+[`configs/default.toml`](configs/default.toml) with their citations, and both ship
+in `model_params.json` every week.
+
+**Both are fitted, and the search is published with its failures.** They started at
+the research report's 24 and 3.0; the 416-cell factorial of 2026-08-12
+([ADR 0007](docs/adr/0007-tuned-constants.md),
+[the campaign](docs/analysis/tuning-campaign.md)) searched them on 2021-2023 under
+a protocol committed before any number was read, froze one choice in writing, and
+evaluated it once on 2024. Two results a reader should have up front: **C = 32 sits
+on the edge of its own published grid**, so the search did not bracket the optimum;
+and **the whole factorial is worth 0.135 points of MAE while the publication gate
+needs 0.219**, so tuning these constants is not what closes the gate.
 
 Full math: [`docs/methodology.md`](docs/methodology.md).
 Data sources and terms: [`docs/data-sources.md`](docs/data-sources.md).

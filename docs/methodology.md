@@ -81,11 +81,19 @@ The response transform, which is where the two most contested numbers live:
 s = C · tanh(m / C) + β_w · sign(m)
 ```
 
-`C = 24` bounds the value of running up the score without discarding margin.
-`β_w = 3.0` is the win premium — the discontinuity at zero that makes this a
-football ranking rather than a scoring-margin ranking. Both start values and both
-grids are in [`configs/default.toml`](../configs/default.toml) with their
-citations.
+`C = 32` bounds the value of running up the score without discarding margin.
+`β_w = 7.0` is the win premium — the discontinuity at zero that makes this a
+football ranking rather than a scoring-margin ranking. Both values and both grids
+are in [`configs/default.toml`](../configs/default.toml) with their citations.
+
+**Both are fitted rather than cited.** They were the research report's 24 and 3.0
+until 2026-08-12, when the full C × β_w × garbage-time × prediction-compression
+factorial was searched on 2021-2023 under a protocol committed before any number
+was read, and the winner validated once on 2024
+([ADR 0007](adr/0007-tuned-constants.md)). Two caveats travel with them: `C = 32`
+is the top of its own published grid, so the optimum is not bracketed; and the
+entire 416-cell search spans 0.135 points of MAE against a gate gap of 0.219, so
+these constants are not what stands between the system and its thresholds.
 
 The résumé root-solve, which is where retroactive re-ranking comes from:
 

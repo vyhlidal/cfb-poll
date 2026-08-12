@@ -53,7 +53,7 @@ from cfbpoll.config import load_config
 from cfbpoll.ingest import windows
 from cfbpoll.model import design, ridge
 
-__all__ = ["L2Fit", "estimate_home_field", "fit", "rate"]
+__all__ = ["L2Fit", "estimate_home_field", "fit", "home_and_home_estimate", "rate"]
 
 LAYER = "L2 results core"
 VERSION = "v0"
@@ -257,3 +257,70 @@ def estimate_home_field(games: pl.DataFrame) -> float | None:
     if count == 0:
         return None
     return float(np.round(total / count, 10))
+
+
+def home_and_home_estimate(
+    games: pl.DataFrame, within_season: bool = True
+) -> dict[str, Any]:
+    """`estimate_home_field` written per PAIR, so a standard error exists.
+
+    The point estimate is the same quantity `estimate_home_field` returns and the
+    two are asserted equal in the tests. What is added is the thing the config
+    never carried and campaign 1 found was the finding: how many pairs the
+    estimate rests on, and how wide it is.
+
+    THE ARGUMENT, which is why report 02 §3.2 prefers this estimator to a
+    regression coefficient: the schedule is structurally asymmetric. Power
+    programmes buy home games that never get a return trip, so a regression on
+    `site` is estimated partly off the difference between the teams that host and
+    the teams that visit. A home-and-home pair is the SAME two teams in both
+    venues, so the team effect differences out exactly and what is left is the
+    venue:
+
+        h = mean over pairs of  (m_host_leg + m_road_leg) / 2
+
+    with both margins from the perspective of the team hosting that leg. Both legs
+    must be non-neutral - a neutral site has no host.
+
+    `within_season=True` is the only form constraint 2 allows today, and it is
+    also the form college football almost never supplies: teams schedule
+    home-and-home ACROSS years, not inside one. 2021-2023 yields 21 within-season
+    pairs and 1,113 pooled. Whether the pooled form may ever be used is ADR 0008's
+    question and this function takes no position on it; it computes both and
+    labels which is which.
+    """
+    played = games.filter(~pl.col("neutral_site"))
+    margins: dict[tuple[Any, str, str], float] = {}
+    for season, home, away, hp, ap in zip(
+        played["season"].to_list(),
+        played["home_team"].to_list(),
+        played["away_team"].to_list(),
+        played["home_points"].to_list(),
+        played["away_points"].to_list(),
+        strict=True,
+    ):
+        margins[(int(season) if within_season else 0, str(home), str(away))] = float(hp) - float(ap)
+
+    seen: set[tuple[Any, str, str]] = set()
+    halves: list[float] = []
+    for (season, home, away), margin in sorted(margins.items()):
+        mirror = margins.get((season, away, home))
+        if mirror is None:
+            continue
+        key = (season, *sorted((home, away)))
+        if key in seen:
+            continue
+        seen.add(key)
+        halves.append((margin + mirror) / 2.0)
+
+    array = np.asarray(halves, dtype=np.float64)
+    n = int(array.size)
+    return {
+        "h": float(np.mean(array)) if n else float("nan"),
+        "n_pairs": n,
+        "standard_error": float(np.std(array, ddof=1) / np.sqrt(n)) if n > 1 else float("nan"),
+        "sd": float(np.std(array, ddof=1)) if n > 1 else float("nan"),
+        "median": float(np.median(array)) if n else float("nan"),
+        "within_season": bool(within_season),
+        "seasons": sorted({int(s) for s in games["season"].to_list()}),
+    }

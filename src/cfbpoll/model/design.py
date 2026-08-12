@@ -61,6 +61,7 @@ __all__ = [
     "compress_margin_array",
     "compress_prediction",
     "game_weights",
+    "tanh_term",
 ]
 
 
@@ -91,6 +92,24 @@ class GameDesign:
         return len(self.teams)
 
 
+def tanh_term(margin: Any, c: float) -> np.ndarray:
+    """`C * tanh(m / C)`, with the C -> infinity limit written out rather than
+    left to the float rules.
+
+    `[margin].c = inf` is A REAL VALUE OF THE PARAMETER, not a missing one: it is
+    the member of the family that does not compress at all, `s = m`, and campaign
+    2 searched it because campaign 1's optimum sat on the top of a grid whose
+    bounds were other people's answers on other people's datasets. numpy would
+    evaluate `inf * tanh(m / inf)` as `inf * 0 = nan` and take the poll down
+    silently, so the limit is taken here, once, and every caller that needs the
+    tanh half of the response goes through this function.
+    """
+    m = np.asarray(margin, dtype=np.float64)
+    if not np.isfinite(c):
+        return m
+    return c * np.tanh(m / c)
+
+
 def compress_margin(margin: float, c: float, beta_w: float) -> float:
     """s = C * tanh(m / C) + beta_w * sign(m)   (report 02 §3.2).
 
@@ -110,15 +129,17 @@ def compress_margin(margin: float, c: float, beta_w: float) -> float:
     beta_w must be published prominently every week. It is the single most
     contested value in the system and hiding it would be a transparency failure.
 
-    The response is bounded: |s| < C + beta_w, always.
+    The response is bounded: |s| < C + beta_w, always - EXCEPT at C = inf, which
+    is the uncompressed identity response and is a searchable value of C rather
+    than an error state (see `tanh_term`).
     """
-    return float(c * np.tanh(margin / c) + beta_w * np.sign(margin))
+    return float(tanh_term(margin, c) + beta_w * np.sign(margin))
 
 
 def compress_margin_array(margin: np.ndarray, c: float, beta_w: float) -> np.ndarray:
     """Vectorised `compress_margin`. Same function, one array at a time."""
     m = np.asarray(margin, dtype=np.float64)
-    return c * np.tanh(m / c) + beta_w * np.sign(m)
+    return tanh_term(m, c) + beta_w * np.sign(m)
 
 
 def compress_prediction(margin: np.ndarray, config: dict[str, Any]) -> np.ndarray:

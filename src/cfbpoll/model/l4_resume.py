@@ -402,7 +402,7 @@ def expected_compressed_margin(
     mu = q - np.asarray(opponent_power, dtype=np.float64) + h * np.asarray(sites, dtype=np.float64)
     x, w = _gauss_hermite(nodes)
     m = mu[:, None] + np.sqrt(2.0) * sigma * x[None, :]
-    tanh_part = (c * np.tanh(m / c)) @ w
+    tanh_part = design.tanh_term(m, c) @ w
     sign_part = beta_w * (2.0 * ndtr(mu / sigma) - 1.0)
     return float(np.sum(tanh_part + sign_part))
 
@@ -689,7 +689,7 @@ def fit(
     def expected_margin_all(q: np.ndarray) -> np.ndarray:
         mu = q[sched.team_index] - sched.opponent_power + h * sched.sites
         m = mu[:, None] + np.sqrt(2.0) * sigma * x[None, :]
-        per_game = (c * np.tanh(m / c)) @ w + beta_w * (2.0 * ndtr(mu / sigma) - 1.0)
+        per_game = design.tanh_term(m, c) @ w + beta_w * (2.0 * ndtr(mu / sigma) - 1.0)
         return np.bincount(sched.team_index, weights=per_game, minlength=n_teams)
 
     q_wins, saturated = _bisect(expected_wins_all, wins_target, lo, hi, max_iter)

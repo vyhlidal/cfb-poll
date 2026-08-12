@@ -262,3 +262,4 @@ def test_no_plays_degrades_to_the_results_core(games: pl.DataFrame) -> None:
     assert fitted.l1.n_plays == 0
     assert fitted.w1 * fitted.k * fitted.l1.net("Michigan") == 0.0
     assert fitted.rating("Michigan") == pytest.approx(fitted.w2 * fitted.l2.rating("Michigan"))
+

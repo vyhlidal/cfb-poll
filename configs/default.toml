@@ -140,8 +140,18 @@ publish_margin_resume_variant = true        # both resume flavours — report 02
 # CFBD SRS walkthrough uses +/-28 - and the fitted value is above BOTH of them,
 # which is the "derivative without independent justification" charge (fresh-eyes
 # review §7) answered on this dataset rather than by citation.
+#
+# THE GRID WAS WIDENED ONCE, BY CAMPAIGN 2, UNDER PRE-REGISTRATION, AND IT NOW
+# ENDS AT `inf` - the identity response `s = m + beta_w*sign(m)`, the member of
+# the family that does not compress at all. That is not a missing value dressed up
+# as a bound: it is the LIMIT of the family, so this grid cannot produce another
+# corner solution in C. `design.tanh_term` takes the limit explicitly, because
+# numpy would evaluate `inf * tanh(m/inf)` as nan and take the poll down quietly.
 c = 32.0                                    # FITTED 2026-08-12, ADR 0007 (was 24.0)
-c_grid = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0]
+c_grid = [
+    18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0,   # campaign 1's grid
+    36.0, 40.0, 48.0, 64.0, 96.0, inf,                # campaign 2's widening
+]
 
 # beta_w — the win premium. The discontinuity at zero that makes this a FOOTBALL
 # ranking rather than a scoring-margin ranking. Two independent precedents:
@@ -160,7 +170,10 @@ c_grid = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0]
 # this range - which is a measurement, not an assurance, and it is why the tau
 # table is published in the campaign document rather than summarised.
 beta_w = 7.0                                # FITTED 2026-08-12, ADR 0007 (was 3.0)
-beta_w_grid = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0]
+beta_w_grid = [
+    0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 7.0, 8.0,  # campaign 1
+    10.0, 12.0,                                                        # campaign 2
+]
 
 # Compression of extreme PREDICTIONS, after Pasteur: if raw predicted margin
 # M > 21, replace with M* = 21 + (1/a) * [(M - 20)^a - 1].
@@ -229,6 +242,23 @@ sigma_estimator = "walk_forward_residuals"  # walk_forward_residuals | config
 # used instead. Same number and same reasoning as
 # [blend].min_out_of_sample_games and [backtest].calibration_min_out_of_sample_games.
 sigma_min_out_of_sample_games = 40
+
+# THE SHAPE OF THE ACCUMULATION WINDOW. 0 keeps every out-of-sample game of the
+# season so far, which is what has always run; K > 0 keeps only the last K buckets.
+#
+# Campaign 1 diagnosed the cumulative window as half of the calibration miss: sigma
+# averages 18.46 over the published window while the realised RMSE of exactly those
+# games is 16.55, because at week 10 the estimate still carries the near-noise weeks
+# 2-4 that the poll declines to publish. Campaign 2 searched K in {3, 4, 5, 6, all}
+# for this key crossed with the same grid for
+# [backtest].calibration_trailing_buckets, under an adoption rule fixed in advance.
+#
+# A TRAILING WINDOW IS STILL STRICTLY OUT OF SAMPLE. Every game in it was predicted
+# before it was scored by a fit that had not seen it. The out-of-sample rule is not
+# what is being relaxed here - only the shape of the window is changing - and the
+# thin-window fallback is to the FULL accumulation rather than to the training
+# window, so a trailing arm can never see a game the cumulative estimator could not.
+sigma_trailing_buckets = 0                  # SEE docs/analysis/campaign-2.md, lead 2
 q_bounds = [-60.0, 60.0]                    # bisection bracket — report 02 §3.4
 bisection_max_iter = 60                     # ~40 gets machine precision
 gauss_hermite_nodes = 20                    # margin-aware variant — report 02 §3.4
@@ -505,6 +535,32 @@ h_pasteur = 3.70                            # REFERENCE ONLY - report 02 §2.13,
 h_recent_estimate = 2.8                     # REFERENCE ONLY - report 02 §3.2 (0.11 pts/drive)
 fit_both_and_publish = true
 
+# ---------------------------------------------------------------------------------
+# THE ANCHOR, WHICH IS OFF, AND THE QUESTION IT IS WAITING ON.
+#
+# `anchor_h_by_season` holds h fixed in the affine points calibration at a value
+# estimated elsewhere, and fits only the intercept and the slope. It is EMPTY here
+# and the poll does not use it. Campaign 2 ran it as a pre-registered experiment
+# (docs/analysis/campaign-2.md, lead 3) precisely because the coefficient that runs
+# today is barely identified, and the experiment's result did NOT change this file:
+# the protocol said so before the number was known.
+#
+# WHY IT IS A QUESTION RATHER THAN A SETTING. The only estimate with a usable
+# standard error pools home-and-home pairs ACROSS seasons, so switching this on
+# would make h THE FIRST CROSS-SEASON FITTED QUANTITY IN THE SYSTEM. It is not an
+# extension of an existing precedent: [ep].fit_scope is "training_window" and every
+# other fitted quantity in this project is within-season and walk-forward. h is not
+# a team rating and carries no team identity, which is the case FOR; the bright line
+# is the asset and the second crossing is always easier than the first, which is the
+# case AGAINST. Both are written out in ADR 0008, which is OPEN and awaits the
+# owner's decision.
+#
+# The harness FAILS CLOSED: a table declaring prior-season provenance raises
+# `PriorSeasonLocked` unless [constraints].allow_prior_season_data is flipped, which
+# it is not.
+anchor_provenance = "none"                  # none | prior_season_home_and_home | pooled_home_and_home
+anchor_h_by_season = {}                     # season -> h in points. EMPTY = the fitted coefficient runs
+
 ####################################################################################
 # L1 efficiency scale and structure — report 02 §3.1
 ####################################################################################
@@ -690,6 +746,18 @@ sigma_source = "walk_forward_residuals"     # walk_forward_residuals | resume.si
 # the training window is used as a fallback.
 calibration_out_of_sample = true
 calibration_min_out_of_sample_games = 40
+
+# THE SHAPE OF THE ACCUMULATION WINDOW, for the affine calibration above. 0 keeps
+# every out-of-sample game of the season so far; K > 0 keeps only the last K
+# buckets. Same switch, same argument and same pre-registered search as
+# [resume].sigma_trailing_buckets, which is the other half of campaign 2's second
+# lead: campaign 1 measured the slope of actual on predicted margin at 1.1428 +/-
+# 0.0435 and named the cumulative window as the mechanism, because a slope fitted
+# on weeks 2-9 under-scales week 10 while the ratings feeding it are still
+# improving. This is NOT a relaxation of `calibration_out_of_sample` above - which
+# would cost L2 0.44 points of MAE and is a different question entirely - it is a
+# change to which out-of-sample games the fit sees.
+calibration_trailing_buckets = 0            # SEE docs/analysis/campaign-2.md, lead 2
 
 ####################################################################################
 # Backtest baseline constants — report 02 §5.3. These belong to the COMPETITION,

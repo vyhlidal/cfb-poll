@@ -27,16 +27,22 @@ def test_margin_constants() -> None:
 
     C and beta_w were the research report's starting values (24.0 / 3.0) until the
     hyperparameter campaign of 2026-08-12 fitted them on 2021-2023 and validated
-    the choice once on 2024 (docs/adr/0007-tuned-constants.md). The grid endpoints
-    did NOT move: the protocol fixed the search space as exactly these grids, so
-    the campaign could not widen the net after seeing that the optimum landed on
-    C's upper bound.
+    the choice once on 2024 (docs/adr/0007-tuned-constants.md). That campaign did
+    NOT widen the grid when its optimum landed on C's upper bound - widening the
+    net after seeing where the answer went is the failure a protocol exists to
+    prevent - and it published the corner instead.
+
+    CAMPAIGN 2 WIDENED IT, ONCE, UNDER PRE-REGISTRATION
+    (docs/analysis/_campaign-2-protocol.md, committed before any number was read),
+    and the grid now ends at `inf`: the identity response, the limit of the family,
+    which is why this endpoint cannot move again for the same reason.
     """
     margin = load()["margin"]
     assert margin["c"] == 32.0  # FITTED, ADR 0007 (was 24.0, report 02 §3.2)
     assert margin["beta_w"] == 7.0  # FITTED, ADR 0007 (was 3.0, report 02 §3.2)
-    assert min(margin["c_grid"]) == 18.0 and max(margin["c_grid"]) == 32.0
-    assert min(margin["beta_w_grid"]) == 0.0 and max(margin["beta_w_grid"]) == 8.0
+    assert min(margin["c_grid"]) == 18.0
+    assert margin["c_grid"][-1] == float("inf")  # campaign 2: the uncompressed limit
+    assert min(margin["beta_w_grid"]) == 0.0 and max(margin["beta_w_grid"]) == 12.0
 
 
 def test_every_searched_constant_is_a_member_of_its_own_published_grid() -> None:
@@ -180,3 +186,51 @@ def test_the_violations_gate_does_not_curate_its_rivals() -> None:
     beats every other system in the table. A gate whose rival list is drawn around
     the systems it clears is not a gate."""
     assert load()["gate"]["violations_must_beat"] == "all_scored_systems"
+
+
+def test_the_accumulation_windows_are_cumulative_and_that_is_a_measured_choice() -> None:
+    """Campaign 2's second lead searched trailing windows for both estimators.
+
+    0 means "every out-of-sample game of the season so far", which is what has
+    always run. Whatever the campaign found, the values here and the search that
+    produced them have to be the same object - the invariant the review drew out
+    of ADR 0007 - so this asserts the key EXISTS and is an integer, and leaves the
+    choice free to move.
+    """
+    cfg = load()
+    assert isinstance(cfg["resume"]["sigma_trailing_buckets"], int)
+    assert isinstance(cfg["backtest"]["calibration_trailing_buckets"], int)
+    assert cfg["resume"]["sigma_trailing_buckets"] >= 0
+    assert cfg["backtest"]["calibration_trailing_buckets"] >= 0
+
+
+def test_the_home_field_anchor_is_off_and_the_constraint_that_holds_it_off_is_on() -> None:
+    """ADR 0008 IS OPEN. Campaign 2 ran the anchored h as a pre-registered
+    experiment and the protocol said, before any number was read, that the config
+    would not move whatever it showed - because anchoring h on earlier seasons
+    would be this project's FIRST cross-season fitted quantity, and that is a
+    question for the owner rather than for a search.
+
+    This test is what makes that sentence enforceable. If the anchor is ever
+    switched on, this test fails, and whoever switched it on has to say so in an
+    ADR rather than in a diff.
+    """
+    cfg = load()
+    assert cfg["homefield"]["anchor_h_by_season"] == {}
+    assert cfg["homefield"]["anchor_provenance"] == "none"
+    assert cfg["constraints"]["allow_prior_season_data"] is False
+
+
+def test_every_fitted_quantity_is_still_within_season() -> None:
+    """The premise campaign 2 had to correct on the record.
+
+    It was said in the course of setting that campaign up that anchoring h across
+    seasons would extend an existing precedent, because the EP layer already fits
+    across seasons. It does not: `[ep].fit_scope` is "training_window", and
+    `frozen_seasons` is an alternative the config names and no code path selects.
+    There is no precedent to extend, and this test is here so the claim stays
+    false-if-false rather than resting on somebody's memory of the config.
+    """
+    cfg = load()
+    assert cfg["ep"]["fit_scope"] == "training_window"
+    assert cfg["blend"]["fit_out_of_sample_only"] is True

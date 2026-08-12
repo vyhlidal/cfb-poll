@@ -75,7 +75,50 @@ __all__ = [
     "power_source_for",
     "rate",
     "season_power",
+    "trailing_index",
 ]
+
+
+def trailing_index(
+    buckets: Any, trailing: int, minimum: int = 0
+) -> np.ndarray | None:
+    """Which accumulated rows a trailing-`trailing`-bucket estimator may use.
+
+    `None` means "all of them", and it is returned for the two settings that mean
+    the same thing: `trailing <= 0` (the cumulative estimator that has always run)
+    and the thin-window fallback.
+
+    THE SHAPE OF THE ACCUMULATION WINDOW IS THE WHOLE OF CAMPAIGN 2'S SECOND
+    LEAD, and this function is all of the mechanism. sigma and the affine points
+    calibration are both fitted on the games ACCUMULATED SO FAR in a season while
+    the ratings that feed them improve as the season goes on, so a slope fitted on
+    weeks 2-9 under-scales week 10 and a sigma fitted on weeks 2-9 over-covers it
+    (docs/analysis/tuning-campaign.md §5.8). A trailing window is the same
+    estimator with a different shape, and - this is the part that matters - it is
+    JUST AS OUT OF SAMPLE. Every row it keeps is a game that was predicted before
+    it was scored by a fit that had not seen it. Nothing here reads a future game
+    and nothing here reads a prior season.
+
+    THE UNIT IS A BUCKET, NOT A WEEK NUMBER. `ingest/windows.py` orders buckets by
+    first kickoff precisely because week numbers collide (the 2023 postseason
+    carries a week 1 alongside weeks 11-15), so "the last K weeks" derived from
+    the week column would silently mean something else in December.
+
+    THE THIN-WINDOW FALLBACK IS TO THE FULL ACCUMULATION, NOT TO THE TRAINING
+    WINDOW. It is declared that way in the campaign 2 protocol, before any number
+    was read, and it is the conservative choice of the two: it keeps every
+    trailing arm strictly nested inside the information set the incumbent already
+    had, so a trailing window can never see a game the cumulative estimator could
+    not.
+    """
+    orders = np.asarray(list(buckets), dtype=np.int64)
+    if trailing <= 0 or orders.size == 0:
+        return None
+    distinct = np.unique(orders)
+    if distinct.size <= trailing:
+        return None
+    index = np.flatnonzero(orders >= distinct[-trailing])
+    return index if index.size >= minimum else None
 
 
 @dataclass(frozen=True)
@@ -215,12 +258,16 @@ class SeasonState:
     #: the current weights have since seen the game and the residual would flatter
     #: the model by exactly the amount sigma is supposed to measure.
     residual: list[float] = field(default_factory=list)
+    #: The bucket each accumulated game was played in, so that an estimator can
+    #: ask for the last K buckets rather than for everything. Defaults to 0 for a
+    #: caller that does not pass one, which collapses to the cumulative window.
+    bucket: list[int] = field(default_factory=list)
     cache: dict[tuple[Any, ...], L3Fit] = field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.margin)
 
-    def add(self, fitted: L3Fit, games: pl.DataFrame) -> None:
+    def add(self, fitted: L3Fit, games: pl.DataFrame, bucket_order: int = 0) -> None:
         if games.is_empty():
             return
         eff, res, site = fitted.features(games)
@@ -231,10 +278,25 @@ class SeasonState:
         self.site.extend(site.tolist())
         self.margin.extend(actual.tolist())
         self.residual.extend((actual - predicted).tolist())
+        self.bucket.extend([int(bucket_order)] * int(actual.size))
 
     def sigma(self, config: dict[str, Any]) -> SigmaEstimate:
-        """The walk-forward sigma from everything accumulated so far."""
-        return estimate_sigma(self.residual, config)
+        """The walk-forward sigma, over the window `[resume].sigma_trailing_buckets`
+        selects: everything accumulated so far by default, or the last K buckets.
+
+        THE BLEND WEIGHTS ARE NOT WINDOWED and that is deliberate. Campaign 2's
+        second lead is scoped to the two estimators campaign 1 named - sigma and
+        the affine points calibration - and w1/w2 are a different estimator with a
+        different specification (report 02 §3.3). Windowing them too would have
+        been a third change riding along on the first two.
+        """
+        residual = np.asarray(self.residual, dtype=np.float64)
+        index = trailing_index(
+            self.bucket if len(self.bucket) == residual.size else [],
+            int(config["resume"].get("sigma_trailing_buckets", 0)),
+            int(config["resume"].get("sigma_min_out_of_sample_games", 40)),
+        )
+        return estimate_sigma(residual if index is None else residual[index], config)
 
     def weights(self) -> BlendWeights:
         return fit_blend_weights(
@@ -505,7 +567,7 @@ def season_power(
             played = windows.games_in_bucket(season_games, bucket).filter(
                 (pl.col("home_class") == "fbs") & (pl.col("away_class") == "fbs")
             )
-            state.add(previous, played)
+            state.add(previous, played, bucket_order=bucket.order)
         window = windows.games_through(
             season_games, season=season, week=bucket.week, season_type=bucket.season_type
         )

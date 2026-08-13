@@ -233,6 +233,50 @@ def ingest_sportsdataverse(
 # --------------------------------------------------------------------------- archive
 
 
+@archive_app.command("lock")
+def archive_lock(
+    repo: Annotated[str, typer.Option(help="owner/name that publishes the release.")] = (
+        "vyhlidal/cfb-poll"
+    ),
+    tag: Annotated[str, typer.Option(help="Release tag holding the assets.")] = "archive-v1",
+    root: Annotated[
+        Path, typer.Option(help="Archive directory holding _manifest.json.")
+    ] = Path("archive/sportsdataverse"),
+    out: Annotated[Path, typer.Option(help="Lockfile to write.")] = Path(
+        "data/manifests/sportsdataverse.lock.json"
+    ),
+) -> None:
+    """Generate the committed lockfile from a completed backfill's manifest.
+
+    The manifest under `archive/sportsdataverse/` records where each file came
+    from upstream, on the machine that pulled it. The lockfile is the same set of
+    digests addressed to everyone else: it names the release asset that serves
+    each file, so `archive sync` can rebuild the archive on a clone that has
+    never seen an API key.
+
+    Run this after a backfill or after cutting a new release tag, and commit the
+    result. It is small, it is deterministic, and `weekly.yml` keys its archive
+    cache on `hashFiles()` of it.
+    """
+    import json
+
+    from cfbpoll.ingest import archive as archive_mod
+
+    manifest_path = root / archive_mod.MANIFEST_NAME
+    if not manifest_path.exists():
+        raise typer.BadParameter(
+            f"{manifest_path} does not exist. The lockfile is derived from a "
+            "completed backfill; there is nothing to derive it from yet."
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    lock = archive_mod.build_lock(manifest, repo=repo, tag=tag)
+    written = archive_mod.write_lock(lock, out)
+    typer.echo(
+        f"wrote {written}: {lock['file_count']} assets, "
+        f"{lock['total_bytes']:,} bytes, release {repo}@{tag}"
+    )
+
+
 @archive_app.command("sync")
 def archive_sync(
     source: Annotated[str, typer.Option(help="sportsdataverse | cfbd")] = "sportsdataverse",
@@ -240,16 +284,76 @@ def archive_sync(
         str | None, typer.Option(help="Comma-separated seasons; blank = all in the manifest.")
     ] = None,
     verify: Annotated[
-        bool, typer.Option(help="sha256-check every file against the manifest.")
+        bool, typer.Option(help="sha256-check every file, not just its size.")
     ] = False,
+    repair: Annotated[
+        bool, typer.Option(help="Replace a local file whose digest disagrees with the lock.")
+    ] = False,
+    only: Annotated[
+        str | None,
+        typer.Option(help="Comma-separated path prefixes, e.g. 'schedules,crosswalk'."),
+    ] = None,
+    lock: Annotated[Path, typer.Option(help="Lockfile to sync against.")] = Path(
+        "data/manifests/sportsdataverse.lock.json"
+    ),
+    root: Annotated[Path, typer.Option(help="Where the archive lands.")] = Path(
+        "archive/sportsdataverse"
+    ),
 ) -> None:
-    """Materialise the raw archive locally from the published release assets.
+    """Materialise the MIT archive locally from our published release assets.
 
-    WILL DO: download each asset listed in data/manifests/sportsdataverse.lock.json
-    (~0.55 GB for 2021-2025) and verify its sha256 BEFORE any consumer reads it.
-    A checksum mismatch is a hard failure, not a warning.
+    ~0.55 GB for 2021-2025, from a public GitHub release. No account, no token,
+    no API key, on any platform that can reach github.com. Every file's sha256 is
+    checked against data/manifests/sportsdataverse.lock.json BEFORE any consumer
+    reads it, and a mismatch is a hard failure rather than a warning.
+
+    Downloads land on `<name>.part` and are renamed only once the digest matches,
+    so an interrupted sync is resumable and any file that exists is a file that
+    was checked. `--seasons` narrows the pull by year - a scores-only run needs
+    the schedules and crosswalk and not the 0.52 GB of play-by-play.
+
+    CFBD's archive is NOT synced by this command and never will be: its terms
+    forbid operating a mirror or substitute API, so `archive/cfbd/` is private and
+    a fork's 2021-2022 postseason legitimately differs from ours. `_run.json`
+    records which archives a run actually read, so that difference is visible
+    rather than mysterious.
     """
-    _stub("archive sync", "report 01 §5.4 and report 03 §5.3")
+    from cfbpoll.ingest import archive as archive_mod
+
+    if source != "sportsdataverse":
+        raise typer.BadParameter(
+            f"--source {source!r} is not syncable. Only the MIT SportsDataverse "
+            "class is republished; CFBD raw responses are private under its terms "
+            "(report 01 §4.1). See docs/data-sources.md."
+        )
+
+    payload = archive_mod.read_lock(lock)
+    prefixes = [p.strip() for p in only.split(",") if p.strip()] if only else None
+    if seasons:
+        years = {str(y) for y in _parse_seasons(seasons)}
+        keep = [f["path"] for f in payload["files"] if any(y in f["asset"] for y in years)]
+        # Files with no year in the name (the licence, the roster crosswalk) are
+        # not season-scoped and are always needed.
+        keep += [
+            f["path"]
+            for f in payload["files"]
+            if not any(char.isdigit() for char in f["asset"])
+        ]
+        prefixes = sorted(set(keep) | set(prefixes or []))
+
+    summary = archive_mod.sync_from_lock(
+        payload,
+        root,
+        verify=verify,
+        repair=repair,
+        only=prefixes,
+        log=typer.echo,
+    )
+    typer.echo(
+        f"archive {summary['root']} @ {summary['tag']}: {summary['checked']} checked, "
+        f"{summary['downloaded']} downloaded ({summary['bytes_downloaded']:,} bytes), "
+        f"{summary['ok']} verified"
+    )
 
 
 @archive_app.command("push")

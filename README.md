@@ -147,23 +147,40 @@ nobody knows yet, and we would rather show the math for why than pretend.
 
 ```bash
 git clone https://github.com/vyhlidal/cfb-poll && cd cfb-poll
-make rankings
+make .venv         # uv sync --locked; installs Python 3.12 and every pinned wheel
+make rankings      # archive sync -> rank -> out/poll.csv
 ```
 
 No API key. No account. No Docker. No `sudo`. Not ours, not anyone's.
 
-That works because of the license split: the historical archive is MIT-licensed
-and republishable, so a fork gets everything through last Sunday without touching
-a paid API. `make rankings` fetches the archive (~0.55 GB, sha256-verified against
-a committed manifest), fits, and writes a static site you can open with
-`python -m http.server`.
+That works because of the licence split: the historical archive is MIT-licensed
+and republishable, so a fork gets everything without touching a paid API.
+`make rankings` fetches the archive from
+[our `archive-v1` release](https://github.com/vyhlidal/cfb-poll/releases/tag/archive-v1)
+— 28 assets, ~0.55 GB, every one of them checked against the sha256 in
+[`data/manifests/sportsdataverse.lock.json`](data/manifests/sportsdataverse.lock.json)
+**before any consumer reads it** — then fits and writes the poll to `out/`.
+A mismatch is a hard failure, not a warning. Downloads land on `<name>.part` and
+are renamed only once the digest matches, so an interrupted sync is resumable and
+any file that is there is a file that was checked.
 
-> **Honestly: this does not work yet.** `make rankings` currently prints what it
-> will do and exits. The command above is the contract this repository is being
-> built to satisfy — it is in the README because it is the design target, and the
-> day it stops being aspirational this paragraph goes away.
+This paragraph used to say *"honestly, this does not work yet."* It works now.
+What is still missing is the last hop: `cfbpoll site build` is a stub, so the poll
+arrives as `out/poll.csv`, `out/poll.json` and a run record rather than as a page
+you can open. Two smaller honesties, both of which the run record will tell you
+itself:
 
-**Beat the model.** When the challenge harness lands, add a parameter variant to
+- The default is `RANK_SEASON=2023 RANK_WEEK=15`, a complete historical season.
+  Ranking *this* week means resolving which week it is, which needs CFBD's
+  `/calendar`, which needs a key — so the keyless default is a season the archive
+  already holds. 2025 is the sealed holdout and is not the default either.
+- **Your 2021 and 2022 postseason will differ from ours, legitimately.** Those 80
+  games come from a private CFBD backfill that its terms forbid us to republish,
+  so a fork's hindsight surface for those two seasons stops at conference
+  championship weekend. `_run.json` records which archives a run actually read,
+  which is the difference between a documented difference and a mysterious one.
+
+**Beat the model.** Add a parameter variant to
 [`configs/challengers/`](configs/challengers/) or a module implementing
 `rate(games, plays, through_week) -> dict[team_id, float]`, open a PR, and CI runs
 it through the identical walk-forward harness against the identical baselines and
@@ -250,10 +267,12 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 | Target | What it does |
 |---|---|
 | `make .venv` | **Works now.** `uv sync --locked` — installs Python 3.12 and every pinned wheel |
+| `make archive` | **Works now.** Fetch the MIT archive from our release and sha256-check every file. `SEASONS=2023` or `ONLY=schedules,crosswalk` narrows it |
+| `make rankings` | **Works now.** `archive` → fit → `out/poll.csv`, `out/poll.json`, `out/_run.json`. `RANK_SEASON=2023 RANK_WEEK=15` by default |
 | `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
 | `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
 | `make grid` | **Works now.** The R(N, K) retroactive triangle for one season (`GRID_SEASON=2023`) |
-| `make rankings` | Sync the archive, fit L1–L4, bootstrap intervals, build the static site |
+| `make archive-lock` | Regenerate the committed lockfile from a backfill manifest. Only after a backfill or a new release tag |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
 | `make site` | Build the static site into `site/_build` |
 | `make test` / `make lint` | pytest / ruff |

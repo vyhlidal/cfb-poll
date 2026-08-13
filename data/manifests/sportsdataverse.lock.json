@@ -1,0 +1,254 @@
+{
+  "archive": "sportsdataverse",
+  "description": "Every MIT-licensed input asset this project reads, with the release asset that serves it and the sha256 that proves it arrived intact. `cfbpoll archive sync --verify` checks every digest before any consumer reads a file; a mismatch is a hard failure, not a warning.",
+  "file_count": 28,
+  "files": [
+    {
+      "asset": "LICENSE-MIT-sportsdataverse.txt",
+      "bytes": 1072,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "LICENSE-MIT-sportsdataverse.txt",
+      "sha256": "9c3898cce6957255c63911737a6441daf7ed70c445381b8a7f32b75a28123ea6",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/sportsdataverse-data/main/LICENSE"
+    },
+    {
+      "asset": "cfb_crosswalk_in_data_repo.csv",
+      "bytes": 1837,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_crosswalk_in_data_repo.csv",
+      "sha256": "49d429a00b534b0088ca64525152a90b99a504fa26e16cbd1abe2bafe4843578",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_crosswalk_in_data_repo.csv"
+    },
+    {
+      "asset": "cfb_rosters_crosswalk.parquet",
+      "bytes": 834252,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_rosters_crosswalk.parquet",
+      "sha256": "cf953a93040d1baa2d401b096be655c43470f1eeccc2ad5482230c7d63e343c5",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_rosters_crosswalk.parquet"
+    },
+    {
+      "asset": "cfb_schedule_crosswalk_2021.parquet",
+      "bytes": 45449,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_schedule_crosswalk_2021.parquet",
+      "sha256": "6d3a8e7bbb86d08501735dfa8365111b41dc27b440fe7ab5dac1e3ad9400e3c4",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_schedule_crosswalk_2021.parquet"
+    },
+    {
+      "asset": "cfb_schedule_crosswalk_2022.parquet",
+      "bytes": 46982,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_schedule_crosswalk_2022.parquet",
+      "sha256": "22ea22f59a815794ddca88163208046cd51bc270cdb985fa5b501cee370d049c",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_schedule_crosswalk_2022.parquet"
+    },
+    {
+      "asset": "cfb_schedule_crosswalk_2023.parquet",
+      "bytes": 45060,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_schedule_crosswalk_2023.parquet",
+      "sha256": "9af9b5ae3f5d8632d7b43f0b9473e4bd54fc90a24a019cddc8b1e0bd6f8e26f5",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_schedule_crosswalk_2023.parquet"
+    },
+    {
+      "asset": "cfb_schedule_crosswalk_2024.parquet",
+      "bytes": 46831,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_schedule_crosswalk_2024.parquet",
+      "sha256": "7daf5f70022d98b2b4a3dbb43fd38da09123e79baffee8ad88b74d08c91ca742",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_schedule_crosswalk_2024.parquet"
+    },
+    {
+      "asset": "cfb_schedule_crosswalk_2025.parquet",
+      "bytes": 46822,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_schedule_crosswalk_2025.parquet",
+      "sha256": "6f9e3d1fae2ee7af5366a14815444737e5b9fb164f277a95851c8d0f5b4e3716",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_schedule_crosswalk_2025.parquet"
+    },
+    {
+      "asset": "cfb_teams_crosswalk_2021.parquet",
+      "bytes": 41488,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_teams_crosswalk_2021.parquet",
+      "sha256": "026216fc698302ff43af5008908fe1bf1f6d22663f1f210b2e5e012da9348e40",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_teams_crosswalk_2021.parquet"
+    },
+    {
+      "asset": "cfb_teams_crosswalk_2022.parquet",
+      "bytes": 41547,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_teams_crosswalk_2022.parquet",
+      "sha256": "de7bf77a2e5884608f651f8911124e4f0cef34f9d9ddc72814cdad43212d002f",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_teams_crosswalk_2022.parquet"
+    },
+    {
+      "asset": "cfb_teams_crosswalk_2023.parquet",
+      "bytes": 41578,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_teams_crosswalk_2023.parquet",
+      "sha256": "1838114fa3c85daf461d6934377e2afd49e9552c070dbd91e515910b576da8f4",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_teams_crosswalk_2023.parquet"
+    },
+    {
+      "asset": "cfb_teams_crosswalk_2024.parquet",
+      "bytes": 41342,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_teams_crosswalk_2024.parquet",
+      "sha256": "52f296ab47946d4bd7d153b6996de8038fc96dc3ac06b44b63713cd94fc59ac5",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_teams_crosswalk_2024.parquet"
+    },
+    {
+      "asset": "cfb_teams_crosswalk_2025.parquet",
+      "bytes": 41516,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "crosswalk/cfb_teams_crosswalk_2025.parquet",
+      "sha256": "640aeb02e7358420ae790cf925bcc268205ccb47b9d33674ac88c85a931f1d96",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/cfb_teams_crosswalk_2025.parquet"
+    },
+    {
+      "asset": "play_by_play_2021.parquet",
+      "bytes": 73675845,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "pbp/play_by_play_2021.parquet",
+      "sha256": "d3717713352f1167cdc9c0d7f558f33525f6b2fb16a27189e6bd2327c99eb07e",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/play_by_play_2021.parquet"
+    },
+    {
+      "asset": "play_by_play_2022.parquet",
+      "bytes": 108827884,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "pbp/play_by_play_2022.parquet",
+      "sha256": "c1b3041e55fb3896d4ef9de7a68522415c326c7efcbf7a2c6b704461f3a7bb87",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/play_by_play_2022.parquet"
+    },
+    {
+      "asset": "play_by_play_2023.parquet",
+      "bytes": 110666583,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "pbp/play_by_play_2023.parquet",
+      "sha256": "167889e635679d2a745a0f73690bf51afcb28236d3bbaed32aeabb154b726be9",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/play_by_play_2023.parquet"
+    },
+    {
+      "asset": "play_by_play_2024.parquet",
+      "bytes": 120791523,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "pbp/play_by_play_2024.parquet",
+      "sha256": "60489da0c61c56b86698ee14be65cb521010f707e9a2f4ded8d561e9ef592bd4",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/play_by_play_2024.parquet"
+    },
+    {
+      "asset": "play_by_play_2025.parquet",
+      "bytes": 131185522,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "pbp/play_by_play_2025.parquet",
+      "sha256": "2290311f156083730b6b9d9e6662d121dc86953d71e11aafc9da4c0753819369",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/play_by_play_2025.parquet"
+    },
+    {
+      "asset": "cfb_ratings_weekly_2021.csv",
+      "bytes": 362145,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "ratings/cfb_ratings_weekly_2021.csv",
+      "sha256": "3681df1badc08c837aa6de21cfbc14c48f8ef73adb11f79fdd016abd5815a742",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/cfb_ratings_weekly_2021.csv"
+    },
+    {
+      "asset": "cfb_ratings_weekly_2022.csv",
+      "bytes": 368845,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "ratings/cfb_ratings_weekly_2022.csv",
+      "sha256": "064323a0f8b07733bafd1ee2382183a65b26b55835d1077b6fc13454d60fdd6b",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/cfb_ratings_weekly_2022.csv"
+    },
+    {
+      "asset": "cfb_ratings_weekly_2023.csv",
+      "bytes": 374692,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "ratings/cfb_ratings_weekly_2023.csv",
+      "sha256": "150937cc42c09d3c84d48c1a1b6946b8d22eee0d903c1d6122d2ca09b30bb0f3",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/cfb_ratings_weekly_2023.csv"
+    },
+    {
+      "asset": "cfb_ratings_weekly_2024.csv",
+      "bytes": 397314,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "ratings/cfb_ratings_weekly_2024.csv",
+      "sha256": "d405389f68275cc95ad9a060c15e2c4e940f2419fd2cbda2b791b7f4bffb1566",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/cfb_ratings_weekly_2024.csv"
+    },
+    {
+      "asset": "cfb_ratings_weekly_2025.csv",
+      "bytes": 408382,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "ratings/cfb_ratings_weekly_2025.csv",
+      "sha256": "d3b83f488a126cc3f092a3c04d52c7188c8828141c3dc3808a0f19283bc2ee4d",
+      "upstream_url": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/cfb_ratings_weekly_2025.csv"
+    },
+    {
+      "asset": "cfb_schedules_2021.parquet",
+      "bytes": 119714,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "schedules/cfb_schedules_2021.parquet",
+      "sha256": "8b2d1306c92de0c12930e30156af35c3ae4441e97a4ac5226eac60765fb97585",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/cfb_schedules_2021.parquet"
+    },
+    {
+      "asset": "cfb_schedules_2022.parquet",
+      "bytes": 175367,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "schedules/cfb_schedules_2022.parquet",
+      "sha256": "b9dcbee1e823edf54c811941190e4b678e6774d86156396888c3ee38e0dc9034",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/cfb_schedules_2022.parquet"
+    },
+    {
+      "asset": "cfb_schedules_2023.parquet",
+      "bytes": 181534,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "schedules/cfb_schedules_2023.parquet",
+      "sha256": "6bf45f7ade2353fc6f511162eb9fe67f999d2fc7eb0bfaca660554a9c84c5246",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/cfb_schedules_2023.parquet"
+    },
+    {
+      "asset": "cfb_schedules_2024.parquet",
+      "bytes": 191897,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "schedules/cfb_schedules_2024.parquet",
+      "sha256": "c6b9b210c0771155c5805657747814a0d9197a4f236c286c4cc56964bbf86bbf",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/cfb_schedules_2024.parquet"
+    },
+    {
+      "asset": "cfb_schedules_2025.parquet",
+      "bytes": 174631,
+      "fetched_at": "2026-08-12T07:07:39Z",
+      "path": "schedules/cfb_schedules_2025.parquet",
+      "sha256": "7c172a3bdc48dc1965606ba594ea856c70193d5f84ef58138f0b774f878eba29",
+      "upstream_url": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/cfb_schedules_2025.parquet"
+    }
+  ],
+  "generated_at": "2026-08-13T20:10:06.876279Z",
+  "license": "MIT (sportsdataverse/sportsdataverse-data). cfb_schedules_* originate from sportsdataverse/cfbfastR-data, which carries no LICENSE file; treated as uncopyrightable facts.",
+  "release": {
+    "asset_base": "https://github.com/vyhlidal/cfb-poll/releases/download/archive-v1/",
+    "note": "Public, no account, no token. GitHub serves release assets anonymously, which is the whole point: a fork needs no secrets.",
+    "repo": "vyhlidal/cfb-poll",
+    "tag": "archive-v1"
+  },
+  "schema": 1,
+  "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "total_bytes": 549177654,
+  "upstream": {
+    "crosswalk": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_crosswalk/",
+    "pbp": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfbfastR_cfb_pbp/",
+    "ratings": "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/cfb_ratings_weekly/",
+    "schedules": "https://raw.githubusercontent.com/sportsdataverse/cfbfastR-data/main/schedules/parquet/"
+  }
+}

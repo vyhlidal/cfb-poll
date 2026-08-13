@@ -1,8 +1,14 @@
-# cfb-poll — the one-command fork story (research report 03 §9.1).
+# cfb-poll — the one-command fork story (research report 03 §9.1), and as of
+# 2026-08-13 it is a story that runs.
 #
-# `.venv`, `backtest`, `demos`, `test` and `lint` do real work. The rest print
-# exactly what they will do and exit 0, so the contract is readable before the
-# rest of the pipeline exists. Each stub maps 1:1 to a `cfbpoll` CLI verb.
+#     git clone https://github.com/vyhlidal/cfb-poll && cd cfb-poll
+#     make .venv && make rankings
+#
+# `.venv`, `archive`, `rankings`, `backtest`, `grid`, `cards`, `fixtures`,
+# `demos`, `test` and `lint` do real work on a fresh clone with no accounts and no
+# keys. `replay`, `replay-tolerant` and `site` still print exactly what they will
+# do and exit 0, so the contract stays readable before those parts exist. Each
+# stub maps 1:1 to a `cfbpoll` CLI verb.
 
 UV ?= uv
 CONFIG ?= configs/default.toml
@@ -11,14 +17,15 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive backtest cards demos fixtures replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive archive-lock backtest cards demos fixtures replay replay-tolerant grid site test lint clean
 
 help:
-	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'grid', 'demos', 'test', 'lint' work."
+	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
 	@echo
 	@echo "  make .venv            uv sync --locked  (installs Python 3.12 + pinned wheels)"
-	@echo "  make rankings         archive sync -> rank -> bootstrap -> site  [stub]"
-	@echo "  make archive          fetch + sha256-verify the MIT archive       [stub]"
+	@echo "  make rankings         archive sync -> rank -> the poll in out/"
+	@echo "  make archive          fetch + sha256-verify the MIT archive (~0.55 GB)"
+	@echo "  make archive-lock     regenerate the committed lockfile from a backfill"
 	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
 	@echo "  make grid             the R(N,K) retroactive triangle for one season"
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
@@ -34,21 +41,43 @@ help:
 .venv:
 	$(UV) sync --locked
 
+# Real, and it is THE FORK PROMISE (report 03 §9.1). Clone, `make .venv`,
+# `make rankings`, and a poll comes out. No account, no API key, no Docker, no
+# sudo - not ours, not anyone's - because `archive` pulls from a public GitHub
+# release of MIT-licensed data and everything after it is local compute.
+#
+# RANK_SEASON DEFAULTS TO A COMPLETE HISTORICAL SEASON ON PURPOSE. Ranking "now"
+# means resolving the current week, which needs CFBD's /calendar, which needs a
+# key - so a keyless default that pretends otherwise would fail on the one
+# command a stranger types first. 2025 is the sealed holdout and is not the
+# default either. Override both freely: `make rankings RANK_SEASON=2022
+# RANK_WEEK=12`.
+RANK_SEASON ?= 2023
+RANK_WEEK   ?= 15
 rankings: .venv archive
-	@echo "[stub] uv run cfbpoll rank      --config $(CONFIG) --out $(OUT)/"
-	@echo "[stub] uv run cfbpoll bootstrap --draws $(DRAWS) --seed $(SEED) --out $(OUT)/"
-	@echo "[stub] uv run cfbpoll site build --from $(OUT)/ --to site/_build"
-	@echo "[stub] then: python -m http.server -d site/_build"
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run cfbpoll rank --config $(CONFIG) --season $(RANK_SEASON) \
+	    --through-week $(RANK_WEEK) --seed $(SEED) --draws $(DRAWS) --out $(OUT)
 	@echo
-	@echo "NOT IMPLEMENTED. This is the fork promise from report 03 §9.1 and it is"
-	@echo "the target the whole project is being built to satisfy. Expected once it"
-	@echo "is real: a minute or two of download, then under a minute of compute."
+	@echo "The poll is $(OUT)/poll.csv and $(OUT)/poll.json; the run record, with"
+	@echo "which archives it read and every constant it used, is $(OUT)/_run.json."
+	@echo "`cfbpoll rank` ran the leakage audit BEFORE it fit anything."
+	@echo
+	@echo "STILL A STUB: `cfbpoll site build`. There is no static site yet, so the"
+	@echo "poll is files rather than a page (report 03 §7.1)."
 
+# Real. ~0.55 GB from OUR release assets, every file sha256-checked against the
+# committed lockfile before any consumer reads it. Add SEASONS=2023 to pull one
+# season, or ONLY=schedules,crosswalk for a scores-only run that skips the 0.52 GB
+# of play-by-play.
+ARCHIVE_ARGS ?=
 archive: .venv
-	@echo "[stub] uv run cfbpoll archive sync --source sportsdataverse --verify"
-	@echo "       ~0.55 GB from our release assets; every file sha256-checked"
-	@echo "       against data/manifests/sportsdataverse.lock.json before use."
-	@echo "NOT IMPLEMENTED — and the manifest does not exist yet either."
+	$(UV) run cfbpoll archive sync --source sportsdataverse --verify $(ARCHIVE_ARGS)
+
+# Regenerate data/manifests/sportsdataverse.lock.json from a completed backfill.
+# Only needed after a backfill or a new release tag; the lockfile is committed.
+archive-lock: .venv
+	$(UV) run cfbpoll archive lock
 
 # Real. Single-threaded BLAS is not optional: multi-threaded reductions sum in a
 # nondeterministic order and the replay job asserts byte-equality (report 03 §9.3).

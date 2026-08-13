@@ -64,3 +64,117 @@ A `down BETWEEN 1 AND 4` filter is **not** a scrimmage-play filter: kickoff rows
 `pos_team_score` / `def_pos_team_score` — the scoreboard after the play — are sound, and mapping them to home/away by string-comparing `pos_team` against the **games table's** `home_team` is immune to the possession-label problem. After a monotone repair (a scoreboard never decreases; 792 of 254,090 rows in 2023 record a decrease, concentrated on Timeout, Penalty and Kickoff rows) the reconstruction reaches the official final score in **763 of 792** games; the residual is almost entirely overtime, which every play-level fit excludes anyway.
 
 **Rule:** derive points-on-a-play and pre-snap margin from the repaired scoreboard, never from `score_pts` or `score_diff_start`. `ingest/plays.py::attach_games` is the implementation.
+
+## 13. The CFBD postseason backfill, and the ID question, settled
+
+**Date: 2026-08-12.** Produced while making `ingest/cfbd.py` real. This section
+**supersedes §3** and amends §10.
+
+### 13.1 CFBD game ids ARE ESPN game ids
+
+§3 recorded that the MIT `cfb_crosswalk` assets carry `espn_*`, `fox_*` and
+`yahoo_*` columns and **no CFBD column**, left reconciliation open, and instructed
+that it be verified empirically rather than assumed. It has been.
+
+Measured against archived CFBD `/games` bodies for two regular-season weeks in two
+different seasons — 2021 week 5 (61 games) and 2023 week 10 (65 games):
+
+| Check | Result |
+|---|---|
+| CFBD `id` present as a SportsDataverse `game_id` | **126 / 126** |
+| Home team and away team agree | 126 / 126 |
+| Both scores agree | 126 / 126 |
+| `neutralSite` agrees with `neutral_site` | 126 / 126 |
+| Start date agrees to the day | 126 / 126 |
+| School strings requiring normalisation | **0** |
+
+**Rule:** join CFBD to SportsDataverse on `game_id` directly. No crosswalk, no
+name-normalisation table, and no `(season, date, home, away)` fallback. Both
+pipelines are ESPN-derived — cfbfastR wraps ESPN's feed — which is why the id
+spaces coincide and why the school strings are byte-identical too.
+`tests/unit/test_cfbd_ingest.py::test_cfbd_game_ids_are_espn_game_ids` re-runs this
+against the archive on every build, so the finding cannot rot.
+
+### 13.2 The 2021-2022 postseason is in the loader, from CFBD
+
+`cfb_schedules_2021.parquet` and `cfb_schedules_2022.parquet` carry **no postseason
+rows at all**. Those two seasons therefore held every regular-season game and every
+conference championship and **none of the 38 + 42 bowls, including the entire
+College Football Playoff** — which is to say they were missing precisely the games
+`[weights]` treats specially (`cfp = 1.0`, `bowl_non_cfp = 0.25`).
+
+Backfilled from CFBD `/games?seasonType=postseason&classification=fbs`, two calls
+per season. Merged into `canonical_games` deduplicated on `game_id`; **zero** of the
+80 ids were already present, and where both sources hold a game the parquet wins.
+Every row now carries a `source` column, and `_run.json` publishes `game_sources`.
+
+**New FBS-vs-FBS totals:**
+
+| Season | Was | Now | Added |
+|---|---:|---:|---|
+| 2021 | 732 | **770** | 38 (3 CFP, 35 non-CFP bowls) |
+| 2022 | 734 | **776** | 42 (3 CFP, 39 non-CFP bowls) |
+| 2023-2025 | 792 / 798 / 808 | unchanged | the parquet already covers them |
+| **Total** | 3,864 | **3,944** | |
+
+### 13.3 Amends §10: 80 of the 86 "orphan" play-file game_ids are these games
+
+§10 recorded 15,353 plays across 86 `game_id`s in the 2021-2023 play files with no
+schedule row, and ruled that they be dropped. **80 of those 86 are the 2021 and 2022
+postseason** — 38 and 42, exactly. The MIT play-by-play has had these games all
+along; only the schedule series was missing them. The plays now join, so the L1
+efficiency fit sees bowl and playoff plays for the tune seasons.
+
+This also makes the merge **auditable without a CFBD key**, which matters because
+`archive/cfbd/` is private under CFBD terms §3 and a fork will never hold it.
+Reconstructing each final score from the repaired play-level scoreboard reproduces
+CFBD in **79 of 80**. The single residual is `401442011` — the 2022 ReliaQuest Bowl,
+Mississippi State 19 Illinois 10, decided in **overtime** — which is the exact
+limitation §12 already documented for those columns. Pinned by id in
+`test_cfbd_postseason_scores_reproduce_from_the_MIT_play_by_play`, so a second
+disagreement fails the build rather than widening a tolerance.
+
+### 13.4 Two latent bugs the merge exposed
+
+Both were dormant while 2021 and 2022 had no postseason rows, and both would have
+been silent:
+
+1. **The conference-championship fallback asked the wrong rows about notes.**
+   `_derive_game_type` skips its structural 2021 fallback when a season has any
+   non-null `notes` on an FBS-vs-FBS game. The 38 backfilled bowl rows carry notes,
+   so 2021 would have looked like a notes-bearing season, the fallback would not
+   have fired, and **all ten of 2021's conference championships would have been
+   labelled `regular`**. Fixed: the test now asks regular-season rows only, which is
+   also the only place the fallback ever labels anything.
+2. **The fallback's games-played tally counted bowls as pre-championship games.**
+   Postseason rows carry `week = 1` (§1), so `week < champ_week` admitted every bowl
+   game. Fixed with an explicit `season_type == 'regular'` guard.
+
+### 13.5 Post-backfill numbers supersede the campaign documents
+
+**`docs/analysis/` and the ADRs are frozen history and are NOT edited.** They record
+what was measured, when, on the archive as it stood. Read them as of their dates.
+
+Every number in them that was computed on 2021 or 2022 was computed on a frame
+missing 80 games. `demo/` has been regenerated and its numbers now supersede the
+frozen ones. Concretely, on the tune seasons:
+
+| Quantity | Frozen (pre-backfill) | Post-backfill | Why it moved |
+|---|---:|---:|---|
+| Retrodictive violation window | 2,258 games | **2,338 games** | the 80 postseason games are FBS-vs-FBS and in weeks ≥ 5 |
+| Schedule odds violation rate | 0.2015 | **0.2019** | more games, and postseason games are harder to order |
+| L4 résumé violation rate | 0.1997 | **0.2015** | same |
+| Random walker violation rate | 0.1997 | **0.2023** | it now *loses* to the headline rather than tying it |
+| Postseason segment `n` | 39 bowls, 3 CFP | **113 bowls, 9 CFP** | three seasons of postseason instead of one |
+
+**Nothing in the gate verdict changed:** margin MAE, RMSE and calibration are scored
+on the `fbs_vs_fbs` segment from the headline week, which the backfill does not
+touch, and all three still fail by the same margins. The violations criterion still
+reports `False`. The tuned constants are **not** re-fitted here — re-running the
+campaign on the widened frame would be a new campaign under a new pre-registered
+protocol, and doing it silently, after seeing these numbers, is exactly what the
+frozen protocol exists to prevent.
+
+The one number that improves qualitatively rather than marginally is the postseason
+segment: 42 games became 122, so `[weights].bowl_non_cfp = 0.25` is now supported by
+a sample worth calling a sample.

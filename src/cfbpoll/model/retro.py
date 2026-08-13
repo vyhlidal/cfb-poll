@@ -352,10 +352,14 @@ def hindsight_surface(
 
     `final` is the LAST bucket of the season by kickoff order, which for a season
     whose archive carries a postseason means the postseason is in the Power fit
-    (non-CFP bowls at their configured weight, CFP games at full weight). For
-    2021 and 2022 the archive carries no postseason rows at all, so "final" there
-    means through conference championships - a caveat that belongs on any demo
-    touching those seasons (docs/data-findings.md).
+    (non-CFP bowls at their configured weight, CFP games at full weight).
+
+    2021 and 2022 used to be the exception - no postseason rows in the MIT parquet
+    at all, so "final" there meant through conference championships and every demo
+    touching those seasons carried a caveat saying so. The 2026-08-12 CFBD
+    backfill closed that (docs/data-findings.md §13). It remains true for a fork
+    that does not hold the private CFBD archive, which is why the caveat is now
+    conditional on `game_sources` in the run record rather than on the year.
     """
     cfg = config if config is not None else load_config()
     all_buckets = buckets if buckets is not None else _season_buckets(games, season)

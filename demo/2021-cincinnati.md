@@ -1,6 +1,6 @@
 # 2021: Cincinnati, the first Group of Five playoff team
 
-> **Data caveat, stated up front.** The `cfb_schedules_*` archive carries **no postseason rows at all** for 2021 and 2022: `season_type` has one value, `regular`. So "final" in this document means **through conference championship weekend** — no bowls, no playoff. Every number below is computed on that window and none of it should be read as though it included the postseason.
+> **Where the postseason in this document comes from.** The MIT `cfb_schedules_*` parquet carries **no postseason rows at all** for 2021 and 2022 — `season_type` has one value, `regular` — so until 2026-08-12 this page stopped at conference championship weekend and said so. The 80 missing games (38 in 2021, 42 in 2022) were backfilled from the CFBD API, whose game ids turn out to be the same ESPN ids the parquet uses, and they are merged into the frame as `source = "cfbd"` rows. **A fork without the private CFBD archive sees the old, shorter window** and will reproduce every *live* number below but not the hindsight column. All 80 games are independently checkable against the MIT play-by-play, which has had them all along.
 
 Cincinnati went 13-0, won the American, and became the first team from outside the
 Power Five to make the College Football Playoff — at **#4**, behind three one-loss
@@ -62,20 +62,32 @@ independent judge reached, and it was one of the two findings that decided
 > with the shipped column at **r = 0.847** over 221,945 plays — reported as a
 > validation diagnostic, never fed in.
 
+## The window, precisely
+
+| | |
+|---|---|
+| Evaluation week **N** | `2021-regu-w15` — through conference championships |
+| Live data window **K = N** | R(N, N), `2021-regu-w15` |
+| Hindsight data window **K = final** | R(N, final), `2021-post-w01` — includes the 38 backfilled postseason games |
+| Games in the season frame | 1,564 |
+| ... from the MIT parquet | 1,526 |
+| ... backfilled from CFBD | 38 |
+| Ranked (FBS) teams | 130 |
+
 ## The final poll (through conference championships)
 
 | # | 90% interval | Team | Rec | −log10 P | P(W ≥ W_t) | Résumé | Margin résumé | Power | ± | Gap | Résumé # | Power # | Hindsight # |
 |---:|:---:|---|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | 1 | 1–24 | Alabama | 12-1 | 2.289 | 0.0051 | 41.65 | 36.54 | 31.69 | 3.17 | +9.96 | 2 | 2 | 1 (—) |
 | 2 | 1–37 | Cincinnati | 13-0 | 1.945 | 0.0113 | 60.00\* | 33.57 | 27.34 | 3.18 | +32.66 | 1 | 5 | 2 (—) |
-| 3 | 1–31 | Michigan | 12-1 | 1.941 | 0.0115 | 39.70 | 35.15 | 29.65 | 3.21 | +10.05 | 3 | 4 | 3 (—) |
-| 4 | 1–16 | Georgia | 12-1 | 1.895 | 0.0127 | 39.31 | 40.95 | 34.69 | 3.17 | +4.63 | 4 | 1 | 4 (—) |
+| 3 | 1–31 | Michigan | 12-1 | 1.941 | 0.0115 | 39.70 | 35.15 | 29.65 | 3.21 | +10.05 | 3 | 4 | 4 (▼1) |
+| 4 | 1–16 | Georgia | 12-1 | 1.895 | 0.0127 | 39.31 | 40.95 | 34.69 | 3.17 | +4.63 | 4 | 1 | 3 (▲1) |
 | 5 | 2–48 | Notre Dame | 11-1 | 1.409 | 0.0390 | 35.89 | 28.95 | 25.32 | 3.25 | +10.57 | 5 | 6 | 5 (—) |
 | 6 | 2–43 | Oklahoma State | 11-2 | 1.193 | 0.0642 | 30.96 | 26.66 | 25.26 | 3.27 | +5.70 | 9 | 7 | 6 (—) |
-| 7 | 5–69 | Michigan State | 10-2 | 1.178 | 0.0664 | 31.81 | 23.67 | 20.62 | 3.31 | +11.19 | 6 | 14 | 7 (—) |
-| 8 | 3–59 | Ole Miss | 10-2 | 1.139 | 0.0726 | 31.45 | 25.47 | 22.19 | 3.28 | +9.26 | 7 | 10 | 8 (—) |
-| 9 | 1–33 | Ohio State | 10-2 | 1.101 | 0.0793 | 31.00 | 33.91 | 29.98 | 3.31 | +1.03 | 8 | 3 | 9 (—) |
-| 10 | 4–63 | Baylor | 11-2 | 1.068 | 0.0856 | 30.60 | 24.58 | 21.12 | 3.27 | +9.48 | 10 | 12 | 10 (—) |
+| 7 | 5–69 | Michigan State | 10-2 | 1.178 | 0.0664 | 31.81 | 23.67 | 20.62 | 3.31 | +11.19 | 6 | 14 | 8 (▼1) |
+| 8 | 3–59 | Ole Miss | 10-2 | 1.139 | 0.0726 | 31.45 | 25.47 | 22.19 | 3.28 | +9.26 | 7 | 10 | 7 (▲1) |
+| 9 | 1–33 | Ohio State | 10-2 | 1.101 | 0.0793 | 31.00 | 33.91 | 29.98 | 3.31 | +1.03 | 8 | 3 | 10 (▼1) |
+| 10 | 4–63 | Baylor | 11-2 | 1.068 | 0.0856 | 30.60 | 24.58 | 21.12 | 3.27 | +9.48 | 10 | 12 | 9 (▲1) |
 | 11 | 7–76 | UTSA | 12-1 | 0.810 | 0.1550 | 30.51 | 19.54 | 16.23 | 3.17 | +14.28 | 11 | 35 | 11 (—) |
 | 12 | 5–74 | Oklahoma | 10-2 | 0.808 | 0.1555 | 28.42 | 22.31 | 19.40 | 3.36 | +9.02 | 13 | 18 | 12 (—) |
 
@@ -99,10 +111,20 @@ independent judge reached, and it was one of the two findings that decided
 > own bootstrap: [docs/analysis/uncertainty.md](../docs/analysis/uncertainty.md).
 
 
-For this season the live and hindsight columns are **identical**, and that is not a
-bug: with no postseason in the archive, the final evaluation week *is* the final
-data window, so R(N, N) and R(N, final) are the same fit. The retroactive view of
-2021 lives in the earlier weeks, below.
+**The hindsight column is new to this page.** It used to read `— (—)` on every row,
+because with no postseason in the archive the final evaluation week *was* the final
+data window, so R(N, N) and R(N, final) were literally the same fit. They are no
+longer, and three adjacent pairs trade places: Georgia and Michigan, Ole Miss and
+Michigan State, Baylor and Ohio State.
+
+Read that column carefully, because the obvious reading of it is wrong. Hindsight
+re-scores **the same games** — everything through championship Saturday — using
+opponent quality estimated from the whole season. A team does not move here because
+of how its own bowl went; it moves because the postseason revised what we think of
+the teams it had already played. Michigan State won its bowl and still slips one
+place, and Ole Miss lost its bowl and still gains one. That is the substitution
+doing exactly its job, and it is a cleaner demonstration of what R(N, final) means
+than a season where the movement happened to line up with the results.
 
 ## The three numbers, side by side
 
@@ -140,7 +162,7 @@ was, and it is 5th. Publishing all three, with the résumé-minus-power gap
 (+32.66) printed between the last two, is the whole of report 02 §3.5's argument in one row.
 
 The win that carries the number is on the schedule: at Notre Dame, 24-13, on
-2 October 2021. Notre Dame finished the regular season 11-1 and is power #6 here,
+2 October 2021. Notre Dame finished the regular season 11-1 and is power #7 here,
 so it is a genuinely load-bearing road win against a top-ten team — which is
 exactly the kind of thing a desert ordering is supposed to notice and a
 margin-based power rating is supposed to under-weight.
@@ -156,21 +178,22 @@ free to move, and does.
 
 | Week | Live # | Hindsight # | Move | Résumé # live → hindsight | Power live | Power hindsight |
 |---|---:|---:|---:|---:|---:|---:|
-| `2021-regu-w01` | 63 | 28 | ▲35 | 27 → 9 | 10.77 | 27.34 |
-| `2021-regu-w02` | 44 | 32 | ▲12 | 3 → 6 | 6.55 | 27.34 |
-| `2021-regu-w03` | 16 | 24 | ▼8 | 5 → 9 | 8.21 | 27.34 |
-| `2021-regu-w04` | 21 | 29 | ▼8 | 5 → 8 | 13.35 | 27.34 |
-| `2021-regu-w05` | 12 | 8 | ▲4 | 4 → 4 | 16.70 | 27.34 |
-| `2021-regu-w06` | 10 | 8 | ▲2 | 2 → 2 | 17.26 | 27.34 |
-| `2021-regu-w07` | 6 | 6 | — | 2 → 2 | 23.48 | 27.34 |
-| `2021-regu-w08` | 8 | 3 | ▲5 | 3 → 2 | 20.29 | 27.34 |
-| `2021-regu-w09` | 5 | 3 | ▲2 | 2 → 2 | 22.03 | 27.34 |
-| `2021-regu-w10` | 5 | 2 | ▲3 | 2 → 2 | 22.40 | 27.34 |
-| `2021-regu-w11` | 5 | 2 | ▲3 | 2 → 2 | 22.78 | 27.34 |
-| `2021-regu-w12` | 2 | 2 | — | 2 → 2 | 25.75 | 27.34 |
-| `2021-regu-w13` | 4 | 3 | ▲1 | 2 → 2 | 26.63 | 27.34 |
-| `2021-regu-w14` | 3 | 2 | ▲1 | 1 → 1 | 27.17 | 27.34 |
-| `2021-regu-w15` | 2 | 2 | — | 1 → 1 | 27.34 | 27.34 |
+| `2021-regu-w01` | 63 | 28 | ▲35 | 27 → 9 | 10.77 | 25.89 |
+| `2021-regu-w02` | 44 | 33 | ▲11 | 3 → 6 | 6.55 | 25.89 |
+| `2021-regu-w03` | 16 | 25 | ▼9 | 5 → 8 | 8.21 | 25.89 |
+| `2021-regu-w04` | 21 | 27 | ▼6 | 5 → 7 | 13.35 | 25.89 |
+| `2021-regu-w05` | 12 | 9 | ▲3 | 4 → 4 | 16.70 | 25.89 |
+| `2021-regu-w06` | 10 | 11 | ▼1 | 2 → 2 | 17.26 | 25.89 |
+| `2021-regu-w07` | 6 | 6 | — | 2 → 2 | 23.48 | 25.89 |
+| `2021-regu-w08` | 8 | 6 | ▲2 | 3 → 2 | 20.29 | 25.89 |
+| `2021-regu-w09` | 5 | 4 | ▲1 | 2 → 2 | 22.03 | 25.89 |
+| `2021-regu-w10` | 5 | 2 | ▲3 | 2 → 2 | 22.40 | 25.89 |
+| `2021-regu-w11` | 5 | 2 | ▲3 | 2 → 2 | 22.78 | 25.89 |
+| `2021-regu-w12` | 2 | 2 | — | 2 → 2 | 25.75 | 25.89 |
+| `2021-regu-w13` | 4 | 2 | ▲2 | 2 → 2 | 26.63 | 25.89 |
+| `2021-regu-w14` | 3 | 2 | ▲1 | 1 → 1 | 27.17 | 25.89 |
+| `2021-regu-w15` | 2 | 2 | — | 1 → 1 | 27.34 | 25.89 |
+| `2021-post-w01` | 4 | 4 | — | 3 → 3 | 25.89 | 25.89 |
 
 Week 1 is the interesting row: live, Cincinnati is nowhere, because after one game
 against nobody in particular a zero-prior ridge knows nothing. In hindsight it is
@@ -191,11 +214,35 @@ converged, which is the divergence curve of report 02 §5.2 behaving itself.
 Source: the official CFP release of 5 December 2021. This is a human poll. It is a
 comparison and never an input (constraint 1).
 
-**What this document cannot tell you.** Cincinnati lost the Cotton Bowl semifinal to
-Alabama 27-6. That game is not in the archive for this season, so it is not in any
-number above. A reader who wants to argue that the playoff settled the question is
-arguing from evidence this poll has not seen — which is worth saying plainly rather
-than letting the omission pass as a result.
+## What happened next — and what the poll does with it
+
+This section used to be headed *what this document cannot tell you*, and it said that
+Cincinnati lost the Cotton Bowl semifinal to Alabama 27-6, that the game was not in
+the archive, and that a reader arguing the playoff settled the question was arguing
+from evidence this poll had not seen. That was an honest caveat and it was also a
+hole. It is closed. The game is in the frame:
+
+| Date | Game | Result | `game_type` | Weight | Source |
+|---|---|---|:---:|---:|---|
+| 31 December 2021 | CFP Semifinal (Cotton Bowl) | Alabama 27, Cincinnati 6 | `cfp` | 1.0 | `cfbd` |
+
+**And the answer is more interesting than either side of the old argument.**
+
+Cincinnati is **#2 live and #2 in hindsight** — the
+semifinal did not move its rank at all. That is the ordering behaving exactly as
+specified rather than dodging the question: the rank key asks how improbable it was
+to go 13-0 against *that schedule*, and losing a fourteenth game to Alabama does not
+retroactively make the first thirteen easier. A poll that dropped Cincinnati here
+would be scoring the semifinal twice — once as a loss and once as a reason to doubt
+the season that earned the invitation.
+
+What *does* move is the Power rating, the model's separate estimate of how good
+Cincinnati was: **27.34 points live, 25.89 in hindsight**, a fall of 1.45.
+That is the division of labour working, and it is the whole argument for publishing
+both numbers. The résumé says what you did; the power rating says how good you
+looked doing it. Alabama 27-6 is evidence about the second and not the first, and
+the two columns say so independently rather than averaging into one number that
+means neither.
 
 ## Reproduce it
 
@@ -204,5 +251,5 @@ uv run cfbpoll rank --season 2021 --through-week 15 --out out/
 uv run cfbpoll grid --season 2021 --out out/
 ```
 
-Generated by `scripts/make_demos.py` at 2026-08-12 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`).
-Code `a7f4f28` - config `configs/default.toml` sha256 `7fff0ae17c5e7030...`
+Generated by `scripts/make_demos.py` at 2026-08-13 from the local SportsDataverse MIT archive (2021-2025 `cfb_schedules_*`), plus the private CFBD archive for the 2021-2022 postseason (80 games).
+Code `71070f9` - config `configs/default.toml` sha256 `7fff0ae17c5e7030...`

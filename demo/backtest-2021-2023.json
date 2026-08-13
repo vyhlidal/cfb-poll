@@ -225,6 +225,22 @@
       "weight_source": "out_of_sample"
     },
     {
+      "bucket": "2021-post-w01",
+      "efficiency_contribution_sd": 3.4047458861244757,
+      "h_points": 2.1405987039765875,
+      "k": 82.54490105619233,
+      "lambda_l1": 300.0,
+      "lambda_l2": 0.5,
+      "n_blend_games": 682,
+      "results_contribution_sd": 10.812744988536107,
+      "season": 2021,
+      "season_type": "postseason",
+      "w1": 0.2165002757169169,
+      "w2": 0.7102252988043072,
+      "week": 1,
+      "weight_source": "out_of_sample"
+    },
+    {
       "bucket": "2022-regu-w02",
       "efficiency_contribution_sd": 4.675203031777683,
       "h_points": 17.41235253311682,
@@ -446,6 +462,22 @@
       "w1": 0.5253781087804055,
       "w2": 0.27667390866734726,
       "week": 15,
+      "weight_source": "out_of_sample"
+    },
+    {
+      "bucket": "2022-post-w01",
+      "efficiency_contribution_sd": 7.4630816928741766,
+      "h_points": 2.1815162084150175,
+      "k": 76.53173896182987,
+      "lambda_l1": 225.0,
+      "lambda_l2": 0.5,
+      "n_blend_games": 681,
+      "results_contribution_sd": 3.8685491793234537,
+      "season": 2022,
+      "season_type": "postseason",
+      "w1": 0.5252232779919347,
+      "w2": 0.27684468182028193,
+      "week": 1,
       "weight_source": "out_of_sample"
     },
     {
@@ -756,7 +788,7 @@
         "observed": {
           "mae": 13.561612644588795,
           "max_calibration_deviation_pp": 8.756022537173308,
-          "retrodictive_violation_rate": 0.19619131975199292,
+          "retrodictive_violation_rate": 0.19760479041916168,
           "rmse": 17.236517479093468,
           "su_accuracy": 0.6794952681388012
         },
@@ -778,14 +810,14 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "elo",
@@ -799,9 +831,9 @@
             "winpct"
           ],
           "lost_to": {
-            "winpct": 0.17803365810451727
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19619131975199292
+          "rate": 0.19760479041916168
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -812,7 +844,7 @@
         "observed": {
           "mae": 14.102805346769047,
           "max_calibration_deviation_pp": 8.817208846301572,
-          "retrodictive_violation_rate": 0.19619131975199292,
+          "retrodictive_violation_rate": 0.19760479041916168,
           "rmse": 17.92819066903427,
           "su_accuracy": 0.6710334788937409
         },
@@ -834,14 +866,14 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "elo",
@@ -855,9 +887,9 @@
             "winpct"
           ],
           "lost_to": {
-            "winpct": 0.17803365810451727
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19619131975199292
+          "rate": 0.19760479041916168
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -968,6 +1000,14 @@
             "system": "colley"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.676923076923077,
+            "churn_top25": 0.3076923076923077,
+            "n": 130.0,
+            "season": 2021,
+            "system": "colley"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 26.82442748091603,
             "churn_top25": 34.41025641025641,
@@ -1067,6 +1107,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.3740458015267176,
             "churn_top25": 1.8148148148148149,
+            "n": 131.0,
+            "season": 2022,
+            "system": "colley"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.4732824427480916,
+            "churn_top25": 0.24,
             "n": 131.0,
             "season": 2022,
             "system": "colley"
@@ -1184,34 +1232,34 @@
             "system": "colley"
           }
         ],
-        "mean_all": 9.584772912904693,
-        "mean_top25": 8.097636261722998
+        "mean_all": 9.155741000853785,
+        "mean_top25": 7.725074828014577
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.19619131975199292,
-      "retrodictive_violation_rate_full_season_refit": 0.19629963898916966,
+      "retrodictive_violation_rate": 0.19760479041916168,
+      "retrodictive_violation_rate_full_season_refit": 0.20081227436823104,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.18442622950819673,
-            "violations": 135.0
+            "violation_rate": 0.1885245901639344,
+            "violations": 138.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.18442622950819673,
-          "violations": 135.0
+          "violation_rate": 0.18311688311688312,
+          "violations": 141.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.22070844686648503,
-            "violations": 162.0
+            "violation_rate": 0.23024523160762944,
+            "violations": 169.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.22070844686648503,
-          "violations": 162.0
+          "violation_rate": 0.22551546391752578,
+          "violations": 175.0
         },
         {
           "full_season_refit": {
@@ -1227,7 +1275,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.28687299085648793,
+          "brier": 0.25106379377032567,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -1241,135 +1289,135 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.1672813643254077,
+              "n": 2.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.24919905287846897,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.2559705663716376,
+              "n": 11.0,
+              "observed_rate": 0.2727272727272727
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.366057649372099,
-              "n": 12.0,
-              "observed_rate": 0.6666666666666666
+              "counted": 1.0,
+              "mean_predicted": 0.3613738487735067,
+              "n": 35.0,
+              "observed_rate": 0.5142857142857142
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4439682895453207,
-              "n": 15.0,
-              "observed_rate": 0.4666666666666667
+              "counted": 1.0,
+              "mean_predicted": 0.4452107764102232,
+              "n": 37.0,
+              "observed_rate": 0.5405405405405406
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.546413687797337,
-              "n": 7.0,
-              "observed_rate": 0.2857142857142857
+              "counted": 1.0,
+              "mean_predicted": 0.5441277586057857,
+              "n": 22.0,
+              "observed_rate": 0.5909090909090909
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6815025319803232,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6634773994291163,
+              "n": 5.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.9,
-              "bin_low": 0.8,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 1.0,
-              "bin_low": 0.9,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            }
-          ],
-          "log_loss": 0.7731553649360731,
-          "mae": 18.25668548443094,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 22.49879593279472,
-          "sigma_mean": 16.370290686237496,
-          "su_accuracy": 0.41025641025641024
-        },
-        "cfp": {
-          "brier": 0.29683504624240803,
-          "calibration": [
-            {
-              "bin_high": 0.1,
-              "bin_low": 0.0,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.2,
-              "bin_low": 0.1,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.30000000000000004,
-              "bin_low": 0.2,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.4,
-              "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.5,
-              "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4314694011914533,
-              "n": 2.0,
-              "observed_rate": 1.0
-            },
-            {
-              "bin_high": 0.6000000000000001,
-              "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5066858758773861,
+              "mean_predicted": 0.7209830939883074,
               "n": 1.0,
               "observed_rate": 1.0
             },
             {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.6956744988379809,
+          "mae": 14.11733995168991,
+          "max_calibration_deviation_pp": 15.291186551220754,
+          "n_games": 113,
+          "rmse": 18.407328350315083,
+          "sigma_mean": 17.13416606111366,
+          "su_accuracy": 0.5309734513274337
+        },
+        "cfp": {
+          "brier": 0.24388701280433608,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.37477840605582674,
+              "n": 1.0,
+              "observed_rate": 0.0
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.46668837388666373,
+              "n": 5.0,
+              "observed_rate": 0.6
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5240624148370988,
+              "n": 3.0,
+              "observed_rate": 1.0
+            },
+            {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
@@ -1402,13 +1450,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.78761410506032,
-          "mae": 13.128042875057984,
+          "log_loss": 0.6806558419406138,
+          "mae": 17.369075918237527,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 15.493403446221892,
-          "sigma_mean": 16.370290686237503,
-          "su_accuracy": 0.3333333333333333
+          "n_games": 9,
+          "rmse": 24.07757515306745,
+          "sigma_mean": 17.14992134794133,
+          "su_accuracy": 0.6666666666666666
         },
         "fbs_vs_fbs": {
           "brier": 0.21107380642849222,
@@ -1597,7 +1645,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.28687299085648793,
+          "brier": 0.25106379377032567,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -1611,135 +1659,135 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.1672813643254077,
+              "n": 2.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.24919905287846897,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.2559705663716376,
+              "n": 11.0,
+              "observed_rate": 0.2727272727272727
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.366057649372099,
-              "n": 12.0,
-              "observed_rate": 0.6666666666666666
+              "counted": 1.0,
+              "mean_predicted": 0.3613738487735067,
+              "n": 35.0,
+              "observed_rate": 0.5142857142857142
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4439682895453207,
-              "n": 15.0,
-              "observed_rate": 0.4666666666666667
+              "counted": 1.0,
+              "mean_predicted": 0.4452107764102232,
+              "n": 37.0,
+              "observed_rate": 0.5405405405405406
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.546413687797337,
-              "n": 7.0,
-              "observed_rate": 0.2857142857142857
+              "counted": 1.0,
+              "mean_predicted": 0.5441277586057857,
+              "n": 22.0,
+              "observed_rate": 0.5909090909090909
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6815025319803232,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6634773994291163,
+              "n": 5.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.9,
-              "bin_low": 0.8,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 1.0,
-              "bin_low": 0.9,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            }
-          ],
-          "log_loss": 0.7731553649360731,
-          "mae": 18.25668548443094,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 22.49879593279472,
-          "sigma_mean": 16.370290686237496,
-          "su_accuracy": 0.41025641025641024
-        },
-        "cfp": {
-          "brier": 0.29683504624240803,
-          "calibration": [
-            {
-              "bin_high": 0.1,
-              "bin_low": 0.0,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.2,
-              "bin_low": 0.1,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.30000000000000004,
-              "bin_low": 0.2,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.4,
-              "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.5,
-              "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4314694011914533,
-              "n": 2.0,
-              "observed_rate": 1.0
-            },
-            {
-              "bin_high": 0.6000000000000001,
-              "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5066858758773861,
+              "mean_predicted": 0.7209830939883074,
               "n": 1.0,
               "observed_rate": 1.0
             },
             {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 1.0,
+              "bin_low": 0.9,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            }
+          ],
+          "log_loss": 0.6956744988379809,
+          "mae": 14.11733995168991,
+          "max_calibration_deviation_pp": 15.291186551220754,
+          "n_games": 113,
+          "rmse": 18.407328350315083,
+          "sigma_mean": 17.13416606111366,
+          "su_accuracy": 0.5309734513274337
+        },
+        "cfp": {
+          "brier": 0.24388701280433608,
+          "calibration": [
+            {
+              "bin_high": 0.1,
+              "bin_low": 0.0,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.2,
+              "bin_low": 0.1,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.30000000000000004,
+              "bin_low": 0.2,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.4,
+              "bin_low": 0.30000000000000004,
+              "counted": 0.0,
+              "mean_predicted": 0.37477840605582674,
+              "n": 1.0,
+              "observed_rate": 0.0
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": 0.46668837388666373,
+              "n": 5.0,
+              "observed_rate": 0.6
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": 0.5240624148370988,
+              "n": 3.0,
+              "observed_rate": 1.0
+            },
+            {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
@@ -1772,13 +1820,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.78761410506032,
-          "mae": 13.128042875057984,
+          "log_loss": 0.6806558419406138,
+          "mae": 17.369075918237527,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 15.493403446221892,
-          "sigma_mean": 16.370290686237503,
-          "su_accuracy": 0.3333333333333333
+          "n_games": 9,
+          "rmse": 24.07757515306745,
+          "sigma_mean": 17.14992134794133,
+          "su_accuracy": 0.6666666666666666
         },
         "fbs_vs_fbs": {
           "brier": 0.20630028568502112,
@@ -1974,7 +2022,7 @@
         "observed": {
           "mae": 13.559341747337571,
           "max_calibration_deviation_pp": 7.015778526283878,
-          "retrodictive_violation_rate": 0.224977856510186,
+          "retrodictive_violation_rate": 0.2202737382378101,
           "rmse": 17.09775426722016,
           "su_accuracy": 0.6876971608832808
         },
@@ -1996,7 +2044,9 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "l1": 0.2395925597874225
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -2010,16 +2060,14 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.224977856510186
+          "rate": 0.2202737382378101
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -2030,7 +2078,7 @@
         "observed": {
           "mae": 13.938572215336979,
           "max_calibration_deviation_pp": 7.063248457018789,
-          "retrodictive_violation_rate": 0.224977856510186,
+          "retrodictive_violation_rate": 0.2202737382378101,
           "rmse": 17.572104000224442,
           "su_accuracy": 0.6865599223677826
         },
@@ -2052,7 +2100,9 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "l1": 0.2395925597874225
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -2066,16 +2116,14 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.224977856510186
+          "rate": 0.2202737382378101
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -2186,6 +2234,14 @@
             "system": "elo"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.27692307692307694,
+            "churn_top25": 0.0,
+            "n": 130.0,
+            "season": 2021,
+            "system": "elo"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 20.85496183206107,
             "churn_top25": 19.257142857142856,
@@ -2285,6 +2341,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.6946564885496183,
             "churn_top25": 3.642857142857143,
+            "n": 131.0,
+            "season": 2022,
+            "system": "elo"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.13740458015267176,
+            "churn_top25": 0.0,
             "n": 131.0,
             "season": 2022,
             "system": "elo"
@@ -2402,34 +2466,34 @@
             "system": "elo"
           }
         ],
-        "mean_all": 9.596544929558188,
-        "mean_top25": 7.504205075680163
+        "mean_all": 9.149431543795316,
+        "mean_top25": 7.146861976838251
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.224977856510186,
-      "retrodictive_violation_rate_full_season_refit": 0.22427797833935018,
+      "retrodictive_violation_rate": 0.2202737382378101,
+      "retrodictive_violation_rate_full_season_refit": 0.22518050541516246,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.21448087431693988,
-            "violations": 157.0
+            "violation_rate": 0.20491803278688525,
+            "violations": 150.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.21448087431693988,
-          "violations": 157.0
+          "violation_rate": 0.1974025974025974,
+          "violations": 152.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.23705722070844687,
-            "violations": 174.0
+            "violation_rate": 0.24931880108991825,
+            "violations": 183.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.23705722070844687,
-          "violations": 174.0
+          "violation_rate": 0.23969072164948454,
+          "violations": 186.0
         },
         {
           "full_season_refit": {
@@ -2445,7 +2509,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.3432996614769876,
+          "brier": 0.257607820989931,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -2459,57 +2523,57 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.16048468849998263,
-              "n": 3.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.1567436015375477,
+              "n": 4.0,
+              "observed_rate": 0.75
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.24252544349274108,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.2443497945870632,
+              "n": 14.0,
+              "observed_rate": 0.21428571428571427
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3441186489744517,
-              "n": 7.0,
-              "observed_rate": 0.5714285714285714
+              "counted": 1.0,
+              "mean_predicted": 0.35237376368920204,
+              "n": 32.0,
+              "observed_rate": 0.4375
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.4411398742943154,
-              "n": 8.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.4449392959930921,
+              "n": 18.0,
+              "observed_rate": 0.5555555555555556
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5450538948435582,
-              "n": 11.0,
-              "observed_rate": 0.36363636363636365
+              "counted": 1.0,
+              "mean_predicted": 0.5455790873885872,
+              "n": 31.0,
+              "observed_rate": 0.6129032258064516
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6669970751721778,
-              "n": 3.0,
-              "observed_rate": 0.0
+              "mean_predicted": 0.6657580288694883,
+              "n": 6.0,
+              "observed_rate": 0.16666666666666666
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7195301924619889,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.7281924718485132,
+              "n": 7.0,
+              "observed_rate": 0.8571428571428571
             },
             {
               "bin_high": 0.9,
@@ -2528,16 +2592,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.9239267852878515,
-          "mae": 19.961835063929648,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 24.14180776109914,
-          "sigma_mean": 15.487298328355237,
-          "su_accuracy": 0.358974358974359
+          "log_loss": 0.7196733387333165,
+          "mae": 14.85743486988188,
+          "max_calibration_deviation_pp": 8.512623631079796,
+          "n_games": 113,
+          "rmse": 19.232722751946934,
+          "sigma_mean": 16.821766328468243,
+          "su_accuracy": 0.5663716814159292
         },
         "cfp": {
-          "brier": 0.19033858924211633,
+          "brier": 0.25182594044138373,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -2575,17 +2639,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.49450749424016643,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.48259928228681054,
+              "n": 5.0,
+              "observed_rate": 0.8
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5903542346569151,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5732488944795949,
+              "n": 3.0,
+              "observed_rate": 0.3333333333333333
             },
             {
               "bin_high": 0.7000000000000001,
@@ -2620,13 +2684,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5720715006757568,
-          "mae": 8.706144346686452,
+          "log_loss": 0.696443299564938,
+          "mae": 17.5891309095162,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 10.793358890655716,
-          "sigma_mean": 15.487298328355239,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 24.552459345215865,
+          "sigma_mean": 16.851264685219572,
+          "su_accuracy": 0.3333333333333333
         },
         "fbs_vs_fbs": {
           "brier": 0.2031218496862453,
@@ -2815,7 +2879,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.3432996614769876,
+          "brier": 0.257607820989931,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -2829,57 +2893,57 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.16048468849998263,
-              "n": 3.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.1567436015375477,
+              "n": 4.0,
+              "observed_rate": 0.75
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.24252544349274108,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.2443497945870632,
+              "n": 14.0,
+              "observed_rate": 0.21428571428571427
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3441186489744517,
-              "n": 7.0,
-              "observed_rate": 0.5714285714285714
+              "counted": 1.0,
+              "mean_predicted": 0.35237376368920204,
+              "n": 32.0,
+              "observed_rate": 0.4375
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.4411398742943154,
-              "n": 8.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.4449392959930921,
+              "n": 18.0,
+              "observed_rate": 0.5555555555555556
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5450538948435582,
-              "n": 11.0,
-              "observed_rate": 0.36363636363636365
+              "counted": 1.0,
+              "mean_predicted": 0.5455790873885872,
+              "n": 31.0,
+              "observed_rate": 0.6129032258064516
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6669970751721778,
-              "n": 3.0,
-              "observed_rate": 0.0
+              "mean_predicted": 0.6657580288694883,
+              "n": 6.0,
+              "observed_rate": 0.16666666666666666
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7195301924619889,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.7281924718485132,
+              "n": 7.0,
+              "observed_rate": 0.8571428571428571
             },
             {
               "bin_high": 0.9,
@@ -2898,16 +2962,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.9239267852878515,
-          "mae": 19.961835063929648,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 24.14180776109914,
-          "sigma_mean": 15.487298328355237,
-          "su_accuracy": 0.358974358974359
+          "log_loss": 0.7196733387333165,
+          "mae": 14.85743486988188,
+          "max_calibration_deviation_pp": 8.512623631079796,
+          "n_games": 113,
+          "rmse": 19.232722751946934,
+          "sigma_mean": 16.821766328468243,
+          "su_accuracy": 0.5663716814159292
         },
         "cfp": {
-          "brier": 0.19033858924211633,
+          "brier": 0.25182594044138373,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -2945,17 +3009,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.49450749424016643,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.48259928228681054,
+              "n": 5.0,
+              "observed_rate": 0.8
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5903542346569151,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5732488944795949,
+              "n": 3.0,
+              "observed_rate": 0.3333333333333333
             },
             {
               "bin_high": 0.7000000000000001,
@@ -2990,13 +3054,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5720715006757568,
-          "mae": 8.706144346686452,
+          "log_loss": 0.696443299564938,
+          "mae": 17.5891309095162,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 10.793358890655716,
-          "sigma_mean": 15.487298328355239,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 24.552459345215865,
+          "sigma_mean": 16.851264685219572,
+          "su_accuracy": 0.3333333333333333
         },
         "fbs_vs_fbs": {
           "brier": 0.20142385963704865,
@@ -3290,7 +3354,7 @@
       "retrodictive_violations": [],
       "segments": {
         "bowl": {
-          "brier": 0.2566452147911363,
+          "brier": 0.2546095045291548,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -3328,9 +3392,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 1.0,
-              "mean_predicted": 0.4747904390398283,
-              "n": 37.0,
-              "observed_rate": 0.5405405405405406
+              "mean_predicted": 0.45167594570545083,
+              "n": 111.0,
+              "observed_rate": 0.5135135135135135
             },
             {
               "bin_high": 0.6000000000000001,
@@ -3373,16 +3437,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7065060692957201,
-          "mae": 16.844049967126885,
-          "max_calibration_deviation_pp": 6.5750101500712255,
-          "n_games": 39,
-          "rmse": 21.744407105697167,
-          "sigma_mean": 21.085998999265378,
-          "su_accuracy": 0.4358974358974359
+          "log_loss": 0.7024229019691943,
+          "mae": 14.19902103795907,
+          "max_calibration_deviation_pp": 6.183756780806266,
+          "n_games": 113,
+          "rmse": 18.500919190725003,
+          "sigma_mean": 20.911864148419074,
+          "su_accuracy": 0.4778761061946903
         },
         "cfp": {
-          "brier": 0.2758450829239764,
+          "brier": 0.2611388540355403,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -3420,9 +3484,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.47479043903982826,
-              "n": 3.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4516979509505379,
+              "n": 9.0,
+              "observed_rate": 0.6666666666666666
             },
             {
               "bin_high": 0.6000000000000001,
@@ -3465,13 +3529,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7448817532652355,
-          "mae": 12.666666666666563,
+          "log_loss": 0.7154781999853516,
+          "mae": 17.96825396825396,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 14.399074044303358,
-          "sigma_mean": 21.08599899926538,
-          "su_accuracy": 0.0
+          "n_games": 9,
+          "rmse": 24.683943205132252,
+          "sigma_mean": 20.95064996662796,
+          "su_accuracy": 0.3333333333333333
         },
         "fbs_vs_fbs": {
           "brier": 0.24933196400313737,
@@ -3660,7 +3724,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2566452147911363,
+          "brier": 0.2546095045291548,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -3698,9 +3762,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 1.0,
-              "mean_predicted": 0.4747904390398283,
-              "n": 37.0,
-              "observed_rate": 0.5405405405405406
+              "mean_predicted": 0.45167594570545083,
+              "n": 111.0,
+              "observed_rate": 0.5135135135135135
             },
             {
               "bin_high": 0.6000000000000001,
@@ -3743,16 +3807,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7065060692957201,
-          "mae": 16.844049967126885,
-          "max_calibration_deviation_pp": 6.5750101500712255,
-          "n_games": 39,
-          "rmse": 21.744407105697167,
-          "sigma_mean": 21.085998999265378,
-          "su_accuracy": 0.4358974358974359
+          "log_loss": 0.7024229019691943,
+          "mae": 14.19902103795907,
+          "max_calibration_deviation_pp": 6.183756780806266,
+          "n_games": 113,
+          "rmse": 18.500919190725003,
+          "sigma_mean": 20.911864148419074,
+          "su_accuracy": 0.4778761061946903
         },
         "cfp": {
-          "brier": 0.2758450829239764,
+          "brier": 0.2611388540355403,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -3790,9 +3854,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.47479043903982826,
-              "n": 3.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4516979509505379,
+              "n": 9.0,
+              "observed_rate": 0.6666666666666666
             },
             {
               "bin_high": 0.6000000000000001,
@@ -3835,13 +3899,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7448817532652355,
-          "mae": 12.666666666666563,
+          "log_loss": 0.7154781999853516,
+          "mae": 17.96825396825396,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 14.399074044303358,
-          "sigma_mean": 21.08599899926538,
-          "su_accuracy": 0.0
+          "n_games": 9,
+          "rmse": 24.683943205132252,
+          "sigma_mean": 20.95064996662796,
+          "su_accuracy": 0.3333333333333333
         },
         "fbs_vs_fbs": {
           "brier": 0.24749755023466574,
@@ -4037,7 +4101,7 @@
         "observed": {
           "mae": 13.16473888247642,
           "max_calibration_deviation_pp": 6.608155198674753,
-          "retrodictive_violation_rate": 0.2395925597874225,
+          "retrodictive_violation_rate": 0.24337040205303678,
           "rmse": 16.683740809963282,
           "su_accuracy": 0.6914826498422713
         },
@@ -4071,17 +4135,17 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "elo": 0.224977856510186,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2395925597874225
+          "rate": 0.24337040205303678
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -4092,7 +4156,7 @@
         "observed": {
           "mae": 13.91918345117194,
           "max_calibration_deviation_pp": 9.035405991136114,
-          "retrodictive_violation_rate": 0.2395925597874225,
+          "retrodictive_violation_rate": 0.24337040205303678,
           "rmse": 17.54733484178136,
           "su_accuracy": 0.6841339155749636
         },
@@ -4126,17 +4190,17 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "elo": 0.224977856510186,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2395925597874225
+          "rate": 0.24337040205303678
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -4247,6 +4311,14 @@
             "system": "l1"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.18461538461538463,
+            "churn_top25": 0.16,
+            "n": 130.0,
+            "season": 2021,
+            "system": "l1"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 19.480916030534353,
             "churn_top25": 25.775,
@@ -4346,6 +4418,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.282442748091603,
             "churn_top25": 0.8,
+            "n": 131.0,
+            "season": 2022,
+            "system": "l1"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.3969465648854962,
+            "churn_top25": 0.24,
             "n": 131.0,
             "season": 2022,
             "system": "l1"
@@ -4463,34 +4543,34 @@
             "system": "l1"
           }
         ],
-        "mean_all": 7.96725835434152,
-        "mean_top25": 7.304037846311921
+        "mean_all": 7.601711812456231,
+        "mean_top25": 6.965750329820876
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.2395925597874225,
+      "retrodictive_violation_rate": 0.24337040205303678,
       "retrodictive_violation_rate_full_season_refit": 0.23465703971119134,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.226775956284153,
-            "violations": 166.0
+            "violation_rate": 0.22814207650273224,
+            "violations": 167.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.226775956284153,
-          "violations": 166.0
+          "violation_rate": 0.23766233766233766,
+          "violations": 183.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.24931880108991825,
-            "violations": 183.0
+            "violation_rate": 0.24795640326975477,
+            "violations": 182.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.24931880108991825,
-          "violations": 183.0
+          "violation_rate": 0.25,
+          "violations": 194.0
         },
         {
           "full_season_refit": {
@@ -4506,7 +4586,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.29630629082745996,
+          "brier": 0.2509897541672412,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -4520,65 +4600,65 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.1421147359811968,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15245832854151295,
+              "n": 6.0,
+              "observed_rate": 0.16666666666666666
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.24247573949139098,
+              "n": 7.0,
+              "observed_rate": 0.2857142857142857
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.35604287100598625,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3496445100130932,
+              "n": 15.0,
+              "observed_rate": 0.6
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.46444756854992897,
-              "n": 8.0,
-              "observed_rate": 0.5
+              "counted": 1.0,
+              "mean_predicted": 0.45714544799128787,
+              "n": 28.0,
+              "observed_rate": 0.4642857142857143
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5730448069544005,
-              "n": 5.0,
-              "observed_rate": 0.4
+              "counted": 1.0,
+              "mean_predicted": 0.5523367600866662,
+              "n": 22.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6431322865393811,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6461833418756374,
+              "n": 12.0,
+              "observed_rate": 0.5833333333333334
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7436954121853716,
-              "n": 8.0,
-              "observed_rate": 0.25
+              "mean_predicted": 0.7403682071648406,
+              "n": 14.0,
+              "observed_rate": 0.42857142857142855
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8376710066634129,
-              "n": 6.0,
-              "observed_rate": 0.8333333333333334
+              "mean_predicted": 0.8341043155816704,
+              "n": 9.0,
+              "observed_rate": 0.8888888888888888
             },
             {
               "bin_high": 1.0,
@@ -4589,16 +4669,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7959211543230876,
-          "mae": 17.826097631810025,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.923840614275598,
-          "sigma_mean": 16.47877936083736,
-          "su_accuracy": 0.46153846153846156
+          "log_loss": 0.6946723621909869,
+          "mae": 14.661787612549661,
+          "max_calibration_deviation_pp": 5.233676008666621,
+          "n_games": 113,
+          "rmse": 18.49447015517035,
+          "sigma_mean": 16.60921095452664,
+          "su_accuracy": 0.5575221238938053
         },
         "cfp": {
-          "brier": 0.08070386099939085,
+          "brier": 0.1514085740538279,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -4620,9 +4700,9 @@
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.2613395724471962,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.4,
@@ -4636,9 +4716,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.45207272593239356,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
@@ -4652,17 +4732,17 @@
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6517926620048113,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.7125802855817793,
+              "n": 1.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.9,
@@ -4681,13 +4761,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.309809293093708,
-          "mae": 5.282729602154649,
+          "log_loss": 0.4749098872722043,
+          "mae": 12.839397226587238,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 5.722204048570873,
-          "sigma_mean": 16.478779360837354,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 18.487825085976453,
+          "sigma_mean": 16.62782818841937,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.2059086423455828,
@@ -4876,7 +4956,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.29630629082745996,
+          "brier": 0.2509897541672412,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -4890,65 +4970,65 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.1421147359811968,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15245832854151295,
+              "n": 6.0,
+              "observed_rate": 0.16666666666666666
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.24247573949139098,
+              "n": 7.0,
+              "observed_rate": 0.2857142857142857
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.35604287100598625,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3496445100130932,
+              "n": 15.0,
+              "observed_rate": 0.6
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.46444756854992897,
-              "n": 8.0,
-              "observed_rate": 0.5
+              "counted": 1.0,
+              "mean_predicted": 0.45714544799128787,
+              "n": 28.0,
+              "observed_rate": 0.4642857142857143
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5730448069544005,
-              "n": 5.0,
-              "observed_rate": 0.4
+              "counted": 1.0,
+              "mean_predicted": 0.5523367600866662,
+              "n": 22.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6431322865393811,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6461833418756374,
+              "n": 12.0,
+              "observed_rate": 0.5833333333333334
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7436954121853716,
-              "n": 8.0,
-              "observed_rate": 0.25
+              "mean_predicted": 0.7403682071648406,
+              "n": 14.0,
+              "observed_rate": 0.42857142857142855
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8376710066634129,
-              "n": 6.0,
-              "observed_rate": 0.8333333333333334
+              "mean_predicted": 0.8341043155816704,
+              "n": 9.0,
+              "observed_rate": 0.8888888888888888
             },
             {
               "bin_high": 1.0,
@@ -4959,16 +5039,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7959211543230876,
-          "mae": 17.826097631810025,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.923840614275598,
-          "sigma_mean": 16.47877936083736,
-          "su_accuracy": 0.46153846153846156
+          "log_loss": 0.6946723621909869,
+          "mae": 14.661787612549661,
+          "max_calibration_deviation_pp": 5.233676008666621,
+          "n_games": 113,
+          "rmse": 18.49447015517035,
+          "sigma_mean": 16.60921095452664,
+          "su_accuracy": 0.5575221238938053
         },
         "cfp": {
-          "brier": 0.08070386099939085,
+          "brier": 0.1514085740538279,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -4990,9 +5070,9 @@
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.2613395724471962,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.4,
@@ -5006,9 +5086,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.45207272593239356,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
@@ -5022,17 +5102,17 @@
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6517926620048113,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.7125802855817793,
+              "n": 1.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.9,
@@ -5051,13 +5131,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.309809293093708,
-          "mae": 5.282729602154649,
+          "log_loss": 0.4749098872722043,
+          "mae": 12.839397226587238,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 5.722204048570873,
-          "sigma_mean": 16.478779360837354,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 18.487825085976453,
+          "sigma_mean": 16.62782818841937,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.19948543816064868,
@@ -5253,7 +5333,7 @@
         "observed": {
           "mae": 13.227459382669782,
           "max_calibration_deviation_pp": 6.239862516799633,
-          "retrodictive_violation_rate": 0.2121346324180691,
+          "retrodictive_violation_rate": 0.218562874251497,
           "rmse": 16.74011282917185,
           "su_accuracy": 0.6952681388012618
         },
@@ -5275,10 +5355,10 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l3": 0.22320637732506643,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -5292,13 +5372,13 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2121346324180691
+          "rate": 0.218562874251497
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -5309,7 +5389,7 @@
         "observed": {
           "mae": 13.902805469208458,
           "max_calibration_deviation_pp": 10.858599105233946,
-          "retrodictive_violation_rate": 0.2121346324180691,
+          "retrodictive_violation_rate": 0.218562874251497,
           "rmse": 17.62820961193088,
           "su_accuracy": 0.6846191169335274
         },
@@ -5331,10 +5411,10 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l3": 0.22320637732506643,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -5348,13 +5428,13 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2121346324180691
+          "rate": 0.218562874251497
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -5465,6 +5545,14 @@
             "system": "l2"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.5692307692307692,
+            "churn_top25": 0.2692307692307692,
+            "n": 130.0,
+            "season": 2021,
+            "system": "l2"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 23.16030534351145,
             "churn_top25": 23.789473684210527,
@@ -5564,6 +5652,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.251908396946565,
             "churn_top25": 1.1923076923076923,
+            "n": 131.0,
+            "season": 2022,
+            "system": "l2"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.3816793893129771,
+            "churn_top25": 0.08,
             "n": 131.0,
             "season": 2022,
             "system": "l2"
@@ -5681,34 +5777,34 @@
             "system": "l2"
           }
         ],
-        "mean_all": 8.06297650320752,
-        "mean_top25": 6.745253297879057
+        "mean_all": 7.701665959210583,
+        "mean_top25": 6.432365778199834
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.2121346324180691,
-      "retrodictive_violation_rate_full_season_refit": 0.20622743682310468,
+      "retrodictive_violation_rate": 0.218562874251497,
+      "retrodictive_violation_rate_full_season_refit": 0.2075812274368231,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.21311475409836064,
-            "violations": 156.0
+            "violation_rate": 0.21174863387978143,
+            "violations": 155.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.21311475409836064,
-          "violations": 156.0
+          "violation_rate": 0.21558441558441557,
+          "violations": 166.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.21798365122615804,
-            "violations": 160.0
+            "violation_rate": 0.22343324250681199,
+            "violations": 164.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.21798365122615804,
-          "violations": 160.0
+          "violation_rate": 0.2345360824742268,
+          "violations": 182.0
         },
         {
           "full_season_refit": {
@@ -5724,7 +5820,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.2816160838536857,
+          "brier": 0.250770800546406,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -5738,56 +5834,56 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.19220957274435285,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.18916884605755563,
+              "n": 5.0,
+              "observed_rate": 0.2
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.26304948111257537,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.26352808254116555,
+              "n": 8.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3669198987039345,
-              "n": 5.0,
-              "observed_rate": 0.0
+              "counted": 1.0,
+              "mean_predicted": 0.3590616453809342,
+              "n": 23.0,
+              "observed_rate": 0.4782608695652174
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4600213838381402,
-              "n": 10.0,
-              "observed_rate": 0.8
+              "counted": 1.0,
+              "mean_predicted": 0.4547853793319738,
+              "n": 32.0,
+              "observed_rate": 0.46875
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5442151226037805,
-              "n": 9.0,
-              "observed_rate": 0.5555555555555556
+              "counted": 1.0,
+              "mean_predicted": 0.545276417678756,
+              "n": 23.0,
+              "observed_rate": 0.6086956521739131
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6604949944009508,
-              "n": 8.0,
-              "observed_rate": 0.125
+              "mean_predicted": 0.6497538656896568,
+              "n": 18.0,
+              "observed_rate": 0.4444444444444444
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.749536663154229,
-              "n": 2.0,
+              "mean_predicted": 0.7650896162936179,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -5807,16 +5903,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7611788441584276,
-          "mae": 17.68920770759593,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.718135960128887,
-          "sigma_mean": 15.517556224244373,
-          "su_accuracy": 0.4358974358974359
+          "log_loss": 0.6942392255440039,
+          "mae": 14.038604068822636,
+          "max_calibration_deviation_pp": 11.91992241842832,
+          "n_games": 113,
+          "rmse": 18.176996909686082,
+          "sigma_mean": 16.41555422172808,
+          "su_accuracy": 0.5575221238938053
         },
         "cfp": {
-          "brier": 0.1980333051852998,
+          "brier": 0.18657972180057739,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -5854,17 +5950,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.44982142617115856,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4331760521445935,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.5772306121999807,
+              "n": 3.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.7000000000000001,
@@ -5899,13 +5995,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5868227231184098,
-          "mae": 8.871032408598419,
+          "log_loss": 0.5648206779892335,
+          "mae": 14.980761210698098,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 10.648427715102365,
-          "sigma_mean": 15.517556224244379,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 21.52657561648435,
+          "sigma_mean": 16.439829342911448,
+          "su_accuracy": 0.8888888888888888
         },
         "fbs_vs_fbs": {
           "brier": 0.204606518132722,
@@ -6094,7 +6190,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2816160838536857,
+          "brier": 0.250770800546406,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -6108,56 +6204,56 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.19220957274435285,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.18916884605755563,
+              "n": 5.0,
+              "observed_rate": 0.2
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.26304948111257537,
-              "n": 3.0,
-              "observed_rate": 0.6666666666666666
+              "mean_predicted": 0.26352808254116555,
+              "n": 8.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3669198987039345,
-              "n": 5.0,
-              "observed_rate": 0.0
+              "counted": 1.0,
+              "mean_predicted": 0.3590616453809342,
+              "n": 23.0,
+              "observed_rate": 0.4782608695652174
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4600213838381402,
-              "n": 10.0,
-              "observed_rate": 0.8
+              "counted": 1.0,
+              "mean_predicted": 0.4547853793319738,
+              "n": 32.0,
+              "observed_rate": 0.46875
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5442151226037805,
-              "n": 9.0,
-              "observed_rate": 0.5555555555555556
+              "counted": 1.0,
+              "mean_predicted": 0.545276417678756,
+              "n": 23.0,
+              "observed_rate": 0.6086956521739131
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6604949944009508,
-              "n": 8.0,
-              "observed_rate": 0.125
+              "mean_predicted": 0.6497538656896568,
+              "n": 18.0,
+              "observed_rate": 0.4444444444444444
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.749536663154229,
-              "n": 2.0,
+              "mean_predicted": 0.7650896162936179,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -6177,16 +6273,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7611788441584276,
-          "mae": 17.68920770759593,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.718135960128887,
-          "sigma_mean": 15.517556224244373,
-          "su_accuracy": 0.4358974358974359
+          "log_loss": 0.6942392255440039,
+          "mae": 14.038604068822636,
+          "max_calibration_deviation_pp": 11.91992241842832,
+          "n_games": 113,
+          "rmse": 18.176996909686082,
+          "sigma_mean": 16.41555422172808,
+          "su_accuracy": 0.5575221238938053
         },
         "cfp": {
-          "brier": 0.1980333051852998,
+          "brier": 0.18657972180057739,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -6224,17 +6320,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.44982142617115856,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4331760521445935,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.5772306121999807,
+              "n": 3.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.7000000000000001,
@@ -6269,13 +6365,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5868227231184098,
-          "mae": 8.871032408598419,
+          "log_loss": 0.5648206779892335,
+          "mae": 14.980761210698098,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 10.648427715102365,
-          "sigma_mean": 15.517556224244379,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 21.52657561648435,
+          "sigma_mean": 16.439829342911448,
+          "su_accuracy": 0.8888888888888888
         },
         "fbs_vs_fbs": {
           "brier": 0.1975455026778107,
@@ -6471,7 +6567,7 @@
         "observed": {
           "mae": 13.037833849228042,
           "max_calibration_deviation_pp": 7.369866395003555,
-          "retrodictive_violation_rate": 0.22320637732506643,
+          "retrodictive_violation_rate": 0.227972626176219,
           "rmse": 16.53120930011875,
           "su_accuracy": 0.6870662460567823
         },
@@ -6493,8 +6589,7 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225
+            "l1": 0.24337040205303678
           },
           "compared_against": [
             "colley",
@@ -6508,15 +6603,16 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.22320637732506643
+          "rate": 0.227972626176219
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -6527,7 +6623,7 @@
         "observed": {
           "mae": 13.742026191866993,
           "max_calibration_deviation_pp": 14.254312561588023,
-          "retrodictive_violation_rate": 0.22320637732506643,
+          "retrodictive_violation_rate": 0.227972626176219,
           "rmse": 17.459942816366947,
           "su_accuracy": 0.6773410965550704
         },
@@ -6549,8 +6645,7 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225
+            "l1": 0.24337040205303678
           },
           "compared_against": [
             "colley",
@@ -6564,15 +6659,16 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.22320637732506643
+          "rate": 0.227972626176219
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -6683,6 +6779,14 @@
             "system": "l3"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.6,
+            "churn_top25": 0.15384615384615385,
+            "n": 130.0,
+            "season": 2021,
+            "system": "l3"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 22.3206106870229,
             "churn_top25": 30.102564102564102,
@@ -6782,6 +6886,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.4351145038167938,
             "churn_top25": 1.0769230769230769,
+            "n": 131.0,
+            "season": 2022,
+            "system": "l3"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.3053435114503817,
+            "churn_top25": 0.08,
             "n": 131.0,
             "season": 2022,
             "system": "l3"
@@ -6899,34 +7011,34 @@
             "system": "l3"
           }
         ],
-        "mean_all": 8.286317996988949,
-        "mean_top25": 7.455619148967054
+        "mean_all": 7.913287223595438,
+        "mean_top25": 7.106157431250675
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.22320637732506643,
-      "retrodictive_violation_rate_full_season_refit": 0.20306859205776173,
+      "retrodictive_violation_rate": 0.227972626176219,
+      "retrodictive_violation_rate_full_season_refit": 0.20622743682310468,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.20901639344262296,
-            "violations": 153.0
+            "violation_rate": 0.21448087431693988,
+            "violations": 157.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.21448087431693988,
-          "violations": 157.0
+          "violation_rate": 0.22207792207792207,
+          "violations": 171.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.21934604904632152,
-            "violations": 161.0
+            "violation_rate": 0.22343324250681199,
+            "violations": 164.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.23705722070844687,
-          "violations": 174.0
+          "violation_rate": 0.24355670103092783,
+          "violations": 189.0
         },
         {
           "full_season_refit": {
@@ -6942,7 +7054,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -6956,64 +7068,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -7025,16 +7137,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -7064,33 +7176,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -7117,13 +7229,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.20460175359618146,
@@ -7312,7 +7424,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -7326,64 +7438,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -7395,16 +7507,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -7434,33 +7546,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -7487,13 +7599,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.19713646313382086,
@@ -7689,7 +7801,7 @@
         "observed": {
           "mae": 14.014647357575035,
           "max_calibration_deviation_pp": 14.925205396324671,
-          "retrodictive_violation_rate": 0.19973427812223207,
+          "retrodictive_violation_rate": 0.20230966638152267,
           "rmse": 17.983674534304637,
           "su_accuracy": 0.6504731861198738
         },
@@ -7711,13 +7823,11 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -7731,10 +7841,12 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19973427812223207
+          "rate": 0.20230966638152267
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -7745,7 +7857,7 @@
         "observed": {
           "mae": 15.042436015142036,
           "max_calibration_deviation_pp": 14.238546846443489,
-          "retrodictive_violation_rate": 0.19973427812223207,
+          "retrodictive_violation_rate": 0.20230966638152267,
           "rmse": 20.50469406087724,
           "su_accuracy": 0.6448326055312955
         },
@@ -7767,13 +7879,11 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -7787,10 +7897,12 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19973427812223207
+          "rate": 0.20230966638152267
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -7901,6 +8013,14 @@
             "system": "random_walker"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.8769230769230769,
+            "churn_top25": 0.46153846153846156,
+            "n": 130.0,
+            "season": 2021,
+            "system": "random_walker"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 36.13740458015267,
             "churn_top25": 48.46341463414634,
@@ -8000,6 +8120,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.8473282442748091,
             "churn_top25": 2.1153846153846154,
+            "n": 131.0,
+            "season": 2022,
+            "system": "random_walker"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.732824427480916,
+            "churn_top25": 0.4,
             "n": 131.0,
             "season": 2022,
             "system": "random_walker"
@@ -8117,34 +8245,34 @@
             "system": "random_walker"
           }
         ],
-        "mean_all": 12.261208901584554,
-        "mean_top25": 11.621941754134966
+        "mean_all": 11.715669132566338,
+        "mean_top25": 11.089028776831835
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.19973427812223207,
-      "retrodictive_violation_rate_full_season_refit": 0.1976534296028881,
+      "retrodictive_violation_rate": 0.20230966638152267,
+      "retrodictive_violation_rate_full_season_refit": 0.20081227436823104,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.19262295081967212,
-            "violations": 141.0
+            "violation_rate": 0.19672131147540983,
+            "violations": 144.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.19262295081967212,
-          "violations": 141.0
+          "violation_rate": 0.19220779220779222,
+          "violations": 148.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.21662125340599456,
-            "violations": 159.0
+            "violation_rate": 0.2220708446866485,
+            "violations": 163.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.21662125340599456,
-          "violations": 159.0
+          "violation_rate": 0.22422680412371135,
+          "violations": 174.0
         },
         {
           "full_season_refit": {
@@ -8160,7 +8288,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.28951277879046383,
+          "brier": 0.2566920420543194,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -8174,65 +8302,65 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.1545869278325838,
+              "n": 4.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.2737757862615892,
-              "n": 2.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.2608063316644597,
+              "n": 19.0,
+              "observed_rate": 0.5263157894736842
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3569668822654289,
-              "n": 6.0,
-              "observed_rate": 0.8333333333333334
+              "counted": 1.0,
+              "mean_predicted": 0.35337427316164993,
+              "n": 26.0,
+              "observed_rate": 0.46153846153846156
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4578757360846738,
-              "n": 18.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.45618180873523145,
+              "n": 33.0,
+              "observed_rate": 0.5151515151515151
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5225281499544291,
-              "n": 6.0,
-              "observed_rate": 0.3333333333333333
+              "mean_predicted": 0.5360968552555505,
+              "n": 13.0,
+              "observed_rate": 0.46153846153846156
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.64713621067021,
-              "n": 7.0,
-              "observed_rate": 0.42857142857142855
+              "mean_predicted": 0.645284033076327,
+              "n": 15.0,
+              "observed_rate": 0.6666666666666666
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.7451972037358574,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.8290591903904688,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 1.0,
@@ -8243,16 +8371,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7766425395866156,
-          "mae": 18.088803772397117,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 22.82468786706531,
-          "sigma_mean": 17.408486851450693,
-          "su_accuracy": 0.41025641025641024
+          "log_loss": 0.7082958502056275,
+          "mae": 14.626929430735634,
+          "max_calibration_deviation_pp": 10.816418837681162,
+          "n_games": 113,
+          "rmse": 18.86712871724162,
+          "sigma_mean": 17.82792552917448,
+          "su_accuracy": 0.5398230088495575
         },
         "cfp": {
-          "brier": 0.21993235530740263,
+          "brier": 0.22499535260078687,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -8282,51 +8410,51 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3855774342311219,
+              "mean_predicted": 0.3884743608113299,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.636791766517899,
+              "n": 4.0,
+              "observed_rate": 0.75
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7360283494643465,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": 0.8512529357115781,
               "n": 1.0,
               "observed_rate": 1.0
             },
             {
-              "bin_high": 0.5,
-              "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.6000000000000001,
-              "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.7000000000000001,
-              "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6251273420289258,
-              "n": 2.0,
-              "observed_rate": 1.0
-            },
-            {
-              "bin_high": 0.8,
-              "bin_low": 0.7000000000000001,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.9,
-              "bin_low": 0.8,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
               "bin_high": 1.0,
               "bin_low": 0.9,
               "counted": 0.0,
@@ -8335,12 +8463,12 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.6313930058933309,
-          "mae": 9.778727665034031,
+          "log_loss": 0.63632637149131,
+          "mae": 18.498450345233067,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 15.126261816661263,
-          "sigma_mean": 17.408486851450697,
+          "n_games": 9,
+          "rmse": 23.507318067992617,
+          "sigma_mean": 17.84955023364185,
           "su_accuracy": 0.6666666666666666
         },
         "fbs_vs_fbs": {
@@ -8530,7 +8658,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.28951277879046383,
+          "brier": 0.2566920420543194,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -8544,65 +8672,65 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.1545869278325838,
+              "n": 4.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.2737757862615892,
-              "n": 2.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.2608063316644597,
+              "n": 19.0,
+              "observed_rate": 0.5263157894736842
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3569668822654289,
-              "n": 6.0,
-              "observed_rate": 0.8333333333333334
+              "counted": 1.0,
+              "mean_predicted": 0.35337427316164993,
+              "n": 26.0,
+              "observed_rate": 0.46153846153846156
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4578757360846738,
-              "n": 18.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.45618180873523145,
+              "n": 33.0,
+              "observed_rate": 0.5151515151515151
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5225281499544291,
-              "n": 6.0,
-              "observed_rate": 0.3333333333333333
+              "mean_predicted": 0.5360968552555505,
+              "n": 13.0,
+              "observed_rate": 0.46153846153846156
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.64713621067021,
-              "n": 7.0,
-              "observed_rate": 0.42857142857142855
+              "mean_predicted": 0.645284033076327,
+              "n": 15.0,
+              "observed_rate": 0.6666666666666666
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.7451972037358574,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.8290591903904688,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 1.0,
@@ -8613,16 +8741,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7766425395866156,
-          "mae": 18.088803772397117,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 22.82468786706531,
-          "sigma_mean": 17.408486851450693,
-          "su_accuracy": 0.41025641025641024
+          "log_loss": 0.7082958502056275,
+          "mae": 14.626929430735634,
+          "max_calibration_deviation_pp": 10.816418837681162,
+          "n_games": 113,
+          "rmse": 18.86712871724162,
+          "sigma_mean": 17.82792552917448,
+          "su_accuracy": 0.5398230088495575
         },
         "cfp": {
-          "brier": 0.21993235530740263,
+          "brier": 0.22499535260078687,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -8652,51 +8780,51 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3855774342311219,
+              "mean_predicted": 0.3884743608113299,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.5,
+              "bin_low": 0.4,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.6000000000000001,
+              "bin_low": 0.5,
+              "counted": 0.0,
+              "mean_predicted": null,
+              "n": 0.0,
+              "observed_rate": null
+            },
+            {
+              "bin_high": 0.7000000000000001,
+              "bin_low": 0.6000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.636791766517899,
+              "n": 4.0,
+              "observed_rate": 0.75
+            },
+            {
+              "bin_high": 0.8,
+              "bin_low": 0.7000000000000001,
+              "counted": 0.0,
+              "mean_predicted": 0.7360283494643465,
+              "n": 2.0,
+              "observed_rate": 0.5
+            },
+            {
+              "bin_high": 0.9,
+              "bin_low": 0.8,
+              "counted": 0.0,
+              "mean_predicted": 0.8512529357115781,
               "n": 1.0,
               "observed_rate": 1.0
             },
             {
-              "bin_high": 0.5,
-              "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.6000000000000001,
-              "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.7000000000000001,
-              "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6251273420289258,
-              "n": 2.0,
-              "observed_rate": 1.0
-            },
-            {
-              "bin_high": 0.8,
-              "bin_low": 0.7000000000000001,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
-              "bin_high": 0.9,
-              "bin_low": 0.8,
-              "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
-            },
-            {
               "bin_high": 1.0,
               "bin_low": 0.9,
               "counted": 0.0,
@@ -8705,12 +8833,12 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.6313930058933309,
-          "mae": 9.778727665034031,
+          "log_loss": 0.63632637149131,
+          "mae": 18.498450345233067,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 15.126261816661263,
-          "sigma_mean": 17.408486851450697,
+          "n_games": 9,
+          "rmse": 23.507318067992617,
+          "sigma_mean": 17.84955023364185,
           "su_accuracy": 0.6666666666666666
         },
         "fbs_vs_fbs": {
@@ -8907,7 +9035,7 @@
         "observed": {
           "mae": 13.037833849228042,
           "max_calibration_deviation_pp": 7.369866395003555,
-          "retrodictive_violation_rate": 0.19973427812223207,
+          "retrodictive_violation_rate": 0.20145423438836613,
           "rmse": 16.53120930011875,
           "su_accuracy": 0.6870662460567823
         },
@@ -8929,13 +9057,13 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -8949,10 +9077,10 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19973427812223207
+          "rate": 0.20145423438836613
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -8963,7 +9091,7 @@
         "observed": {
           "mae": 13.742026191866993,
           "max_calibration_deviation_pp": 14.254312561588023,
-          "retrodictive_violation_rate": 0.19973427812223207,
+          "retrodictive_violation_rate": 0.20145423438836613,
           "rmse": 17.459942816366947,
           "su_accuracy": 0.6773410965550704
         },
@@ -8985,13 +9113,13 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -9005,10 +9133,10 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.19973427812223207
+          "rate": 0.20145423438836613
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -9119,6 +9247,14 @@
             "system": "resume"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.6615384615384615,
+            "churn_top25": 0.08,
+            "n": 130.0,
+            "season": 2021,
+            "system": "resume"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 24.3206106870229,
             "churn_top25": 25.083333333333332,
@@ -9218,6 +9354,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.3893129770992367,
             "churn_top25": 1.4074074074074074,
+            "n": 131.0,
+            "season": 2022,
+            "system": "resume"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.2900763358778626,
+            "churn_top25": 0.08,
             "n": 131.0,
             "season": 2022,
             "system": "resume"
@@ -9335,34 +9479,34 @@
             "system": "resume"
           }
         ],
-        "mean_all": 9.291663693879444,
-        "mean_top25": 7.295061187259984
+        "mean_all": 8.871861013157,
+        "mean_top25": 6.951486845009509
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.19973427812223207,
+      "retrodictive_violation_rate": 0.20145423438836613,
       "retrodictive_violation_rate_full_season_refit": 0.194043321299639,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.18442622950819673,
-            "violations": 135.0
+            "violation_rate": 0.18989071038251365,
+            "violations": 139.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.18442622950819673,
-          "violations": 135.0
+          "violation_rate": 0.19220779220779222,
+          "violations": 148.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.21525885558583105,
-            "violations": 158.0
+            "violation_rate": 0.2098092643051771,
+            "violations": 154.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.2220708446866485,
-          "violations": 163.0
+          "violation_rate": 0.2190721649484536,
+          "violations": 170.0
         },
         {
           "full_season_refit": {
@@ -9378,7 +9522,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -9392,64 +9536,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -9461,16 +9605,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -9500,33 +9644,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -9553,13 +9697,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.20460175359618146,
@@ -9748,7 +9892,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -9762,64 +9906,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -9831,16 +9975,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -9870,33 +10014,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -9923,13 +10067,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.19713646313382086,
@@ -10125,7 +10269,7 @@
         "observed": {
           "mae": 13.037833849228042,
           "max_calibration_deviation_pp": 7.369866395003555,
-          "retrodictive_violation_rate": 0.20150575730735165,
+          "retrodictive_violation_rate": 0.2018819503849444,
           "rmse": 16.53120930011875,
           "su_accuracy": 0.6870662460567823
         },
@@ -10147,11 +10291,12 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -10165,12 +10310,11 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "resume": 0.20145423438836613,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.20150575730735165
+          "rate": 0.2018819503849444
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -10181,7 +10325,7 @@
         "observed": {
           "mae": 13.742026191866993,
           "max_calibration_deviation_pp": 14.254312561588023,
-          "retrodictive_violation_rate": 0.20150575730735165,
+          "retrodictive_violation_rate": 0.2018819503849444,
           "rmse": 17.459942816366947,
           "su_accuracy": 0.6773410965550704
         },
@@ -10203,11 +10347,12 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "srs": 0.2183348095659876
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -10221,12 +10366,11 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "resume": 0.20145423438836613,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.20150575730735165
+          "rate": 0.2018819503849444
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -10337,6 +10481,14 @@
             "system": "schedule_odds"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.7846153846153846,
+            "churn_top25": 0.24,
+            "n": 130.0,
+            "season": 2021,
+            "system": "schedule_odds"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 27.51145038167939,
             "churn_top25": 31.35,
@@ -10436,6 +10588,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.5114503816793894,
             "churn_top25": 1.7407407407407407,
+            "n": 131.0,
+            "season": 2022,
+            "system": "schedule_odds"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.2900763358778626,
+            "churn_top25": 0.16,
             "n": 131.0,
             "season": 2022,
             "system": "schedule_odds"
@@ -10553,34 +10713,34 @@
             "system": "schedule_odds"
           }
         ],
-        "mean_all": 9.672834184698386,
-        "mean_top25": 7.967787842474827
+        "mean_all": 9.237810931153065,
+        "mean_top25": 7.597893183309359
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.20150575730735165,
-      "retrodictive_violation_rate_full_season_refit": 0.19810469314079424,
+      "retrodictive_violation_rate": 0.2018819503849444,
+      "retrodictive_violation_rate_full_season_refit": 0.19855595667870035,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.18579234972677597,
-            "violations": 136.0
+            "violation_rate": 0.1912568306010929,
+            "violations": 140.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.18442622950819673,
-          "violations": 135.0
+          "violation_rate": 0.19350649350649352,
+          "violations": 149.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.22343324250681199,
-            "violations": 164.0
+            "violation_rate": 0.21934604904632152,
+            "violations": 161.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.22888283378746593,
-          "violations": 168.0
+          "violation_rate": 0.22036082474226804,
+          "violations": 171.0
         },
         {
           "full_season_refit": {
@@ -10596,7 +10756,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -10610,64 +10770,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -10679,16 +10839,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -10718,33 +10878,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -10771,13 +10931,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.20460175359618146,
@@ -10966,7 +11126,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2907505135761378,
+          "brier": 0.24555781931386927,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -10980,64 +11140,64 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.15057774754049708,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.15721724535413487,
+              "n": 7.0,
+              "observed_rate": 0.14285714285714285
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.25308383512177257,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3568436355333095,
-              "n": 4.0,
-              "observed_rate": 0.75
+              "mean_predicted": 0.3512771463254076,
+              "n": 19.0,
+              "observed_rate": 0.5789473684210527
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4328585323409663,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.43991598235159396,
+              "n": 30.0,
+              "observed_rate": 0.4
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5487049047656987,
-              "n": 5.0,
-              "observed_rate": 0.8
+              "mean_predicted": 0.5386014899641007,
+              "n": 19.0,
+              "observed_rate": 0.6842105263157895
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
-              "counted": 0.0,
-              "mean_predicted": 0.6376156920579568,
-              "n": 9.0,
-              "observed_rate": 0.3333333333333333
+              "counted": 1.0,
+              "mean_predicted": 0.6448624362299898,
+              "n": 21.0,
+              "observed_rate": 0.5238095238095238
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7576804738597582,
-              "n": 8.0,
-              "observed_rate": 0.375
+              "mean_predicted": 0.7490464542521205,
+              "n": 10.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.9,
               "bin_low": 0.8,
               "counted": 0.0,
-              "mean_predicted": 0.8528458016566531,
-              "n": 2.0,
+              "mean_predicted": 0.837975268606825,
+              "n": 3.0,
               "observed_rate": 1.0
             },
             {
@@ -11049,16 +11209,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7828296944603237,
-          "mae": 17.733446751506293,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.732563010706734,
-          "sigma_mean": 15.86936924435539,
-          "su_accuracy": 0.48717948717948717
+          "log_loss": 0.6829073373498816,
+          "mae": 14.092164500612409,
+          "max_calibration_deviation_pp": 12.1052912420466,
+          "n_games": 113,
+          "rmse": 18.094251049388095,
+          "sigma_mean": 16.38005745186571,
+          "su_accuracy": 0.5929203539823009
         },
         "cfp": {
-          "brier": 0.1153295837189251,
+          "brier": 0.16489246438111393,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -11088,33 +11248,33 @@
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.37680655118497575,
+              "n": 1.0,
+              "observed_rate": 0.0
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.46120316368854525,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": 0.5156539857384087,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.5356633319393601,
+              "n": 2.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.6508379418250022,
+              "n": 2.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.8,
@@ -11141,13 +11301,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.4001967568574098,
-          "mae": 6.26700021937364,
+          "log_loss": 0.5127539597145298,
+          "mae": 13.791162529606906,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 6.641786260176813,
-          "sigma_mean": 15.869369244355383,
-          "su_accuracy": 1.0
+          "n_games": 9,
+          "rmse": 19.56988977290845,
+          "sigma_mean": 16.40185378882574,
+          "su_accuracy": 0.7777777777777778
         },
         "fbs_vs_fbs": {
           "brier": 0.19713646313382086,
@@ -11343,7 +11503,7 @@
         "observed": {
           "mae": 13.195917888783418,
           "max_calibration_deviation_pp": 9.950835177552332,
-          "retrodictive_violation_rate": 0.2183348095659876,
+          "retrodictive_violation_rate": 0.22112917023096665,
           "rmse": 16.69530616800189,
           "su_accuracy": 0.6908517350157729
         },
@@ -11365,9 +11525,8 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l3": 0.22320637732506643
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219
           },
           "compared_against": [
             "colley",
@@ -11381,14 +11540,15 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2183348095659876
+          "rate": 0.22112917023096665
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -11399,7 +11559,7 @@
         "observed": {
           "mae": 13.694999807171516,
           "max_calibration_deviation_pp": 7.307849643932488,
-          "retrodictive_violation_rate": 0.2183348095659876,
+          "retrodictive_violation_rate": 0.22112917023096665,
           "rmse": 17.386045388976836,
           "su_accuracy": 0.6860747210092188
         },
@@ -11421,9 +11581,8 @@
         "violations_vs_baselines": false,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l3": 0.22320637732506643
+            "l1": 0.24337040205303678,
+            "l3": 0.227972626176219
           },
           "compared_against": [
             "colley",
@@ -11437,14 +11596,15 @@
             "winpct"
           ],
           "lost_to": {
-            "colley": 0.19619131975199292,
-            "l2": 0.2121346324180691,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "winpct": 0.17803365810451727
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l2": 0.218562874251497,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "winpct": 0.18306244653550044
           },
-          "rate": 0.2183348095659876
+          "rate": 0.22112917023096665
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -11555,6 +11715,14 @@
             "system": "srs"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.4,
+            "churn_top25": 0.16,
+            "n": 130.0,
+            "season": 2021,
+            "system": "srs"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 24.03053435114504,
             "churn_top25": 32.486486486486484,
@@ -11654,6 +11822,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.0534351145038168,
             "churn_top25": 0.64,
+            "n": 131.0,
+            "season": 2022,
+            "system": "srs"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.22900763358778625,
+            "churn_top25": 0.0,
             "n": 131.0,
             "season": 2022,
             "system": "srs"
@@ -11771,34 +11947,34 @@
             "system": "srs"
           }
         ],
-        "mean_all": 8.20632492858688,
-        "mean_top25": 7.969941988548385
+        "mean_all": 7.8305239232634065,
+        "mean_top25": 7.594230465284178
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.2183348095659876,
-      "retrodictive_violation_rate_full_season_refit": 0.21525270758122744,
+      "retrodictive_violation_rate": 0.22112917023096665,
+      "retrodictive_violation_rate_full_season_refit": 0.2161552346570397,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.21584699453551912,
-            "violations": 158.0
+            "violation_rate": 0.2103825136612022,
+            "violations": 154.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.21584699453551912,
-          "violations": 158.0
+          "violation_rate": 0.21168831168831168,
+          "violations": 163.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.22888283378746593,
-            "violations": 168.0
+            "violation_rate": 0.23705722070844687,
+            "violations": 174.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.22888283378746593,
-          "violations": 168.0
+          "violation_rate": 0.24097938144329897,
+          "violations": 187.0
         },
         {
           "full_season_refit": {
@@ -11814,7 +11990,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.2834151749880612,
+          "brier": 0.25762536556608256,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -11828,57 +12004,57 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.1715618879689927,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.16163003472669893,
+              "n": 3.0,
+              "observed_rate": 0.3333333333333333
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.29305179762695877,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.2511471163774279,
+              "n": 11.0,
+              "observed_rate": 0.36363636363636365
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3534085490569268,
-              "n": 5.0,
-              "observed_rate": 0.4
+              "mean_predicted": 0.3526085726011732,
+              "n": 19.0,
+              "observed_rate": 0.47368421052631576
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4271737796116625,
-              "n": 7.0,
-              "observed_rate": 0.8571428571428571
+              "counted": 1.0,
+              "mean_predicted": 0.44158462543685034,
+              "n": 27.0,
+              "observed_rate": 0.5555555555555556
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5458430944393996,
-              "n": 11.0,
-              "observed_rate": 0.36363636363636365
+              "counted": 1.0,
+              "mean_predicted": 0.5458098779921302,
+              "n": 30.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6494912030204257,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6459632454959168,
+              "n": 15.0,
+              "observed_rate": 0.5333333333333333
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7359299587056509,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.7452646178799787,
+              "n": 8.0,
+              "observed_rate": 0.625
             },
             {
               "bin_high": 0.9,
@@ -11897,16 +12073,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7667811153095178,
-          "mae": 17.512994938175577,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.804139788072476,
-          "sigma_mean": 15.532359836637523,
-          "su_accuracy": 0.41025641025641024
+          "log_loss": 0.7101311135479351,
+          "mae": 14.250602108061246,
+          "max_calibration_deviation_pp": 11.397093011870524,
+          "n_games": 113,
+          "rmse": 18.391700575564155,
+          "sigma_mean": 16.464079216884215,
+          "su_accuracy": 0.5221238938053098
         },
         "cfp": {
-          "brier": 0.16826213685552502,
+          "brier": 0.19064456217390138,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -11944,17 +12120,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.42614421183496426,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4472665106126497,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.5572393250300837,
+              "n": 3.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.7000000000000001,
@@ -11989,13 +12165,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5184760345620475,
-          "mae": 7.799706204874721,
+          "log_loss": 0.5703205829064097,
+          "mae": 15.008909080177128,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 9.107709233829887,
-          "sigma_mean": 15.532359836637525,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 21.76744641604365,
+          "sigma_mean": 16.490031337842677,
+          "su_accuracy": 0.8888888888888888
         },
         "fbs_vs_fbs": {
           "brier": 0.20261997531699216,
@@ -12184,7 +12360,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.2834151749880612,
+          "brier": 0.25762536556608256,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -12198,57 +12374,57 @@
               "bin_high": 0.2,
               "bin_low": 0.1,
               "counted": 0.0,
-              "mean_predicted": 0.1715618879689927,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.16163003472669893,
+              "n": 3.0,
+              "observed_rate": 0.3333333333333333
             },
             {
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.29305179762695877,
-              "n": 2.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.2511471163774279,
+              "n": 11.0,
+              "observed_rate": 0.36363636363636365
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
               "counted": 0.0,
-              "mean_predicted": 0.3534085490569268,
-              "n": 5.0,
-              "observed_rate": 0.4
+              "mean_predicted": 0.3526085726011732,
+              "n": 19.0,
+              "observed_rate": 0.47368421052631576
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4271737796116625,
-              "n": 7.0,
-              "observed_rate": 0.8571428571428571
+              "counted": 1.0,
+              "mean_predicted": 0.44158462543685034,
+              "n": 27.0,
+              "observed_rate": 0.5555555555555556
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5458430944393996,
-              "n": 11.0,
-              "observed_rate": 0.36363636363636365
+              "counted": 1.0,
+              "mean_predicted": 0.5458098779921302,
+              "n": 30.0,
+              "observed_rate": 0.5
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6494912030204257,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.6459632454959168,
+              "n": 15.0,
+              "observed_rate": 0.5333333333333333
             },
             {
               "bin_high": 0.8,
               "bin_low": 0.7000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.7359299587056509,
-              "n": 6.0,
-              "observed_rate": 0.5
+              "mean_predicted": 0.7452646178799787,
+              "n": 8.0,
+              "observed_rate": 0.625
             },
             {
               "bin_high": 0.9,
@@ -12267,16 +12443,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7667811153095178,
-          "mae": 17.512994938175577,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 21.804139788072476,
-          "sigma_mean": 15.532359836637523,
-          "su_accuracy": 0.41025641025641024
+          "log_loss": 0.7101311135479351,
+          "mae": 14.250602108061246,
+          "max_calibration_deviation_pp": 11.397093011870524,
+          "n_games": 113,
+          "rmse": 18.391700575564155,
+          "sigma_mean": 16.464079216884215,
+          "su_accuracy": 0.5221238938053098
         },
         "cfp": {
-          "brier": 0.16826213685552502,
+          "brier": 0.19064456217390138,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -12314,17 +12490,17 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.42614421183496426,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.4472665106126497,
+              "n": 4.0,
+              "observed_rate": 0.25
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
               "counted": 0.0,
-              "mean_predicted": null,
-              "n": 0.0,
-              "observed_rate": null
+              "mean_predicted": 0.5572393250300837,
+              "n": 3.0,
+              "observed_rate": 1.0
             },
             {
               "bin_high": 0.7000000000000001,
@@ -12359,13 +12535,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.5184760345620475,
-          "mae": 7.799706204874721,
+          "log_loss": 0.5703205829064097,
+          "mae": 15.008909080177128,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 9.107709233829887,
-          "sigma_mean": 15.532359836637525,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 21.76744641604365,
+          "sigma_mean": 16.490031337842677,
+          "su_accuracy": 0.8888888888888888
         },
         "fbs_vs_fbs": {
           "brier": 0.19949238505569156,
@@ -12561,7 +12737,7 @@
         "observed": {
           "mae": 13.824199429435515,
           "max_calibration_deviation_pp": 10.181905092670828,
-          "retrodictive_violation_rate": 0.17803365810451727,
+          "retrodictive_violation_rate": 0.18306244653550044,
           "rmse": 17.659585346907384,
           "su_accuracy": 0.661198738170347
         },
@@ -12583,15 +12759,15 @@
         "violations_vs_baselines": true,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "colley": 0.19619131975199292,
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -12605,7 +12781,7 @@
             "srs"
           ],
           "lost_to": {},
-          "rate": 0.17803365810451727
+          "rate": 0.18306244653550044
         },
         "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
       },
@@ -12616,7 +12792,7 @@
         "observed": {
           "mae": 14.314511641485701,
           "max_calibration_deviation_pp": 15.878609767683171,
-          "retrodictive_violation_rate": 0.17803365810451727,
+          "retrodictive_violation_rate": 0.18306244653550044,
           "rmse": 18.303376521830195,
           "su_accuracy": 0.6564774381368268
         },
@@ -12638,15 +12814,15 @@
         "violations_vs_baselines": true,
         "violations_vs_baselines_detail": {
           "beaten": {
-            "colley": 0.19619131975199292,
-            "elo": 0.224977856510186,
-            "l1": 0.2395925597874225,
-            "l2": 0.2121346324180691,
-            "l3": 0.22320637732506643,
-            "random_walker": 0.19973427812223207,
-            "resume": 0.19973427812223207,
-            "schedule_odds": 0.20150575730735165,
-            "srs": 0.2183348095659876
+            "colley": 0.19760479041916168,
+            "elo": 0.2202737382378101,
+            "l1": 0.24337040205303678,
+            "l2": 0.218562874251497,
+            "l3": 0.227972626176219,
+            "random_walker": 0.20230966638152267,
+            "resume": 0.20145423438836613,
+            "schedule_odds": 0.2018819503849444,
+            "srs": 0.22112917023096665
           },
           "compared_against": [
             "colley",
@@ -12660,7 +12836,7 @@
             "srs"
           ],
           "lost_to": {},
-          "rate": 0.17803365810451727
+          "rate": 0.18306244653550044
         },
         "window": "FBS-vs-FBS, weeks >= [backtest].first_eval_week (2) - a DIAGNOSTIC. These weeks are not published as the poll"
       },
@@ -12771,6 +12947,14 @@
             "system": "winpct"
           },
           {
+            "bucket": "2021-post-w01",
+            "churn_all": 0.12307692307692308,
+            "churn_top25": 0.0,
+            "n": 130.0,
+            "season": 2021,
+            "system": "winpct"
+          },
+          {
             "bucket": "2022-regu-w03",
             "churn_all": 24.198473282442748,
             "churn_top25": 21.416666666666668,
@@ -12870,6 +13054,14 @@
             "bucket": "2022-regu-w15",
             "churn_all": 1.465648854961832,
             "churn_top25": 3.4285714285714284,
+            "n": 131.0,
+            "season": 2022,
+            "system": "winpct"
+          },
+          {
+            "bucket": "2022-post-w01",
+            "churn_all": 0.3511450381679389,
+            "churn_top25": 0.0,
             "n": 131.0,
             "season": 2022,
             "system": "winpct"
@@ -12987,34 +13179,34 @@
             "system": "winpct"
           }
         ],
-        "mean_all": 10.124525163466505,
-        "mean_top25": 6.813002863359927
+        "mean_all": 9.653695916664404,
+        "mean_top25": 6.488574155580882
       },
       "retrodictive_protocol": "PUBLISHED: walk-forward at the final bucket - every hyperparameter is the one that was live when the season ended, which is how the poll is produced week by week - scored over every FBS-vs-FBS game of the season, postseason included. `*_full_season_refit` is the DIAGNOSTIC: a full-season refit, whose L3 blend weights are in-sample because there is no walk left to do, scored over the fbs_vs_fbs segment only",
-      "retrodictive_violation_rate": 0.17803365810451727,
-      "retrodictive_violation_rate_full_season_refit": 0.17689530685920576,
+      "retrodictive_violation_rate": 0.18306244653550044,
+      "retrodictive_violation_rate_full_season_refit": 0.18546931407942238,
       "retrodictive_violations": [
         {
           "full_season_refit": {
             "games": 732.0,
-            "violation_rate": 0.16256830601092895,
-            "violations": 119.0
+            "violation_rate": 0.1830601092896175,
+            "violations": 134.0
           },
-          "games": 732.0,
+          "games": 770.0,
           "season": 2021,
-          "violation_rate": 0.16256830601092895,
-          "violations": 119.0
+          "violation_rate": 0.17792207792207793,
+          "violations": 137.0
         },
         {
           "full_season_refit": {
             "games": 734.0,
-            "violation_rate": 0.20435967302452315,
-            "violations": 150.0
+            "violation_rate": 0.2098092643051771,
+            "violations": 154.0
           },
-          "games": 734.0,
+          "games": 776.0,
           "season": 2022,
-          "violation_rate": 0.20435967302452315,
-          "violations": 150.0
+          "violation_rate": 0.2036082474226804,
+          "violations": 158.0
         },
         {
           "full_season_refit": {
@@ -13030,7 +13222,7 @@
       ],
       "segments": {
         "bowl": {
-          "brier": 0.29717597326162093,
+          "brier": 0.2519357473213139,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -13052,41 +13244,41 @@
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.26704826259049397,
-              "n": 4.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.2519182323694579,
+              "n": 14.0,
+              "observed_rate": 0.42857142857142855
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3443266134561546,
-              "n": 7.0,
-              "observed_rate": 0.7142857142857143
+              "counted": 1.0,
+              "mean_predicted": 0.34021827660345655,
+              "n": 29.0,
+              "observed_rate": 0.41379310344827586
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4476142350510418,
-              "n": 17.0,
-              "observed_rate": 0.35294117647058826
+              "counted": 1.0,
+              "mean_predicted": 0.4454148044613052,
+              "n": 40.0,
+              "observed_rate": 0.525
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5477642444607842,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.5456334634440159,
+              "n": 22.0,
+              "observed_rate": 0.5909090909090909
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6607605338045698,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.623306940691226,
+              "n": 7.0,
+              "observed_rate": 0.7142857142857143
             },
             {
               "bin_high": 0.8,
@@ -13113,16 +13305,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7956455106034108,
-          "mae": 18.367024936450427,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 23.118924686481616,
-          "sigma_mean": 16.957708654853384,
-          "su_accuracy": 0.46153846153846156
+          "log_loss": 0.6985602835856753,
+          "mae": 14.222848369317413,
+          "max_calibration_deviation_pp": 7.958519553869481,
+          "n_games": 113,
+          "rmse": 18.811449793825656,
+          "sigma_mean": 17.582750538679814,
+          "su_accuracy": 0.5486725663716814
         },
         "cfp": {
-          "brier": 0.24313678360138846,
+          "brier": 0.265786374816697,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -13160,9 +13352,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.4671117805228565,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.43796098826856183,
+              "n": 7.0,
+              "observed_rate": 0.5714285714285714
             },
             {
               "bin_high": 0.6000000000000001,
@@ -13205,13 +13397,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.6794162901057907,
-          "mae": 11.003822932661786,
+          "log_loss": 0.7252331184616138,
+          "mae": 18.096069270894255,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 13.644858071945297,
-          "sigma_mean": 16.957708654853384,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 25.250454498115758,
+          "sigma_mean": 17.61266366024459,
+          "su_accuracy": 0.5555555555555556
         },
         "fbs_vs_fbs": {
           "brier": 0.21574431053794876,
@@ -13400,7 +13592,7 @@
       },
       "segments_from_headline_week": {
         "bowl": {
-          "brier": 0.29717597326162093,
+          "brier": 0.2519357473213139,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -13422,41 +13614,41 @@
               "bin_high": 0.30000000000000004,
               "bin_low": 0.2,
               "counted": 0.0,
-              "mean_predicted": 0.26704826259049397,
-              "n": 4.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.2519182323694579,
+              "n": 14.0,
+              "observed_rate": 0.42857142857142855
             },
             {
               "bin_high": 0.4,
               "bin_low": 0.30000000000000004,
-              "counted": 0.0,
-              "mean_predicted": 0.3443266134561546,
-              "n": 7.0,
-              "observed_rate": 0.7142857142857143
+              "counted": 1.0,
+              "mean_predicted": 0.34021827660345655,
+              "n": 29.0,
+              "observed_rate": 0.41379310344827586
             },
             {
               "bin_high": 0.5,
               "bin_low": 0.4,
-              "counted": 0.0,
-              "mean_predicted": 0.4476142350510418,
-              "n": 17.0,
-              "observed_rate": 0.35294117647058826
+              "counted": 1.0,
+              "mean_predicted": 0.4454148044613052,
+              "n": 40.0,
+              "observed_rate": 0.525
             },
             {
               "bin_high": 0.6000000000000001,
               "bin_low": 0.5,
-              "counted": 0.0,
-              "mean_predicted": 0.5477642444607842,
-              "n": 9.0,
-              "observed_rate": 0.4444444444444444
+              "counted": 1.0,
+              "mean_predicted": 0.5456334634440159,
+              "n": 22.0,
+              "observed_rate": 0.5909090909090909
             },
             {
               "bin_high": 0.7000000000000001,
               "bin_low": 0.6000000000000001,
               "counted": 0.0,
-              "mean_predicted": 0.6607605338045698,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.623306940691226,
+              "n": 7.0,
+              "observed_rate": 0.7142857142857143
             },
             {
               "bin_high": 0.8,
@@ -13483,16 +13675,16 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.7956455106034108,
-          "mae": 18.367024936450427,
-          "max_calibration_deviation_pp": null,
-          "n_games": 39,
-          "rmse": 23.118924686481616,
-          "sigma_mean": 16.957708654853384,
-          "su_accuracy": 0.46153846153846156
+          "log_loss": 0.6985602835856753,
+          "mae": 14.222848369317413,
+          "max_calibration_deviation_pp": 7.958519553869481,
+          "n_games": 113,
+          "rmse": 18.811449793825656,
+          "sigma_mean": 17.582750538679814,
+          "su_accuracy": 0.5486725663716814
         },
         "cfp": {
-          "brier": 0.24313678360138846,
+          "brier": 0.265786374816697,
           "calibration": [
             {
               "bin_high": 0.1,
@@ -13530,9 +13722,9 @@
               "bin_high": 0.5,
               "bin_low": 0.4,
               "counted": 0.0,
-              "mean_predicted": 0.4671117805228565,
-              "n": 1.0,
-              "observed_rate": 1.0
+              "mean_predicted": 0.43796098826856183,
+              "n": 7.0,
+              "observed_rate": 0.5714285714285714
             },
             {
               "bin_high": 0.6000000000000001,
@@ -13575,13 +13767,13 @@
               "observed_rate": null
             }
           ],
-          "log_loss": 0.6794162901057907,
-          "mae": 11.003822932661786,
+          "log_loss": 0.7252331184616138,
+          "mae": 18.096069270894255,
           "max_calibration_deviation_pp": null,
-          "n_games": 3,
-          "rmse": 13.644858071945297,
-          "sigma_mean": 16.957708654853384,
-          "su_accuracy": 0.6666666666666666
+          "n_games": 9,
+          "rmse": 25.250454498115758,
+          "sigma_mean": 17.61266366024459,
+          "su_accuracy": 0.5555555555555556
         },
         "fbs_vs_fbs": {
           "brier": 0.21176054276800355,

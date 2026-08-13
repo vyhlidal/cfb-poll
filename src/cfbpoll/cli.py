@@ -99,6 +99,22 @@ def _parse_seasons(spec: str) -> list[int]:
     return sorted(out)
 
 
+def _game_sources(frame: Any) -> dict[str, int]:
+    """`{'sportsdataverse': 730, 'cfbd': 38}` — provenance for the run record.
+
+    Published because a fork's answer legitimately differs from ours for 2021 and
+    2022: `archive/cfbd/` is private under CFBD terms §3, so a stranger's frame is
+    the MIT parquet alone and their hindsight surface stops at conference
+    championship weekend. A run that cannot say which archives it read cannot
+    explain that difference, and an unexplained difference in a reproducibility
+    claim is worse than a documented one.
+    """
+    if "source" not in frame.columns:
+        return {}
+    counts = frame.group_by("source").len().sort("source")
+    return {str(k): int(v) for k, v in zip(counts["source"], counts["len"], strict=True)}
+
+
 def _sha256_or_none(path: Path) -> str | None:
     """sha256 of a file for the run record, or None when it is not there."""
     import hashlib
@@ -547,6 +563,7 @@ def rank(
         "n_games_in_fit": int(window.height),
         "n_teams_in_fit": int(live.height),
         "n_ranked_teams": int(table.height),
+        "game_sources": _game_sources(window),
     }
     written = files.write_rank_outputs(
         out, live, hindsight, table, params, run, config_path=config, intervals=interval_table
@@ -727,9 +744,10 @@ def grid(
 
     N and K are BUCKETS ordered by first kickoff, not bare week numbers: week
     numbering inside a season is neither monotone nor unique (docs/data-findings
-    .md §1). For 2021 and 2022 the archive carries NO postseason rows at all, so
-    "final" in those seasons means through conference championships - state that
-    caveat anywhere those seasons are shown.
+    .md §1). 2021 and 2022 carry no postseason rows in the MIT parquet; since the
+    2026-08-12 CFBD backfill those 80 games come from the private archive instead,
+    so "final" means final for every season we hold. A fork without that archive
+    gets the shorter window and the run record's `game_sources` says which it was.
     """
     from cfbpoll.config import load_config
     from cfbpoll.ingest import windows
@@ -774,8 +792,8 @@ def grid(
         "final_means": (
             "through the postseason in the archive"
             if has_postseason
-            else "through conference championships - this season carries NO "
-            "postseason rows in cfb_schedules (docs/data-findings.md)"
+            else "through conference championships - no postseason rows in "
+            "cfb_schedules and no CFBD backfill present (docs/data-findings.md §13)"
         ),
         "headline_layer": cfg["publication"]["headline_layer"],
         "companion_layer": cfg["publication"]["companion_layer"],
@@ -789,6 +807,7 @@ def grid(
         "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
         "n_games_in_season": int(games.height),
         "n_grid_rows": int(triangle.height),
+        "game_sources": _game_sources(games),
     }
     written = files.write_grid_outputs(
         out, triangle, live, hindsight, movers, params, run, config_path=config
@@ -801,7 +820,7 @@ def grid(
     )
     if not has_postseason:
         typer.echo(
-            f"  NOTE: {season_i} carries no postseason rows in the archive; "
+            f"  NOTE: no postseason rows for {season_i} in either archive; "
             '"final" means through conference championships.'
         )
     typer.echo("wrote: " + ", ".join(p.name for p in written))

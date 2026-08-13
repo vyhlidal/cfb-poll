@@ -86,8 +86,10 @@ grid: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run cfbpoll grid --config $(CONFIG) --season $(GRID_SEASON) --out $(OUT)
 	@echo
-	@echo "2021 and 2022 carry no postseason rows in the archive, so \"final\" in"
-	@echo "those seasons means through conference championships."
+	@echo "2021 and 2022 carry no postseason rows in the MIT parquet. With the"
+	@echo "private CFBD backfill present they do, and \"final\" means final; without"
+	@echo "it, \"final\" means through conference championships. The run record's"
+	@echo "game_sources says which one you got."
 
 site: .venv
 	@echo "[stub] uv run cfbpoll site build --from $(OUT)/ --to site/_build"

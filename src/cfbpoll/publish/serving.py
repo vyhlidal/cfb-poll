@@ -87,6 +87,10 @@ __all__ = [
     "Bundle",
     "LOGO_TEMPLATE",
     "PALETTE_MARK",
+    "REQUIRED_FILES",
+    "REQUIRED_RATING_COLUMNS",
+    "StaleRunError",
+    "check_run_directory",
     "SERVING_TABLES",
     "VIEW_KINDS",
     "build",
@@ -526,6 +530,69 @@ class Bundle:
         }
 
 
+class StaleRunError(RuntimeError):
+    """`out/` was written by a version of this code that predates the contract.
+
+    Its own type because it is not a bug report, it is an instruction: re-run
+    `cfbpoll rank`. `out/` is gitignored regenerable scratch, so a directory left
+    over from an older checkout is an ordinary thing to find on a working copy
+    and a confusing thing to hit six frames deep inside polars.
+    """
+
+
+#: What `serving.build` needs out of a run directory, and which command writes it.
+#: Checked BEFORE anything is read, so a stale directory produces one sentence
+#: naming what is missing rather than a ColumnNotFoundError from a lazy scan.
+REQUIRED_FILES: tuple[str, ...] = (
+    "poll.json",
+    "model_params.json",
+    "_run.json",
+    "ratings_live.parquet",
+)
+
+#: Columns `build` reads off `ratings_live.parquet`. `power` and `resume` arrived
+#: with L3 and L4; a pre-L3 run carries `rating` and nothing else, which is
+#: exactly the shape that used to fail unreadably.
+REQUIRED_RATING_COLUMNS: tuple[str, ...] = ("team", "power", "resume")
+
+
+def check_run_directory(out: Path) -> None:
+    """Raise `StaleRunError` unless `out` satisfies the current serving contract.
+
+    Called first thing in `build`. The check is cheap - a directory listing and a
+    parquet schema read, no data - and it converts the single most likely
+    operational failure on a working copy into an actionable message.
+    """
+    out = Path(out)
+    if not out.is_dir():
+        raise StaleRunError(
+            f"{out} is not a directory. `publish fixtures` reads what `cfbpoll rank` "
+            f"wrote; run `cfbpoll rank --season <season> --through-week <week> "
+            f"--out {out}` first."
+        )
+    missing = [name for name in REQUIRED_FILES if not (out / name).exists()]
+    if missing:
+        raise StaleRunError(
+            f"{out} is missing {', '.join(missing)}. It is not a run directory, or it "
+            f"is a partial one. Re-run `cfbpoll rank --out {out}`."
+        )
+
+    columns = set(pl.read_parquet_schema(out / "ratings_live.parquet"))
+    absent = [c for c in REQUIRED_RATING_COLUMNS if c not in columns]
+    if absent:
+        run_meta = _read_json(out / "_run.json")
+        raise StaleRunError(
+            f"{out}/ratings_live.parquet is missing {', '.join(absent)} "
+            f"(it carries {sorted(columns)}). That directory was written by an older "
+            f"version of this code"
+            + (f" at git {run_meta.get('git_sha', '?')[:7]}" if run_meta.get("git_sha") else "")
+            + f", before the columns the published poll row now needs existed. `out/` is "
+            f"regenerable scratch: re-run `cfbpoll rank --season "
+            f"{run_meta.get('season', '<season>')} --through-week "
+            f"{run_meta.get('through_week', '<week>')} --out {out}`."
+        )
+
+
 def build(
     out: Path,
     archive: Path | None = None,
@@ -542,6 +609,8 @@ def build(
     """
     from cfbpoll.config import load_config
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE
+
+    check_run_directory(out)
 
     archive = archive or DEFAULT_ARCHIVE
     display = dict(load_config(REPO_ROOT / "configs" / "default.toml").get("display") or {})

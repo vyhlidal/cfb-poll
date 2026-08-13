@@ -87,3 +87,91 @@ def test_grid_requires_a_season() -> None:
     result = runner.invoke(app, ["grid"])
     assert result.exit_code != 0
     assert "--season is required" in result.output
+
+
+def test_publish_fixtures_runs_end_to_end_through_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """The layer nothing covered, which is why the defect shipped.
+
+    Every fixtures test called `fixtures.export(...)` directly and every command
+    run in anger passed an explicit `--from`. So the CLI's own argument handling —
+    the thing an operator actually types — had no coverage at all, and the failure
+    it produced on a stale default `--from out` reached the terminal as a polars
+    ColumnNotFoundError six frames deep.
+    """
+    import json
+    from pathlib import Path
+
+    import polars as pl
+
+    from tests.unit.test_publish_serving import _row  # the shared row builder
+
+    run = tmp_path / "runs" / "w02"
+    run.mkdir(parents=True)
+    ranking = [_row(1, "Ohio State"), _row(2, "Alabama", power=20.0, gap=40.0)]
+    (run / "poll.json").write_text(
+        json.dumps(
+            {
+                "season": 2023,
+                "through": {"season_type": "regular", "week": 2},
+                "provisional": False,
+                "provisional_label": None,
+                "ranking": ranking,
+                "top25": ranking,
+            }
+        )
+    )
+    (run / "model_params.json").write_text(json.dumps({"season": 2023, "q_ref": 14.26}))
+    (run / "_run.json").write_text(
+        json.dumps({"season": 2023, "through_week": 2, "git_sha": "abc", "config_hash": "d"})
+    )
+    pl.DataFrame(
+        {"team": ["Ohio State", "Alabama"], "power": [28.1, 20.0], "resume": [60.0, 55.0]}
+    ).write_parquet(run / "ratings_live.parquet")
+
+    dest = tmp_path / "site-data"
+    result = runner.invoke(
+        app, ["publish", "fixtures", "--from", str(tmp_path / "runs"), "--out", str(dest)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 runs" not in result.output  # one run takes the single-run path
+
+    written = Path(dest) / "2023" / "week-02.json"
+    assert written.exists()
+    poll = json.loads(written.read_text())["poll"]
+    assert poll, "the published document must carry rows"
+    for row in poll:
+        assert row.get("mark_bg") and row.get("mark_fg") and row.get("mark_label")
+
+
+def test_publish_fixtures_reports_a_stale_run_directory_clearly(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """A pre-L3 `out/` must produce an instruction, not a polars traceback."""
+    import json
+
+    import polars as pl
+
+    from cfbpoll.publish.serving import StaleRunError
+
+    run = tmp_path / "out"
+    run.mkdir()
+    (run / "poll.json").write_text(
+        json.dumps(
+            {
+                "season": 2023,
+                "through": {"season_type": "regular", "week": 10},
+                "ranking": [],
+                "top25": [],
+            }
+        )
+    )
+    (run / "model_params.json").write_text("{}")
+    (run / "_run.json").write_text(json.dumps({"season": 2023, "through_week": 10}))
+    pl.DataFrame({"team": ["Ohio State"], "rating": [28.1]}).write_parquet(
+        run / "ratings_live.parquet"
+    )
+
+    result = runner.invoke(
+        app, ["publish", "fixtures", "--from", str(run), "--out", str(tmp_path / "d")]
+    )
+    assert result.exit_code != 0
+    assert isinstance(result.exception, StaleRunError)
+    assert "cfbpoll rank" in str(result.exception)

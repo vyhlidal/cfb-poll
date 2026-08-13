@@ -35,9 +35,17 @@ import json
 from pathlib import Path
 from typing import Any
 
+from cfbpoll.publish import serving
 from cfbpoll.publish.serving import Bundle, build
 
-__all__ = ["SCHEMA_VERSION", "export", "rebuild_index", "week_documents"]
+__all__ = [
+    "SCHEMA_VERSION",
+    "export",
+    "export_all",
+    "rebuild_index",
+    "run_directories",
+    "week_documents",
+]
 
 #: Bumped when a document's shape changes. The site checks it on load and fails
 #: loudly rather than rendering nulls, because a contract that drifts silently is
@@ -70,6 +78,72 @@ def _dump(path: Path, payload: Any) -> None:
 def week_documents(bundle: Bundle) -> dict[str, Any]:
     """The four per-week documents, keyed by filename stem."""
     return {stem: bundle.views[view] for stem, view in DOCUMENTS.items()}
+
+
+def run_directories(source: Path) -> list[Path]:
+    """The run directories under `source`: either it is one, or it holds several.
+
+    WHY THIS EXISTS, because it is the defect that let the site's fixture tree go
+    stale while a session reported it regenerated.
+
+    `export` publishes ONE week. The site reads a whole season, so regenerating
+    the tree it serves meant looping a shell over fifteen run directories by
+    hand. A regeneration procedure that lives in somebody's terminal history is
+    not a procedure: it cannot be reviewed, it cannot be re-run by the next
+    person, and there is no way to notice it was skipped. So `publish fixtures`
+    accepts a directory of runs and does the loop itself, and the command that
+    produces the published tree is one line that can be written down.
+
+    A run directory is identified by `poll.json`, which `cfbpoll rank` always
+    writes. Sorted by (season, week) so the index is rebuilt in calendar order
+    and a partial failure leaves the earlier weeks correct.
+    """
+    source = Path(source)
+    if (source / "poll.json").exists():
+        return [source]
+    found = sorted(p for p in source.iterdir() if p.is_dir() and (p / "poll.json").exists())
+    if not found:
+        raise serving.StaleRunError(
+            f"{source} is neither a run directory (no poll.json) nor a directory of "
+            f"them. `publish fixtures --from` wants what `cfbpoll rank --out` wrote."
+        )
+
+    def key(path: Path) -> tuple[int, int, str]:
+        poll = json.loads((path / "poll.json").read_text(encoding="utf-8"))
+        through = poll.get("through") or {}
+        return (
+            int(poll.get("season", 0)),
+            int(through.get("week", 0)),
+            str(through.get("season_type", "regular")),
+        )
+
+    return sorted(found, key=key)
+
+
+def export_all(
+    source: Path,
+    dest: Path,
+    archive: Path | None = None,
+    backtest: Path | None = None,
+) -> list[Path]:
+    """Publish every run under `source`, then rebuild the index once.
+
+    The index is rebuilt once at the end rather than after every week: it is a
+    pure function of what is on disk (report 03 §9.3), so rebuilding it fifteen
+    times produces the same bytes fifteen times and only the last one counts.
+    """
+    written: list[Path] = []
+    runs = run_directories(source)
+    for run in runs:
+        resolved = backtest if backtest is not None else (run / "backtest_metrics.json")
+        bundle = build(run, archive=archive, backtest=resolved if resolved.exists() else None)
+        season_dir = dest / str(bundle.season)
+        for stem, payload in week_documents(bundle).items():
+            path = season_dir / f"{stem}-{bundle.week:02d}.json"
+            _dump(path, payload)
+            written.append(path)
+    written.extend(rebuild_index(dest, archive=archive))
+    return sorted(written)
 
 
 def export(

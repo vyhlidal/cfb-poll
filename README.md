@@ -256,8 +256,10 @@ cfbpoll bootstrap                       rank + rating intervals (parametric, fix
 cfbpoll guard                           has this week already been published?
 cfbpoll canonicalize                    emit the sorted CSV that golden fixtures hash
 cfbpoll publish {release,postgres,fixtures,cards}
-                                        publish out/ to its destinations; `cards`
-                                        renders the weekly share card (SVG + PNG)
+                                        publish out/ to its destinations. `fixtures`
+                                        takes one run OR a directory of them, so
+                                        `make fixtures` republishes a whole season;
+                                        `cards` renders the share card (SVG + PNG)
 cfbpoll site build                      build the static site
 ```
 

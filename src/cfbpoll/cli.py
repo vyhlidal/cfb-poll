@@ -1083,6 +1083,13 @@ def publish_fixtures(
     IDEMPOTENT AND INCREMENTAL: exporting week 7 rewrites week 7's four documents
     and rebuilds the two season-level files from whatever is already on disk. Run
     it fifteen times, or twice for the same week; it converges.
+
+    `--from` TAKES EITHER ONE RUN OR A DIRECTORY OF THEM. The site reads a whole
+    season, so publishing it used to mean looping a shell over fifteen run
+    directories by hand — a procedure that lives in a terminal history, which is
+    to say a procedure nobody can review or repeat. Point `--from` at the parent
+    and this command does the loop, so the command that produces the published
+    tree is one line somebody can write down.
     """
     from cfbpoll.publish import fixtures
 
@@ -1091,10 +1098,20 @@ def publish_fixtures(
         typer.echo(f"rebuilt: {', '.join(str(p.relative_to(out)) for p in written)}")
         return
 
+    runs = fixtures.run_directories(from_)
     resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
-    written = fixtures.export(
-        from_, out, backtest=resolved if resolved.exists() else None
+    explicit = resolved if resolved.exists() else None
+    # ALWAYS say how many runs were found. `--from out` publishes ONE week when
+    # out/ is a run and fifteen when it is a season of them, and an operator who
+    # cannot see which happened is one silent no-op away from a stale site.
+    typer.echo(
+        f"{len(runs)} run{'' if len(runs) == 1 else 's'} under {from_}: "
+        + ", ".join(r.name for r in runs)
     )
+    if len(runs) > 1:
+        written = fixtures.export_all(from_, out, backtest=explicit)
+    else:
+        written = fixtures.export(runs[0], out, backtest=explicit)
     if resolved is None or not resolved.exists():
         typer.echo(
             "note: no backtest_metrics.json found, so the methodology page will say the "

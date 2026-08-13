@@ -11,7 +11,7 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive backtest cards demos replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive backtest cards demos fixtures replay replay-tolerant grid site test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'grid', 'demos', 'test', 'lint' work."
@@ -22,6 +22,7 @@ help:
 	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
 	@echo "  make grid             the R(N,K) retroactive triangle for one season"
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
+	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
@@ -61,6 +62,44 @@ backtest: .venv
 	@echo
 	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"
 	@echo "single-shot test and the harness refuses it without --unlock-holdout."
+
+# Real, and it is the ONLY supported way to regenerate the tree the website reads.
+#
+# This target exists because its absence caused a real failure. `publish fixtures`
+# publishes one week; the site reads a whole season; so regenerating the published
+# tree meant looping a shell over fifteen run directories by hand. A procedure
+# that lives in a terminal history cannot be reviewed, cannot be repeated by the
+# next person, and gives nobody a way to notice it was skipped - and it was
+# skipped, leaving the site serving a fixture set two model versions old while a
+# session reported it regenerated.
+#
+# FIXTURES points at the sandbox app's data directory by default, because that is
+# the tree the site actually reads. Override it to publish somewhere else.
+#
+# The per-week runs land directly in $(OUT), one directory per week, so that the
+# no-argument `cfbpoll publish fixtures` — whose `--from` defaults to out/ —
+# republishes the whole season. The command an operator is most likely to type is
+# the command that does the right thing.
+#
+# IT DEPENDS ON `backtest` ON PURPOSE, and that is not belt-and-braces. The
+# methodology page's gate table and baseline comparison are read out of
+# backtest_metrics.json, so publishing against a stale one puts numbers on the
+# site that no longer describe the model - the same failure as a stale fixture
+# set, one document over. It costs a couple of minutes, once, at publication.
+FIXTURE_SEASON ?= 2023
+FIXTURE_WEEKS  ?= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+RUNS           ?= $(OUT)
+FIXTURES       ?= ../sandbox/cfb-poll-data
+fixtures: .venv backtest
+	@for w in $(FIXTURE_WEEKS); do \
+	  printf 'rank %s week %s\n' "$(FIXTURE_SEASON)" "$$w"; \
+	  OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	    $(UV) run cfbpoll rank --config $(CONFIG) --season $(FIXTURE_SEASON) \
+	      --through-week $$w --seed $(SEED) --draws $(DRAWS) \
+	      --out $(RUNS)/w$$(printf '%02d' $$w) >/dev/null || exit 1; \
+	done
+	$(UV) run cfbpoll publish fixtures --from $(RUNS) --out $(FIXTURES) \
+	  --backtest $(OUT)/backtest_metrics.json
 
 # Real. The weekly share card. No logos, no network, no headless browser: a
 # Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job

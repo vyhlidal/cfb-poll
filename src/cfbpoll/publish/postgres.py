@@ -75,6 +75,16 @@ DDL: tuple[str, ...] = (
       logo_url_2x     text,
       logo_url_dark   text,
       logo_url_dark_2x text,
+      -- THE GENERATED MARK (report 06 §9.1). `mark_bg`/`mark_fg` carry the
+      -- contrast repair already applied; `team_color`/`team_alt_color` are the
+      -- school's raw pair, stored beside them so a reader can see WHICH marks
+      -- were repaired rather than being handed two values that silently are not
+      -- the school's. All five are DISPLAY ONLY and banned as model features.
+      mark_bg         text,
+      mark_fg         text,
+      mark_label      text,
+      team_color      text,
+      team_alt_color  text,
       PRIMARY KEY (season, team_id)
     )
     """,
@@ -82,6 +92,11 @@ DDL: tuple[str, ...] = (
     "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_2x text",
     "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_dark text",
     "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS logo_url_dark_2x text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS mark_bg text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS mark_fg text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS mark_label text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS team_color text",
+    "ALTER TABLE cfb_teams ADD COLUMN IF NOT EXISTS team_alt_color text",
     """
     CREATE TABLE IF NOT EXISTS cfb_games (
       game_id         bigint      PRIMARY KEY,
@@ -255,6 +270,11 @@ _CONFLICT: dict[str, tuple[str, tuple[str, ...]]] = {
             "logo_url_2x",
             "logo_url_dark",
             "logo_url_dark_2x",
+            "mark_bg",
+            "mark_fg",
+            "mark_label",
+            "team_color",
+            "team_alt_color",
         ),
     ),
     "cfb_games": (

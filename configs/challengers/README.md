@@ -75,6 +75,16 @@ that conflates them stops being a measurement and becomes a marketing surface.
   [`archive-v1`](https://github.com/vyhlidal/cfb-poll/releases/tag/archive-v1).
   Fork pull requests receive no repository secrets and the workflow asks for
   none, which is why this is safe for us and frictionless for you.
+- **Your incumbent numbers will differ slightly from ours, and that is expected.**
+  Our 2021 and 2022 postseason includes 80 games from a private CFBD backfill
+  whose terms forbid us to republish it, so your comparison runs on the MIT
+  archive alone. Measured on the committed example: the incumbent's retrodictive
+  violation rate is 0.2019 here and 0.2015 on a fresh clone. This does not
+  compromise a scorecard — both rows in it come from the same run on the same
+  frames — but it does mean a number copied from
+  [the published backtest](../../demo/backtest-2021-2023.md) will not always match
+  yours to the fourth decimal. `out/.../backtest_metrics_reference.json` records
+  `game_sources`, which says which archives produced your numbers.
 - **2025 is held out and the harness refuses to score it.** It is a single-shot
   test season (report 02 §5.1) and `cfbpoll challenge run` never passes
   `--unlock-holdout`. Tune on 2021–2023, validate on 2024. If you tune against

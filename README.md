@@ -394,9 +394,11 @@ cfbpoll site build                      build the static site
 
 **What is coming, in build order** (research report 03 §10, report 02 Appendix B)
 
-1. The MIT backfill onto disk, checksummed into `data/manifests/` — the step most
-   likely to be lost forever if delayed
-2. `cfbpoll archive sync --verify` and the archive published as `archive-v1`
+1. ~~**The MIT backfill onto disk, checksummed into `data/manifests/`**~~ — done
+2. ~~**`cfbpoll archive sync --verify` and the archive published as `archive-v1`**~~
+   — done, 2026-08-13. 28 assets, 549,177,654 bytes, every one sha256-checked
+   against a committed lockfile before any consumer reads it. This was the whole
+   fork promise and it was a stub for the first day of this repository's life
 3. ~~**L2 alone**~~ — done
 4. ~~**The backtest harness and the computed baselines**~~ — done, built second
    rather than last because every subsequent decision depends on it
@@ -407,13 +409,21 @@ cfbpoll site build                      build the static site
 8. ~~**L1 efficiency → L3 blend**~~ — done; `power_source` is now `"L3"`
 8b. ~~**Rank intervals and rating standard errors**~~ — done; published on every
    row, every week
-9. The static site, the sandbox web app, and the challenge harness
+9. The static site and the sandbox web app. ~~**The challenge harness**~~ — done,
+   with two worked examples and a committed scorecard
+   (`configs/challengers/`, `.github/workflows/challenge.yml`)
 
 **Known gaps, recorded rather than glossed**
 
 - Cloudflare R2 is not provisioned; the private-archive push target is a stub
-- No CFBD key is configured, and the terms snapshot in
-  `docs/terms-snapshots/` has not been taken (it requires a browser render)
+- `cfbpoll site build` is a stub, so `make rankings` produces the poll as files
+  rather than as a page
+- The terms snapshot in `docs/terms-snapshots/` has not been taken (it requires a
+  browser render)
+- **A fork's 2021 and 2022 postseason differs from ours, legitimately.** Those 80
+  games come from a private CFBD backfill its terms forbid us to republish, so a
+  fork's hindsight surface for those two seasons stops at conference championship
+  weekend. `_run.json` records which archives every run actually read
 - FCS-vs-FCS play-by-play coverage is real but incomplete (1,492 of 1,603
   model-universe games in 2023 have a play feed; FBS-vs-FBS is complete). A team
   with no plays gets an L1 coefficient of zero — league average — which is what

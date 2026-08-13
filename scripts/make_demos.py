@@ -1803,6 +1803,56 @@ def mae_sweep_lines(systems: dict, label: dict[str, str], headline_week: int) ->
     return [headline, *detail, *context]
 
 
+def benchmark_roster_lines() -> list[str]:
+    """What we compare against but cannot score, and why not.
+
+    The table above is nine systems, five of which we implemented ourselves from
+    the scoreboard. A reader is entitled to ask why the famous names are absent,
+    and the answer is not that they would win. Rendered from
+    `src/cfbpoll/benchmarks.py` so the page and the roster cannot disagree.
+    """
+    from cfbpoll import benchmarks
+
+    rows = [
+        f"| {b.label} | {b.author} | {'yes' if b.open_source else '**no**'} "
+        f"| {'yes' if b.publishes_error_metrics else '**no**'} | {b.granularity} |"
+        for b in benchmarks.BENCHMARKS
+    ]
+    n_open = sum(1 for b in benchmarks.BENCHMARKS if b.open_source)
+    n_metrics = sum(1 for b in benchmarks.BENCHMARKS if b.publishes_error_metrics)
+    return [
+        "",
+        "## What is not in that table, and why",
+        "",
+        "Every rating above is computed here, from the scoreboard, walk-forward. None of the",
+        "well-known public systems appears, and the reason is not that they would lose.",
+        "",
+        "| Series | Author | Open implementation | Publishes error metrics | Granularity |",
+        "|---|---|---|---|---|",
+        *rows,
+        "",
+        f"**{n_open} of {len(benchmarks.BENCHMARKS)} are open source and "
+        f"{n_metrics} of {len(benchmarks.BENCHMARKS)} publish error metrics.** That is the",
+        "whole differentiation argument in two columns, and it is why this project stopped",
+        "claiming *transparent* and started claiming **checkable**: a documented methodology",
+        "you cannot run is not something you can check.",
+        "",
+        "**None of them can be scored on this harness, and the reason is a fact about the",
+        "data rather than a hedge.** These series publish one number per team per *season*.",
+        "Putting a season-final rating in a walk-forward table beside systems that saw only",
+        "through week N-1 would flatter it and measure nothing. CFBD's Elo is weekly and could",
+        "in principle be scored; it is not, because CFBD warns that model changes affect",
+        "comparability across periods, so a backtest resting on someone else's derived ratings",
+        "can drift when they retrain. Where a comparison is wanted, the method is implemented",
+        "here instead - the `SRS` and `Elo` rows above are ours and are not theirs.",
+        "",
+        "None of these is ever a model input. The enforcement is an allow-list rebuild of",
+        "every design matrix before every fit, so a rating nobody thought to ban by name fails",
+        "closed. `cfbpoll benchmarks` prints this roster; `docs/data-sources.md` has the terms.",
+        "",
+    ]
+
+
 def backtest_report() -> str:
     result = backtest_result()
     protocol = result["protocol"]
@@ -1981,6 +2031,7 @@ def backtest_report() -> str:
         "  is why those games carry a 0.25 weight in the fit and are never pooled into the",
         "  headline.",
         "",
+        *benchmark_roster_lines(),
         "## The blend weights, week by week",
         "",
         "Report 02 §3.3 says to publish `w1`, `w2` and `k` every week, and expects efficiency",

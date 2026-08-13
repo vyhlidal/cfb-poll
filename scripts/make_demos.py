@@ -54,6 +54,24 @@ SYSTEMS = [
 DEMO_SEASON = 2023
 DEMO_WEEK = 10
 
+#: The order the backtest tables list systems in, and their display names. Module
+#: level because two different sections render the same roster and a private copy
+#: of a roster is how two tables come to disagree.
+SYSTEM_ORDER = ["l3", "l2", "l1", "srs", "elo", "colley", "winpct", "random_walker", "home_team"]
+SYSTEM_LABEL = {
+    "schedule_odds": "**Schedule odds (the headline)**",
+    "resume": "**L4 résumé (ours)**",
+    "l3": "**L3 blend (ours)**",
+    "l2": "**L2 results core (ours)**",
+    "l1": "**L1 efficiency (ours)**",
+    "srs": "SRS (±24/±7)",
+    "elo": "Elo (K=25, MOV)",
+    "colley": "Colley",
+    "winpct": "Win %",
+    "random_walker": "Random walker",
+    "home_team": "Home team wins",
+}
+
 #: COMPARISON ONLY - a human poll, never an input (constraint 1). Verified against
 #: the official CFP releases, transcribed in report 02 §5.5.
 #: https://collegefootballplayoff.com/news/2023/12/3/cfp-rankings-2023-1203.aspx
@@ -1518,6 +1536,7 @@ def gate_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
             f"| {rival} | {value:.4f} | {detail['rate']:.4f} | "
             f"{'at or below' if won else '**above - lost**'} |"
         )
+    lines += gate_scoreboard_lines(systems, headline)
     lines += [
         "",
         "```json",
@@ -1527,25 +1546,270 @@ def gate_section(systems: dict, headline: str = "schedule_odds") -> list[str]:
     return lines
 
 
+#: The five decidable gate criteria, in the order the gate table lists them:
+#: (json key, display name, threshold renderer, observed key, formatter, higher_is_better).
+_GATE_CRITERIA: tuple[tuple[str, str, str, str, str, bool], ...] = (
+    ("su_accuracy", "SU %", "su_accuracy_min", "su_accuracy", "pct", True),
+    ("mae", "MAE", "mae_max", "mae", "f3", False),
+    ("rmse", "RMSE", "rmse_max", "rmse", "f3", False),
+    (
+        "calibration",
+        "Calib. dev.",
+        "calibration_max_decile_deviation_pp",
+        "max_calibration_deviation_pp",
+        "pp",
+        False,
+    ),
+    (
+        "violations",
+        "Violations",
+        "violations_must_beat",
+        "retrodictive_violation_rate",
+        "f4",
+        False,
+    ),
+)
+
+
+def _tie_break_rank(name: str) -> int:
+    """Order for breaking exact ties: the systems that compute a row come first."""
+    return SYSTEM_ORDER.index(name) if name in SYSTEM_ORDER else len(SYSTEM_ORDER)
+
+
+def _gate_threshold_text(tkey: str, fmt: str, hib: bool, thresholds: dict) -> str:
+    """`≤ 12.800`, or `at or below all` for the one comparative criterion."""
+    if tkey == "violations_must_beat":
+        return "at or below all"
+    return ("≥ " if hib else "≤ ") + _gate_cell(fmt, thresholds[tkey])
+
+
+def _gate_cell(kind: str, value: float | None) -> str:
+    if value is None:
+        return "-"
+    return {
+        "pct": f"{value:.2%}",
+        "f3": f"{value:.3f}",
+        "f4": f"{value:.4f}",
+        "pp": f"{value:.2f} pp",
+    }[kind]
+
+
+def gate_scoreboard_lines(systems: dict, headline: str) -> list[str]:
+    """THE SAME GATE, APPLIED TO EVERY SYSTEM IN THE COMPARISON.
+
+    The gate table above shows one system failing five of five, which reads cold
+    as "the model does not work". The truthful context is one table away and was
+    never drawn: the harness already evaluates the identical gate for every
+    system it scores (`walkforward.run_backtest`, which calls `check_gate` in a
+    loop over `canonical`), so the comparison costs nothing but a render.
+
+    Every cell here is read out of `systems[name]["gate"]`. Nothing is typed, for
+    the same reason nothing above it is: a hand-written summary of a generated
+    object is a claim waiting to go stale, and this page has already been caught
+    that way twice (fresh-eyes S1, and the MAE sweep bullet below).
+    """
+    scored = [n for n in (headline, "resume", *SYSTEM_ORDER) if systems.get(n, {}).get("gate")]
+    if not scored:  # pragma: no cover - a run that scored nothing
+        return []
+    thresholds = systems[scored[0]]["gate"]["thresholds"]
+
+    header = [
+        "",
+        "### The same gate, applied to every system in the comparison",
+        "",
+        "One system failing five of five is a number without a denominator. The gate is a",
+        "bar this project chose; the question a reader is entitled to ask is whether it is a",
+        "bar anything clears. The harness already evaluates the identical gate for every",
+        "system it scores, so here is the whole board. **Bold with a ✓ means that system",
+        "clears that criterion.**",
+        "",
+        "| System | "
+        + " | ".join(
+            f"{name} ({_gate_threshold_text(tkey, fmt, hib, thresholds)})"
+            for _, name, tkey, _, fmt, hib in _GATE_CRITERIA
+        )
+        + " | Criteria cleared |",
+        "|---|" + "---:|" * len(_GATE_CRITERIA) + "---:|",
+    ]
+
+    cleared_counts: dict[str, tuple[int, int]] = {}
+    body = []
+    for name in scored:
+        gate = systems[name]["gate"]
+        observed = gate["observed"]
+        cells = []
+        passed = decided = 0
+        for key, _, _, okey, fmt, _ in _GATE_CRITERIA:
+            verdict = gate["violations_vs_baselines"] if key == "violations" else gate[key]
+            text = _gate_cell(fmt, observed.get(okey))
+            if verdict is None:
+                cells.append(f"{text} (n/a)")
+                continue
+            decided += 1
+            if verdict:
+                passed += 1
+                cells.append(f"**{text} ✓**")
+            else:
+                cells.append(text)
+        cleared_counts[name] = (passed, decided)
+        body.append(f"| {SYSTEM_LABEL[name]} | " + " | ".join(cells) + f" | {passed} / {decided} |")
+
+    n_whole = sum(1 for name in scored if systems[name]["gate"]["passed"])
+    best = max(cleared_counts.values(), key=lambda pair: pair[0])[0]
+    holders = [n for n, (p, _) in cleared_counts.items() if p == best]
+
+    #: Which system is nearest each threshold, so "we lead the table" is a
+    #: computed fact rather than an assertion. The winner is the extremum of the
+    #: observed value, which is why `higher_is_better` is carried per criterion.
+    leaders = []
+    for key, name, tkey, okey, fmt, hib in _GATE_CRITERIA:
+        havers = {
+            n: systems[n]["gate"]["observed"][okey]
+            for n in scored
+            if systems[n]["gate"]["observed"].get(okey) is not None
+        }
+        if not havers:
+            continue
+        # Ties are real here rather than a formatting nuisance: both retrodictive
+        # orderings predict through the Power source they share with L3, so their
+        # predictive cells ARE L3's cells, to the last digit. Break toward the
+        # system that computes the number rather than the one that borrows it.
+        sign = -1.0 if hib else 1.0
+        who = min(havers.items(), key=lambda kv: (sign * kv[1], _tie_break_rank(kv[0])))[0]
+        verdict = (
+            systems[who]["gate"]["violations_vs_baselines"]
+            if key == "violations"
+            else systems[who]["gate"][key]
+        )
+        target = _gate_threshold_text(tkey, fmt, hib, thresholds)
+        leaders.append(
+            f"| {name} | {target} | {SYSTEM_LABEL[who]} | {_gate_cell(fmt, havers[who])} "
+            f"| {'**yes**' if verdict else 'no'} |"
+        )
+
+    tail = [
+        "",
+        f"**{n_whole} of the {len(scored)} systems scored here clear the gate.** The most any "
+        f"system clears is {best} of its decidable criteria "
+        f"({', '.join(SYSTEM_LABEL[n].replace('**', '') for n in holders)}).",
+        "",
+        "The first three rows carry identical predictive cells on purpose. Both retrodictive",
+        "orderings predict through the Power source they share with L3, per the protocol",
+        "above, so their SU, MAE, RMSE and calibration ARE L3's. Only the violations column,",
+        "which is the metric they exist for, distinguishes them.",
+        "",
+        "And the same board read the other way — who is nearest each threshold, and whether",
+        "being nearest is enough:",
+        "",
+        "| Criterion | Threshold | Nearest in the comparison | Its value | Clears? |",
+        "|---|---|---|---:|---|",
+        *leaders,
+        "",
+        "Two readings of that are both fair and the page is not entitled to only one. The",
+        "generous reading is that this gate was set above the field rather than around this",
+        "model, which is what a bar is for. The ungenerous reading is that a bar nothing",
+        "clears is a bar that has not been calibrated to anything, and that a system which",
+        "predicts nothing at all can still be well calibrated, because calibration asks",
+        "whether stated confidence is earned and a floor states almost none. Both are on the",
+        "page. The thresholds are in `configs/default.toml` under `[gate]` and they have not",
+        "moved since they were written; if they ever do, the commit that moves them is the",
+        "one to read.",
+    ]
+    return header + body + tail
+
+
+#: Our layers, in the order the predictive table lists them. Both retrodictive
+#: orderings are deliberately absent: they predict through their shared Power
+#: source and would reproduce L3's row exactly, which is why the old hand-written
+#: sentence claiming "four layers" was describing a table that has three.
+OUR_PREDICTIVE_LAYERS = ("l3", "l2", "l1")
+
+
+def mae_sweep_lines(systems: dict, label: dict[str, str], headline_week: int) -> list[str]:
+    """The MAE sweep claim, DERIVED FROM THE JSON rather than typed.
+
+    This bullet used to read "every one of our four layers beats every external
+    baseline on MAE from week 5 on". It was true when it was written. The
+    2021-2022 postseason backfill moved the numbers and it stopped being true -
+    L2 is above SRS - and nothing in the pipeline noticed, because the sentence
+    was prose and the table underneath it was generated. It also said "four
+    layers" about a table with three rows of ours in it.
+
+    A claim a reader can falsify in ten minutes is the worst thing this project
+    can put on a page, so the fix is not a better sentence. It is the same fix
+    the gate got after fresh-eyes S1: compute the sentence from the same object
+    the table is rendered from, so the two cannot disagree again.
+    """
+    cut = "segments_from_headline_week"
+    ours = {
+        name: systems[name][cut]["fbs_vs_fbs"]["mae"]
+        for name in OUR_PREDICTIVE_LAYERS
+        if systems.get(name, {}).get(cut, {}).get("fbs_vs_fbs")
+    }
+    external = {
+        name: block["mae"]
+        for name, payload in systems.items()
+        if name not in OUR_PREDICTIVE_LAYERS
+        and name not in ("schedule_odds", "resume")
+        and (block := payload.get(cut, {}).get("fbs_vs_fbs"))
+    }
+    if not ours or not external:  # pragma: no cover - a run with nothing to compare
+        return []
+
+    best_name, best_mae = min(external.items(), key=lambda kv: kv[1])
+    beat = [n for n, v in ours.items() if v < best_mae]
+    lost = [n for n, v in ours.items() if v >= best_mae]
+
+    def names(keys: list[str]) -> str:
+        pretty = [label[k].replace("**", "").replace(" (ours)", "") for k in keys]
+        if len(pretty) == 1:
+            return pretty[0]
+        return ", ".join(pretty[:-1]) + " and " + pretty[-1]
+
+    since = f"from week {headline_week} on"
+    if not lost:
+        headline = (
+            f"- **Every one of our {len(ours)} layers in this table beats every external "
+            f"baseline on MAE {since}.**"
+        )
+    elif not beat:
+        headline = (
+            f"- **Not one of our {len(ours)} layers in this table beats every external "
+            f"baseline on MAE {since}.**"
+        )
+    else:
+        headline = (
+            f"- **{names(beat)} beat{'' if len(beat) > 1 else 's'} every external baseline "
+            f"on MAE {since}; {names(lost)} do{'' if len(lost) > 1 else 'es'} not.**"
+        )
+
+    detail = [
+        f"  The best external baseline is {names([best_name])} at {best_mae:.3f}. "
+        + "; ".join(
+            f"{names([n])} {ours[n]:.3f} ({ours[n] - best_mae:+.3f})"
+            for n in OUR_PREDICTIVE_LAYERS
+            if n in ours
+        )
+        + ".",
+    ]
+    context = [
+        "  The family result behind this is Barrow et al. (report 02 §2.15) — least squares",
+        "  on score differential is the best-supported family for college football — and it",
+        "  reproduces here: the layers built on that family sit at the top of the column, and",
+        "  adding play-level efficiency to it is what moves L3 ahead of L2. It does not",
+        "  reproduce as a clean sweep, and this bullet is generated from",
+        "  `backtest_metrics.json` so that it says whichever of those two things is true.",
+    ]
+    return [headline, *detail, *context]
+
+
 def backtest_report() -> str:
     result = backtest_result()
     protocol = result["protocol"]
     systems = result["systems"]
     blend = result["blend"]
-    order = ["l3", "l2", "l1", "srs", "elo", "colley", "winpct", "random_walker", "home_team"]
-    label = {
-        "schedule_odds": "**Schedule odds (the headline)**",
-        "resume": "**L4 résumé (ours)**",
-        "l3": "**L3 blend (ours)**",
-        "l2": "**L2 results core (ours)**",
-        "l1": "**L1 efficiency (ours)**",
-        "srs": "SRS (±24/±7)",
-        "elo": "Elo (K=25, MOV)",
-        "colley": "Colley",
-        "winpct": "Win %",
-        "random_walker": "Random walker",
-        "home_team": "Home team wins",
-    }
+    order = SYSTEM_ORDER
+    label = SYSTEM_LABEL
 
     def table(cut: str, caption: str) -> list[str]:
         rows = [
@@ -1701,11 +1965,7 @@ def backtest_report() -> str:
         "",
         "## What else that says",
         "",
-        "- Every one of our four layers beats every external baseline on MAE from week 5 on.",
-        "  That is the Barrow et al. result (report 02 §2.15) — least squares on score",
-        "  differential is the best-supported family for college football — reproduced on",
-        "  2021-2023 with an independent implementation, and then improved on by adding",
-        "  play-level efficiency to it.",
+        *mae_sweep_lines(systems, label, int(protocol["headline_start_week"])),
         "- Over weeks 2+ the ordering is not clean: SRS edges L2 on MAE and Elo on accuracy,",
         "  both by fitting the near-noise weeks slightly better. A zero-prior system has no",
         "  business being confident in September and this is the number that shows it. L3",

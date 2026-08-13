@@ -13,6 +13,12 @@ Pages planned:
     methodology    every constant, every week, with the config hash and git sha
     connectivity   weeks 1-4: graph diagnostics instead of a ranking
 
+The challenge page's copy lives in the web app rather than here, and when it is
+written it needs one more link than it currently plans for: `docs/learn/` is the
+beginner path to the same command, seven modules from "what is a terminal" to a
+scored challenger. `configs/challengers/README.md` already points at it, and that
+page is what the challenge copy is a front door to.
+
 Run as `cfbpoll site build --from out/ --to site/_build`, or `make site`.
 
 STATUS: SCAFFOLD. Nothing is rendered yet.

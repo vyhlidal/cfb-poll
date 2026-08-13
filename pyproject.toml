@@ -56,4 +56,11 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# `-m 'not learn'` keeps the ordinary suite fast. The learn-track end-to-end test
+# clones the repository, downloads the 0.55 GB archive and runs every command in
+# docs/learn/ in order, which is ~15 minutes and needs the network. A command
+# line `-m` overrides this one, so `pytest -m learn` runs exactly that test.
+addopts = "-q -m 'not learn'"
+markers = [
+  "learn: runs every command in docs/learn/ in a scratch clone. Slow, needs network. Deselected by default; `pytest -m learn` selects it.",
+]

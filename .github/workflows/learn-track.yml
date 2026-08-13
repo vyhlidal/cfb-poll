@@ -1,0 +1,121 @@
+# Run every command in docs/learn/ in a clone with nothing set up.
+#
+# WHY THIS IS A JOB AND NOT A README NOTE. The learn track is written for someone
+# who has never opened a terminal. That reader cannot debug. A command that has
+# rotted does not cost them five minutes, it costs them the module. So the manual
+# gets the same treatment as every published number in this repository: a machine
+# re-checks it, and a failure is loud.
+#
+# WHAT ROTS IT. Two different things, so there are two triggers.
+#
+#   1. Somebody edits the manual. Covered by the `pull_request` paths below,
+#      which include the manual, the verifier and its tests.
+#   2. Somebody changes the product underneath the manual. A renamed CLI option,
+#      a moved config key, a changed output format. That never touches
+#      docs/learn/, so the paths filter also watches the surfaces the modules
+#      actually type at: the Makefile, the CLI, the default config and the
+#      challenger examples.
+#
+# WHY IT HAS A SCHEDULE, WHEN weekly.yml AND reproducibility.yml DELIBERATELY DO
+# NOT. Those two publish. A clock on a job that writes something is a way to
+# publish by accident, which is why they are dispatch-only. This job writes
+# nothing, reads nothing private, and its whole output is a pass or a fail. The
+# weekly run catches the third rot source, which is neither of the two above: an
+# upstream change, a new archive release, or a tool that moved on without us.
+#
+# IT IS SLOW ON PURPOSE. It downloads 0.55 GB and runs the full walk-forward
+# harness four times, because that is what the reader does. A cheaper check that
+# did not run the real commands would verify nothing worth verifying. The archive
+# is cached on the lockfile, the same way challenge.yml caches it.
+
+name: learn-track
+
+on:
+  pull_request:
+    paths:
+      - "docs/learn/**"
+      - "scripts/verify_learn_track.py"
+      - "tests/test_learn_track.py"
+      - "Makefile"
+      - "src/cfbpoll/cli.py"
+      - "configs/default.toml"
+      - "configs/challengers/**"
+      - ".github/workflows/learn-track.yml"
+  schedule:
+    # Tuesdays, 09:00 UTC. Reads only, publishes nothing.
+    - cron: "0 9 * * 2"
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Run one module only, e.g. 02. Blank runs the whole track."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: learn-track-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  structure:
+    # The fast half. Directives parse, every skip has a reason on record, no em
+    # dashes, every module carries its pedagogy sections. Seconds, not minutes,
+    # so a broken manual fails before the 0.55 GB download starts.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true, cache-dependency-glob: "uv.lock" }
+      - run: uv sync --locked
+      - run: uv run pytest tests/test_learn_track.py
+      - name: The plan, for the log
+        run: uv run python scripts/verify_learn_track.py --list
+
+  commands:
+    # The real half: every command in the manual, in order, in an empty
+    # directory. The clone in module 02 is what creates the checkout the rest of
+    # the track uses, exactly as the reader experiences it.
+    needs: structure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+      TZ: "UTC"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true, cache-dependency-glob: "uv.lock" }
+      - run: uv sync --locked
+
+      # Keyed on the lockfile, so the cache misses exactly when the archive
+      # changes, which is the run that most needs to miss it.
+      - name: Cache the MIT archive on the lockfile
+        uses: actions/cache@v4
+        with:
+          path: ~/learn-archive
+          key: sdv-archive-${{ hashFiles('data/manifests/sportsdataverse.lock.json') }}
+
+      - name: Run every command in docs/learn/
+        run: |
+          mkdir -p ~/learn-archive
+          uv run python scripts/verify_learn_track.py \
+            --workspace "${RUNNER_TEMP}/learn-workspace" \
+            --archive-cache ~/learn-archive \
+            ${{ github.event.inputs.module && format('--module {0}', github.event.inputs.module) || '' }}
+
+      # The cache path has to hold the archive after the run, and the run put it
+      # inside the workspace clone. Copy it back out so the next run hits.
+      - name: Keep the archive for next time
+        if: always()
+        run: |
+          src="${RUNNER_TEMP}/learn-workspace/cfb-poll/archive/sportsdataverse"
+          if [ -d "$src" ] && [ ! -L "$src" ]; then
+            rm -rf ~/learn-archive
+            cp -R "$src" ~/learn-archive
+          fi

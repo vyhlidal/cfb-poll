@@ -17,7 +17,7 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive archive-lock backtest cards demos fixtures replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive archive-lock backtest cards demos fixtures replay replay-tolerant grid site test learn-verify lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -35,6 +35,7 @@ help:
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
 	@echo "  make site             build the static site into site/_build      [stub]"
 	@echo "  make test / make lint pytest / ruff"
+	@echo "  make learn-verify     run every command in docs/learn/ in a scratch clone"
 
 # The only target that works today. `uv sync --locked` errors instead of
 # updating if uv.lock is stale, which is exactly what CI and a stranger both want.
@@ -174,6 +175,16 @@ site: .venv
 
 test: .venv
 	$(UV) run pytest
+
+# Every command in docs/learn/, extracted and run in order in a scratch clone.
+# The manual is written for someone who has never opened a terminal, and that
+# reader cannot debug, so a rotted command costs them the module rather than five
+# minutes. Slow (~15 min, 0.55 GB) and marked `learn` so `make test` skips it.
+# `LEARN_MODULE=02 make learn-verify` runs one module.
+LEARN_MODULE ?=
+learn-verify: .venv
+	$(UV) run python scripts/verify_learn_track.py \
+	  $(if $(LEARN_MODULE),--module $(LEARN_MODULE),)
 
 lint: .venv
 	$(UV) run ruff check .

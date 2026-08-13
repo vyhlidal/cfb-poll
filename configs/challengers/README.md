@@ -10,6 +10,12 @@ one of them has a scored scorecard committed at
 uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
 ```
 
+**Coming at this without a background in it?** [`docs/learn/`](../../docs/learn/README.md)
+is the long way round: seven modules from "what is a terminal" to a scored
+structural challenger, written for a college football fan who has never installed
+anything. Modules 05 and 06 are this page, slowed down. Every command in the track
+is run against a fresh clone before the manual may change.
+
 ## The one rule that makes any of this mean anything
 
 Your entry is scored by the **same** `run_backtest`, on the **same** frames, over

@@ -197,6 +197,13 @@ criteria ([the scorecard](demo/challenge-iterative-margin/scorecard.md)). Shippi
 a losing example is deliberate: it shows what the harness does when an idea does
 not work, which is what happens to most ideas.
 
+**Never opened a terminal?** [`docs/learn/`](docs/learn/README.md) is a seven-module
+track that starts there and ends with you holding a scored scorecard with your own
+idea in it. It assumes no coding, teaches no Python, and every command in it is
+extracted and run in a fresh clone by
+[`scripts/verify_learn_track.py`](scripts/verify_learn_track.py) before the manual
+is allowed to change.
+
 ---
 
 ## Attribution

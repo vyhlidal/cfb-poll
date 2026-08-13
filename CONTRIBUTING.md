@@ -75,6 +75,13 @@ Two worked examples are committed â€” a parameter variant and a structural one â
 along with the scorecard the structural one actually produced. It loses on 6 of 7
 metrics, which is a more useful example than a manufactured win.
 
+**If the paragraph above assumed things you have not done before**,
+[`docs/learn/`](docs/learn/README.md) walks the same path from a standing start:
+seven modules, no coding assumed, ending in a scored challenger of your own. Every
+command in it is verified against a fresh clone by
+`uv run python scripts/verify_learn_track.py`, so a rotted step fails CI rather
+than failing a beginner.
+
 ## Pull requests
 
 - One idea per PR. If a change alters a published number, say so in the

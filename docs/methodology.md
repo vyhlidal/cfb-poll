@@ -71,9 +71,12 @@ key_t = −log10(P_t)                                     higher is better
 
 `q_ref` is the one free constant: the Power rating of the 25th-ranked Power team
 that week, published every week together with **the name of the team it came from**,
-so a reader can check it against the same week's table. Margin never enters this key
-— not as a tie-break, not anywhere — and the module carries no margin column to leak
-from.
+so a reader can check it against the same week's table. **Your own margin never
+enters this key** — not as a tie-break, not anywhere — and the module carries no
+margin column to leak from. **Your opponents' margins do price your wins**, through
+`Power` and `q_ref` and `h`, all three of which are fitted on margin. Both halves
+are tests rather than assertions; see `docs/constraints.md` for which test pins
+which half.
 
 The response transform, which is where the two most contested numbers live:
 

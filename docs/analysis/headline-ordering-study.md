@@ -87,11 +87,15 @@ compute per-game win probabilities `p_g = Φ((q_ref − Power_o + h·s_g)/σ)`, 
 take the exact Poisson-binomial upper tail `P(W ≥ W_t)`. Rank key is `−log10(P)`.
 The tail is computed by the exact O(n²) convolution, not by Monte Carlo:
 `tests/unit/test_schedule_odds.py` property-tests it against brute-force
-enumeration of all 2ⁿ outcomes for every n ≤ 12, to 1e-14. **Margin never enters
-C**, and that is enforced rather than promised: the module's schedule flattener
-carries no margin column at all, and
-`test_scores_may_change_freely_if_winners_do_not` scrambles every final score
-while preserving every winner and asserts that C is bit-identical while B moves.
+enumeration of all 2ⁿ outcomes for every n ≤ 12, to 1e-14. **The ranked team's own
+margin never enters C**, and that is enforced rather than promised: the module's
+schedule flattener carries no margin column at all, and
+`test_scores_may_change_freely_if_winners_do_not` holds opponent quality fixed,
+scrambles every final score while preserving every winner, and asserts that C is
+bit-identical while B moves. **C's opponent quality is margin-derived**, so
+scrambling scores and refitting Power does move C; that boundary is pinned by
+`test_refitting_opponent_quality_from_scrambled_scores_does_move_the_ranking` and
+the distinction is the subject of fresh-eyes review S5.
 
 ### 1.2 One non-candidate reference ordering
 

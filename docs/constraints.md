@@ -127,10 +127,27 @@ reference quality would have gone at least this well against that exact schedule
 Both halves of the sentence are load-bearing.
 
 **"The harder it was"** means schedule difficulty, and only schedule difficulty.
-Margin never enters the rank key — not as a tie-break, not as a secondary sort,
-nowhere. That is enforced rather than promised: the module's schedule flattener
-carries no margin column at all, and a test scrambles every final score in a season
-while preserving every winner and asserts the ranking is bit-identical.
+**Your own margin never enters the rank key — not as a tie-break, not as a
+secondary sort, nowhere. Your opponents' margins price your wins.**
+
+That is enforced rather than promised, and the enforcement has two halves because
+the claim has two halves. The narrow half: the module's schedule flattener carries
+no margin column at all, and with opponent quality held fixed a test scrambles
+every final score in a season while preserving every winner and asserts the
+ranking is bit-identical
+(`tests/unit/test_schedule_odds.py::test_scores_may_change_freely_if_winners_do_not`).
+The half that keeps the sentence honest: opponent quality is the L3 Power rating,
+which is fitted on compressed scoring margin, so a second test refits Power from
+the same scrambled scores the way the pipeline does and asserts the published
+ranking **moves**
+(`::test_refitting_opponent_quality_from_scrambled_scores_does_move_the_ranking`).
+
+This wording is narrower than what this project published until 2026-08-13. The
+wider version — "margin never enters, scramble the scores and the ranking is
+bit-identical" — was true of the module and false of the poll, and the
+independent review said so before anyone outside did
+(`docs/analysis/fresh-eyes-review.md`, S5). The second test exists so that the
+sentence cannot quietly widen again.
 
 **"Measured, never assumed"** is constraint 2 applied to the thing everyone
 actually argues about. An unbeaten Group of Five team probably would not survive a

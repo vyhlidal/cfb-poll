@@ -177,26 +177,100 @@ def test_fit_is_bit_identical_across_repeated_calls_and_row_order() -> None:
 
 
 # ------------------------------------------------- 3. margin never enters this module
+#
+# TWO TESTS, AND THE SECOND ONE IS WHY THE PUBLISHED SENTENCE CHANGED.
+#
+# The claim used to be published as "scramble every final score in a season while
+# preserving every winner and the ranking is bit-identical". Read as a statement
+# about the poll, that is false, and the independent review said so (fresh-eyes
+# S5): opponent quality is the L3 Power rating, Power is fitted on compressed
+# scoring margin, `q_ref` is read off Power, and `h` is Power's site coefficient.
+# Scramble the scores in the live pipeline and all three move.
+#
+# The first test below is the true claim, and it is exactly the claim the fixed
+# `power=` argument supports: the RANKED TEAM'S OWN margin never reaches this
+# module. The second test pins the boundary by refitting opponent quality from
+# the scrambled scores the way `cfbpoll rank` does, and asserts the ranking DOES
+# move. Together they are the reviewer's sentence, enforced in both directions:
+# your own margin never enters; your opponents' margins price your wins.
+
+
+def unbalanced_schedule(seed: int = 20260813, per_group: int = 8, cross: int = 6) -> pl.DataFrame:
+    """Two near-closed groups with a handful of bridge games. A REAL schedule shape.
+
+    `round_robin` is the wrong fixture for any question about schedule strength,
+    and finding that out is worth a comment. In a complete double round-robin
+    every team plays exactly the same opponents, so schedule difficulty is a
+    constant across the league and the schedule-odds ordering collapses onto win
+    count. Repricing opponent quality then moves every key without moving any
+    RANK - which is a true fact about a round-robin and tells you nothing about a
+    college football season.
+
+    This fixture has what the real thing has: two groups that mostly play
+    themselves, a few cross games holding the graph together, and a strength
+    gradient that overlaps between the groups. Which group is stronger is now
+    something the fit has to infer from six games, so what a win is worth depends
+    on the margins in those games.
+    """
+    rng = np.random.Generator(np.random.PCG64(seed))
+    teams = [f"A{i:02d}" for i in range(per_group)] + [f"B{i:02d}" for i in range(per_group)]
+    strength = dict(
+        zip(
+            teams,
+            [*np.linspace(20.0, -4.0, per_group), *np.linspace(6.0, -20.0, per_group)],
+            strict=True,
+        )
+    )
+    rows = []
+
+    def play(home: str, away: str) -> None:
+        margin = strength[home] - strength[away] + 3.0 + rng.normal(0, 12)
+        rows.append((home, away, int(round(21 + margin)), 21, False))
+
+    for group in ("A", "B"):
+        members = [t for t in teams if t.startswith(group)]
+        for i, home in enumerate(members):
+            for away in members[i + 1 :]:
+                play(home, away)
+    for i in range(cross):
+        play(f"A{i:02d}", f"B{(i * 3) % per_group:02d}")
+    return frame(rows, dict.fromkeys(teams, "fbs"))
+
+
+def _scramble(games: pl.DataFrame, seed: int = 99) -> pl.DataFrame:
+    """Every winner preserved, every margin replaced by an unrelated draw."""
+    rng = np.random.Generator(np.random.PCG64(seed))
+    margin = (games["home_points"] - games["away_points"]).to_numpy()
+    scrambled = np.sign(margin) * rng.integers(1, 60, size=margin.size)
+    return games.with_columns(
+        home_points=pl.Series((21 + scrambled).astype(np.int32), dtype=pl.Int32),
+        away_points=pl.Series(np.full(margin.size, 21, dtype=np.int32), dtype=pl.Int32),
+    )
+
+
+def _order(key: dict[str, float]) -> list[str]:
+    """The published ranking: best key first, ties broken by name."""
+    return [team for team, _ in sorted(key.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
 def test_scores_may_change_freely_if_winners_do_not() -> None:
     """The central claim of candidate C, asserted rather than promised.
 
-    Every winner is preserved; every margin is scrambled. The wins-based résumé
-    is likewise unmoved (it counts wins), the MARGIN-AWARE résumé - candidate B -
-    moves a great deal, and that contrast is the whole reason the study treats B
-    and C as different answers rather than two flavours of one.
+    SCOPE, and it is load-bearing: opponent quality is held FIXED across both
+    fits, which is what makes this a statement about THIS MODULE rather than
+    about the pipeline. Every winner is preserved; every margin is scrambled; not
+    one number this module publishes moves. The wins-based résumé is likewise
+    unmoved (it counts wins), the MARGIN-AWARE résumé - candidate B - moves a
+    great deal, and that contrast is the whole reason the study treats B and C as
+    different answers rather than two flavours of one.
+
+    What this does NOT show is what the pipeline does when the same scramble is
+    allowed to reach the Power fit. That is the next test, and it is the reason
+    the published wording is now the narrower one.
     """
     games = round_robin()
     power = power_source({f"T{i:02d}": v for i, v in enumerate(np.linspace(18, -18, 10))})
-
-    rng = np.random.Generator(np.random.PCG64(99))
-    margin = (games["home_points"] - games["away_points"]).to_numpy()
-    scrambled = np.sign(margin) * rng.integers(1, 60, size=margin.size)
-    perturbed = games.with_columns(
-        home_points=pl.Series((21 + scrambled).astype(np.int32), dtype=pl.Int32),
-        away_points=pl.Series(np.full(margin.size, 21, dtype=np.int32), dtype=pl.Int32),
-    )
+    perturbed = _scramble(games)
 
     base = schedule_odds.fit(games, CONFIG, power=power)
     moved = schedule_odds.fit(perturbed, CONFIG, power=power)
@@ -208,6 +282,52 @@ def test_scores_may_change_freely_if_winners_do_not() -> None:
     b_moved = l4_resume.fit(perturbed, CONFIG, power=power)
     assert b_base.resume == b_moved.resume  # wins-based résumé: also unmoved
     assert b_base.resume_margin != b_moved.resume_margin  # margin-aware: moves
+
+
+def test_refitting_opponent_quality_from_scrambled_scores_does_move_the_ranking() -> None:
+    """The boundary of the claim above, pinned so nobody can restate it too widely.
+
+    `cfbpoll rank` does not hand the headline a fixed Power object. It fits one,
+    from these games, on compressed scoring margin. So the honest sentence is
+    "your own margin never enters; your opponents' margins price your wins", and
+    the way to keep a sentence honest in this repository is to make its negation
+    a failing test.
+
+    This refits Power the way the pipeline does - `power_from_l2`, the same
+    function `rank` reaches when `[resume].power_source` is L2, and the same
+    function the L3 blend rescales - and asserts the published ranking moves.
+    If this test ever starts failing, either the scramble stopped scrambling or
+    the Power fit stopped seeing margin, and both are things a reader of the
+    README is entitled to have checked.
+
+    Every winner is preserved by the scramble, so every team's win total is
+    identical in both fits. The reordering is therefore not a record changing
+    hands; it is the same records being priced differently.
+    """
+    games = unbalanced_schedule()
+    perturbed = _scramble(games)
+    assert (
+        np.sign((games["home_points"] - games["away_points"]).to_numpy())
+        == np.sign((perturbed["home_points"] - perturbed["away_points"]).to_numpy())
+    ).all()
+
+    base_power = l4_resume.power_from_l2(games, CONFIG)
+    moved_power = l4_resume.power_from_l2(perturbed, CONFIG)
+    # The premise: the scramble really does move the thing the ranking is priced by.
+    assert base_power.ratings != moved_power.ratings
+
+    base = schedule_odds.fit(games, CONFIG, power=base_power)
+    moved = schedule_odds.fit(perturbed, CONFIG, power=moved_power)
+
+    assert base.key != moved.key, "refitting Power on scrambled margins left every key intact"
+    assert _order(base.key) != _order(moved.key), (
+        "the published ORDER survived a full margin scramble with Power refit; "
+        "if that is genuinely true now, the README may go back to the stronger "
+        "sentence - but it must be this test that says so, not a paragraph"
+    )
+    # And the two named channels the review identified, each one separately moved.
+    assert base.q_ref.value != moved.q_ref.value
+    assert base_power.home_field != moved_power.home_field
 
 
 # ----------------------------------------------------- 4. invariance and q_ref

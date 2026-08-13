@@ -48,13 +48,26 @@ became the headline: the wins-based résumé cannot answer the owner's question 
 construction, and the margin-aware variant can only answer it by importing margin.
 This answers it using nothing but who you played, where, and whether you won.
 
-MARGIN NEVER ENTERS. Not as a tie-break, not as a secondary key, nowhere. The
-schedule flattener below carries opponent Power, site, and a boolean win - there
-is no margin column in this module to leak from, which makes the claim checkable
-by reading the code rather than by trusting this paragraph.
+YOUR OWN MARGIN NEVER ENTERS. Not as a tie-break, not as a secondary key,
+nowhere. The schedule flattener below carries opponent Power, site, and a boolean
+win - there is no margin column in this module to leak from, which makes the
+claim checkable by reading the code rather than by trusting this paragraph.
 `tests/unit/test_schedule_odds.py::test_scores_may_change_freely_if_winners_do_not`
-pins it: perturb every final score while preserving every winner and every
-number here is bit-identical.
+pins it: hold `power` fixed, perturb every final score while preserving every
+winner, and every number here is bit-identical.
+
+YOUR OPPONENTS' MARGINS PRICE YOUR WINS, and this docstring used to omit that.
+The wider sentence - "margin never enters" full stop - is true of this file and
+false of the poll it produces, because `power` is the L3 blend of a ridge fit on
+compressed scoring margin and a play-value fit, `q_ref` is read off those same
+ratings, and `h` is the blend regression's site coefficient with actual margin as
+its response. The independent review caught it (docs/analysis/fresh-eyes-review.md,
+S5) and wrote the true version, which is the one above.
+`::test_refitting_opponent_quality_from_scrambled_scores_does_move_the_ranking`
+refits Power from the scrambled scores the way `cfbpoll rank` does and asserts the
+published ordering MOVES, so the narrow claim cannot silently widen again. This is
+still the meaningful property: a one-point win and a forty-point win over the same
+opponent are worth exactly the same to the team that won them.
 
 EXACT, NOT SIMULATED. ESPN's SOR is reportedly a ~20,000-run Monte Carlo. A
 Poisson-binomial over n <= 15 independent games has an exact O(n^2) dynamic

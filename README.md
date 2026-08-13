@@ -70,10 +70,23 @@ Teams are ranked by **schedule odds**: `−log10 P(W ≥ W_t)`, the probability 
 team of published reference quality would have gone at least this well against that
 exact schedule. Both halves of the sentence are load-bearing.
 
-**"The harder it was"** means schedule difficulty and nothing else. Margin never
-enters the rank key — not as a tie-break, not anywhere — and that is enforced
-rather than promised: scramble every final score in a season while preserving every
-winner and the ranking is bit-identical.
+**"The harder it was"** means schedule difficulty and nothing else. **Your own
+margin never enters the rank key — not as a tie-break, not anywhere. Your
+opponents' margins price your wins.** Beat a team by one and you get exactly what
+you get for beating them by forty; what beating *them* is worth was fitted from
+margins, theirs and everyone else's.
+
+That is enforced rather than promised, and in both directions. Hold opponent
+quality fixed, scramble every final score in a season while preserving every
+winner, and every number this ordering publishes is bit-identical. Refit opponent
+quality from those same scrambled scores — which is what the pipeline actually
+does — and the ranking moves. Both are tests in
+[`tests/unit/test_schedule_odds.py`](tests/unit/test_schedule_odds.py), and the
+second one exists because this README used to make the wider claim and an
+independent reviewer we commissioned took it apart
+([`docs/analysis/fresh-eyes-review.md`](docs/analysis/fresh-eyes-review.md), S5).
+The narrow claim is the one that is true, and it is still the property nobody else
+in this category offers.
 
 **"Measured, never assumed"** is the part that matters. An unbeaten Group of Five
 team probably would not survive a Big Ten schedule — and a poll may only say so if

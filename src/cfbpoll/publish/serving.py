@@ -81,10 +81,12 @@ from typing import Any
 import polars as pl
 
 from cfbpoll.config import REPO_ROOT
+from cfbpoll.ingest.teams import PALETTE_MARK
 
 __all__ = [
     "Bundle",
     "LOGO_TEMPLATE",
+    "PALETTE_MARK",
     "SERVING_TABLES",
     "VIEW_KINDS",
     "build",
@@ -345,6 +347,51 @@ def _logo_urls(
     }
 
 
+def _mark(
+    name: str, colors: dict[str, Any], abbreviation: str | None, mode: str
+) -> dict[str, Any]:
+    """The generated team mark: three published strings, never a browser computation.
+
+    Report 06 §9.1 asked for the generated mark "on day one... as the fallback for
+    every logo slot", and §8.3 makes it the only mark a share card may carry. This
+    is where it becomes data. `mark_bg`, `mark_fg` and `mark_label` are published
+    on `cfb_teams` and on every poll row, because report 05 §7.2 forbids either
+    renderer deriving a quantity - and "is this school's secondary colour legible
+    on its primary" is a derivation with a right answer that both surfaces must
+    agree on.
+
+    `mode` is `[display].mark_colors`. `"team"` uses the school's own colours with
+    a contrast repair; `"palette"` publishes one neutral mark for every team, which
+    is the switch to throw if the team-coloured version ever looks like a fan blog.
+    It is a config change, not a code change, for the same reason `[display].logos`
+    is (report 06 §6 rule 5: build the reversible mode first).
+    """
+    from cfbpoll.ingest.teams import PALETTE_MARK, mark_for
+
+    entry = colors.get(name)
+    label = abbreviation or (entry or {}).get("abbreviation")
+    if mode == "palette":
+        text = (label or name)[:4].upper()
+        return {
+            "mark_bg": PALETTE_MARK["bg"],
+            "mark_fg": PALETTE_MARK["fg"],
+            "mark_label": text,
+            "team_color": None,
+            "team_alt_color": None,
+        }
+    mark = mark_for(entry, label or name)
+    return {
+        "mark_bg": mark["bg"],
+        "mark_fg": mark["fg"],
+        "mark_label": mark["label"],
+        # The raw pair is published beside the repaired one so a reader can see
+        # WHICH marks were repaired and why, rather than being handed two hex
+        # values that silently are not the school's.
+        "team_color": (entry or {}).get("color"),
+        "team_alt_color": (entry or {}).get("alt_color"),
+    }
+
+
 def _espn_crosswalk(season: int, archive: Path) -> dict[int, str | None]:
     """ESPN team id -> abbreviation, from the MIT-licensed crosswalk archive.
 
@@ -387,7 +434,15 @@ def team_dimension(
     publication data, they are audited as banned features upstream, and this is
     the only place they exist.
     """
+    from cfbpoll.ingest import teams as team_colors
+
     crosswalk = _espn_crosswalk(season, archive)
+    colors = team_colors.load_colors()
+    mark_mode = str((display or {}).get("mark_colors", "team")).lower()
+    if mark_mode not in {"team", "palette"}:
+        raise ValueError(
+            f"[display].mark_colors must be 'team' or 'palette', got {mark_mode!r}"
+        )
     path = archive / "schedules" / f"cfb_schedules_{season}.parquet"
     frame = pl.read_parquet(
         path,
@@ -431,6 +486,7 @@ def team_dimension(
                 # DISPLAY ONLY. Never a model feature (report 02 §3.10).
                 "conference": conf,
                 **_logo_urls(int(tid) if int(tid) in crosswalk else None, display),
+                **_mark(name, colors, crosswalk.get(int(tid)), mark_mode),
             }
     return dict(sorted(out.items()))
 
@@ -763,6 +819,11 @@ def _poll_rows(
                 # is — so it is published whether or not logos are.
                 "abbreviation": dim["abbreviation"] if dim else None,
                 "conference": dim["conference"] if dim else None,
+                # The generated mark, published on the row so the poll table can
+                # render a team without a second lookup and without computing.
+                "mark_bg": dim["mark_bg"] if dim else PALETTE_MARK["bg"],
+                "mark_fg": dim["mark_fg"] if dim else PALETTE_MARK["fg"],
+                "mark_label": dim["mark_label"] if dim else team[:4].upper(),
                 "logo_url": dim["logo_url"] if dim else None,
                 "logo_url_2x": dim["logo_url_2x"] if dim else None,
                 "logo_url_dark": dim["logo_url_dark"] if dim else None,

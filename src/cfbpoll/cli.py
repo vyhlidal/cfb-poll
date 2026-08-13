@@ -195,8 +195,18 @@ def ingest_cfbd(
             result = cfbd.pull_postseason(year, session=session)
             typer.echo(f"{year} postseason: {len(result['games'] or [])} games archived")
         if teams:
+            from cfbpoll.ingest import teams as team_colors
+
             rows = cfbd.pull_teams(year, session=session)
             typer.echo(f"{year} /teams/fbs: {len(rows)} teams archived")
+            # Rebuild the committed colour map from EVERY archived /teams body,
+            # not just this one: a later season wins on any field, so a rebuild
+            # from one pull would drop teams the others carry.
+            built = team_colors.build_color_map()
+            typer.echo(
+                f"rebuilt {team_colors.COLOR_MAP_PATH.relative_to(cfbd.REPO_ROOT)}: "
+                f"{len(built)} teams"
+            )
         if not (postseason or teams):
             resolved = int(week) if week and week.strip() else cfbd.resolve_week(year)[0]
             session.close()

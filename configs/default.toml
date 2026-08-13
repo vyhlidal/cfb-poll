@@ -146,6 +146,26 @@ logo_size_2x = 128
 # copies of their light counterpart. Stated rather than implied.
 logo_dark_variant = "-dark"
 
+# THE GENERATED TEAM MARK — report 06 §9.1, and the only mark a share card may
+# ever carry (§8.3). A rounded square in the team's primary colour with its 2-4
+# letter abbreviation in the alternate colour. It is the fallback for every logo
+# slot on the site, it is what the whole site renders when `logos = false`, and it
+# is what `publish cards` draws, because a share card renders offline and may not
+# fetch anything.
+#
+#   "team"     the school's own two colours, from data/team-colors.csv, with a
+#              contrast repair where the pair is illegible. 23 of 138 schools
+#              need that repair and one of them publishes a pair at a contrast
+#              ratio of 1.1, so the repair is not hypothetical.
+#   "palette"  one neutral mark for every team. The switch to throw if the
+#              team-coloured version ever reads as fan-blog signal rather than as
+#              a poll — report 05 §8's objection, kept live as a config line
+#              rather than settled by argument.
+#
+# NOTHING HERE REACHES A DESIGN MATRIX. A colour is as banned a feature as a
+# conference name, and `cfbpoll audit-features` treats it the same way.
+mark_colors = "team"
+
 ####################################################################################
 # L2 response transform — report 02 §3.2
 #   s_g = C * tanh(m_g / C) + beta_w * sign(m_g)

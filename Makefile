@@ -11,7 +11,7 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive backtest demos replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive backtest cards demos replay replay-tolerant grid site test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. '.venv', 'backtest', 'grid', 'demos', 'test', 'lint' work."
@@ -21,6 +21,7 @@ help:
 	@echo "  make archive          fetch + sha256-verify the MIT archive       [stub]"
 	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
 	@echo "  make grid             the R(N,K) retroactive triangle for one season"
+	@echo "  make cards            render the weekly share card (SVG + PNG)"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
@@ -60,6 +61,13 @@ backtest: .venv
 	@echo
 	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"
 	@echo "single-shot test and the harness refuses it without --unlock-holdout."
+
+# Real. The weekly share card. No logos, no network, no headless browser: a
+# Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job
+# hermetic (report 05 §6.1, report 06 §8.3).
+CARD_FROM ?= $(OUT)
+cards: .venv
+	$(UV) run cfbpoll publish cards --from $(CARD_FROM) --out $(OUT)/share
 
 # Real. Regenerates the committed demo/ artifacts from the local archive.
 demos: .venv

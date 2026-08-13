@@ -255,7 +255,9 @@ cfbpoll grid                            the full R(N,K) retroactive triangle for
 cfbpoll bootstrap                       rank + rating intervals (parametric, fixed schedule)
 cfbpoll guard                           has this week already been published?
 cfbpoll canonicalize                    emit the sorted CSV that golden fixtures hash
-cfbpoll publish {release,postgres}      publish out/ to its destinations
+cfbpoll publish {release,postgres,fixtures,cards}
+                                        publish out/ to its destinations; `cards`
+                                        renders the weekly share card (SVG + PNG)
 cfbpoll site build                      build the static site
 ```
 

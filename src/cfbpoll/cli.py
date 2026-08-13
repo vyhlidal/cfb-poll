@@ -1109,6 +1109,52 @@ def publish_fixtures(
 # --------------------------------------------------------------------------- site
 
 
+@publish_app.command("cards")
+def publish_cards(
+    out: Annotated[
+        Path, typer.Option(help="Destination directory for the share cards.")
+    ] = Path("out/share"),
+    from_: Annotated[
+        Path, typer.Option("--from", help="Model output directory to render.")
+    ] = Path("out"),
+    variant: Annotated[
+        str, typer.Option(help="Card variant. Currently: connectivity.")
+    ] = "connectivity",
+    backtest: Annotated[
+        Path | None,
+        typer.Option(help="Gate metrics JSON. Default: <from>/backtest_metrics.json"),
+    ] = None,
+    png: Annotated[bool, typer.Option(help="Also rasterise to PNG.")] = True,
+) -> None:
+    """Render the weekly share card: SVG in the pipeline, PNG beside it.
+
+    Report 05 §6.1 puts this in the Python job rather than in a Next.js
+    `opengraph-image` route for two reasons that decide it: the static fork needs
+    the image and an edge-runtime route cannot prerender one, and a share card is
+    a published claim that must be frozen at publication like the poll it depicts.
+
+    NO SCHOOL LOGO, EVER (report 06 §8.3). The renderer draws generated marks
+    only, fetches nothing, and `tests/unit/test_share_cards.py` fails the build if
+    an `<image>` element or an external host ever appears in a card.
+
+    The SVG is a pure function of the published documents on any machine. The PNG
+    is deterministic given the same renderer and fonts; resvg resolves the font
+    stack against the host, which is stated rather than papered over.
+    """
+    from cfbpoll.publish import cards
+
+    resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
+    written = cards.export(
+        from_,
+        out,
+        variant=variant,
+        backtest=resolved if resolved.exists() else None,
+        png=png,
+    )
+    for path in written:
+        typer.echo(f"wrote {path} ({path.stat().st_size:,} bytes)")
+
+
 @site_app.command("build")
 def site_build(
     from_: Annotated[Path, typer.Option("--from", help="Model output directory.")] = Path("out"),

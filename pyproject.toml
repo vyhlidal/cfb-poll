@@ -24,6 +24,7 @@ dependencies = [
   "typer>=0.12",          # the `cfbpoll` CLI
   "psycopg[binary]>=3.2", # Postgres serving-table loader (optional at runtime)
   "boto3>=1.35",          # S3-compatible client for Cloudflare R2
+  "resvg-py>=0.4",        # SVG -> PNG for the weekly share card (report 05 §6.1)
 ]
 
 [project.urls]

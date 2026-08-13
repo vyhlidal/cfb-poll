@@ -30,6 +30,46 @@ enforcement is `cfbpoll audit-features --fail-on-banned`; the full table is in
 Build the ranking exclusively from **raw observables** — scores, dates, sites,
 opponents, drives, plays, box scores — which are verifiable facts.
 
+### The benchmark roster, and why it now exists
+
+The rule above had an enforcement mechanism and no roster: nothing here could say
+which third-party series exist or what is known about each, and a rule with no
+roster is a rule nobody can check you against. `src/cfbpoll/benchmarks.py` is the
+roster and `cfbpoll benchmarks` prints it.
+
+| Series | Author | Open implementation | Publishes error metrics | Scorable on our harness |
+|---|---|---|---|---|
+| **CORE** | Bill Radjewski (Rad Sports Analytics LLC) | no | no | no |
+| SP+ | Bill Connelly | no | yes | no |
+| ESPN FPI | ESPN | no | no | no |
+| CFBD SRS | Bill Radjewski | no | no | no |
+| CFBD Elo | Bill Radjewski | no | no | no |
+
+**CORE** (Context and Opponent-Relative Efficiency) was published on 2026-08-08
+and is the closest thing to a peer this project has. Its own positioning sentence
+is *"CORE is an efficiency rating. It is not a forecast, point spread, win
+probability, résumé ranking, or betting system."* Its methodology is documented
+publicly. Two things are true alongside that and both are stated as facts rather
+than as complaints: **the implementation is not open**, and **no error metrics
+are published for it** — no MAE, no straight-up accuracy, no calibration. Almost
+nobody publishes those, which is precisely why this project does.
+
+That is also why "transparent" is no longer the differentiator here and
+**"checkable"** is. Seasons 2021–2024 of CORE are archived under `archive/cfbd/`
+(private, per the terms below) as `/ratings/core`, one row per team per season:
+`overall`, `offense`, `defense`, play counts and `modelVersion`.
+
+**Nothing in that table is scorable on the walk-forward harness, and the reason
+matters more than the table.** These series publish one number per team per
+*season*. Placing a season-final rating beside systems that saw only through week
+N−1 would flatter it and measure nothing. CFBD's Elo is weekly and could in
+principle be scored; it is not, because CFBD warns that *"model changes can
+affect the comparability of values across periods"*, so a backtest resting on
+someone else's derived ratings can drift when they retrain. Where a comparison is
+wanted, this project implements the method itself from the scoreboard — the `srs`
+and `elo` rows in [the backtest](../demo/backtest-2021-2023.md) are ours, fitted
+walk-forward, and are not these.
+
 ## Terms, in one paragraph each
 
 **CFBD** (Rad Sports Analytics LLC, terms effective 2025-07-01). Publishing free

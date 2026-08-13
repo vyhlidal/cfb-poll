@@ -67,11 +67,17 @@ site_app = typer.Typer(
     help="Build the zero-account static site from out/ (report 03 §7.1).",
     no_args_is_help=True,
 )
+challenge_app = typer.Typer(
+    name="challenge",
+    help="Score a community entry through the identical harness (report 03 §7.3).",
+    no_args_is_help=True,
+)
 
 app.add_typer(ingest_app)
 app.add_typer(archive_app)
 app.add_typer(publish_app)
 app.add_typer(site_app)
+app.add_typer(challenge_app)
 
 
 def _stub(what: str, spec: str) -> None:
@@ -124,6 +130,23 @@ def _sha256_or_none(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _archive_identity(archive_root: Path) -> str | None:
+    """What the run actually read, as one digest, for `_run.json`.
+
+    Two provenances, one field. A machine that ran the backfill has the archive's
+    own `_manifest.json`; a fork has no manifest at all, because `archive sync`
+    materialises files from the committed LOCKFILE. Reporting `None` for the fork
+    - which is what happened - means the artifact that is supposed to prove which
+    bytes produced a ranking is silent on exactly the run where a stranger most
+    needs it. Prefer the manifest, fall back to the lock, and say which.
+    """
+    manifest = _sha256_or_none(archive_root / "_manifest.json")
+    if manifest is not None:
+        return f"manifest:{manifest}"
+    lock = _sha256_or_none(Path("data/manifests/sportsdataverse.lock.json"))
+    return f"lock:{lock}" if lock is not None else None
+
+
 def _plays_if_needed(cfg: dict, seasons: list[int]) -> Any:
     """The play archive, when opponent quality is L3 and the files are there.
 
@@ -158,6 +181,13 @@ def ingest_cfbd(
     teams: Annotated[
         bool, typer.Option(help="Pull /teams/fbs for the season (colors, ids, conference).")
     ] = False,
+    ratings: Annotated[
+        str | None,
+        typer.Option(help="Pull /ratings/{sp,srs,elo,fpi,core}. BENCHMARK ONLY, never an input."),
+    ] = None,
+    seasons: Annotated[
+        str | None, typer.Option(help="Seasons for --ratings, e.g. '2021-2024'.")
+    ] = None,
     abort_if_remaining_calls_below: Annotated[
         int, typer.Option(help="Quota guard: abort before spending the last N monthly calls.")
     ] = 200,
@@ -181,6 +211,33 @@ def ingest_cfbd(
     from cfbpoll.ingest import cfbd
 
     root = archive_root or cfbd.DEFAULT_ARCHIVE
+
+    # `--ratings` is season-list scoped rather than single-season, because a
+    # benchmark series is only interesting across the seasons the backtest
+    # covers. It is also the cheapest pull here: one call per season.
+    if ratings:
+        with cfbd.Session(archive_root=root) as session:
+            info = session.check_quota(abort_if_remaining_calls_below)
+            typer.echo(
+                f"CFBD {info.get('tierName')}: {info.get('remainingCalls')} of "
+                f"{info.get('monthlyLimit')} calls remain (resets {info.get('resetAt')})"
+            )
+            years = _parse_seasons(seasons) if seasons else [int(season)] if season else []
+            if not years:
+                raise typer.BadParameter("--ratings needs --seasons (or --season)")
+            pulled = cfbd.pull_ratings(ratings, years, session=session)
+            for year_, rows in sorted(pulled.items()):
+                typer.echo(
+                    f"{year_} /ratings/{ratings}: "
+                    f"{len(rows) if rows is not None else 0} rows archived"
+                )
+            typer.echo(
+                f"{session.calls} calls spent. BENCHMARK ONLY: these bodies are "
+                "private under CFBD terms §3 and are banned as model inputs by "
+                "docs/constraints.md, enforced by `cfbpoll audit-features`."
+            )
+        return
+
     if season is None or not season.strip():
         raise typer.BadParameter("--season is required for --postseason and --teams pulls")
     year = int(season)
@@ -393,6 +450,54 @@ def validate(
     that no December/January game is bucketed into week 1 (game_id 401778314).
     """
     _stub("validate", "report 01 §5.5")
+
+
+@app.command()
+def benchmarks(
+    out: Annotated[Path | None, typer.Option(help="Write the table as JSON to this path.")] = None,
+) -> None:
+    """The third-party ratings we compare against. BENCHMARKS ONLY, NEVER INPUTS.
+
+    `docs/data-sources.md` has always stated the rule and `cfbpoll audit-features`
+    has always enforced it, but nothing could enumerate the set until now, and a
+    rule with no roster is a rule nobody can check you against.
+
+    The two columns that matter are `open_source` and `error_metrics`, because
+    together they are the differentiation this project is actually claiming.
+    "Transparent" stopped being a differentiator the day a free, well-documented
+    rating shipped from inside the data layer. "Checkable" did not.
+
+    `scorable` says whether the harness could legitimately score a series. Today
+    every answer is no, and the reason is worth more than a table would be: these
+    are published one row per team per SEASON, and putting a season-final number
+    in a walk-forward table beside systems that saw through week N-1 would
+    flatter it and measure nothing.
+    """
+    import json
+
+    from cfbpoll import benchmarks as bench
+
+    rows = bench.display_rows()
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(rows, indent=2, sort_keys=True) + "\n")
+
+    header = f"{'name':<7}{'open':>6}{'metrics':>9}{'weekly':>8}{'scorable':>10}  {'author'}"
+    typer.echo(header)
+    for entry in bench.BENCHMARKS:
+        typer.echo(
+            f"{entry.name:<7}{'yes' if entry.open_source else 'no':>6}"
+            f"{'yes' if entry.publishes_error_metrics else 'no':>9}"
+            f"{'yes' if entry.granularity == 'weekly' else 'no':>8}"
+            f"{'yes' if entry.scorable else 'no':>10}  {entry.author}"
+        )
+    typer.echo(
+        "\nNone of these is ever a model input. The enforcement is an ALLOW-LIST "
+        "rebuild of every design matrix (`cfbpoll audit-features`), so a rating "
+        "nobody thought to ban by name still fails closed."
+    )
+    if out is not None:
+        typer.echo(f"wrote: {out}")
 
 
 @app.command("audit-features")
@@ -673,7 +778,7 @@ def rank(
         "season": season_i,
         "through_week": week_i,
         "archive": str(DEFAULT_ARCHIVE),
-        "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
+        "archive_manifest_sha256": _archive_identity(DEFAULT_ARCHIVE),
         "n_games_in_fit": int(window.height),
         "n_teams_in_fit": int(live.height),
         "n_ranked_teams": int(table.height),
@@ -838,6 +943,65 @@ def backtest(
     typer.echo(f"wrote: {path}")
 
 
+@challenge_app.command("run")
+def challenge_run(
+    entry: Annotated[
+        Path, typer.Option(help="configs/challengers/<name>.toml, or a .py exposing rate().")
+    ],
+    seasons: Annotated[
+        str, typer.Option(help="Seasons: '2021-2023' or '2021,2022,2023'.")
+    ] = "2021-2023",
+    config: Annotated[Path, typer.Option(help="Incumbent config.")] = Path("configs/default.toml"),
+    systems: Annotated[
+        str | None, typer.Option(help="Comparison set; blank = the published one.")
+    ] = None,
+    out: Annotated[Path, typer.Option(help="Where the scorecard lands.")] = Path("out/challenge"),
+) -> None:
+    """Score a challenger through the IDENTICAL walk-forward harness. Writes a scorecard.
+
+    Same `run_backtest`, same frames, same seasons, same baselines, same
+    publication gate as `demo/backtest-2021-2023.md`. Nothing in the challenge
+    path re-implements a metric, because a number produced by code that only
+    challengers run would settle nothing.
+
+    A parameter variant (`.toml`) overrides only the constants it names and is run
+    against the default config in the same command, so the comparison is two runs
+    of one harness rather than one run against a remembered number. A structural
+    variant (`.py` exposing `rate(games, plays, through_week)`) is registered as
+    one more system in a single run and needs no merge at all.
+
+    2025 IS A SEALED HOLDOUT and this command never unlocks it. Tune on 2021-2023,
+    validate on 2024, and if you tune against 2025 and say nothing your result
+    means nothing - which is a fact about the exercise, not a rule we can enforce
+    on your laptop.
+    """
+    from cfbpoll.backtest import challenge as challenge_mod
+
+    who = challenge_mod.load_challenger(entry, config)
+    wanted = [s.strip() for s in systems.split(",")] if systems else None
+    typer.echo(f"challenger {who.name!r} ({who.kind}) from {who.entry}")
+
+    result = challenge_mod.run_challenge(
+        who, _parse_seasons(seasons), systems=wanted, config_path=config
+    )
+    written = challenge_mod.write_scorecard(result, out)
+
+    verdict = result["verdict"]
+    for row in result["scorecard"]:
+        mark = "better" if row["better"] else "worse "
+        typer.echo(
+            f"  {mark}  {row['label']:<24} incumbent {row['incumbent']:>10.4f}  "
+            f"challenger {row['challenger']:>10.4f}  ({row['delta']:+.4f})"
+        )
+    typer.echo(
+        f"{len(verdict['beats_incumbent_on'])} of "
+        f"{len(verdict['beats_incumbent_on']) + len(verdict['loses_to_incumbent_on'])} "
+        f"metrics beat the incumbent; clears the gate: {verdict['challenger_clears_gate']} "
+        f"(incumbent: {verdict['incumbent_clears_gate']})"
+    )
+    typer.echo(f"wrote: {written['markdown']} and {written['json']}")
+
+
 @app.command()
 def grid(
     config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
@@ -918,7 +1082,7 @@ def grid(
     run = {
         "season": season_i,
         "archive": str(DEFAULT_ARCHIVE),
-        "archive_manifest_sha256": _sha256_or_none(DEFAULT_ARCHIVE / "_manifest.json"),
+        "archive_manifest_sha256": _archive_identity(DEFAULT_ARCHIVE),
         "n_games_in_season": int(games.height),
         "n_grid_rows": int(triangle.height),
         "game_sources": _game_sources(games),

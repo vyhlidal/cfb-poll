@@ -134,6 +134,16 @@ BANNED_COLUMN_PATTERNS: tuple[str, ...] = (
     "sp+",
     "fpi",
     "elo",
+    # CFBD's CORE, added 2026-08-13 when the series was first archived as a
+    # benchmark. NOT the bare substring "core": it appears inside `score`,
+    # `score_margin`, `home_score_after` and half a dozen other columns that are
+    # legitimately allow-listed, and a deny pattern that fires on the scoreboard
+    # would make this report useless in exactly the runs it is read. These are
+    # the shapes a CORE column would plausibly arrive under.
+    "cfbd_core",
+    "core_rating",
+    "core_overall",
+    "_core",
     "epa",
     "ppa",
     "wpa",

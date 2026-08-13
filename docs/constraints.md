@@ -203,6 +203,7 @@ weekly workflow and the reproducibility workflow.
 | Returning production / returning starters | Constraint 2 |
 | Prior-season ratings of any kind | Constraint 2 |
 | **SP+ or FPI as features** | **Indirect violation** — both embed recruiting-based priors, so importing them imports the prior |
+| **CORE, or any CFBD-served rating, as a feature** | Third-party fitted models. Banned by the same rule and enforced by the same allow-list rebuild, which fails closed whether or not a rating was ever banned by name. The roster of what we compare against is `cfbpoll benchmarks` and [data-sources.md](./data-sources.md) |
 | **Vegas lines as features** | Market opinion is partly poll-driven; also destroys independence from the baseline we're measuring against |
 | Conference identity as a feature | A reputation prior in disguise. Conference strength must *emerge* from results, never be assumed |
 | Home-team "brand," stadium prestige, TV rating | Obviously |
@@ -285,6 +286,16 @@ signature so nobody can reach it by accident.
 Every third-party rating is a **benchmark, never an input**. The audit is an
 allow-list check, not a deny-list check, so an input nobody thought of fails
 closed.
+
+The set is enumerable rather than folklore: `cfbpoll benchmarks` prints it, with
+two columns that carry the whole argument — whether the implementation is open,
+and whether its author publishes error metrics. As of 2026-08-13, of the five
+series CFBD serves, **none is open source and only SP+ publishes error metrics**.
+That includes CFBD's own **CORE** (Bill Radjewski, published 2026-08-08), which
+is archived here for comparison and named in the deny list as `cfbd_core` and
+friends rather than as the bare substring `core` — which would fire on `score`,
+`score_margin` and half the allow-list, and a report that cries wolf on the
+scoreboard is a report nobody reads on the day it matters.
 
 There is a second, practical reason beyond principle: CFBD warns that "model
 changes can affect the comparability of values across periods." A backtest resting

@@ -65,6 +65,7 @@ from cfbpoll.ingest import archive
 
 __all__ = [
     "BASE_URL",
+    "BENCHMARK_RATINGS",
     "DEFAULT_ARCHIVE",
     "DEFAULT_MIN_REMAINING",
     "GATED_ENDPOINTS",
@@ -78,6 +79,7 @@ __all__ = [
     "archived_teams",
     "check_quota",
     "pull_postseason",
+    "pull_ratings",
     "pull_teams",
     "pull_week",
     "resolve_week",
@@ -458,6 +460,58 @@ def pull_teams(
             sess.check_quota(min_remaining)
         rows = sess.fetch("/teams/fbs", {"year": season}, bucket=f"{season}/season") or []
         return list(rows)
+    finally:
+        if own:
+            sess.close()
+
+
+#: Third-party ratings CFBD serves, and what each one is. BENCHMARKS ONLY - the
+#: allow-list leakage audit is what enforces that, and this tuple is what makes
+#: the set enumerable rather than folklore. `core` is CFBD's own, published
+#: 2026-08-08 by Bill Radjewski (Rad Sports Analytics LLC).
+BENCHMARK_RATINGS: tuple[str, ...] = ("sp", "srs", "elo", "fpi", "core")
+
+
+def pull_ratings(
+    system: str,
+    seasons: list[int],
+    archive_root: str | Path | None = None,
+    *,
+    min_remaining: int = DEFAULT_MIN_REMAINING,
+    session: Session | None = None,
+) -> dict[int, Any]:
+    """GET /ratings/{system} for several seasons. BENCHMARK ONLY, NEVER AN INPUT.
+
+    One call per season, plus the one quota check, and no more: this is the
+    narrow pull for adding a third-party series to the comparison display, not
+    the weekly sequence. `docs/data-sources.md` states the rule these bodies live
+    under and `cfbpoll audit-features` is what enforces it - an allow-list check,
+    so a rating that reached a design matrix fails closed whether or not anybody
+    thought to ban it by name.
+
+    Bodies are archived unmodified under `{season}/season`, which is gitignored:
+    CFBD terms §3 bar republishing raw API data, so these never leave this disk.
+    What may be published is analysis derived from them, which is the whole
+    reason a benchmark is allowed to exist here at all.
+    """
+    if system not in BENCHMARK_RATINGS:
+        raise CFBDError(
+            f"unknown ratings system {system!r}; CFBD serves {list(BENCHMARK_RATINGS)}"
+        )
+    own = session is None
+    sess = session or Session(archive_root=Path(archive_root or DEFAULT_ARCHIVE))
+    try:
+        if own:
+            sess.check_quota(min_remaining)
+        out: dict[int, Any] = {}
+        for season in sorted(set(int(s) for s in seasons)):
+            out[season] = sess.fetch(
+                f"/ratings/{system}",
+                {"year": season},
+                bucket=f"{season}/season",
+                required=False,
+            )
+        return out
     finally:
         if own:
             sess.close()

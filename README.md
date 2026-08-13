@@ -268,7 +268,19 @@ cfbpoll site build                      build the static site
 **What exists**
 
 - The canonical games loader over the local MIT archive (2021–2025), with the
-  binding week-bucket rules of `docs/data-findings.md`
+  binding week-bucket rules of `docs/data-findings.md`, plus the **CFBD postseason
+  backfill** that closes the 2021–2022 hole: those two seasons carry no postseason
+  rows in the parquet at all, so they were missing 80 games including both
+  playoffs (`docs/data-findings.md` §13)
+- The **real CFBD client** (`ingest/cfbd.py`) — bearer auth, a `GET /info` quota
+  guard, the 22-call weekly sequence of report 01 §3.7, and an append-only raw
+  archive that never overwrites a body and refuses to record a URL carrying a key
+- **Team colours and the generated mark** (`data/team-colors.csv`,
+  `ingest/teams.py`) — 138 schools, a WCAG contrast repair on the 23 whose own
+  two colours are illegible together, published on every poll row
+- The **weekly share card** (`publish/cards.py`, `cfbpoll publish cards`) — SVG
+  and PNG, generated marks only, with a CI guard that fails the build if a school
+  logo ever reaches the tree
 - The canonical **play loader** (`ingest/plays.py`), a 17-column allow-list out of
   a 362-column feed, with four new binding data findings recorded in
   `docs/data-findings.md` §8–§12

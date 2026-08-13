@@ -13,7 +13,18 @@ Two sources, deliberately split (report 01 §1):
                        reproducibility claim independent of anyone's permission.
 
 Each is cross-validation for the other; two substantially independent pipelines
-over the same games is a real data-quality check, not a redundant cost.
+over the same games is a real data-quality check, not a redundant cost. That
+check has now been run rather than promised: the 80 postseason games CFBD supplies
+for 2021-2022 reproduce from the MIT play-by-play in 79 of 80, and the one
+residual is an overtime game whose limitation docs/data-findings.md §12 already
+documented.
 
-STATUS: SCAFFOLD.
+The two pipelines also turn out to share an id space - CFBD game ids ARE ESPN
+game ids, measured 126/126 - so reconciliation is an integer join and not a
+crosswalk (docs/data-findings.md §13).
+
+STATUS: real. `cfbd.py` (client, quota guard, offline archive readers),
+`archive.py` (append-only write and verify), `sportsdataverse.py` (the games
+loader), `plays.py`, `teams.py` (colours and the generated mark) and `windows.py`
+all work. `download_season`/`backfill`/`push_r2` remain stubs.
 """

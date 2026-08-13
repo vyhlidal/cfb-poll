@@ -178,3 +178,32 @@ frozen protocol exists to prevent.
 The one number that improves qualitatively rather than marginally is the postseason
 segment: 42 games became 122, so `[weights].bowl_non_cfp = 0.25` is now supported by
 a sample worth calling a sample.
+
+### 13.6 `/info` does not count against quota, and neither does a 4xx
+
+Measured over the whole backfill, on a free key whose counter started at exactly
+`usedCalls: 0`:
+
+| | |
+|---|---:|
+| HTTP requests actually issued | **15** |
+| of which `GET /info` | 4 |
+| of which returned 4xx (the season-wide `/games/teams`, twice) | 2 |
+| `usedCalls` CFBD reported afterwards | **9** |
+
+15 − 4 − 2 = 9, exactly. **CFBD bills neither `/info` nor a failed request.**
+
+Two consequences for the Sunday job as report 01 §3.7 specified it:
+
+1. **The quota guard is free.** §3.7 counts `GET /info` as call 1 of 22 and
+   `GET /info/usage` as call 22; neither is billed, so the steady-state weekly run
+   costs **20** billable calls rather than 22. There is no reason to economise on
+   the guard, and `check_quota` can be called at the top of every entry point
+   rather than once per job.
+2. **A validation failure is not a wasted call**, so probing an endpoint's
+   required parameters costs nothing but latency. That is how the `/games/teams`
+   400 was resolved: ask season-wide, read the archived error body, discover that
+   `week` is required, and ask again. Free.
+
+Both figures are worth re-measuring if the key ever moves off the free tier: this
+is observed behaviour on one tier and is not documented anywhere.

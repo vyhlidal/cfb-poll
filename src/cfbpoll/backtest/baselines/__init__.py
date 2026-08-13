@@ -66,7 +66,7 @@ and flattering nobody. Which Power source that is comes from the config, so
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import polars as pl
@@ -178,14 +178,22 @@ ALIASES: dict[str, str] = {
 CONSTANT_SYSTEMS = ("home_team",)
 
 
-def resolve(name: str) -> str:
-    """Canonicalise a system name, or say clearly which names exist."""
+def resolve(name: str, extra: Mapping[str, Any] | None = None) -> str:
+    """Canonicalise a system name, or say clearly which names exist.
+
+    `extra` is the challenge harness's rater map (`backtest/challenge.py`). A
+    challenger is scored as one more name in the same `--systems` list, through
+    the same walk, against the same baselines, which is the only arrangement in
+    which "did it beat the model" has a mechanical answer. It is passed in rather
+    than registered globally so that importing a stranger's module cannot change
+    what `cfbpoll backtest` scores.
+    """
     key = name.strip().lower()
     key = ALIASES.get(key, key)
-    if key not in RATERS and key not in CONSTANT_SYSTEMS:
+    if key not in RATERS and key not in CONSTANT_SYSTEMS and key not in (extra or {}):
         raise KeyError(
             f"unknown system {name!r}; available: "
-            f"{sorted(set(RATERS) | set(CONSTANT_SYSTEMS) | set(ALIASES))}"
+            f"{sorted(set(RATERS) | set(CONSTANT_SYSTEMS) | set(ALIASES) | set(extra or {}))}"
         )
     return key
 

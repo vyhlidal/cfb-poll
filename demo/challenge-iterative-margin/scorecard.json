@@ -1,0 +1,916 @@
+{
+  "baselines": {
+    "colley": {
+      "brier": 0.20630028568502112,
+      "log_loss": 0.598928145197399,
+      "mae": 13.561612644588795,
+      "max_calibration_deviation_pp": 8.756022537173308,
+      "retrodictive_violation_rate": 0.19760479041916168,
+      "rmse": 17.236517479093468,
+      "su_accuracy": 0.6794952681388012
+    },
+    "elo": {
+      "brier": 0.20142385963704865,
+      "log_loss": 0.5885367904955138,
+      "mae": 13.559341747337571,
+      "max_calibration_deviation_pp": 7.015778526283878,
+      "retrodictive_violation_rate": 0.2202737382378101,
+      "rmse": 17.09775426722016,
+      "su_accuracy": 0.6876971608832808
+    },
+    "home_team": {
+      "brier": 0.24749755023466574,
+      "log_loss": 0.6884666679393306,
+      "mae": 15.458203878551338,
+      "max_calibration_deviation_pp": 3.8841621742380927,
+      "retrodictive_violation_rate": null,
+      "rmse": 19.863116118298677,
+      "su_accuracy": 0.5634069400630914
+    },
+    "l1": {
+      "brier": 0.19948543816064868,
+      "log_loss": 0.5826036604075799,
+      "mae": 13.16473888247642,
+      "max_calibration_deviation_pp": 6.608155198674753,
+      "retrodictive_violation_rate": 0.24337040205303678,
+      "rmse": 16.683740809963282,
+      "su_accuracy": 0.6914826498422713
+    },
+    "l2": {
+      "brier": 0.1975455026778107,
+      "log_loss": 0.5794189737642658,
+      "mae": 13.227459382669782,
+      "max_calibration_deviation_pp": 6.239862516799633,
+      "retrodictive_violation_rate": 0.218562874251497,
+      "rmse": 16.74011282917185,
+      "su_accuracy": 0.6952681388012618
+    },
+    "l3": {
+      "brier": 0.19713646313382086,
+      "log_loss": 0.5772203073889806,
+      "mae": 13.037833849228042,
+      "max_calibration_deviation_pp": 7.369866395003555,
+      "retrodictive_violation_rate": 0.227972626176219,
+      "rmse": 16.53120930011875,
+      "su_accuracy": 0.6870662460567823
+    },
+    "random_walker": {
+      "brier": 0.21777197355501132,
+      "log_loss": 0.6243960139417554,
+      "mae": 14.014647357575035,
+      "max_calibration_deviation_pp": 14.925205396324671,
+      "retrodictive_violation_rate": 0.20230966638152267,
+      "rmse": 17.983674534304637,
+      "su_accuracy": 0.6504731861198738
+    },
+    "resume": {
+      "brier": 0.19713646313382086,
+      "log_loss": 0.5772203073889806,
+      "mae": 13.037833849228042,
+      "max_calibration_deviation_pp": 7.369866395003555,
+      "retrodictive_violation_rate": 0.20145423438836613,
+      "rmse": 16.53120930011875,
+      "su_accuracy": 0.6870662460567823
+    },
+    "schedule_odds": {
+      "brier": 0.19713646313382086,
+      "log_loss": 0.5772203073889806,
+      "mae": 13.037833849228042,
+      "max_calibration_deviation_pp": 7.369866395003555,
+      "retrodictive_violation_rate": 0.2018819503849444,
+      "rmse": 16.53120930011875,
+      "su_accuracy": 0.6870662460567823
+    },
+    "srs": {
+      "brier": 0.19949238505569156,
+      "log_loss": 0.5820893470785059,
+      "mae": 13.195917888783418,
+      "max_calibration_deviation_pp": 9.950835177552332,
+      "retrodictive_violation_rate": 0.22112917023096665,
+      "rmse": 16.69530616800189,
+      "su_accuracy": 0.6908517350157729
+    },
+    "winpct": {
+      "brier": 0.21176054276800355,
+      "log_loss": 0.6118474340098261,
+      "mae": 13.824199429435515,
+      "max_calibration_deviation_pp": 10.181905092670828,
+      "retrodictive_violation_rate": 0.18306244653550044,
+      "rmse": 17.659585346907384,
+      "su_accuracy": 0.661198738170347
+    }
+  },
+  "challenger": {
+    "author": "cfb-poll (worked example)",
+    "base_config_sha256": "c836cec36f7d49d3c2c6f1a67bf36c87d2d6bac680bd471eed6cd233aa57605b",
+    "entry": "configs/challengers/iterative_margin.py",
+    "kind": "structural",
+    "name": "iterative-margin",
+    "needs_plays": false,
+    "notes": "Iterative proportional schedule adjustment on raw margin, capped at 28. No linear solve, no penalty, no prior. The question it answers is how much of the results core's edge comes from the simultaneous solve rather than from adjusting for schedule at all.",
+    "overlay": {},
+    "system": "challenger"
+  },
+  "gates": {
+    "challenger": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.115366138973458,
+        "max_calibration_deviation_pp": 7.90062002368076,
+        "retrodictive_violation_rate": 0.2275449101796407,
+        "rmse": 16.55315260011704,
+        "su_accuracy": 0.6876971608832808
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "l1": 0.24337040205303678,
+          "l3": 0.227972626176219
+        },
+        "compared_against": [
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "elo": 0.2202737382378101,
+          "l2": 0.218562874251497,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.2275449101796407
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "colley": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.561612644588795,
+        "max_calibration_deviation_pp": 8.756022537173308,
+        "retrodictive_violation_rate": 0.19760479041916168,
+        "rmse": 17.236517479093468,
+        "su_accuracy": 0.6794952681388012
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.19760479041916168
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "elo": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.559341747337571,
+        "max_calibration_deviation_pp": 7.015778526283878,
+        "retrodictive_violation_rate": 0.2202737382378101,
+        "rmse": 17.09775426722016,
+        "su_accuracy": 0.6876971608832808
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "l1": 0.24337040205303678,
+          "l3": 0.227972626176219,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "l2": 0.218562874251497,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.2202737382378101
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "home_team": {
+      "brier_beats_all_baselines": null,
+      "calibration": true,
+      "mae": false,
+      "observed": {
+        "mae": 15.458203878551338,
+        "max_calibration_deviation_pp": 3.8841621742380927,
+        "retrodictive_violation_rate": null,
+        "rmse": 19.863116118298677,
+        "su_accuracy": 0.5634069400630914
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone",
+        "violations_vs_baselines"
+      ],
+      "violations_vs_baselines": null,
+      "violations_vs_baselines_detail": {
+        "beaten": {},
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {},
+        "rate": null
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "l1": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.16473888247642,
+        "max_calibration_deviation_pp": 6.608155198674753,
+        "retrodictive_violation_rate": 0.24337040205303678,
+        "rmse": 16.683740809963282,
+        "su_accuracy": 0.6914826498422713
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {},
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "challenger": 0.2275449101796407,
+          "colley": 0.19760479041916168,
+          "elo": 0.2202737382378101,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.24337040205303678
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "l2": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.227459382669782,
+        "max_calibration_deviation_pp": 6.239862516799633,
+        "retrodictive_violation_rate": 0.218562874251497,
+        "rmse": 16.74011282917185,
+        "su_accuracy": 0.6952681388012618
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l3": 0.227972626176219,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.218562874251497
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "l3": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.037833849228042,
+        "max_calibration_deviation_pp": 7.369866395003555,
+        "retrodictive_violation_rate": 0.227972626176219,
+        "rmse": 16.53120930011875,
+        "su_accuracy": 0.6870662460567823
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "l1": 0.24337040205303678
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "challenger": 0.2275449101796407,
+          "colley": 0.19760479041916168,
+          "elo": 0.2202737382378101,
+          "l2": 0.218562874251497,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.227972626176219
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "random_walker": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 14.014647357575035,
+        "max_calibration_deviation_pp": 14.925205396324671,
+        "retrodictive_violation_rate": 0.20230966638152267,
+        "rmse": 17.983674534304637,
+        "su_accuracy": 0.6504731861198738
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "resume",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.20230966638152267
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "resume": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.037833849228042,
+        "max_calibration_deviation_pp": 7.369866395003555,
+        "retrodictive_violation_rate": 0.20145423438836613,
+        "rmse": 16.53120930011875,
+        "su_accuracy": 0.6870662460567823
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "random_walker": 0.20230966638152267,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "schedule_odds",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.20145423438836613
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "schedule_odds": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.037833849228042,
+        "max_calibration_deviation_pp": 7.369866395003555,
+        "retrodictive_violation_rate": 0.2018819503849444,
+        "rmse": 16.53120930011875,
+        "su_accuracy": 0.6870662460567823
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "random_walker": 0.20230966638152267,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "srs",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "resume": 0.20145423438836613,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.2018819503849444
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "srs": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.195917888783418,
+        "max_calibration_deviation_pp": 9.950835177552332,
+        "retrodictive_violation_rate": 0.22112917023096665,
+        "rmse": 16.69530616800189,
+        "su_accuracy": 0.6908517350157729
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": false,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "l1": 0.24337040205303678,
+          "l3": 0.227972626176219
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "winpct"
+        ],
+        "lost_to": {
+          "colley": 0.19760479041916168,
+          "elo": 0.2202737382378101,
+          "l2": 0.218562874251497,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "winpct": 0.18306244653550044
+        },
+        "rate": 0.22112917023096665
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    },
+    "winpct": {
+      "brier_beats_all_baselines": null,
+      "calibration": false,
+      "mae": false,
+      "observed": {
+        "mae": 13.824199429435515,
+        "max_calibration_deviation_pp": 10.181905092670828,
+        "retrodictive_violation_rate": 0.18306244653550044,
+        "rmse": 17.659585346907384,
+        "su_accuracy": 0.661198738170347
+      },
+      "passed": false,
+      "retro_vs_live_monotone": null,
+      "rmse": false,
+      "su_accuracy": false,
+      "thresholds": {
+        "calibration_max_decile_deviation_pp": 5.0,
+        "mae_max": 12.8,
+        "rmse_max": 15.8,
+        "su_accuracy_min": 0.7,
+        "violations_must_beat": "all_scored_systems"
+      },
+      "undecided": [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone"
+      ],
+      "violations_vs_baselines": true,
+      "violations_vs_baselines_detail": {
+        "beaten": {
+          "challenger": 0.2275449101796407,
+          "colley": 0.19760479041916168,
+          "elo": 0.2202737382378101,
+          "l1": 0.24337040205303678,
+          "l2": 0.218562874251497,
+          "l3": 0.227972626176219,
+          "random_walker": 0.20230966638152267,
+          "resume": 0.20145423438836613,
+          "schedule_odds": 0.2018819503849444,
+          "srs": 0.22112917023096665
+        },
+        "compared_against": [
+          "challenger",
+          "colley",
+          "elo",
+          "l1",
+          "l2",
+          "l3",
+          "random_walker",
+          "resume",
+          "schedule_odds",
+          "srs"
+        ],
+        "lost_to": {},
+        "rate": 0.18306244653550044
+      },
+      "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+    }
+  },
+  "protocol": {
+    "gate_thresholds": {
+      "calibration_max_decile_deviation_pp": 5.0,
+      "mae_max": 12.8,
+      "rmse_max": 15.8,
+      "su_accuracy_min": 0.7,
+      "violations_must_beat": "all_scored_systems"
+    },
+    "holdout_seasons": [
+      2025
+    ],
+    "holdout_touched": false,
+    "note": "ONE RUN. The challenger is registered as one more system in the same walk, so every row in this scorecard came out of a single call to `run_backtest` over identical frames.",
+    "seasons": [
+      2021,
+      2022,
+      2023
+    ],
+    "systems": [
+      "schedule_odds",
+      "resume",
+      "l3",
+      "l2",
+      "l1",
+      "colley",
+      "srs",
+      "elo",
+      "walker",
+      "winpct",
+      "home_team"
+    ],
+    "window": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window"
+  },
+  "runs_written_to": [
+    "backtest_metrics_reference.json"
+  ],
+  "scorecard": [
+    {
+      "better": true,
+      "challenger": 0.6876971608832808,
+      "delta": 0.0006309148264984632,
+      "higher_is_better": true,
+      "incumbent": 0.6870662460567823,
+      "label": "Straight-up %",
+      "metric": "su_accuracy"
+    },
+    {
+      "better": false,
+      "challenger": 13.115366138973458,
+      "delta": 0.0775322897454167,
+      "higher_is_better": false,
+      "incumbent": 13.037833849228042,
+      "label": "Margin MAE",
+      "metric": "mae"
+    },
+    {
+      "better": false,
+      "challenger": 16.55315260011704,
+      "delta": 0.021943299998291366,
+      "higher_is_better": false,
+      "incumbent": 16.53120930011875,
+      "label": "Margin RMSE",
+      "metric": "rmse"
+    },
+    {
+      "better": false,
+      "challenger": 0.19831936440759768,
+      "delta": 0.0011829012737768207,
+      "higher_is_better": false,
+      "incumbent": 0.19713646313382086,
+      "label": "Brier",
+      "metric": "brier"
+    },
+    {
+      "better": false,
+      "challenger": 0.57894507347726,
+      "delta": 0.001724766088279428,
+      "higher_is_better": false,
+      "incumbent": 0.5772203073889806,
+      "label": "Log loss",
+      "metric": "log_loss"
+    },
+    {
+      "better": false,
+      "challenger": 7.90062002368076,
+      "delta": 0.5307536286772052,
+      "higher_is_better": false,
+      "incumbent": 7.369866395003555,
+      "label": "Max calib. dev. (pp)",
+      "metric": "max_calibration_deviation_pp"
+    },
+    {
+      "better": false,
+      "challenger": 0.2275449101796407,
+      "delta": 0.02566295979469632,
+      "higher_is_better": false,
+      "incumbent": 0.2018819503849444,
+      "label": "Retrodictive violations",
+      "metric": "retrodictive_violation_rate"
+    }
+  ],
+  "verdict": {
+    "beats_incumbent_on": [
+      "Straight-up %"
+    ],
+    "challenger_clears_gate": false,
+    "incumbent_clears_gate": false,
+    "loses_to_incumbent_on": [
+      "Margin MAE",
+      "Margin RMSE",
+      "Brier",
+      "Log loss",
+      "Max calib. dev. (pp)",
+      "Retrodictive violations"
+    ]
+  }
+}

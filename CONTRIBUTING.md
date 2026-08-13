@@ -3,9 +3,12 @@
 The point of this project is that strangers can check it, run it, and try to beat
 it. Contributions are welcome in that spirit.
 
-**Current state: scaffold.** There is no working model yet, so the most useful
-contributions right now are corrections to the design, the constants, or the
-reasoning in `docs/` — not code against an API that does not exist.
+**Current state: partial, and the parts that matter to you run.** `make .venv`,
+`make archive`, `make rankings`, `make backtest`, `make grid` and
+`cfbpoll challenge run` all work on a fresh clone with no accounts and no keys.
+`cfbpoll site build` and the byte-match replay are still stubs. Corrections to the
+design, the constants, or the reasoning in `docs/` remain very welcome, and so is
+a challenger that beats the model.
 
 ## Setup
 
@@ -55,12 +58,22 @@ implementing:
 def rate(games, plays, through_week) -> dict[int, float]: ...
 ```
 
-Open a PR and CI runs it through the identical harness against the identical
-baselines and posts a scorecard: SU%, MAE, RMSE, Brier, calibration, violations,
-retro-vs-live divergence, side by side with the incumbent.
+Run it yourself first — it needs nothing but the clone:
 
-*(The harness does not exist yet. It is step 14 of the build order and depends on
-the backtest harness, step 5.)*
+```bash
+uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+```
+
+Then open a PR. `.github/workflows/challenge.yml` runs your entry through the
+identical harness against the identical baselines and posts a scorecard: SU%,
+MAE, RMSE, Brier, log loss, calibration, violations, side by side with the
+incumbent and with every baseline, plus the publication gate applied to all of
+it. Fork PRs get a read-only token and no secrets, and the workflow asks for
+none, because the archive needs none.
+
+Two worked examples are committed — a parameter variant and a structural one —
+along with the scorecard the structural one actually produced. It loses on 6 of 7
+metrics, which is a more useful example than a manufactured win.
 
 ## Pull requests
 

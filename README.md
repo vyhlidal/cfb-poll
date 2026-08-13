@@ -185,7 +185,17 @@ itself:
 `rate(games, plays, through_week) -> dict[team_id, float]`, open a PR, and CI runs
 it through the identical walk-forward harness against the identical baselines and
 posts a scorecard. "Did it beat the model" gets a mechanical answer instead of an
-argument.
+argument. Two worked examples ship with it, and so does the scorecard one of them
+actually produced:
+
+```bash
+uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+```
+
+That entry beats the incumbent on **1 of 7** metrics and clears **0 of 5** gate
+criteria ([the scorecard](demo/challenge-iterative-margin/scorecard.md)). Shipping
+a losing example is deliberate: it shows what the harness does when an idea does
+not work, which is what happens to most ideas.
 
 ---
 

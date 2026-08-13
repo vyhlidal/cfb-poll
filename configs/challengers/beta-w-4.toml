@@ -1,0 +1,30 @@
+# WORKED EXAMPLE 1 of 2: a parameter variant.
+#
+# The claim: the win premium is too high. `configs/default.toml` sets
+# `[margin].beta_w = 7.0`, the discontinuity at zero margin that makes this a
+# football ranking rather than a scoring-margin ranking. Seven points is roughly
+# a touchdown, and it is the single most contested constant in the model - it was
+# searched in campaign 1 and searched again on a wider grid in campaign 2
+# (docs/analysis/tuning-campaign.md, docs/analysis/campaign-2.md).
+#
+# This entry says it should be 4.0, and asks the harness to settle it.
+#
+# COPY THIS FILE TO START. A parameter variant contains a [challenger] block and
+# NOTHING ELSE except the constants it changes. Every key must exist in
+# configs/default.toml: `merge_overlay` refuses an unknown one rather than
+# accepting it, because an override that names nothing changes nothing, silently,
+# and you would then publish a finding about a model nobody ran.
+
+[challenger]
+name = "beta-w-4"
+kind = "parameter"
+author = "cfb-poll (worked example)"
+notes = """
+Is the 7.0-point win premium too generous? A lower premium moves the results core
+toward pure margin, which should help MAE if margin carries the information, and
+hurt the retrodictive metrics if it does not. Whichever way it comes out, the
+number is the answer.
+"""
+
+[margin]
+beta_w = 4.0

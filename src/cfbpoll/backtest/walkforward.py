@@ -314,6 +314,7 @@ def _cached_ratings(
     cache: dict[str, dict[str, float]],
     state: l3_power.SeasonState | None = None,
     config: dict[str, Any] | None = None,
+    raters: dict[str, Any] | None = None,
 ) -> dict[str, float]:
     """One fit per system per bucket, memoised so a system that predicts through
     another (baselines.prediction_source) does not refit it. The cache is
@@ -332,9 +333,8 @@ def _cached_ratings(
     says the config is the methodology; a harness that fits with a config other
     than the one it was handed is publishing a number about a model nobody ran."""
     if name not in cache:
-        cache[name] = baselines.RATERS[name](
-            train, train_plays, week, state=state, config=config
-        )
+        registry = raters if raters is not None else baselines.RATERS
+        cache[name] = registry[name](train, train_plays, week, state=state, config=config)
     return cache[name]
 
 
@@ -381,6 +381,8 @@ def run_backtest(
     first_eval_week: int | None = None,
     plays: pl.DataFrame | None = None,
     collect_predictions: bool = False,
+    extra_raters: dict[str, Any] | None = None,
+    needs_plays_extra: bool = False,
 ) -> dict[str, Any]:
     """Walk every season forward and score every system. Returns the metrics tree.
 
@@ -410,7 +412,12 @@ def run_backtest(
             "re-tuned after seeing them, say so publicly and re-designate the split."
         )
 
-    canonical = [baselines.resolve(s) for s in systems]
+    # A challenger is one more name in this list, fitted by the same walk on the
+    # same frames as everything else (backtest/challenge.py). Passing the map in
+    # rather than registering it globally means importing a stranger's module
+    # cannot change what a plain `cfbpoll backtest` scores.
+    raters = {**baselines.RATERS, **(extra_raters or {})}
+    canonical = [baselines.resolve(s, extra=extra_raters) for s in systems]
     min_week = int(first_eval_week if first_eval_week is not None else bt["first_eval_week"])
     min_training = int(bt["min_training_games"])
 
@@ -423,6 +430,11 @@ def run_backtest(
     # good as the opponent quality it reads (report 02 §3.4).
     sources = {baselines.prediction_source(name, cfg) for name in canonical}
     needs_plays = bool((set(canonical) | sources) & baselines.PLAY_LEVEL_SYSTEMS)
+    # A structural challenger declares whether it reads plays. Trusting the
+    # declaration is safe in the direction that matters: a challenger that says
+    # it needs them and does not costs a load, and one that says it does not is
+    # handed `None` and fails loudly rather than reading a frame it disclaimed.
+    needs_plays = needs_plays or bool(needs_plays_extra)
     if needs_plays and plays is None:
         plays = load_plays(seasons)
 
@@ -540,7 +552,7 @@ def run_backtest(
 
             for name in canonical:
                 ratings = _cached_ratings(
-                    name, train, train_plays, bucket.week, fits, blend, cfg
+                    name, train, train_plays, bucket.week, fits, blend, cfg, raters
                 )
                 predict_with = _cached_ratings(
                     baselines.prediction_source(name, cfg),
@@ -550,6 +562,7 @@ def run_backtest(
                     fits,
                     blend,
                     cfg,
+                    raters,
                 )
 
                 pool = calibration[name]
@@ -727,8 +740,12 @@ def run_backtest(
         for name in canonical:
             if name == "home_team":
                 continue
-            published = _cached_ratings(name, full, full_plays, None, walk_forward_fits, blend, cfg)
-            diagnostic = _cached_ratings(name, full, full_plays, None, refit_fits, None, cfg)
+            published = _cached_ratings(
+                name, full, full_plays, None, walk_forward_fits, blend, cfg, raters
+            )
+            diagnostic = _cached_ratings(
+                name, full, full_plays, None, refit_fits, None, cfg, raters
+            )
             final_violations[name].append(
                 {
                     "season": season,

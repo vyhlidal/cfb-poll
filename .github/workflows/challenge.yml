@@ -1,0 +1,141 @@
+# The challenge harness, run on a pull request. Report 03 §7.3 and §10 step 14.
+#
+# THIS IS THE MOAT, AND IT IS THE PART THAT HAS TO ACTUALLY RUN. `/challenge`
+# says it in its own copy: "an invitation to challenge a model that requires you
+# to build your own evaluation is not an invitation." The same is true one level
+# down - an invitation whose CI is a stub is not an invitation either.
+#
+# FORK-SAFE BY CONSTRUCTION, and every clause of that is deliberate:
+#
+#   * `pull_request` (not `pull_request_target`). A fork's PR runs the fork's
+#     code with a READ-ONLY token and NO access to repository secrets. That is
+#     the correct trade and it costs nothing here, because the harness needs no
+#     secrets: the archive is MIT-licensed and comes from a public release.
+#   * `permissions: contents: read`. Nothing in this job writes anything back.
+#     The scorecard is an artifact, not a comment posted by a token a stranger's
+#     code could reach.
+#   * No `CFBD_API_KEY`, no R2 credentials, nothing. If this job ever needs a
+#     secret, the fork promise has been broken somewhere upstream of it.
+#
+# 2025 IS REFUSED. `--seasons` is fixed to the tune seasons here and the harness
+# raises `HoldoutLocked` on 2025 regardless, because nothing in this repository
+# passes `--unlock-holdout`. A challenger who wants 2024 says so in their PR
+# description and a human runs it.
+#
+# WHY IT DOWNLOADS 0.55 GB. Because the entry has to be scored on the same data
+# as the incumbent, and "the same data" is the whole claim. The archive is cached
+# on `sportsdataverse.lock.json`, so the second run of the day is free and the
+# lockfile changing is exactly when the cache SHOULD miss.
+
+name: challenge
+
+on:
+  pull_request:
+    paths:
+      - "configs/challengers/**"
+      - "src/cfbpoll/backtest/challenge.py"
+      - ".github/workflows/challenge.yml"
+  workflow_dispatch:
+    inputs:
+      entry:
+        description: "Path to the challenger entry"
+        required: true
+        default: "configs/challengers/iterative_margin.py"
+      seasons:
+        description: "Seasons to score (2025 is refused)"
+        required: false
+        default: "2021-2023"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: challenge-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  score:
+    runs-on: ubuntu-24.04                # pinned, not -latest
+    timeout-minutes: 45
+    env:
+      # Single-threaded BLAS is not optional. Multi-threaded reductions sum in a
+      # nondeterministic order, and a scorecard that moves between runs of the
+      # same code settles nothing (report 03 §9.3).
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      PYTHONHASHSEED: "0"
+      TZ: "UTC"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true, cache-dependency-glob: "uv.lock" }
+      - run: uv sync --locked
+
+      - name: Which entries changed
+        id: entries
+        run: |
+          if [ -n "${{ github.event.inputs.entry }}" ]; then
+            echo "list=${{ github.event.inputs.entry }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          changed=$(git diff --name-only --diff-filter=d \
+            "origin/${{ github.base_ref }}...HEAD" -- configs/challengers/ \
+            | grep -E '\.(toml|py)$' | grep -v 'README' || true)
+          # A PR that touches the harness itself, but adds no entry, is scored
+          # against the committed worked example. A harness change that silently
+          # moves the sample scorecard is exactly what this should catch.
+          if [ -z "$changed" ]; then
+            changed="configs/challengers/iterative_margin.py"
+          fi
+          echo "list<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$changed" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "will score:"; echo "$changed"
+
+      - name: Cache the MIT archive on the lockfile
+        uses: actions/cache@v4
+        with:
+          path: archive/sportsdataverse
+          key: sdv-archive-${{ hashFiles('data/manifests/sportsdataverse.lock.json') }}
+
+      - name: Fetch and sha256-verify the archive
+        run: uv run cfbpoll archive sync --source sportsdataverse --verify
+
+      - name: Assert no banned feature reached a model matrix
+        # A challenger cannot be scored past the constraint it is competing
+        # under. This runs BEFORE the harness so a leak is a refusal rather than
+        # a scorecard nobody should read.
+        run: uv run cfbpoll audit-features --fail-on-banned --season 2023
+
+      - name: Score every changed entry
+        run: |
+          set -euo pipefail
+          while IFS= read -r entry; do
+            [ -z "$entry" ] && continue
+            name=$(basename "$entry" | sed 's/\.[^.]*$//')
+            echo "::group::$entry"
+            uv run cfbpoll challenge run \
+              --entry "$entry" \
+              --seasons "${{ github.event.inputs.seasons || '2021-2023' }}" \
+              --out "out/challenge/$name"
+            echo "::endgroup::"
+          done <<< "${{ steps.entries.outputs.list }}"
+
+      - name: Put the scorecard in the job summary
+        if: always()
+        run: |
+          for card in out/challenge/*/scorecard.md; do
+            [ -e "$card" ] || continue
+            cat "$card" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload the scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard
+          path: out/challenge/**
+          if-no-files-found: error

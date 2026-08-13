@@ -61,9 +61,9 @@ rankings: .venv archive
 	@echo
 	@echo "The poll is $(OUT)/poll.csv and $(OUT)/poll.json; the run record, with"
 	@echo "which archives it read and every constant it used, is $(OUT)/_run.json."
-	@echo "`cfbpoll rank` ran the leakage audit BEFORE it fit anything."
+	@echo "'cfbpoll rank' ran the leakage audit BEFORE it fit anything."
 	@echo
-	@echo "STILL A STUB: `cfbpoll site build`. There is no static site yet, so the"
+	@echo "STILL A STUB: 'cfbpoll site build'. There is no static site yet, so the"
 	@echo "poll is files rather than a page (report 03 §7.1)."
 
 # Real. ~0.55 GB from OUR release assets, every file sha256-checked against the

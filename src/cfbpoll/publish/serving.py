@@ -288,19 +288,65 @@ def headline_start_week() -> int:
 
 
 def scheduled_weeks(season: int, archive: Path | None) -> list[int]:
-    """Every regular-season week the schedule file knows about.
+    """Every regular-season week the schedule knows about, from either source.
 
-    Empty when the archive is not there, so a fixture set shipped without it
+    Empty when neither is there, so a fixture set shipped without an archive
     still indexes rather than failing.
+
+    TWO SOURCES, BECAUSE A SEASON THAT HAS NOT KICKED OFF ONLY HAS THE SECOND.
+    The sportsdataverse parquet is the archive of PLAYED football and is the right
+    source for any season that has any; it does not exist for a season in the
+    future. The 2026 schedule exists only as the archived CFBD `/games` pull, which
+    `projection.forward.schedule` already reads offline to build the projection's
+    win totals - so the fixture tree held a 2026 projection built from a schedule
+    that `index.json` insisted had zero weeks in it, and the site's week strip for
+    2026 rendered no cells at all.
+
+    The parquet wins when it has anything, so no season that has been played
+    changes its week list because of this fallback, and the CFBD pull is consulted
+    only where the parquet is silent.
     """
+    weeks: list[int] = []
     try:
         from cfbpoll.ingest.sportsdataverse import canonical_games
 
         frame = canonical_games([season], archive)
+        regular = frame.filter(pl.col("season_type") == "regular")
+        weeks = sorted({int(w) for w in regular["week"].to_list()})
     except Exception:  # pragma: no cover - a stripped checkout has no archive
+        weeks = []
+    if weeks:
+        return weeks
+
+    try:
+        from cfbpoll.projection import forward
+
+        future = forward.schedule(season)
+    except Exception:  # pragma: no cover - no CFBD pull archived either
         return []
-    regular = frame.filter(pl.col("season_type") == "regular")
-    return sorted({int(w) for w in regular["week"].to_list()})
+    if future.is_empty():
+        return []
+    return sorted({int(w) for w in future["week"].to_list() if int(w) > 0})
+
+
+def unplayed_week(season: int, week: int, headline_start: int) -> dict[str, Any]:
+    """The week-strip entry for a week that has not been played.
+
+    ONE DEFINITION, TWO CALLERS. `merge_season_index` fills the right-hand side of
+    a season in progress with these, and `fixtures.rebuild_index` builds an entire
+    season out of them when the season has not started. Two copies of this dict
+    would be two chances for the strip to describe an unplayed week differently
+    depending on whether any week of that season had been played yet.
+    """
+    return {
+        "season": int(season),
+        "week": int(week),
+        "season_type": "regular",
+        "provisional": week < headline_start,
+        "played": False,
+        "published_at": None,
+        "n_ranked": 0,
+    }
 
 
 def merge_season_index(
@@ -320,18 +366,7 @@ def merge_season_index(
     weeks: dict[int, dict[str, Any]] = {int(w["week"]): dict(w) for w in existing}
     weeks[int(stub["week"])] = dict(stub)
     for week in scheduled:
-        weeks.setdefault(
-            week,
-            {
-                "season": int(stub["season"]),
-                "week": week,
-                "season_type": "regular",
-                "provisional": week < headline_start,
-                "played": False,
-                "published_at": None,
-                "n_ranked": 0,
-            },
-        )
+        weeks.setdefault(week, unplayed_week(int(stub["season"]), week, headline_start))
     return [weeks[w] for w in sorted(weeks)]
 
 

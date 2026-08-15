@@ -19,6 +19,7 @@ from typing import Any
 import polars as pl
 import pytest
 
+from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE as SDV_ARCHIVE
 from cfbpoll.publish import fixtures, postgres, serving
 
 
@@ -349,19 +350,25 @@ class TestFixtures:
         assert weeks[1]["played"] is False
         assert weeks[1]["n_ranked"] == 0
 
-    def test_a_projection_only_season_is_not_a_season_of_the_poll(
-        self, out: Path, archive: Path, tmp_path: Path
+    def test_a_projection_only_season_is_indexed_with_every_week_unplayed(
+        self, out: Path, archive: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The Projection shares the directory and must not enter the poll's index.
+        """A season with a projection and no poll gets a strip of unplayed weeks.
 
         `cfbpoll projection publish` writes `<season>/projection.json` for a season
         that has not kicked off, so a digit-named directory with no `week-*.json`
-        in it is a normal state of this tree once both products ship. Indexing it
-        is not a cosmetic wart: the site reads the current season as
+        in it is a normal state of this tree once both products ship. It used to be
+        skipped outright, because the site read the current season as
         `max(seasons[].season)` and its current week as the last PLAYED one, so a
-        2026 entry with an empty week strip makes the front door resolve a season
-        it can find no poll for and 404.
+        2026 entry made the front door resolve a season it could find no poll for
+        and 404.
+
+        THAT GUARD MOVED TO THE SITE, where it belongs, and this is the half that
+        pays for it: report 05 §2.2 wants the unplayed right-hand side of the strip
+        visible from day one, and a season indexed nowhere has no strip to dim. If
+        the 404 ever comes back, check `frontDoorBoards` first and this second.
         """
+        monkeypatch.setattr(serving, "scheduled_weeks", lambda season, arch: [1, 2, 3])
         dest = tmp_path / "data"
         fixtures.export(out, dest, archive=archive)
         (dest / "2026").mkdir()
@@ -370,9 +377,40 @@ class TestFixtures:
         fixtures.rebuild_index(dest, archive=archive)
         index = json.loads((dest / "index.json").read_text())
 
-        assert [s["season"] for s in index["seasons"]] == [2023]
+        assert [s["season"] for s in index["seasons"]] == [2023, 2026]
+        entry = next(s for s in index["seasons"] if s["season"] == 2026)
+        assert [w["week"] for w in entry["weeks"]] == [1, 2, 3]
+        assert all(w["played"] is False for w in entry["weeks"])
+        assert all(w["n_ranked"] == 0 for w in entry["weeks"])
+        assert all(w["published_at"] is None for w in entry["weeks"])
+        # No lens has ever been computed for a season with no games in it.
+        assert entry["recipes"] == []
         # And no empty curve left behind for a season with nothing to diverge.
         assert not (dest / "2026" / "divergence.json").exists()
+        # `generated_at` is the newest PUBLICATION; a season of unplayed weeks
+        # contributes none and must not blank it.
+        assert index["generated_at"] is not None
+
+    def test_a_bare_digit_directory_with_neither_poll_nor_projection_is_not_indexed(
+        self, out: Path, archive: Path, tmp_path: Path
+    ) -> None:
+        """Relaxing the guard must not turn any digit-named directory into a season."""
+        dest = tmp_path / "data"
+        fixtures.export(out, dest, archive=archive)
+        (dest / "2031").mkdir()
+        fixtures.rebuild_index(dest, archive=archive)
+        index = json.loads((dest / "index.json").read_text())
+        assert [s["season"] for s in index["seasons"]] == [2023]
+
+    def test_the_unplayed_week_stub_has_one_definition(self) -> None:
+        """The strip must describe an unplayed week identically either way it is
+        built: as the tail of a season in progress, or as the whole of one that has
+        not started."""
+        from_merge = serving.merge_season_index(
+            [], {"season": 2026, "week": 1, "played": True}, [1, 2], headline_start=5
+        )
+        unplayed = next(w for w in from_merge if w["week"] == 2)
+        assert unplayed == serving.unplayed_week(2026, 2, 5)
 
     def test_the_schema_version_is_stamped(self, out: Path, archive: Path, tmp_path: Path) -> None:
         dest = tmp_path / "data"
@@ -814,3 +852,66 @@ class TestSchemaCoversWhatTheBuilderEmits:
             pytest.skip(f"{table} is empty for this fixture")
         missing = set(rows[0]) - self._declared(table)
         assert missing == set(), f"{table}: {sorted(missing)}"
+
+
+class TestScheduledWeeks:
+    """Where the week strip's cells come from, and why there are two sources."""
+
+    def test_the_parquet_is_preferred_whenever_it_has_anything(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No played season may change its week list because of the fallback."""
+        monkeypatch.setattr(
+            "cfbpoll.ingest.sportsdataverse.canonical_games",
+            lambda seasons, arch: pl.DataFrame(
+                {"season_type": ["regular"] * 3 + ["postseason"], "week": [1, 2, 3, 1]}
+            ),
+        )
+        monkeypatch.setattr(
+            "cfbpoll.projection.forward.schedule",
+            lambda season, *a, **k: pytest.fail("the parquet had weeks; do not fall back"),
+        )
+        assert serving.scheduled_weeks(2023, None) == [1, 2, 3]
+
+    def test_a_season_with_no_parquet_resolves_its_schedule_from_the_cfbd_pull(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """THE 2026 CASE. The sportsdataverse parquet is the archive of PLAYED
+        football and does not exist for a season in the future, so a projection-only
+        season had zero scheduled weeks and its strip rendered no cells - while the
+        projection sitting in the same directory had been built from a schedule the
+        archive plainly held, as the CFBD `/games` pull."""
+        monkeypatch.setattr(
+            "cfbpoll.ingest.sportsdataverse.canonical_games",
+            lambda seasons, arch: (_ for _ in ()).throw(FileNotFoundError("no parquet")),
+        )
+        monkeypatch.setattr(
+            "cfbpoll.projection.forward.schedule",
+            lambda season, *a, **k: pl.DataFrame({"week": [1, 2, 3, 12]}),
+        )
+        assert serving.scheduled_weeks(2026, None) == [1, 2, 3, 12]
+
+    def test_no_schedule_anywhere_is_an_empty_list_not_an_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A fixture set shipped without an archive still indexes."""
+        monkeypatch.setattr(
+            "cfbpoll.ingest.sportsdataverse.canonical_games",
+            lambda seasons, arch: (_ for _ in ()).throw(FileNotFoundError("no parquet")),
+        )
+        monkeypatch.setattr(
+            "cfbpoll.projection.forward.schedule",
+            lambda season, *a, **k: pl.DataFrame({"week": []}, schema={"week": pl.Int32}),
+        )
+        assert serving.scheduled_weeks(2026, None) == []
+
+    @pytest.mark.skipif(
+        not (SDV_ARCHIVE / "schedules").exists(), reason="local archive not materialised"
+    )
+    def test_the_real_2026_schedule_resolves_to_a_non_empty_strip(self) -> None:
+        """The integration half: against the archive actually on disk, 2026 has
+        weeks. Deliberately not asserting WHICH weeks - the 2026 pull is a future
+        schedule and will fill in - only that the strip is no longer empty."""
+        weeks = serving.scheduled_weeks(2026, None)
+        assert weeks
+        assert min(weeks) == 1

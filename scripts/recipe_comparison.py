@@ -174,9 +174,20 @@ def main() -> None:
     # THE UNION OF THE THREE TOP 25s, not the house top 25. A team that Full Merit
     # ranks 12th and the house poll ranks 40th is exactly the row this document
     # exists to show, and a table keyed on the house board would hide it.
+    #
+    # THE KEY ENDS IN THE TEAM NAME, and without it this document does not
+    # reproduce. Best-rank ties on the 2023 board - Michigan and Florida State both
+    # peak at 1, Oregon and Liberty both at 2, Penn State and Alabama both at 4 -
+    # and `sorted` is stable, so a tie kept the iteration order of the SET being
+    # sorted. Set iteration order for strings depends on the interpreter's hash
+    # seed, which is randomised per process, so regenerating swapped six rows
+    # without a single number changing. That is the exact failure a committed
+    # generated artifact exists to rule out: a diff that says the board moved when
+    # the board did not. It is also the tie-break `publish/poll.ORDER_KEYS` already
+    # uses for the same reason, and which this document explains further down.
     board_teams = sorted(
         {t for slug in ranks for t in everyone if ranks[slug].get(t, 10**6) <= TOP},
-        key=lambda t: min(ranks[s].get(t, 10**6) for s in ranks),
+        key=lambda t: (min(ranks[s].get(t, 10**6) for s in ranks), t),
     )
 
     taus = {}

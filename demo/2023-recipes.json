@@ -160,7 +160,7 @@
         "margin.c": "uncapped",
         "publication.headline_ordering": "L4_resume_margin"
       },
-      "config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+      "config_sha256": "d21aaa06428fad6b1b8345ddee74086741c046ec693cfabb1eb50f2dfa49a0a8",
       "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
       "n_games": 1557,
       "name": "Full Merit",
@@ -320,7 +320,7 @@
     },
     "house": {
       "changes": {},
-      "config_sha256": "0d44e2be18c10b5198d3d1063ec685c1677db35663f47195bed3a19d1590b8dd",
+      "config_sha256": "0c62af515601e8ed5205f943f99b563e6fe6e1b97a29bcf01b3094e0e709d9df",
       "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
       "n_games": 1557,
       "name": "The House Poll",
@@ -484,7 +484,7 @@
         "margin.c": 1.0,
         "publication.headline_ordering": "L4_resume"
       },
-      "config_sha256": "45ab528ce006fe9e3441dc393f59887bbff8727f71be0b74ea6fe7ea78d5f2fe",
+      "config_sha256": "cadaeb945e90d873bd0520caa7ca9d1d9b7dce9f5fadde4ea2ac2e1fc5f94d4e",
       "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
       "n_games": 1557,
       "name": "Just Win",

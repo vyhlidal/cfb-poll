@@ -4,7 +4,7 @@
 
 **A ranking is a value system.** This is one season, one set of games and three value systems, side by side. It is the teaching material for [ADR 0011](../docs/adr/0011-recipes.md), and the thing to look at is not which board is right. It is which teams move, and how far, when nothing changes except what the poll believes football results are for.
 
-Season 2023, through week 15: the final poll before the postseason, which is what `[weights].final_poll_excludes_non_cfp_bowls` makes the published final. Generated at git `0b6c701` on 2026-08-15.
+Season 2023, through week 15: the final poll before the postseason, which is what `[weights].final_poll_excludes_non_cfp_bowls` makes the published final. Generated at git `0ffe198` on 2026-08-15.
 
 ## The three recipes
 
@@ -55,9 +55,9 @@ This is the claim the whole feature rests on, so it is measured here rather than
 
 | recipe | games in the fit | `fit_window_sha256` | `recipe_config_sha256` |
 |---|---:|---|---|
-| Full Merit | 1,557 | `04f4396de59b8fe0…` | `d84b47e17f84f902…` |
-| The House Poll | 1,557 | `04f4396de59b8fe0…` | `0d44e2be18c10b51…` |
-| Just Win | 1,557 | `04f4396de59b8fe0…` | `45ab528ce006fe9e…` |
+| Full Merit | 1,557 | `04f4396de59b8fe0…` | `d21aaa06428fad6b…` |
+| The House Poll | 1,557 | `04f4396de59b8fe0…` | `0c62af515601e8ed…` |
+| Just Win | 1,557 | `04f4396de59b8fe0…` | `cadaeb945e90d873…` |
 
 **The evidence digests are identical and the methodology digests are all different.** That is the feature in one table: same data, different values.
 
@@ -67,11 +67,11 @@ A row is marked ● when its best and worst rank across the three recipes differ
 
 | | team | rec | Full Merit | House | Just Win | spread |
 |---|---|---|---:|---:|---:|---:|
-|  | Michigan | 13-0 | **1** | 2 | 3 | 2 |
 |  | Florida State | 13-0 | 5 | 3 | **1** | 4 |
+|  | Michigan | 13-0 | **1** | 2 | 3 | 2 |
 | ● | Washington | 13-0 | 10 | **1** | 4 | 9 |
-| ● | Oregon | 11-2 | **2** | 9 | 12 | 10 |
 | ● | Liberty | 13-0 | 20 | 10 | **2** | 18 |
+| ● | Oregon | 11-2 | **2** | 9 | 12 | 10 |
 |  | Ohio State | 11-1 | **3** | 6 | 5 | 3 |
 |  | Alabama | 12-1 | 8 | **4** | 6 | 4 |
 | ● | Penn State | 10-2 | **4** | 13 | 11 | 9 |
@@ -80,21 +80,21 @@ A row is marked ● when its best and worst rank across the three recipes differ
 | ● | Ole Miss | 10-2 | 16 | **8** | 9 | 8 |
 | ● | Oklahoma | 10-2 | **9** | 12 | 14 | 5 |
 | ● | James Madison | 11-1 | 18 | 14 | **10** | 8 |
-| ● | Notre Dame | 9-3 | **11** | 21 | 19 | 10 |
 |  | Missouri | 10-2 | 15 | **11** | 13 | 4 |
+| ● | Notre Dame | 9-3 | **11** | 21 | 19 | 10 |
 |  | LSU | 9-3 | **12** | 15 | 15 | 3 |
 | ● | Kansas State | 8-4 | **13** | 26 | 29 | 16 |
 | ● | SMU | 11-2 | **14** | 20 | 17 | 6 |
 | ● | Troy | 11-2 | 22 | **16** | **16** | 6 |
-| ● | Oregon State | 8-4 | **17** | 27 | 28 | 11 |
 |  | Louisville | 10-3 | 21 | **17** | 20 | 4 |
+| ● | Oregon State | 8-4 | **17** | 27 | 28 | 11 |
 | ● | Iowa | 10-3 | 41 | **18** | 21 | 23 |
 | ● | Tulane | 11-2 | 37 | 19 | **18** | 19 |
 | ● | Arizona | 9-3 | **19** | 24 | 25 | 6 |
-| ● | Oklahoma State | 9-4 | 35 | **22** | 24 | 13 |
 | ● | Miami (OH) | 11-2 | 46 | 28 | **22** | 24 |
-| ● | Texas A&M | 7-5 | **23** | 40 | 44 | 21 |
+| ● | Oklahoma State | 9-4 | 35 | **22** | 24 | 13 |
 | ● | NC State | 9-3 | 29 | **23** | **23** | 6 |
+| ● | Texas A&M | 7-5 | **23** | 40 | 44 | 21 |
 | ● | Tennessee | 8-4 | **24** | 30 | 30 | 6 |
 | ● | Clemson | 8-4 | **25** | 31 | 32 | 7 |
 |  | Utah | 8-4 | 28 | **25** | 27 | 3 |

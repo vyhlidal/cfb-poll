@@ -310,22 +310,30 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
         f"({fitted.intercept:+.2f}) included."
     )
     add("")
-    add("| # | team | Power | proj W-L | Δ last season | Δ returning | Δ coach | Δ portal |")
-    add("|---:|---|---:|---:|---:|---:|---:|---:|")
+    add(
+        "| # | team | Power | proj W-L | SoS | SoS rk | W on median | "
+        "Δ last season | Δ returning | Δ coach | Δ portal |"
+    )
+    add("|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in ranked.to_dicts():
         record = (
             f"{row['projected_wins']:.1f}-{row['projected_losses']:.1f}"
             if row["projected_wins"] is not None
-            else "—"
+            else "n/a"
         )
         add(
             f"| {int(row['projected_rank'])} | {row['team']} | "
             f"{row['projected_power']:.2f} | {record} | "
+            f"{_fmt(row.get('schedule_strength'), 1)} | "
+            f"{_fmt(row.get('schedule_strength_rank'), 0)} | "
+            f"{_fmt(row.get('wins_on_median_schedule'), 1)} | "
             f"{row['contrib_prior_power']:+.2f} | "
             f"{row['contrib_returning_production']:+.2f} | "
             f"{row['contrib_coaching_change']:+.2f} | "
             f"{row['contrib_net_portal']:+.2f} |"
         )
+    add("")
+    add(_schedule_paragraph(state))
     add("")
     add(f"Projected records use {wins.sigma_note}")
     add("")
@@ -354,6 +362,41 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
     add("")
     (DEMO / "2026-preseason-projection.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return payload
+
+
+def _schedule_paragraph(state: dict[str, Any]) -> str:
+    """Why the board's order is not the win column's order, in the demo's own voice.
+
+    The fixture publishes this as templated fields; the demo says it in prose off
+    the SAME objects, so a reader can check one against the other. If the two ever
+    disagree, one of them was hand-edited.
+    """
+    strength = state["schedule_strength"]
+    contrast = state["contrast"]
+    lines = [
+        "**`SoS` is mean opponent projected power at a neutral field**, with "
+        "venue kept out of it deliberately; `SoS rk` is that figure's rank among "
+        f"the {strength.field_size} teams with a full schedule, 1 being hardest. "
+        "**`W on median` is the load-bearing column**: every team scored against "
+        f"{strength.median_schedule_team}'s "
+        f"{strength.median_schedule_games}-game calendar, which sits at the "
+        "middle of that field. It is the column that makes this ordering "
+        "checkable, because it is the only one where all 25 teams face the same "
+        "opposition.",
+    ]
+    if contrast is not None:
+        lines.append(
+            f"The sharpest case: **{contrast.higher_team} projects "
+            f"{contrast.higher_wins:.1f} wins and {contrast.lower_team} projects "
+            f"{contrast.lower_wins:.1f}, and {contrast.higher_team} still ranks "
+            f"higher.** Swap their calendars and the reason is arithmetic rather "
+            f"than opinion: {contrast.higher_team} would win "
+            f"{contrast.higher_on_lower_schedule:.1f} games on "
+            f"{contrast.lower_team}'s schedule, and {contrast.lower_team} would "
+            f"win {contrast.lower_on_higher_schedule:.1f} on "
+            f"{contrast.higher_team}'s."
+        )
+    return "\n\n".join(lines)
 
 
 def _significance_paragraph(fitted: recipe.Recipe) -> str:

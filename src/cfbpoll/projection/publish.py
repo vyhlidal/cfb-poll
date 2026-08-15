@@ -149,6 +149,9 @@ def build(
     top_n: int = 25,
     archive_root: Any = None,
     backtest: dict[str, Any] | None = None,
+    strength: Any = None,
+    contrast: Any = None,
+    sigma: float | None = None,
 ) -> dict[str, Any]:
     """The fixture document. Every displayed number is a string or a plain scalar."""
     if status not in ("coming", "published"):
@@ -176,6 +179,26 @@ def build(
                 # the decimal place is decided here, once, and cannot drift
                 # between the card and the JSON a reader downloads.
                 "projected_wins": (f"{float(wins):.1f}" if wins is not None else None),
+                # THE COLUMN THE BOARD SORTS ON, previously invisible. A reader
+                # who could see the ranking and the win total but not the
+                # quantity that produced the ranking had no way to tell a
+                # deliberate ordering from a broken one.
+                "projected_power": _fmt1(row.get("projected_power")),
+                # NEUTRAL FIELD: opponent quality only, with venue in
+                # `home_games` beside it rather than folded in.
+                "schedule_strength": _fmt1(row.get("schedule_strength")),
+                "schedule_strength_rank": _int(row.get("schedule_strength_rank")),
+                "schedule_field_size": _int(row.get("schedule_field_size")),
+                "home_games": _int(row.get("home_games")),
+                # True when any opponent on this schedule had to be rated by
+                # mean reversion alone. See the contract doc's `opponent_source`
+                # section: it is not a defect, it is two kinds of number in one
+                # mean, and the card is entitled to know.
+                "schedule_is_mixed": _bool(row.get("schedule_is_mixed")),
+                # THE LOAD-BEARING FIELD. Every team scored against one real
+                # calendar, so this column is comparable straight down the table
+                # and the ranking stops needing prose to defend it.
+                "wins_on_median_schedule": _fmt1(row.get("wins_on_median_schedule")),
                 "note": _note(row),
             }
         )
@@ -190,6 +213,7 @@ def build(
         "basis": _assert_sentence("basis", basis),
         "note": _assert_sentence("note", note) if note else None,
         "backtest": _backtest_block(backtest),
+        "schedule": _schedule_block(strength, contrast, sigma),
         "rows": rows,
         # Not in the site's interface, and carried anyway: a published guess that
         # cannot say which recipe made it cannot be graded season over season.
@@ -258,6 +282,105 @@ def _backtest_block(summary: dict[str, Any] | None) -> dict[str, Any] | None:
         "source": "demo/projection-backtest.md",
     }
     return block
+
+
+def _fmt1(value: Any) -> str | None:
+    """One decimal place, as a string. The site formats nothing."""
+    return None if value is None else f"{float(value):.1f}"
+
+
+def _int(value: Any) -> int | None:
+    return None if value is None else int(value)
+
+
+def _bool(value: Any) -> bool | None:
+    return None if value is None else bool(value)
+
+
+def _schedule_block(strength: Any, contrast: Any, sigma: float | None) -> dict[str, Any] | None:
+    """The schedule gloss and its three caveats, every sentence templated.
+
+    ALL FOUR CAVEATS SHIP AS FIELDS rather than as component copy, for the reason
+    everything else on this document does: a caution the site hard-codes is a
+    caution that stops being true the first time the numbers move and nobody
+    re-reads the JSX. `uncertainty_note` is templated off the live sigma,
+    `promotion_note` off the live promoted list, and `note` off the live contrast,
+    so all three go stale together with the data or not at all.
+
+    Returns None when no schedule was available, which is the correct answer for
+    a fork with no CFBD archive: a projection without win totals also has no
+    schedule strength, and a card that renders neither is a smaller product
+    rather than a broken one.
+    """
+    if strength is None:
+        return None
+
+    block: dict[str, Any] = {
+        "median_schedule_team": strength.median_schedule_team,
+        "median_schedule_strength": _fmt1(strength.median_schedule_strength),
+        "median_schedule_games": int(strength.median_schedule_games),
+        "field_size": int(strength.field_size),
+        "contrast": None,
+        "note": None,
+        "uncertainty_note": None,
+        "promotion_note": None,
+    }
+
+    if sigma is not None:
+        block["uncertainty_note"] = _assert_sentence(
+            "schedule.uncertainty_note",
+            f"Every win total here comes from a distribution {float(sigma):.1f} "
+            "points wide, because in August both teams in a game are projections "
+            "rather than measurements. That compresses the spread, so teams "
+            "differ by less in these columns than they will by December.",
+        )
+
+    if strength.promoted:
+        names = _join(list(strength.promoted))
+        block["promotion_note"] = _assert_sentence(
+            "schedule.promotion_note",
+            f"{names} moved up from FCS this season, so their ratings were earned "
+            "against FCS opposition. Any schedule containing them is measured "
+            "against a softer standard than the one they are about to be held to, "
+            "and the bottom of the schedule ranking is correspondingly less firm "
+            "than the numbers make it look.",
+        )
+
+    if contrast is not None:
+        block["contrast"] = {
+            **contrast.as_dict(),
+            "headline": _assert_sentence(
+                "schedule.contrast.headline",
+                f"{contrast.higher_team} projects "
+                f"{contrast.higher_wins:.1f} wins and {contrast.lower_team} projects "
+                f"{contrast.lower_wins:.1f}, and {contrast.higher_team} still ranks "
+                f"higher. Run each on the other's calendar and the reason is "
+                f"plain: {contrast.higher_team} would win "
+                f"{contrast.higher_on_lower_schedule:.1f} games on "
+                f"{contrast.lower_team}'s schedule, while {contrast.lower_team} "
+                f"would win {contrast.lower_on_higher_schedule:.1f} on "
+                f"{contrast.higher_team}'s.",
+            ),
+        }
+        block["note"] = _assert_sentence(
+            "schedule.note",
+            "This board ranks on projected power, so the win column beside it "
+            "will sometimes disagree with the order. The column that reconciles "
+            f"them is wins on a median schedule, which scores every team against "
+            f"{strength.median_schedule_team}'s calendar, the "
+            f"{strength.median_schedule_games} games sitting at the middle of the "
+            f"{strength.field_size} we rank.",
+        )
+    return block
+
+
+def _join(names: list[str]) -> str:
+    """Oxford-comma join. No dashes, because these strings are front-door copy."""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + f", and {names[-1]}"
 
 
 def _note(row: dict[str, Any]) -> str | None:

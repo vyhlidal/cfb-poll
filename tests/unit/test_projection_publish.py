@@ -265,6 +265,156 @@ def test_the_sentence_flips_when_the_result_flips(projection: pl.DataFrame) -> N
     assert "was worse at predicting September's games" in block["headline"]
 
 
+# --------------------------------------------------------- the schedule extension
+
+
+@pytest.fixture
+def strength_and_contrast(projection: pl.DataFrame):
+    """A real `strengths` / `contrast` pair over a tiny synthetic league."""
+    from cfbpoll.projection import forward, recipe, schedule
+
+    fitted = recipe.Recipe(
+        intercept=15.0,
+        coefficients={
+            "prior_power": 0.68,
+            "returning_production": 7.08,
+            "coaching_change": -2.33,
+            "net_portal": -0.41,
+        },
+        se=dict.fromkeys(recipe.TERMS, 1.0),
+        intercept_se=1.0,
+        transitions=((2025, 2026),),
+        n_teams=4,
+        r_squared=0.5,
+        residual_sd=9.0,
+    )
+    teams = projection["team"].to_list()
+    games = [
+        (a, b, True) for i, a in enumerate(teams) for b in teams[i + 1 :]
+    ] * 4  # enough games to clear the ranking floor
+    future = pl.DataFrame(
+        {
+            "game_id": list(range(1, len(games) + 1)),
+            "week": pl.Series([1] * len(games), dtype=pl.Int32),
+            "neutral_site": [n for _, _, n in games],
+            "home_team": [h for h, _, _ in games],
+            "away_team": [a for _, a, _ in games],
+            "home_class": ["fbs"] * len(games),
+            "away_class": ["fbs"] * len(games),
+        }
+    )
+    sigma = forward.projection_sigma(fitted, 15.3)
+    strength = schedule.strengths(
+        projection, future, fitted, {}, 0.0, sigma, 3.9, promoted=("Nowhere State",)
+    )
+    contrast = schedule.contrast(projection, future, fitted, {}, 0.0, sigma, 3.9)
+    return strength, contrast, sigma
+
+
+def test_every_schedule_number_ships_pre_formatted(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """Contract rule 1 reaches the new columns too. `schedule_strength_rank` and
+    `home_games` are counts and stay ints; everything measured is a string."""
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    document = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=strength, contrast=contrast, sigma=sigma,
+    )
+    for row in document["rows"]:
+        for field in (
+            "projected_power",
+            "schedule_strength",
+            "wins_on_median_schedule",
+        ):
+            assert row[field] is None or isinstance(row[field], str), field
+            if isinstance(row[field], str):
+                assert row[field].count(".") == 1, (field, row[field])
+        for field in ("schedule_strength_rank", "schedule_field_size", "home_games"):
+            assert row[field] is None or isinstance(row[field], int), field
+        assert row["schedule_is_mixed"] in (True, False, None)
+
+
+def test_the_schedule_block_carries_all_three_caveats(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """Every caveat is a FIELD. A caution the site hard-codes stops being true the
+    first time the numbers move and nobody re-reads the JSX."""
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    block = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=strength, contrast=contrast, sigma=sigma,
+    )["schedule"]
+
+    assert f"{sigma:.1f}" in block["uncertainty_note"]
+    assert "Nowhere State" in block["promotion_note"]
+    assert block["median_schedule_team"] == strength.median_schedule_team
+    assert block["field_size"] == strength.field_size
+    for field in ("note", "uncertainty_note", "promotion_note"):
+        assert block[field].endswith(".")
+
+
+def test_the_promotion_note_is_absent_when_nobody_was_promoted(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """Null, not an empty string, and not a sentence about nothing."""
+    from dataclasses import replace
+
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    block = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=replace(strength, promoted=()), contrast=contrast, sigma=sigma,
+    )["schedule"]
+    assert block["promotion_note"] is None
+
+
+def test_the_contrast_headline_names_both_teams_and_both_swap_numbers(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    strength, contrast, sigma = strength_and_contrast
+    if contrast is None:
+        pytest.skip("this synthetic league has no inversion")
+    projected = projection.join(strength.table, on="team", how="left")
+    block = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=strength, contrast=contrast, sigma=sigma,
+    )["schedule"]["contrast"]
+
+    assert contrast.higher_team in block["headline"]
+    assert contrast.lower_team in block["headline"]
+    assert f"{contrast.higher_on_lower_schedule:.1f}" in block["headline"]
+    assert f"{contrast.lower_on_higher_schedule:.1f}" in block["headline"]
+    assert block["higher_rank"] == 1
+
+
+def test_no_schedule_means_no_block(projection: pl.DataFrame) -> None:
+    """A fork with no CFBD archive has no schedule, so it has no schedule
+    strength either. A card that renders neither is a smaller product."""
+    assert publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)["schedule"] is None
+
+
+def test_the_schedule_extension_is_additive(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """schema_version stays 1: keys appeared, none changed meaning, none went
+    away. A consumer written against the original field set stays valid."""
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    before = publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)
+    after = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=strength, contrast=contrast, sigma=sigma,
+    )
+    assert after["schema_version"] == before["schema_version"] == publish.SCHEMA_VERSION
+    assert set(before) <= set(after)
+    for key in ("headline", "basis", "season", "status", "grading_start_week"):
+        assert after[key] == before[key]
+    assert set(before["rows"][0]) <= set(after["rows"][0])
+
+
 def test_no_backtest_means_no_claim(projection: pl.DataFrame) -> None:
     """A caller that has not run the backtest gets a card that says nothing about
     quality, which is the correct behaviour for an unmeasured claim."""

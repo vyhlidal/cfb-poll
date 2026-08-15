@@ -254,3 +254,124 @@ def test_word_wrap_never_exceeds_its_budget_and_marks_truncation() -> None:
     assert all(len(line) <= 20 for line in lines)
     assert lines[-1].endswith("…")
     assert cards._wrap(text, 200, 3) == [text]
+
+
+# --------------------------------------------------------- the vendored typefaces
+
+#: A card in miniature: one line of text in each of the four stacks, at a fixed
+#: size, on a fixed canvas. Everything that decides the output bytes is in this
+#: string or in `assets/fonts`, which is what lets the hash below mean something.
+_FONT_PROBE = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220">'
+    '<rect width="600" height="220" fill="#0B0C0F"/>'
+    f'<text x="16" y="48" font-size="30" fill="#fff" font-family="{cards.FONT_DISPLAY}">'
+    "Handgloves 123</text>"
+    f'<text x="16" y="96" font-size="26" fill="#fff" font-family="{cards.FONT_UI}">'
+    "Handgloves 123</text>"
+    f'<text x="16" y="144" font-size="24" fill="#fff" font-family="{cards.FONT_MONO}">'
+    "0.9841 tau</text>"
+    f'<text x="16" y="196" font-size="26" fill="#fff" font-family="{cards.FONT_PROSE}">'
+    "Handgloves 123</text>"
+    "</svg>"
+)
+
+#: sha256 of `_FONT_PROBE` rasterised against the vendored families. THIS IS THE
+#: HOST-INDEPENDENCE ASSERTION: the number is a pure function of the pinned resvg
+#: wheel and the font files in this repo, so it is the same on every machine that
+#: checks out this commit. Before the families were vendored there was no such
+#: number to write down - the bytes depended on whatever the host happened to have
+#: installed, which is precisely the defect.
+#:
+#: If this changes, something changed the rendering: a font file, the resvg pin,
+#: or a stack. All three are things a reviewer should be told about rather than
+#: discover in a published PNG.
+_FONT_PROBE_SHA256 = "f361e06dc24358b263471ba2f6ddc9e3d5de4e10974339e2fb658e45abafe863"
+
+
+def _render(svg: str, **kwargs: object) -> bytes:
+    import resvg_py
+
+    return bytes(resvg_py.svg_to_bytes(svg_string=svg, **kwargs))
+
+
+def test_the_font_families_are_vendored_in_repo() -> None:
+    """The check must see the families, which live one directory each.
+
+    A font file has to sit beside the licence that permits redistributing it, so
+    the families are vendored one subdirectory apiece. A non-recursive check found
+    nothing directly inside `assets/fonts/` and reported "not vendored", which
+    would silently have left the renderer back on the host's fonts on a machine
+    where the files were in fact present.
+    """
+    assert cards.fonts_are_vendored() is True
+    families = {p.parent.name for p in cards.FONT_DIR.rglob("*.ttf")}
+    assert families == {"archivo", "dejavu", "jetbrains-mono", "source-serif-4"}
+
+
+def test_every_vendored_family_ships_its_licence() -> None:
+    """Redistribution is what the licence permits; shipping it is the condition."""
+    for family in sorted(p for p in cards.FONT_DIR.iterdir() if p.is_dir()):
+        licences = [p for p in family.iterdir() if p.name in {"OFL.txt", "LICENSE"}]
+        assert licences, f"{family.name} ships font files with no licence beside them"
+        text = licences[0].read_text(encoding="utf-8", errors="replace")
+        assert "SIL OPEN FONT LICENSE" in text.upper() or "Bitstream Vera" in text, family.name
+
+
+@pytest.mark.parametrize(
+    ("name", "stack"),
+    [
+        ("display", cards.FONT_DISPLAY),
+        ("ui", cards.FONT_UI),
+        ("mono", cards.FONT_MONO),
+        ("prose", cards.FONT_PROSE),
+    ],
+)
+def test_no_font_stack_rasterises_to_nothing(name: str, stack: str) -> None:
+    """THE REGRESSION GUARD FOR A BUG THAT SHIPPED, and it is subtle enough to
+    deserve one test per stack.
+
+    An unquoted CSS family name is a sequence of identifiers and an identifier may
+    not start with a digit, so `Source Serif 4` unquoted is invalid and a parser
+    that meets the bare `4` throws away THE WHOLE DECLARATION - every fallback in
+    the list with it. The prose line on every card was rendering blank: not in the
+    DejaVu Serif sitting next in the stack, not in Georgia, blank. Nothing caught
+    it because a card with one invisible line still has the right dimensions, the
+    right file size and the right sha256.
+
+    So the assertion is against a family that does not exist. If a stack
+    rasterises to the same bytes as gibberish, that stack is drawing nothing.
+    """
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">'
+        f'<text x="10" y="50" font-size="32" font-family="{stack}">Handgloves 123</text></svg>'
+    )
+    missing = svg.replace(stack, "NoSuchFamilyAnywhere")
+    kwargs = {"skip_system_fonts": True, "font_dirs": [str(cards.FONT_DIR)]}
+    assert _render(svg, **kwargs) != _render(missing, **kwargs), (
+        f"the {name} stack rasterises to the same bytes as a nonexistent family, "
+        f"which means it is drawing nothing: {stack}"
+    )
+
+
+def test_the_render_does_not_depend_on_the_host(request: pytest.FixtureRequest) -> None:
+    """The whole point of vendoring, as a number that can be written down.
+
+    `render_png` pins `skip_system_fonts=True` and points resvg at `FONT_DIR`, so
+    the output is a function of this repository and the pinned rasteriser and of
+    nothing else on the machine. That is what makes the hash below assertable at
+    all; before vendoring there was no such hash, because the bytes depended on
+    what the host had installed.
+    """
+    import hashlib
+
+    got = hashlib.sha256(cards.render_png(_FONT_PROBE)).hexdigest()
+    if _FONT_PROBE_SHA256 == "PLACEHOLDER":  # pragma: no cover - bootstrap only
+        pytest.fail(f"set _FONT_PROBE_SHA256 to {got!r}")
+    assert got == _FONT_PROBE_SHA256, (
+        "the rasterised probe changed. A font file, the resvg pin or a font stack "
+        "moved; all three change published artifacts and none should move quietly."
+    )
+
+
+def test_rendering_is_stable_across_calls() -> None:
+    assert cards.render_png(_FONT_PROBE) == cards.render_png(_FONT_PROBE)

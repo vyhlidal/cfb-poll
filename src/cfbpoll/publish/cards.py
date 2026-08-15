@@ -147,10 +147,27 @@ PALETTE: dict[str, str] = {
 #: is also read directly, in a browser, by anybody reviewing a diff, and there
 #: it should degrade to something with the right proportions rather than to a
 #: default serif.
-FONT_DISPLAY = "Archivo SemiCondensed, Archivo, DejaVu Sans Condensed, Helvetica, sans-serif"
-FONT_UI = "Archivo, DejaVu Sans, Helvetica, Arial, sans-serif"
-FONT_MONO = "JetBrains Mono, DejaVu Sans Mono, Menlo, Consolas, monospace"
-FONT_PROSE = "Source Serif 4, DejaVu Serif, Georgia, Times New Roman, serif"
+#: EVERY MULTI-WORD FAMILY IS QUOTED, AND THAT IS A BUG FIX RATHER THAN A STYLE
+#: CHOICE. An unquoted CSS family name is a sequence of IDENTIFIERS, and an
+#: identifier may not begin with a digit - so `Source Serif 4` is not merely an
+#: unusual spelling, it is invalid, and a parser that meets the bare `4` discards
+#: THE WHOLE DECLARATION rather than that one family. The prose line on every
+#: share card was therefore rendering as nothing at all: not in Source Serif, not
+#: in the DejaVu Serif sitting next in the stack, not in Georgia - blank, because
+#: the list never got parsed and the fallbacks never got their turn. Measured
+#: against the vendored fonts, `Source Serif 4, DejaVu Serif, Georgia, ...`
+#: rasterises to the identical bytes as a family name that does not exist, and
+#: `'Source Serif 4', DejaVu Serif, ...` rasterises to Source Serif.
+#:
+#: The other three stacks were parsing correctly, since a multi-word name with no
+#: digit is valid unquoted. They are quoted anyway: the rule "quote the family
+#: name" is one a reader can apply, and "quote it unless every word happens to
+#: start with a letter" is a rule that will be got wrong the next time a family
+#: with a number in its name is added - which, for a typeface, is often.
+FONT_DISPLAY = "'Archivo SemiCondensed', Archivo, 'DejaVu Sans Condensed', Helvetica, sans-serif"
+FONT_UI = "Archivo, 'DejaVu Sans', Helvetica, Arial, sans-serif"
+FONT_MONO = "'JetBrains Mono', 'DejaVu Sans Mono', Menlo, Consolas, monospace"
+FONT_PROSE = "'Source Serif 4', 'DejaVu Serif', Georgia, 'Times New Roman', serif"
 
 #: Backwards-compatible alias. `connectivity_svg` was written against these two
 #: names and its layout is tuned to their metrics, so it keeps them rather than
@@ -969,10 +986,18 @@ def fonts_are_vendored() -> bool:
     families out of whatever is in the fontdb, and asserting the exact set here
     would duplicate a fact that `tests/unit/test_share_cards.py` is a better
     place to pin.
+
+    RECURSIVE, because the families are vendored one directory each - a font file
+    has to sit beside the licence that permits redistributing it, and a flat
+    directory would put four licences in one place with nothing saying which
+    covers which. A non-recursive check found nothing in `assets/fonts/` itself
+    and silently reported "no vendored families", which would have left the
+    renderer falling back to the host on a machine where the fonts were in fact
+    present - the same class of defect as the one vendoring them fixes.
     """
     if not FONT_DIR.is_dir():
         return False
-    return any(p.suffix.lower() in (".ttf", ".otf", ".ttc") for p in FONT_DIR.iterdir())
+    return any(p.suffix.lower() in (".ttf", ".otf", ".ttc") for p in FONT_DIR.rglob("*"))
 
 
 #: variant -> the function that draws it, and the canvas it draws on. One table

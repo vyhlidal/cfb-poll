@@ -29,6 +29,14 @@ __pycache__/
 # Scratch outputs from multi-week fixture generation (regenerable; see Makefile)
 .cache/
 
+# School marks fetched for the share cards. Covered by `.cache/` above and named
+# anyway, because THIS one is not merely regenerable, it is somebody else's
+# property: the cards draw the marks for identification and this repository does
+# not redistribute the files. What IS committed is data/logo-cache-manifest.json,
+# the URL and sha256 of every byte drawn, which is how a reader verifies a card
+# without us shipping a copy of anyone's logo.
+.cache/logos/
+
 # A local convenience symlink into another checkout of the same archive. `archive/`
 # above does not match it: git stores a symlink as a file, so the trailing slash
 # misses. Named explicitly so `git add -A` cannot pick up a machine-specific path.

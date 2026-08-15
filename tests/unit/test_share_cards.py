@@ -1,23 +1,31 @@
-"""The share card, and the CI guard report 06 §8.4 asked for.
+"""The share card, and the CI guard - which now guards the opposite thing.
 
-Report 06 §8.4, verbatim on what to enforce:
+REPORT 06 §8.4 ASKED FOR A NO-LOGO GUARD AND THE OWNER OVERTURNED THE POLICY IT
+ENFORCED. Verbatim: "I don't care about the logo caution, every social post
+everywhere uses college logos, we're not making T-shirts: use the logos." Three
+assertions in this module existed only to make that impossible and they are gone:
+that a card SVG carries no `<image>`, that the renderer cannot emit one, and that
+no logo host is ever fetched from the Python package.
 
-    - no file matching *.png|*.svg|*.webp under site/, public/, or src/ that is
-      not in a small explicitly allow-listed set (our own icons, the wordmark)
-    - no HTTP fetch of a.espncdn.com anywhere in the Python package
-    - out/ share-card PNGs are rendered from SVG containing no <image> element
+WHAT REPLACED THEM PROTECTS SOMETHING THE RULING DID NOT TOUCH. The card must be
+SELF-CONTAINED. Every `<image>` in a card is a `data:` URI over bytes from the
+pinned cache, and an external `http(s)` host in a card SVG still fails the build,
+because a card that hotlinks renders a blank square the moment the host blocks the
+referrer or moves the path - on an artifact whose whole point is that it is frozen
+at publication and checkable years later. Also new: the logo cache directory is
+gitignored, and the manifest covers every mark the card set draws.
 
-    That third check is the one that catches the tempting mistake — someone
-    adding a logo to the share card "just for the top 3."
+WHAT SURVIVED UNCHANGED, because the ruling was about drawing marks and not about
+what this repository ships: no image file may appear in the tracked tree outside a
+named allow-list. `.cache/logos/` holds somebody else's files and is ignored; what
+is committed is `data/logo-cache-manifest.json`, the URL and sha256 of every byte
+drawn, which is how a reader verifies a published card without us distributing a
+copy of anyone's logo.
 
-All three are here, and the tree check is widened from "under site/, public/,
-src/" to the WHOLE tracked tree, because a logo committed to `docs/` would be
-exactly as much of a copy as one committed to `src/`. The allow-list holds the
-cards this project generates itself and nothing else.
-
-The rest of the module is about the card as an artifact: it is 1200x628, its SVG
-is a pure function of the published documents, and every number on it is read out
-of those documents rather than recomputed.
+The rest of the module is about the card as an artifact: its geometry, its
+constants footer, the stripe clamp, the word wrap, the vendored fonts, and the
+purity claim - now stated as "a pure function of (the published documents + the
+pinned logo cache)", the fetch being the one non-hermetic input.
 """
 
 from __future__ import annotations
@@ -26,33 +34,36 @@ import ast
 import re
 import struct
 import subprocess
+import zlib
 from pathlib import Path
 
 import pytest
 
 from cfbpoll.config import REPO_ROOT
-from cfbpoll.publish import cards
+from cfbpoll.publish import cards, logos
 
 DEMO = REPO_ROOT / "demo"
 SAMPLE_SVG = DEMO / "2023-w10-connectivity.svg"
 SAMPLE_PNG = DEMO / "2023-w10-connectivity.png"
 
-#: Every image file the tracked tree is allowed to hold, and why. A logo would
-#: have to be added HERE to pass, which is the point: the guard converts "someone
-#: quietly committed a mark" into "someone edited an allow-list in a test file
-#: whose docstring says not to".
+#: Every image file the tracked tree is allowed to hold, and why. A school mark
+#: would have to be added HERE to pass, which is still the point: the cards DRAW
+#: marks, and this repository does not REDISTRIBUTE them. The bytes live in a
+#: gitignored cache and the manifest is what makes them verifiable.
 ALLOWED_IMAGES: dict[str, str] = {
-    "demo/2023-w10-connectivity.svg": "our own generated card; no <image>, no external host",
+    "demo/2023-w10-connectivity.svg": "our own generated card; the graph variant draws no marks",
     "demo/2023-w10-connectivity.png": "the rendered sample of the same card",
 }
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".avif", ".ico"}
 
-#: Hosts that serve school marks. Constructing one of these URLs as a string is
-#: fine and is what `publish/serving.py` does; FETCHING one from Python would make
-#: a copy on our infrastructure and forfeit the whole report 06 §2.4 argument.
+#: Hosts that serve school marks. `publish/logos.py` is the ONE module allowed to
+#: turn one of these strings into a response body, and confining it there is what
+#: keeps "the network fetch is the one non-hermetic input" an auditable claim
+#: rather than a sentence in a docstring.
 _LOGO_HOSTS = ("a.espncdn.com", "cdn.collegefootballdata.com", "espncdn", "ncaa.com")
 _FETCH_CALLS = ("httpx.get", "httpx.Client", "requests.get", "urlopen", "urlretrieve")
+_FETCHER = REPO_ROOT / "src" / "cfbpoll" / "publish" / "logos.py"
 
 
 #: The SVG namespace URI. It is an identifier, not a fetch — no renderer resolves
@@ -60,13 +71,20 @@ _FETCH_CALLS = ("httpx.get", "httpx.Client", "requests.get", "urlopen", "urlretr
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 
 
+def _externals(svg: str) -> list[str]:
+    """Every `http(s)` URL in a card that is not the SVG namespace declaration."""
+    return re.findall(r"https?://[^\"'\s>]+", svg.replace(SVG_NAMESPACE, ""))
+
+
 def _code_without_docstrings(path: Path) -> str:
     """A module's CODE, with every docstring removed.
 
     Necessary because this project documents its rules in the docstrings of the
-    modules that obey them: `publish/cards.py` explains at length that it emits no
-    `<image>` element, and a naive substring search over the file would find that
-    sentence and fail. Parsing means the guard reads what the module DOES.
+    modules that obey them, at length and quoting the strings the rules are about:
+    `publish/cards.py` explains why an `href` may only be a `data:` URI, and
+    `publish/logos.py` names the host it fetches from. A naive substring search
+    over either file would find the explanation and fail. Parsing means the guard
+    reads what the module DOES rather than what it says about itself.
     """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
@@ -93,46 +111,130 @@ def _tracked() -> list[str]:
 
 
 def test_no_image_file_in_the_tree_outside_the_allow_list() -> None:
+    """The cards DRAW marks; the repository does not SHIP them. Still enforced."""
     found = {p for p in _tracked() if Path(p).suffix.lower() in _IMAGE_SUFFIXES}
     assert found == set(ALLOWED_IMAGES), sorted(found ^ set(ALLOWED_IMAGES))
 
 
-def test_no_card_svg_carries_an_image_element_or_an_external_host() -> None:
-    """The tempting mistake, made impossible to land quietly."""
+def test_no_committed_card_svg_reaches_an_external_host() -> None:
+    """A card is self-contained or it is not a card.
+
+    The assertion that used to live here was "no `<image>` element", and the
+    owner's ruling retired it. What is left is the part the ruling did not touch
+    and that matters more now that there ARE images: an `<image>` may reference
+    `data:` and nothing else. A card that hotlinks is a blank square the first
+    time somebody reposts it somewhere the host does not serve.
+    """
     for name in ALLOWED_IMAGES:
         if not name.endswith(".svg"):
             continue
         svg = (REPO_ROOT / name).read_text(encoding="utf-8")
-        assert "<image" not in svg, name
-        assert "xlink:href" not in svg, name
-        body = svg.replace(SVG_NAMESPACE, "")
-        externals = re.findall(r"https?://[^\"'\s>]+", body)
-        assert externals == [], (name, externals)
+        assert _externals(svg) == [], name
         assert "@import" not in svg and "url(http" not in svg, name
+        for href in re.findall(r'(?:xlink:)?href="([^"]*)"', svg):
+            assert href.startswith("data:"), (name, href[:64])
 
 
-def test_the_generated_card_is_logo_free_by_construction() -> None:
-    """Not just the committed sample: the renderer itself cannot emit one."""
+def test_the_renderer_cannot_emit_an_external_href() -> None:
+    """Not just the committed sample: the drawing code has no other href to write.
+
+    `cards.py` builds exactly one `href=`, and the only thing it interpolates
+    there is a `LogoMark.data_uri`, which `logos.resolve` builds by base64-ing
+    bytes off the local cache. There is no code path from a published `logo_url`
+    string to an attribute in the SVG.
+    """
     source = _code_without_docstrings(REPO_ROOT / "src" / "cfbpoll" / "publish" / "cards.py")
-    assert "<image" not in source
+    hrefs = re.findall(r'href="([^"]*)"', source)
+    assert hrefs == ["{mark.data_uri}"], hrefs
     for host in _LOGO_HOSTS:
         assert host not in source, host
     for call in _FETCH_CALLS:
         assert call not in source, call
 
 
-def test_no_logo_host_is_ever_fetched_from_the_python_package() -> None:
-    """Report 06 §8.4 rule 2. Building the URL is fine; fetching it is not.
+def test_the_logo_fetch_lives_in_exactly_one_module() -> None:
+    """The one non-hermetic input has one address, and this is how that stays true.
 
-    `serving.py` and `data/team-colors.csv` both hold logo URLs, and that is the
-    whole design (report 06 §6 rule 1: never possess the bytes). What must not
-    exist anywhere in the package is a line that turns one of those strings into
-    a response body.
+    The old rule was that no logo host may ever be fetched from the package. The
+    ruling overturned the ban, not the confinement: `publish/logos.py` is the only
+    module that may turn a published `logo_url` into a response body, so a reader
+    auditing what this project reaches out to has exactly one file to read and the
+    card builders provably have no client to reach for.
     """
     for path in sorted((REPO_ROOT / "src").rglob("*.py")):
-        for line in _code_without_docstrings(path).splitlines():
-            if any(host in line for host in _LOGO_HOSTS):
-                assert not any(call in line for call in _FETCH_CALLS), (path, line)
+        if path == _FETCHER:
+            continue
+        source = _code_without_docstrings(path)
+        for call in _FETCH_CALLS:
+            if call not in source:
+                continue
+            # A module may fetch other things; what it may not do is fetch a mark.
+            for line in source.splitlines():
+                if any(host in line for host in _LOGO_HOSTS):
+                    assert call not in line, (path, line)
+        assert "logo_url" not in source or "httpx" not in source, path
+
+
+def test_the_logo_cache_directory_is_gitignored() -> None:
+    """Somebody else's files must not be able to arrive in the tree by accident."""
+    probe = logos.CACHE_DIR / ("0" * 64 + ".png")
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", str(probe)], cwd=REPO_ROOT, check=False
+    )
+    assert result.returncode == 0, f"{logos.CACHE_DIR} is not ignored by .gitignore"
+    assert logos.CACHE_DIR.is_relative_to(REPO_ROOT)
+    inside = f"{logos.CACHE_DIR.relative_to(REPO_ROOT)}/"
+    assert [p for p in _tracked() if p.startswith(inside)] == []
+
+
+def test_the_manifest_matches_the_cached_bytes() -> None:
+    """The pin, checked. Skips loudly when the cache is cold rather than failing.
+
+    This is the assertion that makes the non-hermetic input auditable: the bytes a
+    published card drew are the bytes the manifest says they were. CI without a
+    network has nothing to compare and must not fail for it, which is why the skip
+    is a skip and not a pass.
+    """
+    import hashlib
+
+    pinned = logos.read_manifest()
+    assert pinned, "data/logo-cache-manifest.json is empty; nothing is pinned"
+    checked = 0
+    for url, entry in sorted(pinned.items()):
+        path = logos.cache_path(url)
+        if not path.is_file():
+            continue
+        raw = path.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == entry["sha256"], url
+        assert len(raw) == entry["length"], url
+        checked += 1
+    if not checked:
+        pytest.skip(
+            f"no logo bytes in {logos.CACHE_DIR}; run `cfbpoll publish cards --variant top10` "
+            "to warm the cache, or leave it cold in an offline CI"
+        )
+
+
+def test_the_manifest_covers_every_mark_the_card_set_could_draw() -> None:
+    """The pin is complete, not merely correct about what it happens to mention.
+
+    `logos.resolve` draws from the cache and from nowhere else, so "every mark the
+    card set draws" is exactly "every file in the cache". The invariant is
+    maintained by construction - `warm` pins everything it fetches in the same
+    call - and this is what catches somebody dropping a file into the cache by
+    hand and shipping a card drawn from bytes nobody recorded.
+    """
+    if not logos.CACHE_DIR.is_dir():
+        pytest.skip(f"{logos.CACHE_DIR} is cold; nothing to check")
+    cached = sorted(logos.CACHE_DIR.glob("*.png"))
+    if not cached:
+        pytest.skip(f"{logos.CACHE_DIR} is cold; nothing to check")
+    pinned = {logos.cache_path(url) for url in logos.read_manifest()}
+    unpinned = [p.name for p in cached if p not in pinned]
+    assert unpinned == [], (
+        "these cached marks are not in data/logo-cache-manifest.json, so a card "
+        f"could draw bytes nobody recorded: {unpinned}"
+    )
 
 
 # ------------------------------------------------------------------- the artifact
@@ -205,12 +307,28 @@ def test_an_unknown_variant_is_refused(tmp_path: Path) -> None:
         cards.export(tmp_path, tmp_path, variant="no-such-variant")
 
 
-def test_every_variant_has_a_builder_and_a_declared_canvas() -> None:
-    """VARIANTS and BUILDERS cannot drift. The CLI's help reads one of them."""
+def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
+    """VARIANTS and BUILDERS cannot drift. The CLI's help reads one of them.
+
+    The row count is on the same table because the export path warms the logo
+    cache from it. A variant that drew more rows than it declared would render its
+    last rows with the generated disc while their neighbours carried real marks,
+    which is the kind of defect that only shows up in a published PNG.
+    """
     assert set(cards.VARIANTS) == set(cards.BUILDERS)
-    for name, (_builder, width, height) in cards.BUILDERS.items():
+    for name, (_builder, width, height, rows) in cards.BUILDERS.items():
         assert width == cards.CARD_WIDTH, name
         assert height in (cards.CARD_HEIGHT, cards.TALL_HEIGHT), name
+        assert rows in (0, 5, 10, 25), name
+        assert (rows == 0) == (name == "connectivity"), name
+
+
+def test_the_cli_help_lists_every_variant() -> None:
+    """The one place a new variant is easy to forget, and it is user-facing."""
+    source = (REPO_ROOT / "src" / "cfbpoll" / "cli.py").read_text(encoding="utf-8")
+    helptext = source.split("Card variant:")[1].split('] = "connectivity"')[0]
+    for name in cards.VARIANTS:
+        assert name in helptext, name
 
 
 def test_the_team_stripe_is_clamped_into_the_legible_band() -> None:
@@ -445,20 +563,24 @@ def _projection_document(status: str = "published", rows: int = 25) -> dict[str,
     }
 
 
-@pytest.mark.parametrize("variant", ["projection_top10", "projection_top25"])
-def test_the_projection_card_is_logo_free_and_offline(variant: str) -> None:
-    """The report 06 §8.3 rule is about CARDS, so a new card inherits it whole."""
+@pytest.mark.parametrize("variant", cards.PROJECTION_VARIANTS)
+def test_a_row_with_no_published_logo_falls_back_to_the_generated_mark(variant: str) -> None:
+    """The fallback is what keeps a cold cache and a logo-free config renderable.
+
+    `_projection_document` publishes no `logo_url`, which is exactly what
+    `[display].logos = false` produces, so every row draws the generated disc. A
+    board that rendered empty squares in that configuration would have made the
+    logo-free mode a code change again, which is the thing `serving._logo_urls`
+    exists to prevent.
+    """
     svg = cards.BUILDERS[variant][0](_projection_document())
     assert "<image" not in svg
-    assert "xlink:href" not in svg
-    body = svg.replace(SVG_NAMESPACE, "")
-    assert re.findall(r"https?://[^\"'\s>]+", body) == []
+    assert _externals(svg) == []
     assert "@import" not in svg and "url(http" not in svg
-    # The generated mark is drawn instead, which is what makes the rule survivable.
     assert "<circle" in svg
 
 
-@pytest.mark.parametrize("variant", ["projection_top10", "projection_top25"])
+@pytest.mark.parametrize("variant", cards.PROJECTION_VARIANTS)
 def test_the_projection_card_declares_the_summary_large_image_canvas(variant: str) -> None:
     svg = cards.BUILDERS[variant][0](_projection_document())
     assert 'width="1200"' in svg and 'height="628"' in svg
@@ -555,3 +677,258 @@ def test_export_projection_names_the_files_after_the_season_and_no_week(
         document, tmp_path / "share", variant="projection_top25", png=False
     )
     assert [p.name for p in written] == ["2026-projection-top25.svg"]
+
+
+# ------------------------------------------------------------- the top five, big
+
+#: The hero card's whole reason to exist is that it survives a timeline crop, so
+#: the geometry is asserted rather than eyeballed.
+_HERO_VARIANTS = ("top5", "projection_top5")
+
+
+def test_the_top_five_block_fits_inside_the_mobile_safe_band() -> None:
+    """Five rows from SAFE_TOP end one pixel inside SAFE_BOTTOM.
+
+    X crops the top and bottom on mobile and the top five is the variant most
+    likely to be seen as a thumbnail and never tapped, so every row has to survive
+    the crop. This is the constraint the card is sized to; the wordmark and the
+    footer sit outside it deliberately.
+    """
+    bottom = cards.HERO_ROW_TOP + 5 * cards.HERO_ROW_HEIGHT
+    assert cards.HERO_ROW_TOP >= cards.SAFE_TOP
+    assert bottom <= cards.CARD_HEIGHT - 126
+
+
+def test_the_top_five_draws_five_rows_and_the_playoff_rule_after_the_fourth() -> None:
+    """The cut line is the subject of this card, so it had better be in the
+    right place on a board that has only one row past it."""
+    document = _projection_document()
+    svg = cards.projection_top5_svg(document)
+    for row in document["rows"][:5]:  # type: ignore[index]
+        assert f"{row['projected_wins']} wins" in svg
+    assert f"{document['rows'][5]['projected_wins']} wins" not in svg  # type: ignore[index]
+
+    rule_y = cards.HERO_ROW_TOP + 4 * cards.HERO_ROW_HEIGHT
+    gold = f'y1="{cards._n(rule_y)}"'
+    accent_rules = [
+        line
+        for line in svg.splitlines()
+        if line.startswith("<line")
+        and cards.PALETTE["accent"] in line
+        and 'stroke-width="2"' in line
+    ]
+    assert len(accent_rules) == 1, accent_rules
+    assert gold in accent_rules[0], accent_rules[0]
+
+
+@pytest.mark.parametrize("variant", _HERO_VARIANTS)
+def test_the_hero_card_keeps_the_footer_that_is_never_dropped_for_space(variant: str) -> None:
+    """Report 05 §6.2's rule survives the variant with the least room for it."""
+    if variant == "projection_top5":
+        svg = cards.projection_top5_svg(_projection_document())
+        assert "recipe projection-1.0.0" in svg and "AP 14.7" in svg
+    else:
+        pytest.importorskip("polars")
+        out = REPO_ROOT / ".cache" / "2023" / "w10"
+        if not (out / "poll.json").exists():
+            pytest.skip("no cached rank output for the sample week")
+        from cfbpoll.publish.serving import build
+
+        svg = cards.top5_svg(build(out))
+        assert "q_ref" in svg
+    assert "sb.unleashepic.com/cfb-poll" in svg
+
+
+# ------------------------------------------------------- the pinned logo cache
+
+#: A 2x2 PNG, 8-bit RGBA, built here rather than fetched. Two pixels opaque and
+#: two fully transparent, which is what lets the "effective" in effective
+#: luminance be asserted rather than described: the mean must be over the painted
+#: pixels only, and the transparent ones carry a colour precisely so that a
+#: decoder that counted them would produce a visibly different number.
+def _png(pixels: list[tuple[int, int, int, int]], width: int = 2, height: int = 2) -> bytes:
+    raw = b""
+    for row in range(height):
+        raw += b"\x00" + bytes(
+            channel for pixel in pixels[row * width : (row + 1) * width] for channel in pixel
+        )
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(body))
+            + kind
+            + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+_WHITE = (255, 255, 255, 255)
+_BLACK = (0, 0, 0, 255)
+_CLEAR_WHITE = (255, 255, 255, 0)
+
+
+def test_effective_luminance_ignores_the_transparent_pixels() -> None:
+    """The whole point of the word "effective".
+
+    Two white pixels painted and two white pixels at alpha 0 must measure the
+    same as two white pixels alone, and a black mark on a transparent field must
+    measure black rather than being dragged toward the colour sitting unused in
+    the transparent pixels' channels.
+    """
+    assert logos.effective_luminance(_png([_WHITE, _WHITE, _WHITE, _WHITE])) == 1.0
+    assert logos.effective_luminance(_png([_WHITE, _WHITE, _CLEAR_WHITE, _CLEAR_WHITE])) == 1.0
+    assert logos.effective_luminance(_png([_BLACK, _BLACK, _CLEAR_WHITE, _CLEAR_WHITE])) == 0.0
+    # Half black, half white, all painted: the mean of the two, not either one.
+    mixed = logos.effective_luminance(_png([_WHITE, _WHITE, _BLACK, _BLACK]))
+    assert abs(mixed - 0.5) < 1e-9
+    # Nothing painted at all is 0.0, which puts the mark on a plate. A mark with
+    # no opaque pixels draws nothing either way and the safe direction to be
+    # wrong in is the one that adds a light ground.
+    assert logos.effective_luminance(_png([_CLEAR_WHITE] * 4)) == 0.0
+
+
+def test_the_plate_threshold_is_derived_from_the_cards_own_ground() -> None:
+    """WCAG 2.1 SC 1.4.11 asks 3:1 of a graphical object needed to understand the
+    content, and a team's mark is exactly that.
+
+    The number is inverted out of the contrast formula against `PALETTE["bg"]`
+    rather than written down, so moving the card's ground moves the threshold with
+    it instead of leaving a constant behind that used to be right.
+    """
+    threshold = logos.plate_threshold(cards.PALETTE["bg"])
+    assert 0.110 < threshold < 0.112
+    assert logos.needs_plate(threshold - 0.001, cards.PALETTE["bg"]) is True
+    assert logos.needs_plate(threshold + 0.001, cards.PALETTE["bg"]) is False
+    # A lighter ground demands a lighter mark before the plate can be skipped.
+    assert logos.plate_threshold("#FFFFFF") > threshold
+
+
+def _cached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, url: str, raw: bytes) -> None:
+    """Put bytes in a throwaway cache and unpin the manifest, so the decision
+    under test is the measurement rather than whatever the committed pin says."""
+    monkeypatch.setattr(logos, "CACHE_DIR", tmp_path / "logos")
+    monkeypatch.setattr(logos, "_MANIFEST_MEMO", {logos.MANIFEST_PATH: {}})
+    path = logos.cache_path(url)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(raw)
+
+
+def test_a_cached_mark_is_embedded_as_a_data_uri_and_never_hotlinked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The new contract, on a generated card rather than on the committed sample."""
+    url = "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/1.png&w=128&h=128"
+    _cached(monkeypatch, tmp_path, url, _png([_WHITE] * 4))
+
+    document = _projection_document()
+    for row in document["rows"]:  # type: ignore[union-attr]
+        row["logo_url_dark_2x"] = url  # type: ignore[index]
+    svg = cards.projection_top5_svg(document)
+
+    assert svg.count("<image") == 5
+    assert _externals(svg) == [], "a card that hotlinks is a blank square once reposted"
+    assert 'href="data:image/png;base64,' in svg
+    # The published URL string itself must not travel onto the card either.
+    assert url not in svg
+
+
+def test_a_dark_mark_gets_a_plate_and_a_light_one_does_not(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The luminance guard, as the two outcomes it exists to produce.
+
+    Same code path, same card, two sets of bytes: near-black artwork gets the
+    light chip and white artwork does not. The plate is driven from
+    `PALETTE["plate"]`, so the assertion is against the token rather than a hex
+    literal typed twice.
+    """
+    dark_url = "https://example.invalid/dark.png"
+    light_url = "https://example.invalid/light.png"
+    monkeypatch.setattr(logos, "CACHE_DIR", tmp_path / "logos")
+    monkeypatch.setattr(logos, "_MANIFEST_MEMO", {logos.MANIFEST_PATH: {}})
+    (tmp_path / "logos").mkdir(parents=True, exist_ok=True)
+    logos.cache_path(dark_url).write_bytes(_png([_BLACK] * 4))
+    logos.cache_path(light_url).write_bytes(_png([_WHITE] * 4))
+
+    dark = logos.resolve({"logo_url_dark_2x": dark_url}, background=cards.PALETTE["bg"])
+    light = logos.resolve({"logo_url_dark_2x": light_url}, background=cards.PALETTE["bg"])
+    assert dark is not None and light is not None
+    assert dark.plate is True and light.plate is False
+
+    plated = cards._mark(100, 100, 20, {"logo_url_dark_2x": dark_url})
+    bare = cards._mark(100, 100, 20, {"logo_url_dark_2x": light_url})
+    assert cards.PALETTE["plate"] in plated and "<rect" in plated
+    assert cards.PALETTE["plate"] not in bare and "<rect" not in bare
+    # The chip is a few px larger than the mark, not a full-bleed row background.
+    assert f'fill-opacity="{cards._n(cards.PLATE_OPACITY)}"' in plated
+
+
+def test_a_row_with_no_cached_bytes_draws_the_disc_rather_than_an_empty_square(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A cold cache degrades the card; it does not break it."""
+    monkeypatch.setattr(logos, "CACHE_DIR", tmp_path / "empty")
+    row = {"logo_url_dark_2x": "https://example.invalid/never-fetched.png", "mark_label": "ZZZ"}
+    drawn = cards._mark(100, 100, 20, row)
+    assert "<image" not in drawn
+    assert "<circle" in drawn and "ZZZ" in drawn
+
+
+def test_resolving_a_mark_never_touches_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The property the pipeline depends on, asserted rather than described.
+
+    `logos.warm` is the one function with an HTTP client. If `resolve` ever grew
+    one, every card render would become a network call and the purity claim in
+    `cards.py`'s docstring would quietly become false.
+    """
+    import httpx
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("resolve() reached the network")
+
+    monkeypatch.setattr(httpx, "get", refuse)
+    monkeypatch.setattr(httpx, "Client", refuse)
+    row = {"logo_url": "https://example.invalid/x.png"}
+    assert logos.resolve(row, background=cards.PALETTE["bg"]) is None
+
+
+def test_the_url_preference_puts_the_dark_variant_first() -> None:
+    """The card is dark and the 2x raster is the one that holds up at 52px."""
+    row = {
+        "logo_url": "a",
+        "logo_url_2x": "b",
+        "logo_url_dark": "c",
+        "logo_url_dark_2x": "d",
+    }
+    assert logos.logo_url_for(row) == "d"
+    del row["logo_url_dark_2x"]
+    assert logos.logo_url_for(row) == "c"
+    del row["logo_url_dark"]
+    assert logos.logo_url_for(row) == "b"
+    assert logos.logo_url_for({"logo_url": None}) is None
+
+
+def test_warm_asks_for_nothing_when_the_cache_is_warm(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A render against a warm cache issues ZERO requests, and here is the proof."""
+    url = "https://example.invalid/warm.png"
+    monkeypatch.setattr(logos, "CACHE_DIR", tmp_path / "logos")
+    (tmp_path / "logos").mkdir(parents=True)
+    logos.cache_path(url).write_bytes(_png([_WHITE] * 4))
+    monkeypatch.setattr(
+        logos,
+        "_fetch",
+        lambda _url: (_ for _ in ()).throw(AssertionError("warm cache still fetched")),
+    )
+    rows = [{"team_id": 1, "logo_url_dark_2x": url}, {"team_id": 1, "logo_url_dark_2x": url}]
+    records = logos.warm(rows, background=cards.PALETTE["bg"], manifest=None)
+    assert len(records) == 1, "one distinct URL is measured once per run"
+    assert records[0]["url"] == url and records[0]["plate"] is False

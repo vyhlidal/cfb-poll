@@ -7,7 +7,8 @@ Specified by report 03 §5.1 and §7.1.
     serving.py   the ONE builder both publication targets are made from
     postgres.py  load the SERVING SUBSET into Neon (a cache, never the truth)
     fixtures.py  write the same documents as JSON, for the fork and for site dev
-    cards.py     the weekly share card: SVG + PNG, generated marks only
+    cards.py     the weekly share card: SVG + PNG, school marks embedded
+    logos.py     the pinned logo cache the cards draw from, and its manifest
     site.py      build the zero-account static site
 
 Nothing renders a number that is not in a published artifact. That is what makes

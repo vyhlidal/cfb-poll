@@ -1500,6 +1500,64 @@ def projection_ingest(
         typer.echo(f"  {season}: " + "  ".join(f"{k}={v}" for k, v in sizes.items()))
 
 
+@projection_app.command("fixture")
+def projection_fixture(
+    to: Annotated[
+        Path, typer.Option("--to", help="The site's data root, e.g. ../sandbox/cfb-poll-data.")
+    ],
+    status: Annotated[
+        str, typer.Option(help="'published' renders the table; 'coming' keeps the card dark.")
+    ] = "published",
+    top_n: Annotated[int, typer.Option(help="How many teams to publish.")] = 25,
+) -> None:
+    """Write `<to>/<season>/projection.json` for the site's projection card.
+
+    The card's contract lives in `src/lib/cfb-poll/projection.ts` and binds this
+    command to two rules: the site derives NOTHING, so `projected_wins` ships
+    pre-formatted as a string; and `status` is authoritative, so a finished
+    projection can sit on disk dark until somebody decides to show it.
+
+    Team marks and logo URLs come from the poll's own machinery, because the
+    projection card and the poll table share a page and a school whose colours
+    changed between them would read as a bug in whichever one the reader trusts
+    less.
+    """
+    from datetime import UTC, datetime
+
+    from cfbpoll.config import load_config
+    from cfbpoll.projection import publish as projection_publish
+    from scripts import make_projection  # type: ignore[import-not-found]
+
+    cfg = load_config()
+    season = int(cfg["projection"]["target_season"])
+    state = make_projection.build()
+
+    document = projection_publish.build(
+        state["projection"],
+        season,
+        cfg,
+        headline=(
+            f"This is the model's {season} preseason projection, and it is a "
+            "projection — not the poll."
+        ),
+        basis=(
+            "It is the model's August guess, built from last season's final "
+            "ratings plus the offseason changes we can measure: returning "
+            "production, the transfer portal and coaching moves."
+        ),
+        note=(
+            "It is frozen the moment it publishes and is never edited, so when it "
+            "turns out to be wrong you can see exactly how wrong and which "
+            "offseason assumption did the damage."
+        ),
+        status=status,
+        published_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        top_n=top_n,
+    )
+    path = projection_publish.write(document, to)
+    typer.echo(f"wrote {path} ({len(document['rows'])} rows, status={document['status']})")
+
+
 @projection_app.command("build")
 def projection_build() -> None:
     """Regenerate every Projection artifact under demo/. No network.

@@ -287,6 +287,45 @@ Every third-party rating is a **benchmark, never an input**. The audit is an
 allow-list check, not a deny-list check, so an input nobody thought of fails
 closed.
 
+## The Projection, and why it does not appear in this document
+
+Since 2026-08-15 this repository publishes a **second product**: the
+[Projection](adr/0010-projection-and-poll.md), a preseason ranking built from
+last season's fitted ratings plus returning production, the transfer portal and
+coaching changes — three of the things the table above bans by name.
+
+**Nothing on this page changed.** This document is the *Poll's* charter. It says
+what the Poll may not do, and the Poll does not do any of it: every design matrix
+above is still rebuilt from its allow-list before every fit and still comes out
+bit-identical.
+
+What changed is that the audit now knows there are two products, and it is
+**hostile in one direction only**:
+
+- every column the projection package produces — `returning_*`, `portal_*`,
+  `coach_*`, `prior_power*`, `projected_*` — is in `PROJECTION_INPUT_PATTERNS`,
+  spliced into the banned table above;
+- for a **poll layer**, one of them being merely **present in the frame is a
+  violation**, with no consumption test required. That is the one asymmetry in
+  the audit and it is earned by provenance: `excitement_index` is in the games
+  frame on every run because ESPN shipped it beside the facts, but a projection
+  input can only be in a poll frame because somebody in this repository put it
+  there.
+
+**The Projection reads the Poll. The Poll may never read the Projection.**
+`tests/unit/test_projection_separation.py` plants one in a poll design matrix and
+requires the audit to name it; `cfbpoll projection audit` prints both halves in
+one report, with the product each layer was judged by beside it.
+
+The Projection has a banned list of its own, and the two entries on it are the
+ones that show the separation is a design rather than an excuse: **human polls**
+(the AP preseason top 25 is the Projection's headline baseline, and a baseline
+that is also an input measures nothing) and **third-party fitted models** (SP+,
+FPI, Elo, CORE and CFBD's PPA, refused here for exactly the reasons this page
+already gives). Recruiting stars are available on the portal feed, are not banned
+by the audit, and are refused anyway — because using one where it is legal would
+make the refusal above look like a technicality.
+
 The set is enumerable rather than folklore: `cfbpoll benchmarks` prints it, with
 two columns that carry the whole argument — whether the implementation is open,
 and whether its author publishes error metrics. As of 2026-08-13, of the five

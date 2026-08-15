@@ -349,6 +349,31 @@ class TestFixtures:
         assert weeks[1]["played"] is False
         assert weeks[1]["n_ranked"] == 0
 
+    def test_a_projection_only_season_is_not_a_season_of_the_poll(
+        self, out: Path, archive: Path, tmp_path: Path
+    ) -> None:
+        """The Projection shares the directory and must not enter the poll's index.
+
+        `cfbpoll projection publish` writes `<season>/projection.json` for a season
+        that has not kicked off, so a digit-named directory with no `week-*.json`
+        in it is a normal state of this tree once both products ship. Indexing it
+        is not a cosmetic wart: the site reads the current season as
+        `max(seasons[].season)` and its current week as the last PLAYED one, so a
+        2026 entry with an empty week strip makes the front door resolve a season
+        it can find no poll for and 404.
+        """
+        dest = tmp_path / "data"
+        fixtures.export(out, dest, archive=archive)
+        (dest / "2026").mkdir()
+        (dest / "2026" / "projection.json").write_text('{"season": 2026}\n', encoding="utf-8")
+
+        fixtures.rebuild_index(dest, archive=archive)
+        index = json.loads((dest / "index.json").read_text())
+
+        assert [s["season"] for s in index["seasons"]] == [2023]
+        # And no empty curve left behind for a season with nothing to diverge.
+        assert not (dest / "2026" / "divergence.json").exists()
+
     def test_the_schema_version_is_stamped(self, out: Path, archive: Path, tmp_path: Path) -> None:
         dest = tmp_path / "data"
         fixtures.export(out, dest, archive=archive)

@@ -270,6 +270,16 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     week the schedule knows about and marks `played` only where a run exists —
     through `serving.merge_season_index`, the same function the Postgres loader
     calls, so the two backends cannot disagree about which weeks exist.
+
+    A SEASON DIRECTORY WITH NO `week-*.json` IS NOT A SEASON OF THIS POLL, and
+    skipping it is load-bearing rather than tidy. `index.json` is the POLL's index.
+    The Projection (ADR 0010) writes `<season>/projection.json` into the same tree
+    for a season that has not kicked off, so `<dest>/2026/` exists, holds no poll,
+    and is named with digits like every other season directory. Indexing it put a
+    season with zero played weeks at the top of `seasons[]`, and the site takes the
+    current season to be `max(seasons)` and its current week to be the last PLAYED
+    one — so the front door resolved 2026, found no week, and returned a 404. The
+    two products share a directory on purpose; they do not share an index.
     """
     from cfbpoll import recipes as recipes_mod
     from cfbpoll.publish import serving
@@ -279,10 +289,17 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     seasons: list[dict[str, Any]] = []
     for season_root in sorted(p for p in dest.iterdir() if p.is_dir() and p.name.isdigit()):
         season = int(season_root.name)
+        published = sorted(season_root.glob("week-*.json"))
+        if not published:
+            # Another product's directory, not a season of this poll. See the
+            # docstring: the Projection writes `<season>/projection.json` for a
+            # season with no polls in it, and an entry here would make the site
+            # call that season current and then fail to find a week in it.
+            continue
         weeks: list[dict[str, Any]] = []
         scheduled = serving.scheduled_weeks(season, archive)
 
-        for path in sorted(season_root.glob("week-*.json")):
+        for path in published:
             payload = json.loads(path.read_text(encoding="utf-8"))
             weeks = serving.merge_season_index(
                 weeks,

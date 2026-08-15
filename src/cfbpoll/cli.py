@@ -72,12 +72,22 @@ challenge_app = typer.Typer(
     help="Score a community entry through the identical harness (report 03 §7.3).",
     no_args_is_help=True,
 )
+projection_app = typer.Typer(
+    name="projection",
+    help=(
+        "THE PROJECTION - a labelled prediction, and NEVER the poll. A preseason "
+        "ranking from last season's fitted ratings plus the offseason, published "
+        "to be graded in public by the poll it may not touch (ADR 0010)."
+    ),
+    no_args_is_help=True,
+)
 
 app.add_typer(ingest_app)
 app.add_typer(archive_app)
 app.add_typer(publish_app)
 app.add_typer(site_app)
 app.add_typer(challenge_app)
+app.add_typer(projection_app)
 
 
 def _stub(what: str, spec: str) -> None:
@@ -1454,6 +1464,101 @@ def site_build(
     (report 03 §7.2, report 02 §3.2).
     """
     _stub("site build", "report 03 §7.1, §7.2")
+
+
+@projection_app.command("ingest")
+def projection_ingest(
+    seasons: Annotated[
+        str, typer.Option(help="Seasons to pull, e.g. '2021-2026' or '2024,2026'.")
+    ],
+    min_remaining: Annotated[
+        int, typer.Option(help="Abort if fewer than this many CFBD calls remain.")
+    ] = 200,
+) -> None:
+    """Pull the offseason facts the Projection runs on. Four calls per season.
+
+    Returning production, the transfer portal, who is coaching, and the AP
+    preseason poll - which is a BASELINE and never an input, enforced by
+    `PROJECTION_BANNED_PATTERNS` in the leakage audit rather than by anyone
+    remembering.
+
+    THE QUOTA GUARD RUNS FIRST, so the job fails before it half-completes, and
+    every raw body is archived VERBATIM before it is parsed. `archive/` is
+    gitignored: CFBD terms §3 bar republishing raw responses, so these never
+    leave this disk. What may be published is analysis derived from them.
+    """
+    from cfbpoll.projection import offseason
+
+    years = _parse_seasons(seasons)
+    result = offseason.pull(years, min_remaining=min_remaining)
+    typer.echo(f"pulled {len(years)} season(s) in {result['calls']} calls")
+    for season in years:
+        sizes = {
+            name: len(result.get(f"{name}_{season}") or [])
+            for name in ("returning", "portal", "coaches", "rankings")
+        }
+        typer.echo(f"  {season}: " + "  ".join(f"{k}={v}" for k, v in sizes.items()))
+
+
+@projection_app.command("build")
+def projection_build() -> None:
+    """Regenerate every Projection artifact under demo/. No network.
+
+    Thin on purpose: `scripts/make_projection.py` is the one place the artifacts
+    are produced, so a reader auditing a published number has exactly one file to
+    read rather than two implementations to diff.
+    """
+    from scripts import make_projection  # type: ignore[import-not-found]
+
+    make_projection.main()
+
+
+@projection_app.command("audit")
+def projection_audit(
+    season: Annotated[str, typer.Option(help="Season whose games frame is audited.")] = "2025",
+    fail_on_banned: Annotated[
+        bool, typer.Option(help="Exit non-zero if the separation is violated.")
+    ] = False,
+) -> None:
+    """THE SEPARATION PROOF (ADR 0010). Both products, both deny-lists, one report.
+
+    Runs the ordinary poll audit and hands it the Projection's design matrix as
+    well, so one command proves both halves: every poll design matrix rebuilt
+    from its allow-list and bit-identical, and the projection design matrix
+    rebuilt from ITS allow-list - which allows returning production, the portal,
+    coaching change and a prior season's ratings, and still bans human polls and
+    third-party fitted models.
+
+    A projection input found anywhere near a poll layer is a violation on sight,
+    with no consumption test, because this repository is the only thing that
+    writes those columns.
+    """
+    import json
+
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest.plays import load_plays
+    from cfbpoll.ingest.sportsdataverse import load_games
+    from cfbpoll.projection import recipe
+    from cfbpoll.projection import seasons as projection_seasons
+    from cfbpoll.validate import leakage
+
+    cfg = load_config()
+    source = int(season)
+    target = int(cfg["projection"]["target_season"])
+    games = load_games([source])
+    plays = load_plays([source])
+
+    power = projection_seasons.final_power(games, source, plays, cfg)
+    teams = projection_seasons.fbs_teams(games, source)
+    design = recipe.build_design(power.ratings, target, teams)
+
+    report = leakage.audit(games, None, cfg, projection_design=design)
+    for layer in report.layers:
+        mark = "ok " if layer.ok else "FAIL"
+        typer.echo(f"  [{mark}] {layer.kind:<10} {layer.layer}")
+    typer.echo(json.dumps({"passed": report.passed, "violations": report.violations}, indent=1))
+    if fail_on_banned and not report.passed:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":  # pragma: no cover

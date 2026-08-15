@@ -59,9 +59,11 @@ import polars as pl
 
 __all__ = [
     "HEADLINE_COLUMNS",
+    "HEADLINE_INTERVAL_ORDERING",
     "HEADLINE_ORDERINGS",
     "INTERVAL_COLUMNS",
     "attach_intervals",
+    "interval_columns",
     "ORDERING_LAYER",
     "fbs_teams",
     "headline_frame",
@@ -78,9 +80,18 @@ __all__ = [
 #: layer name that appears on poll.json and model_params.json. `schedule_odds` is
 #: the decision of 2026-08-12; `L4_resume` is what it replaced and remains
 #: reachable, because a choice that cannot be switched back is not a choice.
+#:
+#: `L4_resume_margin` is the study's candidate B, promoted from "a column on every
+#: row" to "an ordering the pipeline can be pointed at" when `configs/recipes/`
+#: landed. Nothing about the house poll changed: B lost ADR 0005 on the evidence
+#: and it still loses, and it is here because `full-merit` is the recipe whose
+#: whole argument is that margin should decide, and a recipe that could not select
+#: the margin ordering would not be that argument. The numbers B needs were already
+#: computed on every row of every artifact this project has ever published.
 ORDERING_LAYER: dict[str, str] = {
     "schedule_odds": "C_schedule_odds",
     "L4_resume": "L4_resume",
+    "L4_resume_margin": "L4_resume_margin",
 }
 HEADLINE_ORDERINGS: tuple[str, ...] = tuple(ORDERING_LAYER)
 
@@ -89,9 +100,32 @@ HEADLINE_ORDERINGS: tuple[str, ...] = tuple(ORDERING_LAYER)
 #: `schedule_odds.OddsFit.order_key`; mid-p only ever separates winless teams.
 #: The odds sort deliberately keys on `tail_p` rather than on `odds_key`, because
 #: `odds_key` is clamped at MAX_KEY and two different tails could share it.
+#:
+#: `L4_resume_margin` keys on the margin-aware résumé ALONE, with no wins-based
+#: first key. That is what makes it a different ordering rather than a different
+#: tie-break: under `L4_resume` the margin variant only ever separates teams
+#: already tied on the bound, and under this one it decides everything.
 ORDER_KEYS: dict[str, tuple[tuple[str, ...], tuple[bool, ...]]] = {
     "schedule_odds": (("tail_p", "mid_p", "team"), (False, False, False)),
     "L4_resume": (("resume", "resume_margin", "team"), (True, True, False)),
+    "L4_resume_margin": (("resume_margin", "team"), (True, False)),
+}
+
+#: Headline ordering -> the `model/bootstrap.ORDERINGS` name whose rank interval
+#: qualifies THIS headline's rank.
+#:
+#: THIS MAPPING IS LOAD-BEARING AND IT USED TO BE A CONSTANT. `rank_lo` and
+#: `rank_hi` sit beside `rank` on every published row precisely because "#4" and
+#: "#4, 90% interval 2-66" are different claims; an interval computed under a
+#: different ordering from the rank it qualifies is not a weaker version of that
+#: promise, it is a false one. Before `configs/recipes/` the poll only ever ran
+#: one headline in anger, so the wiring was hard-coded to `schedule_odds` and the
+#: defect was invisible. Recipes make the second and third headline real, so the
+#: mapping is explicit and `interval_columns` is the only way to read it.
+HEADLINE_INTERVAL_ORDERING: dict[str, str] = {
+    "schedule_odds": "schedule_odds",
+    "L4_resume": "resume",
+    "L4_resume_margin": "resume_margin",
 }
 
 #: The published poll table, in order. The rank key is `odds_key` (and `tail_p`,
@@ -138,19 +172,36 @@ HEADLINE_COLUMNS: tuple[str, ...] = (
     "team_class",
 )
 
-#: The interval columns, and the ordering each one belongs to. `headline_frame`
-#: fills them from `model/bootstrap.py` when a draw set is supplied and leaves
-#: them null when it is not, so a run without a bootstrap publishes an empty
-#: column rather than a fabricated one.
-INTERVAL_COLUMNS: dict[str, tuple[str, str]] = {
-    "rank_lo": ("schedule_odds", "lo"),
-    "rank_hi": ("schedule_odds", "hi"),
-    "rank_median": ("schedule_odds", "median"),
-    "resume_rank_lo": ("resume", "lo"),
-    "resume_rank_hi": ("resume", "hi"),
-    "power_rank_lo": ("power", "lo"),
-    "power_rank_hi": ("power", "hi"),
-}
+def interval_columns(ordering: str = "schedule_odds") -> dict[str, tuple[str, str]]:
+    """The interval columns, and the bootstrap ordering each one is read from.
+
+    `headline_frame` fills them from `model/bootstrap.py` when a draw set is
+    supplied and leaves them null when it is not, so a run without a bootstrap
+    publishes an empty column rather than a fabricated one.
+
+    The `rank_*` triple follows the headline; `resume_rank_*` and `power_rank_*`
+    are fixed, because those two columns are on the row under every recipe and
+    always mean the same thing.
+    """
+    if ordering not in HEADLINE_INTERVAL_ORDERING:
+        raise ValueError(
+            f"unknown headline ordering {ordering!r}; expected one of {HEADLINE_ORDERINGS}"
+        )
+    head = HEADLINE_INTERVAL_ORDERING[ordering]
+    return {
+        "rank_lo": (head, "lo"),
+        "rank_hi": (head, "hi"),
+        "rank_median": (head, "median"),
+        "resume_rank_lo": ("resume", "lo"),
+        "resume_rank_hi": ("resume", "hi"),
+        "power_rank_lo": ("power", "lo"),
+        "power_rank_hi": ("power", "hi"),
+    }
+
+
+#: The published default's mapping. The column NAMES do not depend on the
+#: ordering, so this is also the schema of the interval block on every row.
+INTERVAL_COLUMNS: dict[str, tuple[str, str]] = interval_columns()
 
 
 def headline_ordering(config: dict[str, Any]) -> str:
@@ -282,18 +333,38 @@ def _empty_intervals(teams: list[str]) -> pl.DataFrame:
     )
 
 
-def attach_intervals(table: pl.DataFrame, intervals: pl.DataFrame | None) -> pl.DataFrame:
+def attach_intervals(
+    table: pl.DataFrame,
+    intervals: pl.DataFrame | None,
+    ordering: str = "schedule_odds",
+) -> pl.DataFrame:
     """Join the bootstrap's per-team rank intervals onto a published table.
 
     `intervals` is `model/bootstrap.intervals(...)`. A team present in the poll
     but absent from the draws keeps null bounds, which is the honest answer and
     cannot happen on a real window (the draw set is the same FBS pool).
+
+    `ordering` decides which bootstrap ordering the `rank_*` triple is read from,
+    so the interval beside a rank is always an interval on THAT rank. See
+    `HEADLINE_INTERVAL_ORDERING`.
     """
     teams = table["team"].to_list()
     if intervals is None:
         return table.join(_empty_intervals(teams), on="team", how="left")
-    wanted = {f"{ordering}_rank_{end}": name for name, (ordering, end) in INTERVAL_COLUMNS.items()}
-    narrow = intervals.select(["team", *sorted(wanted)]).rename(wanted)
+    # SELECT-WITH-ALIAS RATHER THAN RENAME, because under `L4_resume` and
+    # `L4_resume_margin` two published columns read the SAME bootstrap column:
+    # `rank_lo` is the headline's lower bound and `resume_rank_lo` is the résumé's,
+    # and under those recipes the headline IS the résumé. A rename map keyed on the
+    # source silently collapses the pair and drops `rank_lo` from the frame.
+    narrow = intervals.select(
+        [
+            pl.col("team"),
+            *[
+                pl.col(f"{source}_rank_{end}").alias(name)
+                for name, (source, end) in sorted(interval_columns(ordering).items())
+            ],
+        ]
+    )
     return table.join(narrow, on="team", how="left")
 
 
@@ -301,6 +372,7 @@ def headline_frame(
     live: pl.DataFrame,
     hindsight: pl.DataFrame,
     intervals: pl.DataFrame | None = None,
+    ordering: str = "schedule_odds",
 ) -> pl.DataFrame:
     """The published poll: schedule-odds ranks, résumé and Power beside them, both
     surfaces, one row per team.
@@ -338,7 +410,7 @@ def headline_frame(
         .join(b, on="team", how="left", suffix="_hindsight")
         .with_columns(rank_delta=pl.col("rank") - pl.col("rank_hindsight"))
     )
-    return attach_intervals(joined, intervals).select(HEADLINE_COLUMNS).sort("rank")
+    return attach_intervals(joined, intervals, ordering).select(HEADLINE_COLUMNS).sort("rank")
 
 
 def publication_status(week: int, config: dict[str, Any]) -> tuple[bool, str | None]:

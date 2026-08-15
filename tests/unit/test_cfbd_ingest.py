@@ -147,6 +147,28 @@ def test_the_cfbd_archive_subtree_is_not_tracked_by_git() -> None:
         assert ignored.returncode == 0, f"{probe} must be gitignored"
 
 
+def test_gitignore_covers_the_archive_as_a_symlink_and_not_only_as_a_directory() -> None:
+    """THE PREMISE OF THE BRANCH ABOVE, pinned where every environment runs it.
+
+    The symlink probe only executes on a checkout whose `archive` IS a symlink,
+    which is a worktree and is not the checkout CI runs in. So the branch that
+    fixed the failure is exercised by nobody on the machine most likely to delete
+    it, and the line it depends on is one word in a file with no tests.
+
+    `archive/` matches a directory and nothing else: git will not follow a
+    symbolic link to decide whether what is behind it is ignored, so the bare
+    `archive` line is what makes the symlinked layout ignorable at all. Both lines
+    have to be there, and this says so in a place a reader will find before
+    deleting one as a duplicate.
+    """
+    lines = {
+        line.strip()
+        for line in (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    }
+    assert "archive/" in lines, "the directory form, for the checkout that holds the bytes"
+    assert "archive" in lines, "the bare form, for the checkouts that symlink to it"
+
+
 # ------------------------------------------------------------------ the quota guard
 
 

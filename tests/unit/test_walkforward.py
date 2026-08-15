@@ -127,19 +127,88 @@ def test_a_system_with_no_rating_spread_degrades_instead_of_raising() -> None:
 # --------------------------------------------------------------------- the lock
 
 
-@needs_archive
-def test_the_holdout_season_is_refused() -> None:
+def test_a_locked_season_is_refused() -> None:
+    """The mechanism, proved against a synthetic config rather than the live one.
+
+    CHANGED 2026-08-15, ADR 0012. This test used to read the live config and
+    assert that 2025 was refused. 2025 was scored once that day and is open, so
+    the live config locks nothing and the old assertion would now be asserting
+    that the project still holds a promise it has finished keeping.
+
+    What has to stay true is the MECHANISM, and that is what this now tests: a
+    config naming a locked season refuses to score it. The next time a season is
+    sealed, `holdout_seasons = [<season>]` turns this guard back on and this test
+    is already watching it.
+    """
+    locked_cfg = load_config()
+    locked_cfg["backtest"] = {
+        **locked_cfg["backtest"],
+        "holdout_seasons": [2023],
+        "holdout_locked": True,
+    }
     with pytest.raises(walkforward.HoldoutLocked) as err:
-        walkforward.run_backtest([2024, 2025], ["l2"])
-    assert "2025" in str(err.value)
+        walkforward.run_backtest([2022, 2023], ["l2"], config=locked_cfg)
+    assert "2023" in str(err.value)
 
 
 @needs_archive
-def test_the_holdout_can_only_be_opened_deliberately() -> None:
-    """The flag works - it has to, or the single shot could never be taken -
-    but nothing in this repository passes it."""
-    result = walkforward.run_backtest([2025], ["winpct"], unlock_holdout=True, first_eval_week=13)
+def test_a_locked_season_can_only_be_opened_deliberately() -> None:
+    """The flag works - it has to, or a single shot could never be taken.
+
+    CHANGED 2026-08-15, ADR 0012, for the same reason as the test above: the
+    live config no longer locks anything, so `holdout_touched` off a plain 2025
+    run is now legitimately False. The flag's behaviour is unchanged and is
+    tested here against a config that does lock a season.
+    """
+    locked_cfg = load_config()
+    locked_cfg["backtest"] = {
+        **locked_cfg["backtest"],
+        "holdout_seasons": [2023],
+        "holdout_locked": True,
+    }
+    result = walkforward.run_backtest(
+        [2023], ["winpct"], config=locked_cfg, unlock_holdout=True, first_eval_week=13
+    )
     assert result["protocol"]["holdout_touched"] is True
+
+
+@needs_archive
+def test_an_open_season_needs_no_flag() -> None:
+    """The other half of ADR 0012: 2025 scores without ceremony now."""
+    result = walkforward.run_backtest([2025], ["winpct"], first_eval_week=15)
+    assert result["protocol"]["holdout_touched"] is False
+    assert result["protocol"]["split"] == "holdout_2025_2025"
+
+
+def test_the_live_config_locks_nothing_and_says_which_season_was_spent() -> None:
+    """ADR 0012's config change, checked rather than trusted.
+
+    The holdout is spent, not forgotten: `holdout_scored` records that 2025 was
+    the season and `holdout_scored_on` when. If somebody empties that record the
+    provenance on every projection artifact goes quiet, so it is asserted here.
+    """
+    backtest = load_config()["backtest"]
+    assert backtest["holdout_seasons"] == []
+    assert backtest["holdout_locked"] is False
+    assert backtest["holdout_scored"] == [2025]
+    assert backtest["holdout_scored_on"] == "2026-08-15"
+
+
+def test_the_split_label_names_the_kind_of_evaluation() -> None:
+    """`protocol.split` exists so a published metric carries its own provenance.
+
+    The site labelled every backtest row `tune_<min>_<max>` unconditionally until
+    2026-08-15, which would have shipped the holdout's numbers as `tune_2025_2025`.
+    The label is now derived from the config's season roles.
+    """
+    backtest = load_config()["backtest"]
+    assert walkforward._split_of([2021, 2022, 2023], backtest) == "tune_2021_2023"
+    assert walkforward._split_of([2024], backtest) == "validate_2024_2024"
+    # 2025 is no longer in `holdout_seasons`, and it is still not a tune season.
+    # `holdout_scored` is what keeps its label honest.
+    assert walkforward._split_of([2025], backtest) == "holdout_2025_2025"
+    assert walkforward._split_of([2023, 2024], backtest) == "mixed_2023_2024"
+    assert walkforward._split_of([1999], backtest) == "unassigned_1999_1999"
 
 
 # ------------------------------------------------------- the leakage guarantee

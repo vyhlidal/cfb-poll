@@ -211,7 +211,9 @@ itself:
 - The default is `RANK_SEASON=2023 RANK_WEEK=15`, a complete historical season.
   Ranking *this* week means resolving which week it is, which needs CFBD's
   `/calendar`, which needs a key — so the keyless default is a season the archive
-  already holds. 2025 is the sealed holdout and is not the default either.
+  already holds. 2025 is a complete season too and is the site's example season
+  since [ADR 0012](docs/adr/0012-2025-opens.md); it is not the keyless default
+  only because the default has never moved.
 - **Your 2021 and 2022 postseason will differ from ours, legitimately.** Those 80
   games come from a private CFBD backfill that its terms forbid us to republish,
   so a fork's hindsight surface for those two seasons stops at conference

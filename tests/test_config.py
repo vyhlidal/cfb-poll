@@ -164,10 +164,40 @@ def test_bootstrap_draws() -> None:
     assert load()["bootstrap"]["draws"] == 1000  # report 02 §3.3
 
 
-def test_holdout_season_is_locked() -> None:
+def test_the_holdout_is_spent_and_the_ban_moved_to_an_act() -> None:
+    """CHANGED 2026-08-15, docs/adr/0012-2025-opens.md.
+
+    This asserted `holdout_seasons == [2025]` and `holdout_locked is True` from
+    the project's first week until 2025 was scored. The single shot was taken on
+    2026-08-15 with every constant already frozen, the scorecard is published, and
+    the season is open - so the old assertion would now be asserting a promise the
+    project has finished keeping rather than one it is still making.
+
+    What replaced it is narrower and is the thing actually worth guarding: no
+    fitting path may take a 2026 outcome as its response, while 2026 is ranked and
+    graded in public every week.
+    """
     backtest = load()["backtest"]
-    assert backtest["holdout_seasons"] == [2025]  # single shot, report 02 §5.1
-    assert backtest["holdout_locked"] is True
+    assert backtest["holdout_seasons"] == []
+    assert backtest["holdout_locked"] is False
+    assert backtest["holdout_scored"] == [2025]
+    assert backtest["holdout_scored_on"] == "2026-08-15"
+    assert backtest["no_fit_seasons"] == [2026]
+    assert backtest["no_fit_locked"] is True
+
+
+def test_the_seasons_are_assigned_to_exactly_one_role_each() -> None:
+    """Tune, validate and the spent holdout may not overlap. A season that is
+    both fitted on and held out is a season whose evaluation means nothing."""
+    backtest = load()["backtest"]
+    tune = set(backtest["tune_seasons"])
+    validate = set(backtest["validate_seasons"])
+    scored = set(backtest["holdout_scored"])
+    no_fit = set(backtest["no_fit_seasons"])
+    assert tune & validate == set()
+    assert tune & scored == set()
+    assert validate & scored == set()
+    assert (tune | validate | scored) & no_fit == set()
 
 
 def test_constraints_are_enforced_by_default() -> None:

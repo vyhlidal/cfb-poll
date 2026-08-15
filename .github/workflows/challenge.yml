@@ -17,10 +17,15 @@
 #   * No `CFBD_API_KEY`, no R2 credentials, nothing. If this job ever needs a
 #     secret, the fork promise has been broken somewhere upstream of it.
 #
-# 2025 IS REFUSED. `--seasons` is fixed to the tune seasons here and the harness
-# raises `HoldoutLocked` on 2025 regardless, because nothing in this repository
-# passes `--unlock-holdout`. A challenger who wants 2024 says so in their PR
-# description and a human runs it.
+# ONLY THE TUNE SEASONS RUN HERE. `--seasons` is fixed to 2021-2023, so an entry
+# is compared with the incumbent on the seasons the incumbent was fitted on and on
+# no others. That is the comparison the scorecard claims to make.
+#
+# 2025 was the sealed holdout. It was scored once on 2026-08-15 and is open
+# (docs/adr/0012-2025-opens.md), so the harness would no longer refuse it - which
+# is exactly why this job pins `--seasons` rather than relying on a lock to say
+# no for it. A challenger who wants 2024 or 2025 says so in their PR description
+# and a human runs it.
 #
 # WHY IT DOWNLOADS 0.55 GB. Because the entry has to be scored on the same data
 # as the incumbent, and "the same data" is the whole claim. The archive is cached

@@ -183,33 +183,48 @@ def test_a_fit_with_fewer_terms_is_the_same_class(design: pl.DataFrame) -> None:
 # ------------------------------------------------------------------- the holdout
 
 
-def test_the_holdout_may_be_read_and_may_not_be_fitted_on() -> None:
-    """ADR 0010 §3, as two assertions.
+def test_a_season_may_be_read_and_may_not_be_fitted_on() -> None:
+    """ADR 0010 §3, restated by ADR 0012 as two assertions about an ACT.
 
-    Reading 2025's fitted ratings as an INPUT is sanctioned; fitting a
-    coefficient against 2025's OUTCOMES raises the backtest's own exception type,
-    deliberately, because it is the same breach."""
-    assert holdout.holdout_seasons(CONFIG) == {2025}
+    CHANGED 2026-08-15. This test read `holdout_seasons(CONFIG) == {2025}` and
+    asserted that fitting 2024->2025 raised. 2025 was scored once on 2026-08-15
+    and is open, so the season under guard is now 2026 - the season the recipe
+    PREDICTS, and the one the project publishes a live board and a live grade
+    for. The rule did not change and neither did the exception; the list did.
+    """
+    assert holdout.no_fit_seasons(CONFIG) == {2026}
+    assert holdout.holdout_seasons is holdout.no_fit_seasons  # the old name still works
 
-    # Reading: the source season may be locked, and nothing objects.
-    note = holdout.source_season_note(2025, CONFIG)
-    assert note["source_season_is_holdout"] is True
-    assert note["holdout_use"] == "fitted_ratings_as_projection_input"
-    assert "ADR 0010" in note["claim"] or "0010-projection-and-poll" in note["claim"]
-    holdout.assert_no_target_is_locked([(2025, 2026)], CONFIG)
+    # Reading: any season may be a source, and nothing objects.
+    holdout.assert_no_target_is_locked([(2025, 2024)], CONFIG)
+    holdout.assert_no_target_is_locked([(2024, 2025)], CONFIG)
 
-    # Fitting: a locked TARGET is refused.
-    with pytest.raises(HoldoutLocked, match="2025"):
-        holdout.assert_no_target_is_locked([(2024, 2025)], CONFIG)
+    # Fitting: a no-fit TARGET is refused, with the backtest's own exception.
+    with pytest.raises(HoldoutLocked, match="2026"):
+        holdout.assert_no_target_is_locked([(2025, 2026)], CONFIG)
 
 
-def test_the_shipped_design_transitions_never_target_a_locked_season() -> None:
-    """The live config, checked rather than trusted. If somebody adds 2024->2025
+def test_the_shipped_design_transitions_never_target_a_no_fit_season() -> None:
+    """The live config, checked rather than trusted. If somebody adds 2025->2026
     to `design_transitions` this fails, which is the point."""
     transitions = [(int(a), int(b)) for a, b in CONFIG["projection"]["design_transitions"]]
     holdout.assert_no_target_is_locked(transitions, CONFIG)
     assert CONFIG["projection"]["projection_source_season"] == 2025
-    assert all(target not in holdout.holdout_seasons(CONFIG) for _, target in transitions)
+    assert all(target not in holdout.no_fit_seasons(CONFIG) for _, target in transitions)
+
+
+def test_the_design_transitions_still_exclude_2025() -> None:
+    """The claim the 2025 Projection rests on, made mechanical.
+
+    2024->2025 was absent from `design_transitions` while 2025 was sealed. It has
+    to stay absent now that 2025 is open, or `cfb-poll-data/2025/projection.json`
+    stops being an out-of-sample application of a frozen recipe and becomes a fit
+    describing the season it claims to project. Nothing else in the repository
+    would notice; this does.
+    """
+    targets = {int(b) for _, b in CONFIG["projection"]["design_transitions"]}
+    assert 2025 not in targets
+    assert targets == {2022, 2023, 2024}
 
 
 def test_the_provenance_block_is_never_silent() -> None:
@@ -220,3 +235,23 @@ def test_the_provenance_block_is_never_silent() -> None:
     assert unlocked["holdout_use"] is None
     assert unlocked["projection_source_season"] == 2023
     assert "holdout_seasons" in unlocked
+
+
+def test_a_season_that_was_the_holdout_keeps_saying_so() -> None:
+    """ADR 0012 consequence 4: the provenance survives the unlock.
+
+    2025 is an ordinary season now, so `source_season_is_holdout` is False. A
+    reader of a 2026 artifact built on 2025's ratings is still owed the history,
+    so the block names the date it was scored and points at the scorecard. A
+    silence here would be the quiet kind of dishonesty.
+    """
+    note = holdout.source_season_note(2025, CONFIG)
+    assert note["source_season_is_holdout"] is False
+    assert note["source_season_was_scored_holdout"] is True
+    assert note["scored_on"] == "2026-08-15"
+    assert "scored exactly once" in note["claim"]
+    assert "2025-holdout-scorecard" in note["claim"]
+
+    ordinary = holdout.source_season_note(2023, CONFIG)
+    assert ordinary["source_season_was_scored_holdout"] is False
+    assert ordinary["scored_on"] is None

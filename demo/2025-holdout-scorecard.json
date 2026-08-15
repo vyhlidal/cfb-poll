@@ -1,0 +1,1002 @@
+{
+ "artifact": "THE 2025 HOLDOUT SCORECARD - the single sanctioned scoring pass",
+ "brier_evidence": {
+  "beaten": {
+   "colley": 0.19829125963635114,
+   "random_walker": 0.2146605207659174,
+   "winpct": 0.20579438385372464
+  },
+  "house_brier": 0.19159599135125946,
+  "lost_to": {
+   "elo": 0.1899721827547176,
+   "l1": 0.19057098095608652,
+   "l2": 0.1874050830351654,
+   "srs": 0.19139115312145405
+  },
+  "lost_to_named_baselines": {
+   "elo": 0.1899721827547176,
+   "srs": 0.19139115312145405
+  },
+  "named_baselines": [
+   "colley",
+   "srs",
+   "elo",
+   "random_walker",
+   "winpct"
+  ],
+  "tied": {
+   "l3": 0.19159599135125946,
+   "resume": 0.19159599135125946
+  },
+  "verdict": null,
+  "why_no_verdict": "`[gate].brier_must_beat_all_baselines` has never been wired into `metrics.check_gate` either, and 'baseline' is not defined anywhere in the config: the competition systems and this project's own lower layers are both in the table. Under either reading the house loses, and the losers are named above, so nothing is being hidden by leaving the boolean where the harness leaves it."
+ },
+ "calibration_deciles_2025": [
+  {
+   "bin_high": 0.1,
+   "bin_low": 0.0,
+   "counted": 0.0,
+   "mean_predicted": 0.06011964484042084,
+   "n": 6.0,
+   "observed_rate": 0.0
+  },
+  {
+   "bin_high": 0.2,
+   "bin_low": 0.1,
+   "counted": 0.0,
+   "mean_predicted": 0.15187068976465537,
+   "n": 12.0,
+   "observed_rate": 0.08333333333333333
+  },
+  {
+   "bin_high": 0.30000000000000004,
+   "bin_low": 0.2,
+   "counted": 1.0,
+   "mean_predicted": 0.2482033626004235,
+   "n": 35.0,
+   "observed_rate": 0.2
+  },
+  {
+   "bin_high": 0.4,
+   "bin_low": 0.30000000000000004,
+   "counted": 1.0,
+   "mean_predicted": 0.3604702457382956,
+   "n": 49.0,
+   "observed_rate": 0.2653061224489796
+  },
+  {
+   "bin_high": 0.5,
+   "bin_low": 0.4,
+   "counted": 1.0,
+   "mean_predicted": 0.45220945694220893,
+   "n": 57.0,
+   "observed_rate": 0.40350877192982454
+  },
+  {
+   "bin_high": 0.6000000000000001,
+   "bin_low": 0.5,
+   "counted": 1.0,
+   "mean_predicted": 0.556266544018823,
+   "n": 95.0,
+   "observed_rate": 0.4842105263157895
+  },
+  {
+   "bin_high": 0.7000000000000001,
+   "bin_low": 0.6000000000000001,
+   "counted": 1.0,
+   "mean_predicted": 0.6546389965379967,
+   "n": 123.0,
+   "observed_rate": 0.6016260162601627
+  },
+  {
+   "bin_high": 0.8,
+   "bin_low": 0.7000000000000001,
+   "counted": 1.0,
+   "mean_predicted": 0.7479198607056587,
+   "n": 104.0,
+   "observed_rate": 0.7788461538461539
+  },
+  {
+   "bin_high": 0.9,
+   "bin_low": 0.8,
+   "counted": 1.0,
+   "mean_predicted": 0.8480034617061336,
+   "n": 54.0,
+   "observed_rate": 0.8703703703703703
+  },
+  {
+   "bin_high": 1.0,
+   "bin_low": 0.9,
+   "counted": 1.0,
+   "mean_predicted": 0.9435518602049087,
+   "n": 32.0,
+   "observed_rate": 0.96875
+  }
+ ],
+ "command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run cfbpoll backtest --config configs/default.toml --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct --seasons 2025 --out out/holdout-2025 --unlock-holdout",
+ "config_hash": "dfc23153e49a101b385aa8a7fa5c8855739a4e2233e50801327422b990deedc6",
+ "config_version": "0.2.0",
+ "connectivity_2025": [
+  {
+   "bucket": "2025-regu-w02",
+   "largest_component_share": 0.02247191011235955,
+   "n_components": 126.0,
+   "n_teams": 267.0,
+   "n_train_games": 141,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 2
+  },
+  {
+   "bucket": "2025-regu-w03",
+   "largest_component_share": 0.4050179211469534,
+   "n_components": 10.0,
+   "n_teams": 279.0,
+   "n_train_games": 272,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 3
+  },
+  {
+   "bucket": "2025-regu-w04",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 294.0,
+   "n_train_games": 397,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 4
+  },
+  {
+   "bucket": "2025-regu-w05",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 310.0,
+   "n_train_games": 513,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 5
+  },
+  {
+   "bucket": "2025-regu-w06",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 310.0,
+   "n_train_games": 620,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 6
+  },
+  {
+   "bucket": "2025-regu-w07",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 312.0,
+   "n_train_games": 728,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 7
+  },
+  {
+   "bucket": "2025-regu-w08",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 840,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 8
+  },
+  {
+   "bucket": "2025-regu-w09",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 952,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 9
+  },
+  {
+   "bucket": "2025-regu-w10",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1065,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 10
+  },
+  {
+   "bucket": "2025-regu-w11",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1175,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 11
+  },
+  {
+   "bucket": "2025-regu-w12",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1290,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 12
+  },
+  {
+   "bucket": "2025-regu-w13",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1412,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 13
+  },
+  {
+   "bucket": "2025-regu-w14",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1536,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 14
+  },
+  {
+   "bucket": "2025-regu-w15",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1614,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 15
+  },
+  {
+   "bucket": "2025-regu-w16",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1632,
+   "season": 2025,
+   "season_type": "regular",
+   "week": 16
+  },
+  {
+   "bucket": "2025-post-w01",
+   "largest_component_share": 1.0,
+   "n_components": 1.0,
+   "n_teams": 315.0,
+   "n_train_games": 1637,
+   "season": 2025,
+   "season_type": "postseason",
+   "week": 1
+  }
+ ],
+ "criteria": [
+  {
+   "decided": true,
+   "name": "su_accuracy",
+   "observed": 0.6948853615520282,
+   "statement": "Straight-up accuracy at or above the floor",
+   "threshold": 0.7,
+   "threshold_key": "su_accuracy_min",
+   "verdict": "FAIL"
+  },
+  {
+   "decided": true,
+   "name": "mae",
+   "observed": 12.634607049260676,
+   "statement": "Mean absolute error at or below the ceiling",
+   "threshold": 12.8,
+   "threshold_key": "mae_max",
+   "verdict": "pass"
+  },
+  {
+   "decided": true,
+   "name": "rmse",
+   "observed": 15.996784968839883,
+   "statement": "Root mean squared error at or below the ceiling",
+   "threshold": 15.8,
+   "threshold_key": "rmse_max",
+   "verdict": "FAIL"
+  },
+  {
+   "decided": true,
+   "name": "calibration",
+   "observed": 9.516412328931601,
+   "statement": "Worst decile calibration deviation within tolerance",
+   "threshold": 5.0,
+   "threshold_key": "calibration_max_decile_deviation_pp",
+   "verdict": "FAIL"
+  },
+  {
+   "decided": true,
+   "name": "violations_vs_baselines",
+   "observed": 0.17202970297029702,
+   "statement": "Retrodictive violations at or below every scored system",
+   "threshold": "all_scored_systems",
+   "threshold_key": "violations_must_beat",
+   "verdict": "FAIL"
+  },
+  {
+   "decided": false,
+   "name": "brier_beats_all_baselines",
+   "observed": null,
+   "statement": "Brier score beats every baseline",
+   "threshold": null,
+   "threshold_key": null,
+   "verdict": "undecided"
+  },
+  {
+   "decided": false,
+   "name": "retro_vs_live_monotone",
+   "observed": null,
+   "statement": "Retro-vs-live divergence declines monotonically",
+   "threshold": null,
+   "threshold_key": null,
+   "verdict": "undecided"
+  }
+ ],
+ "divergence_curve": [
+  {
+   "eval_label": "2025-regu-w01",
+   "eval_order": 0,
+   "max_abs_delta": 73,
+   "mean_abs_delta": 16.83823529411765,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w02",
+   "eval_order": 1,
+   "max_abs_delta": 67,
+   "mean_abs_delta": 18.264705882352942,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w03",
+   "eval_order": 2,
+   "max_abs_delta": 43,
+   "mean_abs_delta": 11.455882352941176,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w04",
+   "eval_order": 3,
+   "max_abs_delta": 37,
+   "mean_abs_delta": 10.588235294117647,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w05",
+   "eval_order": 4,
+   "max_abs_delta": 28,
+   "mean_abs_delta": 7.176470588235294,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w06",
+   "eval_order": 5,
+   "max_abs_delta": 25,
+   "mean_abs_delta": 5.794117647058823,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w07",
+   "eval_order": 6,
+   "max_abs_delta": 23,
+   "mean_abs_delta": 5.955882352941177,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w08",
+   "eval_order": 7,
+   "max_abs_delta": 24,
+   "mean_abs_delta": 5.397058823529412,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w09",
+   "eval_order": 8,
+   "max_abs_delta": 18,
+   "mean_abs_delta": 4.029411764705882,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w10",
+   "eval_order": 9,
+   "max_abs_delta": 17,
+   "mean_abs_delta": 3.7794117647058822,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w11",
+   "eval_order": 10,
+   "max_abs_delta": 13,
+   "mean_abs_delta": 3.1470588235294117,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w12",
+   "eval_order": 11,
+   "max_abs_delta": 13,
+   "mean_abs_delta": 2.338235294117647,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w13",
+   "eval_order": 12,
+   "max_abs_delta": 8,
+   "mean_abs_delta": 1.7205882352941178,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w14",
+   "eval_order": 13,
+   "max_abs_delta": 5,
+   "mean_abs_delta": 0.9705882352941176,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w15",
+   "eval_order": 14,
+   "max_abs_delta": 5,
+   "mean_abs_delta": 0.9117647058823529,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-regu-w16",
+   "eval_order": 15,
+   "max_abs_delta": 5,
+   "mean_abs_delta": 0.9117647058823529,
+   "n_teams": 136
+  },
+  {
+   "eval_label": "2025-post-w01",
+   "eval_order": 16,
+   "max_abs_delta": 0,
+   "mean_abs_delta": 0.0,
+   "n_teams": 136
+  }
+ ],
+ "generated_at": "2026-08-15T17:30:12+00:00",
+ "git_sha": "b61a958ea6b35d180cdd8f0c7ce1ed238e099f11",
+ "monotone_evidence": {
+  "first_mean_abs_delta": 7.176470588235294,
+  "last_mean_abs_delta": 0.0,
+  "rises": [
+   {
+    "from": "2025-regu-w06",
+    "mean_abs_delta_from": 5.794117647058823,
+    "mean_abs_delta_to": 5.955882352941177,
+    "step": 0.16176470588235325,
+    "to": "2025-regu-w07"
+   }
+  ],
+  "strictly_declining": false,
+  "verdict": null,
+  "why_no_verdict": "`[gate].retro_vs_live_divergence_monotone` has never been wired into `metrics.check_gate`, which has reported it as undecided since before the constants were frozen. The criterion does not say whether 'monotone' means strictly, or in the published window, or up to some tolerance, and picking one of those readings after seeing this curve would be choosing a rule against a result. The evidence is published in full; the rule is a successor campaign's to pre-register.",
+  "window_first": "2025-regu-w05",
+  "window_last": "2025-post-w01"
+ },
+ "provenance": {
+  "claim": "No constant in configs/default.toml was chosen after reading any number below. The constants were fitted on 2021-2023, validated once on 2024, and frozen on 2026-08-12; 2025 was scored for the first time on 2026-08-15 and this document is that result, published whatever it says. See docs/adr/0012-2025-opens.md.",
+  "constants_frozen_before_scored": true,
+  "frozen_by": [
+   "docs/adr/0007-tuned-constants.md (2026-08-12)",
+   "docs/adr/0009-accumulation-window.md (2026-08-12)"
+  ],
+  "scored_once": true,
+  "tune_seasons": [
+   2021,
+   2022,
+   2023
+  ],
+  "validate_seasons": [
+   2024
+  ]
+ },
+ "rank_churn_2025": {
+  "by_bucket": [
+   {
+    "bucket": "2025-regu-w03",
+    "churn_all": 26.63235294117647,
+    "churn_top25": 33.16216216216216,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w04",
+    "churn_all": 19.264705882352942,
+    "churn_top25": 19.5,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w05",
+    "churn_all": 15.058823529411764,
+    "churn_top25": 13.9375,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w06",
+    "churn_all": 12.544117647058824,
+    "churn_top25": 11.064516129032258,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w07",
+    "churn_all": 9.323529411764707,
+    "churn_top25": 6.448275862068965,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w08",
+    "churn_all": 9.897058823529411,
+    "churn_top25": 6.0344827586206895,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w09",
+    "churn_all": 8.235294117647058,
+    "churn_top25": 6.733333333333333,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w10",
+    "churn_all": 6.426470588235294,
+    "churn_top25": 4.5,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w11",
+    "churn_all": 6.985294117647059,
+    "churn_top25": 5.357142857142857,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w12",
+    "churn_all": 5.882352941176471,
+    "churn_top25": 4.392857142857143,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w13",
+    "churn_all": 4.911764705882353,
+    "churn_top25": 2.5,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w14",
+    "churn_all": 4.955882352941177,
+    "churn_top25": 2.3333333333333335,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w15",
+    "churn_all": 4.955882352941177,
+    "churn_top25": 2.423076923076923,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-regu-w16",
+    "churn_all": 0.9558823529411765,
+    "churn_top25": 1.28,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   },
+   {
+    "bucket": "2025-post-w01",
+    "churn_all": 0.29411764705882354,
+    "churn_top25": 0.23076923076923078,
+    "n": 136.0,
+    "season": 2025,
+    "system": "schedule_odds"
+   }
+  ],
+  "mean_all": 9.088235294117649,
+  "mean_top25": 7.993163315493125
+ },
+ "schema_version": 1,
+ "scored_at": "2026-08-15T17:08:07Z",
+ "season": 2025,
+ "segments_2025": {
+  "bowl": {
+   "brier": 0.2469716543985573,
+   "log_loss": 0.6815572327456785,
+   "mae": 12.30200337587118,
+   "max_calibration_deviation_pp": null,
+   "n_games": 35.0,
+   "rmse": 14.953991854576731,
+   "sigma_mean": 15.3,
+   "su_accuracy": 0.5428571428571428
+  },
+  "cfp": {
+   "brier": 0.2115345198791091,
+   "log_loss": 0.6043803921126768,
+   "mae": 14.353672943831755,
+   "max_calibration_deviation_pp": null,
+   "n_games": 11.0,
+   "rmse": 17.055799372326547,
+   "sigma_mean": 15.300000000000004,
+   "su_accuracy": 0.6363636363636364
+  },
+  "fbs_vs_fbs": {
+   "brier": 0.1981164574582801,
+   "log_loss": 0.5808503545487951,
+   "mae": 13.570907964399943,
+   "max_calibration_deviation_pp": 9.201149114207036,
+   "n_games": 714.0,
+   "rmse": 17.32967404486702,
+   "sigma_mean": 17.7218028731841,
+   "su_accuracy": 0.6862745098039216
+  },
+  "fbs_vs_fcs": {
+   "brier": 0.09541745290120841,
+   "log_loss": 0.34088053705779786,
+   "mae": 24.01493382114394,
+   "max_calibration_deviation_pp": 25.09730824337434,
+   "n_games": 78.0,
+   "rmse": 29.15204747697611,
+   "sigma_mean": 18.771463954265375,
+   "su_accuracy": 0.9230769230769231
+  }
+ },
+ "system": "schedule_odds",
+ "systems_2025": [
+  {
+   "brier": 0.19829125963635114,
+   "log_loss": 0.5800483109404035,
+   "mae": 13.384744550956135,
+   "n_games": 567,
+   "rank_churn_mean": 9.114705882352945,
+   "rmse": 16.84328483202382,
+   "su_accuracy": 0.6754850088183422,
+   "system": "colley",
+   "violations": 0.17698019801980197
+  },
+  {
+   "brier": 0.1899721827547176,
+   "log_loss": 0.5584701610100616,
+   "mae": 13.183925866560887,
+   "n_games": 567,
+   "rank_churn_mean": 9.094117647058825,
+   "rmse": 16.57301132707651,
+   "su_accuracy": 0.6966490299823633,
+   "system": "elo",
+   "violations": 0.20173267326732675
+  },
+  {
+   "brier": 0.24763688597527797,
+   "log_loss": 0.6917315075348754,
+   "mae": 15.685333060380279,
+   "n_games": 567,
+   "rank_churn_mean": null,
+   "rmse": 19.759542476142073,
+   "su_accuracy": 0.5714285714285714,
+   "system": "home_team",
+   "violations": null
+  },
+  {
+   "brier": 0.19057098095608652,
+   "log_loss": 0.5587836299332455,
+   "mae": 12.671014038156049,
+   "n_games": 567,
+   "rank_churn_mean": 7.006862745098041,
+   "rmse": 16.01010285377431,
+   "su_accuracy": 0.6948853615520282,
+   "system": "l1",
+   "violations": 0.2264851485148515
+  },
+  {
+   "brier": 0.1874050830351654,
+   "log_loss": 0.55131714785424,
+   "mae": 12.75221297379797,
+   "n_games": 567,
+   "rank_churn_mean": 7.385294117647058,
+   "rmse": 16.13079247452449,
+   "su_accuracy": 0.708994708994709,
+   "system": "l2",
+   "violations": 0.1905940594059406
+  },
+  {
+   "brier": 0.19159599135125946,
+   "log_loss": 0.560902445782744,
+   "mae": 12.634607049260676,
+   "n_games": 567,
+   "rank_churn_mean": 10.316666666666666,
+   "rmse": 15.996784968839883,
+   "su_accuracy": 0.6948853615520282,
+   "system": "l3",
+   "violations": 0.20915841584158415
+  },
+  {
+   "brier": 0.2146605207659174,
+   "log_loss": 0.6196104023837182,
+   "mae": 14.04945981461608,
+   "n_games": 567,
+   "rank_churn_mean": 11.784313725490195,
+   "rmse": 17.7230183681979,
+   "su_accuracy": 0.6525573192239859,
+   "system": "random_walker",
+   "violations": 0.1844059405940594
+  },
+  {
+   "brier": 0.19159599135125946,
+   "log_loss": 0.560902445782744,
+   "mae": 12.634607049260676,
+   "n_games": 567,
+   "rank_churn_mean": 8.679411764705884,
+   "rmse": 15.996784968839883,
+   "su_accuracy": 0.6948853615520282,
+   "system": "resume",
+   "violations": 0.17326732673267325
+  },
+  {
+   "brier": 0.19159599135125946,
+   "log_loss": 0.560902445782744,
+   "mae": 12.634607049260676,
+   "n_games": 567,
+   "rank_churn_mean": 9.088235294117649,
+   "rmse": 15.996784968839883,
+   "su_accuracy": 0.6948853615520282,
+   "system": "schedule_odds",
+   "violations": 0.17202970297029702
+  },
+  {
+   "brier": 0.19139115312145405,
+   "log_loss": 0.5607624118178879,
+   "mae": 12.73633578626202,
+   "n_games": 567,
+   "rank_churn_mean": 7.107843137254902,
+   "rmse": 15.963641308636658,
+   "su_accuracy": 0.7001763668430335,
+   "system": "srs",
+   "violations": 0.18316831683168316
+  },
+  {
+   "brier": 0.20579438385372464,
+   "log_loss": 0.5981216691034803,
+   "mae": 13.709598784816563,
+   "n_games": 567,
+   "rank_churn_mean": 9.812745098039217,
+   "rmse": 17.2739144972782,
+   "su_accuracy": 0.673721340388007,
+   "system": "winpct",
+   "violations": 0.1670792079207921
+  }
+ ],
+ "systems_tune_2021_2023": [
+  {
+   "brier": 0.20630028568502112,
+   "log_loss": 0.598928145197399,
+   "mae": 13.561612644588795,
+   "n_games": 1585,
+   "rank_churn_mean": 9.155741000853785,
+   "rmse": 17.236517479093468,
+   "su_accuracy": 0.6794952681388012,
+   "system": "colley",
+   "violations": 0.19760479041916168
+  },
+  {
+   "brier": 0.20142385963704865,
+   "log_loss": 0.5885367904955138,
+   "mae": 13.559341747337571,
+   "n_games": 1585,
+   "rank_churn_mean": 9.149431543795316,
+   "rmse": 17.09775426722016,
+   "su_accuracy": 0.6876971608832808,
+   "system": "elo",
+   "violations": 0.2202737382378101
+  },
+  {
+   "brier": 0.24749755023466574,
+   "log_loss": 0.6884666679393306,
+   "mae": 15.458203878551338,
+   "n_games": 1585,
+   "rank_churn_mean": null,
+   "rmse": 19.863116118298677,
+   "su_accuracy": 0.5634069400630914,
+   "system": "home_team",
+   "violations": null
+  },
+  {
+   "brier": 0.19948543816064868,
+   "log_loss": 0.5826036604075799,
+   "mae": 13.16473888247642,
+   "n_games": 1585,
+   "rank_churn_mean": 7.601711812456231,
+   "rmse": 16.683740809963282,
+   "su_accuracy": 0.6914826498422713,
+   "system": "l1",
+   "violations": 0.24337040205303678
+  },
+  {
+   "brier": 0.1975455026778107,
+   "log_loss": 0.5794189737642658,
+   "mae": 13.227459382669782,
+   "n_games": 1585,
+   "rank_churn_mean": 7.701665959210583,
+   "rmse": 16.74011282917185,
+   "su_accuracy": 0.6952681388012618,
+   "system": "l2",
+   "violations": 0.218562874251497
+  },
+  {
+   "brier": 0.19713646313382086,
+   "log_loss": 0.5772203073889806,
+   "mae": 13.037833849228042,
+   "n_games": 1585,
+   "rank_churn_mean": 7.913287223595438,
+   "rmse": 16.53120930011875,
+   "su_accuracy": 0.6870662460567823,
+   "system": "l3",
+   "violations": 0.227972626176219
+  },
+  {
+   "brier": 0.21777197355501132,
+   "log_loss": 0.6243960139417554,
+   "mae": 14.014647357575035,
+   "n_games": 1585,
+   "rank_churn_mean": 11.715669132566338,
+   "rmse": 17.983674534304637,
+   "su_accuracy": 0.6504731861198738,
+   "system": "random_walker",
+   "violations": 0.20230966638152267
+  },
+  {
+   "brier": 0.19713646313382086,
+   "log_loss": 0.5772203073889806,
+   "mae": 13.037833849228042,
+   "n_games": 1585,
+   "rank_churn_mean": 8.871861013157,
+   "rmse": 16.53120930011875,
+   "su_accuracy": 0.6870662460567823,
+   "system": "resume",
+   "violations": 0.20145423438836613
+  },
+  {
+   "brier": 0.19713646313382086,
+   "log_loss": 0.5772203073889806,
+   "mae": 13.037833849228042,
+   "n_games": 1585,
+   "rank_churn_mean": 9.237810931153065,
+   "rmse": 16.53120930011875,
+   "su_accuracy": 0.6870662460567823,
+   "system": "schedule_odds",
+   "violations": 0.2018819503849444
+  },
+  {
+   "brier": 0.19949238505569156,
+   "log_loss": 0.5820893470785059,
+   "mae": 13.195917888783418,
+   "n_games": 1585,
+   "rank_churn_mean": 7.8305239232634065,
+   "rmse": 16.69530616800189,
+   "su_accuracy": 0.6908517350157729,
+   "system": "srs",
+   "violations": 0.22112917023096665
+  },
+  {
+   "brier": 0.21176054276800355,
+   "log_loss": 0.6118474340098261,
+   "mae": 13.824199429435515,
+   "n_games": 1585,
+   "rank_churn_mean": 9.653695916664404,
+   "rmse": 17.659585346907384,
+   "su_accuracy": 0.661198738170347,
+   "system": "winpct",
+   "violations": 0.18306244653550044
+  }
+ ],
+ "tune_vs_holdout": {
+  "brier": {
+   "holdout_2025": 0.19159599135125946,
+   "tune_2021_2023": 0.19713646313382086
+  },
+  "log_loss": {
+   "holdout_2025": 0.560902445782744,
+   "tune_2021_2023": 0.5772203073889806
+  },
+  "mae": {
+   "holdout_2025": 12.634607049260676,
+   "tune_2021_2023": 13.037833849228042
+  },
+  "rmse": {
+   "holdout_2025": 15.996784968839883,
+   "tune_2021_2023": 16.53120930011875
+  },
+  "su_accuracy": {
+   "holdout_2025": 0.6948853615520282,
+   "tune_2021_2023": 0.6870662460567823
+  },
+  "violations": {
+   "holdout_2025": 0.17202970297029702,
+   "tune_2021_2023": 0.2018819503849444
+  }
+ },
+ "verdict": {
+  "failed_criteria": [
+   "su_accuracy",
+   "rmse",
+   "calibration",
+   "violations_vs_baselines"
+  ],
+  "n_decidable": 5,
+  "n_failed": 4,
+  "n_passed": 1,
+  "one_line": "1 of 5 decidable criteria pass. The gate does not clear on 2025.",
+  "passed": false,
+  "passed_criteria": [
+   "mae"
+  ],
+  "undecided_criteria": [
+   "brier_beats_all_baselines",
+   "retro_vs_live_monotone"
+  ]
+ },
+ "violations_detail": {
+  "beaten": {
+   "colley": 0.17698019801980197,
+   "elo": 0.20173267326732675,
+   "l1": 0.2264851485148515,
+   "l2": 0.1905940594059406,
+   "l3": 0.20915841584158415,
+   "random_walker": 0.1844059405940594,
+   "resume": 0.17326732673267325,
+   "srs": 0.18316831683168316
+  },
+  "compared_against": [
+   "colley",
+   "elo",
+   "l1",
+   "l2",
+   "l3",
+   "random_walker",
+   "resume",
+   "srs",
+   "winpct"
+  ],
+  "lost_to": {
+   "winpct": 0.1670792079207921
+  },
+  "rate": 0.17202970297029702
+ },
+ "window": {
+  "description": "FBS-vs-FBS, weeks >= [publication].headline_start_week (5) - the published poll's own window",
+  "headline_start_week": 5,
+  "n_games": 567,
+  "universe": "fbs_vs_fbs",
+  "walk_forward": "fit through bucket N-1 of the same season, predict bucket N"
+ }
+}

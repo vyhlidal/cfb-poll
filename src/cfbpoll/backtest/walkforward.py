@@ -372,6 +372,39 @@ def _winner_loser(games: pl.DataFrame) -> tuple[list[str], list[str]]:
     return winners, losers
 
 
+def _split_of(seasons: list[int], backtest_config: dict[str, Any]) -> str:
+    """Which side of the split these seasons are, named by the config, not the caller.
+
+    Every published metric has to carry the kind of evaluation that produced it,
+    because "13.04 MAE" means one thing on the seasons the constants were fitted
+    on and a different thing on a season nobody had seen. Until 2026-08-15 the
+    site derived this label as `tune_<min>_<max>` unconditionally, which was true
+    of every backtest that had ever been run and became false the moment 2025 was
+    scored. Deriving it here means the run record answers the question rather than
+    the consumer guessing.
+
+    A run spanning more than one role is named `mixed`, which is the honest answer
+    and is also a smell: pooling a tune season with a holdout season produces a
+    number that is neither.
+    """
+    wanted = {int(s) for s in seasons}
+    if not wanted:
+        return "empty"
+    roles = {
+        "tune": {int(s) for s in (backtest_config.get("tune_seasons") or [])},
+        "validate": {int(s) for s in (backtest_config.get("validate_seasons") or [])},
+        "holdout": {int(s) for s in (backtest_config.get("holdout_seasons") or [])}
+        | {int(s) for s in (backtest_config.get("holdout_scored") or [])},
+    }
+    hit = sorted({role for role, members in roles.items() if wanted & members})
+    lo, hi = min(wanted), max(wanted)
+    if len(hit) == 1:
+        return f"{hit[0]}_{lo}_{hi}"
+    if not hit:
+        return f"unassigned_{lo}_{hi}"
+    return f"mixed_{lo}_{hi}"
+
+
 def run_backtest(
     seasons: list[int],
     systems: list[str],
@@ -865,6 +898,7 @@ def run_backtest(
             ),
             "holdout_seasons": sorted(locked),
             "holdout_touched": bool(trespass),
+            "split": _split_of(seasons, bt),
             "headline_start_week": headline_week,
             "calibration": (
                 "per system per week, OLS of actual margin on "

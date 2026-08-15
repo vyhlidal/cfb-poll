@@ -1385,6 +1385,31 @@ def _connectivity_view(
 # --------------------------------------------------------------------- methodology
 
 
+def _split_label(protocol: dict[str, Any], seasons: list[Any]) -> str:
+    """What kind of evaluation these numbers came from, off the run's OWN record.
+
+    This read `tune_<min>_<max>` unconditionally until 2026-08-15, which was fine
+    while the only backtest anybody published was the tune-season one. The 2025
+    holdout evaluation broke it: those rows would have shipped to the site
+    labelled `tune_2025_2025`, which is not a formatting slip but a false claim
+    about how a number was produced, printed under a poll whose entire pitch is
+    that it does not make those.
+
+    `protocol.split` is written by the harness from the config's own season
+    roles, so the label is derived from the run rather than from what the caller
+    believed it was running. The fallback keeps older metrics files - which have
+    no `split` - rendering exactly as they did.
+    """
+    stated = protocol.get("split")
+    if stated:
+        return str(stated)
+    if not seasons:
+        return "tune"
+    lo, hi = min(int(s) for s in seasons), max(int(s) for s in seasons)
+    kind = "holdout" if bool(protocol.get("holdout_touched")) else "tune"
+    return f"{kind}_{lo}_{hi}"
+
+
 def _backtest_rows(
     backtest: Path | None, run_id: str
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -1394,7 +1419,7 @@ def _backtest_rows(
     payload = _read_json(backtest)
     protocol = payload.get("protocol", {})
     seasons = protocol.get("seasons") or []
-    split = f"tune_{min(seasons)}_{max(seasons)}" if seasons else "tune"
+    split = _split_label(protocol, seasons)
 
     rows: list[dict[str, Any]] = []
     wanted = ("n_games", "su_accuracy", "mae", "rmse", "brier", "log_loss")

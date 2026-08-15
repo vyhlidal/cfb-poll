@@ -132,11 +132,19 @@ def test_the_cfbd_archive_subtree_is_not_tracked_by_git() -> None:
     ).stdout
     assert tracked.strip() == ""
     if CFBD_ARCHIVE.exists():
-        probe = CFBD_ARCHIVE / "_meta"
+        # `git check-ignore` refuses any path "beyond a symbolic link", and the
+        # archive root IS a symlink in the layout .gitignore documents: one
+        # checkout holds the 0.55 GB and the others point at it. Probing the
+        # symlink itself is the same question - the bare `archive` line in
+        # .gitignore exists for exactly this case - and it is a question git will
+        # actually answer. Without this branch the test fails on a worktree while
+        # the property it guards is perfectly intact.
+        root = REPO_ROOT / "archive"
+        probe = root if root.is_symlink() else CFBD_ARCHIVE / "_meta"
         ignored = subprocess.run(
             ["git", "check-ignore", str(probe)], cwd=REPO_ROOT, capture_output=True, text=True
         )
-        assert ignored.returncode == 0, "archive/cfbd must be gitignored"
+        assert ignored.returncode == 0, f"{probe} must be gitignored"
 
 
 # ------------------------------------------------------------------ the quota guard

@@ -773,8 +773,48 @@ seed = 20260812                             # explicit PCG64 seed; never np.rand
 [backtest]
 tune_seasons = [2021, 2022, 2023]
 validate_seasons = [2024]
-holdout_seasons = [2025]                    # SINGLE SHOT. Touch it once.
-holdout_locked = true                       # challenge.yml refuses to score on it
+
+# ---------------------------------------------------------------------------------
+# THE HOLDOUT, AND WHAT IT WAS EVER FOR. Changed 2026-08-15, ADR 0012.
+#
+# A holdout bans TUNING. It does not ban publishing, and the two were conflated
+# in this block until today. The promise the lock exists to keep is exactly one
+# sentence: no number in this file was chosen after seeing the season. It says
+# nothing about whether a season may be ranked, rendered or graded.
+#
+# The record, in order:
+#   2021-2023   the constants were FITTED here (ADR 0007, ADR 0009)
+#   2024        the constants were VALIDATED here, twice, both times announced
+#   2025        SCORED ONCE, on 2026-08-15, by a human passing --unlock-holdout,
+#               with the constants already frozen three days earlier. The result
+#               is demo/2025-holdout-scorecard.md and it is published whatever it
+#               says: one of five decidable gate criteria passes. That single
+#               shot is spent, so `holdout_seasons` is now empty and the season
+#               is open for display.
+#   2026        RANKED EVERY WEEK and FITTED TO NEVER. The site publishes a 2026
+#               board weekly and grades the 2026 Projection against 2026 results,
+#               so calling it "sealed" would be a public contradiction. What is
+#               forbidden is narrower and mechanical: no fitting path may take a
+#               2026 outcome as its response. That is `no_fit_seasons` below.
+#
+# `holdout_seasons` / `holdout_locked` keep their meaning and their machinery -
+# `walkforward.HoldoutLocked` still refuses to SCORE a season named here without
+# `unlock_holdout=True` - so the next time a season genuinely needs sealing, the
+# apparatus is intact and one line turns it back on.
+holdout_seasons = []                        # spent. See holdout_scored below.
+holdout_locked = false                      # nothing is barred from being SCORED
+holdout_scored = [2025]                     # the shot that was taken
+holdout_scored_on = "2026-08-15"            # ADR 0012, demo/2025-holdout-scorecard.md
+
+# THE GUARD THAT REPLACED THE LOCK. Seasons no fitting or tuning path may take as
+# its RESPONSE. Reading a season, ranking it, publishing it and grading a frozen
+# prediction against it are all allowed and all happen weekly; fitting a
+# coefficient against its outcomes is not. Enforced by
+# `projection/holdout.assert_no_target_is_locked`, which raises the backtest's own
+# `HoldoutLocked` because it is the same breach.
+no_fit_seasons = [2026]
+no_fit_locked = true
+
 universe = "fbs_vs_fbs"                     # FBS-vs-FCS and bowls reported separately
 walk_forward_strict = true                  # fit through week N-1 only. No exceptions.
 
@@ -947,27 +987,43 @@ enabled = true
 # season): the recipe predicts the target season's final Power from the source
 # season's final Power plus the target season's offseason data.
 #
-# NO TARGET SEASON HERE IS A HOLDOUT SEASON, and that is enforced rather than
+# NO TARGET SEASON HERE MAY BE A NO-FIT SEASON, and that is enforced rather than
 # noticed: `projection/holdout.assert_no_target_is_locked` raises the backtest's
-# own `HoldoutLocked` if one ever is. The 2024->2025 transition is DELIBERATELY
-# ABSENT even though the data for it exists, because its target is 2025 and
-# fitting a coefficient against 2025's outcomes is the exact tuning act the
-# holdout exists to prevent.
+# own `HoldoutLocked` if one ever is. Today that bars 2026 (`no_fit_seasons`),
+# which is the season this recipe PREDICTS: a recipe fitted on the outcomes it
+# claims to project is not a projection, it is a description.
+#
+# THIS LIST DID NOT MOVE WHEN 2025 OPENED, and that is the load-bearing fact.
+# 2024->2025 was absent while 2025 was sealed and it is still absent now, so the
+# coefficients that produced the 2026 Projection are byte-identical to the ones
+# that existed before anybody read a 2025 metric. That is what makes the 2025
+# Projection published beside this file an out-of-sample application of a frozen
+# recipe rather than a fit dressed up as one.
 design_transitions = [[2021, 2022], [2022, 2023], [2023, 2024]]
 
-# THE ONE NAMED PATH THAT READS A LOCKED SEASON. The 2026 projection has to
-# regress toward SOMETHING, and the only prior season is 2025 - which is the
-# sealed holdout. Reading 2025's FITTED RATINGS as an input and SCORING metrics
-# on 2025 are different acts; the holdout protects the second, `walkforward`
-# still refuses it, and only the first happens here. ADR 0010 §3.
+# The 2026 Projection has to regress toward SOMETHING, and the only prior season
+# is 2025. Until 2026-08-15 that was the sealed holdout and ADR 0010 §3 carried a
+# careful argument for why READING its fitted ratings was a different act from
+# SCORING it. The argument still stands and is now unnecessary: 2025 was scored
+# once, its scorecard is published, and it is an ordinary season. The provenance
+# block on every projection artifact says so and names the scorecard, because a
+# reader is owed the history rather than a silence where it used to be.
 projection_source_season = 2025
 target_season = 2026
 
-# Which season the published grading-loop demo is worked on. NOT the holdout:
-# grading is scoring, and scoring 2025 is what would burn the single shot. 2024
-# is also genuinely out of sample for the demo, because the demo refits the
-# recipe on the transitions that exclude it.
+# Which season the published grading-loop demo is worked on. 2024 stays: it is
+# genuinely out of sample for the demo because the demo refits the recipe on the
+# transitions that exclude it, and rewriting a published document to a newer
+# season is churn rather than evidence. 2025 gets its own grading surface built
+# by scripts/make_projection_2025.py from the UNMODIFIED shipped recipe, which is
+# a stronger claim than the demo's: nothing had to be excluded to make 2025 out
+# of sample, because 2024->2025 was never in `design_transitions`.
 grading_demo_season = 2024
+
+# Seasons the frozen recipe has been applied to after the fact and graded in
+# full, each publishing `<season>/projection.json` and
+# `<season>/projection-grading.json` into the site's data tree.
+graded_seasons = [2025]
 
 # The AP preseason poll is a BASELINE and never an input. It is banned from the
 # projection's own design matrix by `PROJECTION_BANNED_PATTERNS`, alongside SP+,

@@ -1,8 +1,8 @@
 {
  "artifact": "2026 PRESEASON PROJECTION \u2014 A PROJECTION, NOT THE POLL",
  "projection_version": "projection-1.0.0",
- "generated_at": "2026-08-15T08:36:55+00:00",
- "git_sha": "2a6dd99746af5f916ab8b04b03f9a70d040b42b5",
+ "generated_at": "2026-08-15T17:17:53+00:00",
+ "git_sha": "d867e0048ed8205dc5bf944eaeecc8c6fbaf9b02",
  "config_hash": "bf0fa1a3501cf7b8b3b5649a2082b84371724116e423022c56d64cdb96e112ec",
  "season": 2026,
  "label": "This is a PROJECTION. It is not the poll, it never becomes the poll, and no number in it may reach the poll's math. The poll begins in week 5 and will grade this page in public.",

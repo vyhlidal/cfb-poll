@@ -81,6 +81,30 @@ rebuilding every design matrix without it, that no fit has ever seen it. That is
 the difference between "we do not use conference identity" and "here is the
 measurement showing we did not".
 
+THE SECOND PRODUCT, AND THE ASYMMETRY THAT KEEPS THEM APART (ADR 0010). Since the
+Projection exists, this module audits TWO products with TWO deny-lists, and the
+difference between them is the whole separation:
+
+  a POLL layer is judged against `BANNED_COLUMN_PATTERNS`, which now contains
+  every column `cfbpoll.projection` produces - returning production, the portal,
+  coaching change, prior-season Power;
+
+  the PROJECTION layer is judged against `PROJECTION_BANNED_PATTERNS`, which
+  allows all four of those and still bans human polls and third-party fitted
+  models. The AP preseason poll is the Projection's BASELINE, and a baseline that
+  is also an input measures nothing; CFBD's PPA is somebody else's model, and a
+  projection resting on it is not our projection. That second ban is what forces
+  the recipe onto CFBD's `usage` (a counting-stat share) rather than its
+  `percentPPA`, mechanically, rather than by anyone remembering to.
+
+For projection inputs alone, PRESENCE in a poll layer's frame is a violation, and
+the exception is earned by provenance rather than granted by preference. Every
+other banned column in this archive is here because a third party shipped it in
+the same file as the facts, and the audit's job is to prove it unconsumed -
+`excitement_index` is in the frame on every run and always will be. A projection
+input can only be in a poll frame because somebody in THIS repository put it
+there. The Projection may read the Poll; the Poll may never read the Projection.
+
 STATUS: IMPLEMENTED. `audit` runs the probes; `cfbpoll audit-features
 --fail-on-banned` exits non-zero on any violation; `cfbpoll rank` calls it before
 fitting whenever `[constraints].fail_build_on_banned_feature` is true.
@@ -99,16 +123,23 @@ from scipy import sparse
 
 __all__ = [
     "ALLOWED_BY_LAYER",
+    "ALLOWED_BY_PROJECTION_LAYER",
     "BANNED_COLUMN_PATTERNS",
     "EP_TEAM_LABELS_NOTE",
+    "HUMAN_POLL_PATTERNS",
     "LAYERS",
+    "PROJECTION_BANNED_PATTERNS",
+    "PROJECTION_INPUT_PATTERNS",
+    "PROJECTION_LAYERS",
     "AuditReport",
     "BannedFeature",
     "LayerResult",
     "LayerSpec",
+    "ProjectionInputInPoll",
     "audit",
     "banned_hits",
     "digest",
+    "projection_inputs_in",
 ]
 
 
@@ -116,19 +147,59 @@ class BannedFeature(RuntimeError):
     """A banned or un-allow-listed column reached a design matrix."""
 
 
-BANNED_COLUMN_PATTERNS: tuple[str, ...] = (
-    # --- human polls and committee rankings (constraint 1)
+class ProjectionInputInPoll(BannedFeature):
+    """A Projection input was found anywhere near a poll layer. See ADR 0010.
+
+    Its own type because it is its own breach. Every other banned column in this
+    archive arrives because a third party shipped it in the same file as the
+    facts, and the audit's job there is to prove it was never consumed. A
+    projection input has no such excuse: this repository COMPUTES those columns,
+    on purpose, in `cfbpoll.projection`, and there is no legitimate path by which
+    one reaches a poll frame. So for these patterns alone, PRESENCE is the
+    violation and consumption is not required - see `_PRESENCE_IS_A_VIOLATION`.
+    """
+
+
+#: The columns `cfbpoll.projection` produces, as patterns. These are the inputs
+#: the Poll's constraint 2 bans by name - returning production, coaching change,
+#: prior-season ratings - plus the portal, which constraint 2 does not name only
+#: because the portal did not exist in its present form when the list was
+#: written. They are ALLOWED in the projection module and BANNED in every poll
+#: layer, and `audit` enforces the asymmetry rather than documenting it.
+PROJECTION_INPUT_PATTERNS: tuple[str, ...] = (
+    "returning_",
+    "portal",
+    "transfer_",
+    "coach_",
+    "prior_power",
+    "prior_season",
+    "projection",
+    "projected_",
+)
+
+#: Human polls and committee rankings. Banned in the Poll by constraint 1, and
+#: banned in the PROJECTION too - which is the line that shows the separation is
+#: a design rather than an excuse. The AP preseason top 25 is the Projection's
+#: headline BASELINE, the thing it is trying to beat, and a baseline that is also
+#: an input measures nothing at all.
+HUMAN_POLL_PATTERNS: tuple[str, ...] = (
     "ap_",
     "coaches_",
     "cfp_rank",
     "poll",
     "rank",
-    # --- reputation priors (constraint 2)
+    "preseason",
+)
+
+BANNED_COLUMN_PATTERNS: tuple[str, ...] = (
+    # --- human polls and committee rankings (constraint 1)
+    *HUMAN_POLL_PATTERNS,
+    # --- reputation priors (constraint 2). Every projection input lives here,
+    #     which is the machine-readable form of "the Projection may not touch the
+    #     Poll" (ADR 0010).
     "recruit",
     "talent",
-    "returning_",
-    "prior_season",
-    "preseason",
+    *PROJECTION_INPUT_PATTERNS,
     # --- third-party fitted models
     "sp_plus",
     "sp+",
@@ -176,7 +247,56 @@ excluded whether or not anyone predicted it. The patterns exist so that a banned
 column PRESENT in a source frame is reported by name even though the rebuild has
 already proved it unconsumed, because "we proved it never reached a fit" is a
 more useful sentence when it names the thing it is about.
+
+THE ONE EXCEPTION IS `PROJECTION_INPUT_PATTERNS`, and it earns the exception by
+provenance: those columns are ours, this repository writes them deliberately, and
+no legitimate path puts one in a poll frame. For those, presence IS the
+violation. See `_PRESENCE_IS_A_VIOLATION`.
 """
+
+#: What the PROJECTION may not consume. Shorter than the poll's list, and every
+#: entry is there for a reason that survives the fact that a projection is
+#: allowed to be a prediction:
+#:
+#:   human polls        the AP preseason poll is this product's BASELINE, and a
+#:                      baseline that is also an input measures nothing
+#:   third-party models SP+, FPI, Elo, CFBD's CORE and its PPA. The projection
+#:                      refusing these is what makes it OUR projection rather
+#:                      than a re-skin of somebody else's, and it is why the
+#:                      recipe uses CFBD's `usage` (a counting-stat share) and
+#:                      not its `percentPPA` (a fitted model). That choice is
+#:                      MECHANICAL: `returning_percent_ppa` is carried on the
+#:                      offseason frame and this list makes it unreachable.
+#:   market lines       partly poll-driven, and it would destroy independence
+#:                      from a baseline we may want to measure against later
+PROJECTION_BANNED_PATTERNS: tuple[str, ...] = (
+    *HUMAN_POLL_PATTERNS,
+    "sp_plus",
+    "sp+",
+    "fpi",
+    "elo",
+    "cfbd_core",
+    "core_rating",
+    "core_overall",
+    "_core",
+    "epa",
+    "ppa",
+    "wpa",
+    "win_prob",
+    "spread",
+    "moneyline",
+    "over_under",
+    "betting",
+)
+
+#: Patterns for which a mere PRESENCE in a poll layer's frame is a violation
+#: rather than a note. Exactly `PROJECTION_INPUT_PATTERNS`, and the asymmetry
+#: against every other banned pattern is deliberate and is argued in
+#: `ProjectionInputInPoll` and ADR 0010: `excitement_index` is in the archive
+#: because ESPN put it there and the audit's job is to prove it unconsumed;
+#: `returning_usage` can only be in a poll frame because somebody in THIS
+#: repository put it there.
+_PRESENCE_IS_A_VIOLATION: tuple[str, ...] = PROJECTION_INPUT_PATTERNS
 
 #: Why EP reads the possession labels even though its allow-list in report 02
 #: §3.10 says "not the teams". The next-score construction has to know which side
@@ -204,11 +324,15 @@ class LayerSpec:
     """
 
     name: str
-    frame: str  # "games" | "plays" | "valued_plays" | "none"
+    frame: str  # "games" | "plays" | "valued_plays" | "projection_design" | "none"
     allowed: dict[str, str]
     spec: str
     probe: Callable[..., Any] | None = None
     note: str | None = None
+    #: "poll" or "projection". Selects which deny-list applies and whether a
+    #: projection input present in the frame is a violation. Defaults to "poll"
+    #: so that a layer added without thinking about it gets the strict treatment.
+    kind: str = "poll"
 
 
 @dataclass(frozen=True)
@@ -227,19 +351,30 @@ class LayerResult:
     digest_restricted: str
     identical: bool
     skipped: str | None = None
+    #: Which product's rules this layer was judged by. Published, because
+    #: "passed the audit" means two different things on the two sides of ADR 0010
+    #: and a report that does not say which one it applied is not a report.
+    kind: str = "poll"
+    #: Projection inputs found in a POLL layer's frame. Always empty on a healthy
+    #: run, and a violation whenever it is not - no consumption test required.
+    projection_inputs_present: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
+        if self.projection_inputs_present:
+            return False
         return self.skipped is not None or (self.identical and not self.consumed_outside_allow_list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "layer": self.layer,
+            "kind": self.kind,
             "frame": self.frame,
             "n_columns_present": self.n_columns_present,
             "allowed": list(self.allowed),
             "extra_present": list(self.extra_present),
             "banned_present": list(self.banned_present),
+            "projection_inputs_present": list(self.projection_inputs_present),
             "consumed_outside_allow_list": list(self.consumed_outside_allow_list),
             "banned_consumed": list(self.banned_consumed),
             "digest_full": self.digest_full,
@@ -340,15 +475,43 @@ def _feed(h: Any, obj: Any) -> None:
 OURS_PREFIXES: tuple[str, ...] = ("our_", "play_value")
 
 
-def banned_hits(columns: Any) -> tuple[str, ...]:
-    """Every column name matching a banned pattern, sorted. Case-insensitive."""
+def banned_hits(columns: Any, kind: str = "poll") -> tuple[str, ...]:
+    """Every column name matching a banned pattern, sorted. Case-insensitive.
+
+    `kind` selects WHOSE deny-list applies, because the two products do not have
+    the same one. A poll layer is measured against `BANNED_COLUMN_PATTERNS`, which
+    includes every projection input; the projection layer is measured against
+    `PROJECTION_BANNED_PATTERNS`, which does not - but which still bans human
+    polls and third-party fitted models. Defaulting to "poll" keeps every
+    existing caller and every existing test meaning exactly what it meant.
+    """
+    patterns = (
+        PROJECTION_BANNED_PATTERNS if kind == "projection" else BANNED_COLUMN_PATTERNS
+    )
     out = {
         str(c)
         for c in columns
         if not str(c).lower().startswith(OURS_PREFIXES)
-        and any(pattern in str(c).lower() for pattern in BANNED_COLUMN_PATTERNS)
+        and any(pattern in str(c).lower() for pattern in patterns)
     }
     return tuple(sorted(out))
+
+
+def projection_inputs_in(columns: Any) -> tuple[str, ...]:
+    """Every column that is a Projection input. Sorted, case-insensitive.
+
+    Used by `audit` to enforce the one asymmetry in this module: in a poll layer
+    these are a violation on sight.
+    """
+    return tuple(
+        sorted(
+            {
+                str(c)
+                for c in columns
+                if any(pattern in str(c).lower() for pattern in _PRESENCE_IS_A_VIOLATION)
+            }
+        )
+    )
 
 
 # ---------------------------------------------------------------------- the probes
@@ -625,6 +788,74 @@ ALLOWED_BY_LAYER: dict[str, tuple[str, ...]] = {
 }
 
 
+def _probe_projection(design: pl.DataFrame, cfg: dict[str, Any], **_: Any) -> Any:
+    """Rebuild the projection's design matrix, exactly as `recipe.fit_recipe` does.
+
+    Same construction as every poll probe and for the same reason: the object a
+    banned column would have to reach in order to move a published number. If the
+    recipe ever consumed `returning_percent_ppa` - CFBD's fitted PPA model, which
+    rides along on the same offseason frame as the counting-stat usage share -
+    the restricted rebuild would differ and this audit would name it.
+    """
+    from cfbpoll.projection import recipe
+
+    columns = [np.ones(design.height)]
+    for name in recipe.DESIGN_COLUMNS:
+        columns.append(design[name].fill_null(0.0).to_numpy().astype(np.float64))
+    return np.column_stack(columns)
+
+
+#: The Projection's layers. DELIBERATELY NOT IN `LAYERS`: the poll's audit must
+#: run, and pass, on a machine that has never computed a projection, and a layer
+#: that reports itself "skipped" on every ordinary run is a layer a reader learns
+#: to ignore. `audit` appends these only when a projection design is handed to
+#: it, which is the same posture the play-level layers take toward a season with
+#: no play feed.
+PROJECTION_LAYERS: tuple[LayerSpec, ...] = (
+    LayerSpec(
+        name="projection",
+        frame="projection_design",
+        kind="projection",
+        spec="ADR 0010, src/cfbpoll/projection/recipe.py",
+        allowed={
+            "prior_power_centered": (
+                "THE PROJECTION SOURCE. Last season's final L3 Power, centred on "
+                "that season's FBS mean. Banned in every poll layer by constraint "
+                "2 ('prior-season ratings of any kind') and allowed here because "
+                "a projection that may not know last season is not a projection"
+            ),
+            "returning_usage_centered": (
+                "returning offensive usage share, centred. A COUNTING-STAT SHARE, "
+                "not CFBD's percentPPA - `PROJECTION_BANNED_PATTERNS` makes that "
+                "distinction mechanical rather than a matter of discipline"
+            ),
+            "coach_change": (
+                "1 when the primary head coach differs from last season's. One "
+                "coefficient for every school that changed; no coach is credited "
+                "by name and there is no tenure term"
+            ),
+            "portal_net_z": (
+                "net portal flow, standardised WITHIN the season because CFBD's "
+                "destination coverage drifts from 60% to 78% across these cycles "
+                "and a raw count would fit a coefficient to that drift"
+            ),
+        },
+        probe=_probe_projection,
+        note=(
+            "the response is the TARGET season's final Power and it is not a "
+            "column of this frame; `projection/holdout.py` is what keeps a locked "
+            "season out of that response"
+        ),
+    ),
+)
+
+#: The projection's allow-list in prose form, the counterpart of
+#: `ALLOWED_BY_LAYER`. Published on the projection artifact.
+ALLOWED_BY_PROJECTION_LAYER: dict[str, tuple[str, ...]] = {
+    spec.name: tuple(sorted(spec.allowed)) for spec in PROJECTION_LAYERS
+}
+
+
 # ------------------------------------------------------------------------- the walk
 
 
@@ -662,11 +893,20 @@ def _run_layer(
             digest_restricted="",
             identical=True,
             skipped=f"no {spec.frame} frame supplied to this audit",
+            kind=spec.kind,
         )
 
     present = tuple(frame.columns)
     extra = tuple(c for c in present if c not in spec.allowed)
-    banned_present = banned_hits(present)
+    banned_present = banned_hits(present, spec.kind)
+    # THE ONE ASYMMETRY. In a poll layer a projection input is a violation on
+    # sight, without waiting for the rebuild to prove consumption, because this
+    # repository is the only thing that writes those columns and nothing here has
+    # any business writing one into a poll frame. In the projection layer the
+    # same columns are the allow-list.
+    projection_inputs = (
+        projection_inputs_in(present) if spec.kind == "poll" else ()
+    )
 
     # A loader has no design matrix of its own; its allow-list IS the projection
     # it performs, so the check is a containment check and it is exact.
@@ -684,6 +924,8 @@ def _run_layer(
             digest_full=digest(sorted(present)),
             digest_restricted=digest(sorted(c for c in present if c in spec.allowed)),
             identical=not outside,
+            kind=spec.kind,
+            projection_inputs_present=projection_inputs,
         )
 
     full = _try_probe(spec, frame, cfg, power)
@@ -701,6 +943,8 @@ def _run_layer(
             digest_restricted="",
             identical=True,
             skipped="the probe could not run on this window (empty or degenerate)",
+            kind=spec.kind,
+            projection_inputs_present=projection_inputs,
         )
 
     restricted = _try_probe(spec, _restrict(frame, set(spec.allowed)), cfg, power)
@@ -723,10 +967,12 @@ def _run_layer(
         extra_present=extra,
         banned_present=banned_present,
         consumed_outside_allow_list=consumed,
-        banned_consumed=banned_hits(consumed),
+        banned_consumed=banned_hits(consumed, spec.kind),
         digest_full=full,
         digest_restricted=restricted or "",
         identical=restricted == full,
+        kind=spec.kind,
+        projection_inputs_present=projection_inputs,
     )
 
 
@@ -736,6 +982,7 @@ def audit(
     config: dict[str, Any] | None = None,
     fail_on_banned: bool = False,
     matrices: dict[str, Any] | None = None,
+    projection_design: pl.DataFrame | None = None,
 ) -> AuditReport:
     """Assert every design matrix contains only its layer's allowed columns.
 
@@ -752,6 +999,13 @@ def audit(
     and want their columns checked directly; it is checked as a containment test
     against the same allow-list. It is not the main path and it is not how the
     guarantee is obtained.
+
+    `projection_design` OPTS IN TO THE OTHER HALF OF ADR 0010. Hand it the frame
+    `projection/recipe.build_design` produced and the Projection's own layers are
+    appended to the same report, judged against `PROJECTION_BANNED_PATTERNS`
+    instead of the poll's list. Omit it and this is exactly the audit it has
+    always been - which matters, because the poll's audit has to keep passing on
+    a machine that has never computed a projection.
     """
     from cfbpoll.config import load_config
 
@@ -763,6 +1017,7 @@ def audit(
         "raw_plays": plays,
         "plays": None,
         "valued_plays": None,
+        "projection_design": projection_design,
     }
     power: Any = None
 
@@ -783,21 +1038,44 @@ def audit(
 
         power = l4_resume.power_source(games, cfg, plays=frames["plays"])
 
-    for spec in LAYERS:
+    specs = list(LAYERS) + (list(PROJECTION_LAYERS) if projection_design is not None else [])
+    for spec in specs:
         report.layers.append(_run_layer(spec, frames.get(spec.frame), cfg, power=power))
 
     if matrices:
+        lookup = {**ALLOWED_BY_LAYER, **ALLOWED_BY_PROJECTION_LAYER}
+        kinds = {spec.name: spec.kind for spec in (*LAYERS, *PROJECTION_LAYERS)}
         for name, matrix in sorted(matrices.items()):
-            allowed = set(ALLOWED_BY_LAYER.get(name, ()))
-            columns = list(getattr(matrix, "columns", matrix))
-            outside = sorted(c for c in map(str, columns) if c not in allowed)
+            allowed = set(lookup.get(name, ()))
+            columns = [str(c) for c in getattr(matrix, "columns", matrix)]
+            outside = sorted(c for c in columns if c not in allowed)
             if outside:
                 report.violations.append(
                     f"{name}: supplied matrix carries column(s) outside the allow-list: "
                     f"{outside}"
                 )
+            # A projection input planted in a POLL design matrix is named as the
+            # breach it is, with its own sentence, rather than being folded into
+            # the generic "outside the allow-list" line. This is the case
+            # `tests/unit/test_projection_separation.py` plants.
+            if kinds.get(name, "poll") == "poll":
+                planted = projection_inputs_in(columns)
+                if planted:
+                    report.violations.append(
+                        f"{name}: PROJECTION INPUT in a poll design matrix: "
+                        f"{list(planted)}. The Projection may read the Poll and "
+                        "the Poll may never read the Projection (ADR 0010)."
+                    )
 
     for layer in report.layers:
+        if layer.projection_inputs_present:
+            report.violations.append(
+                f"{layer.layer}: PROJECTION INPUT present in a poll layer's frame: "
+                f"{list(layer.projection_inputs_present)}. Unlike a third party's "
+                "column sitting in the archive, this repository is the only thing "
+                "that writes these, so presence is the breach and no consumption "
+                "test is required (ADR 0010)."
+            )
         if layer.consumed_outside_allow_list:
             report.violations.append(
                 f"{layer.layer}: consumes column(s) outside its allow-list: "
@@ -817,6 +1095,9 @@ def audit(
         ),
         "plays_audited": frames["plays"] is not None,
         "banned_patterns": list(BANNED_COLUMN_PATTERNS),
+        "projection_input_patterns": list(PROJECTION_INPUT_PATTERNS),
+        "projection_banned_patterns": list(PROJECTION_BANNED_PATTERNS),
+        "projection_audited": projection_design is not None,
         "fail_on_banned": bool(fail_on_banned),
     }
 

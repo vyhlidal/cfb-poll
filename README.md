@@ -325,6 +325,7 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 | `make projection-audit` | **Works now.** The separation proof: both products, both deny-lists, one report. Non-zero if a projection input is anywhere near a poll layer |
 | `make grid` | **Works now.** The R(N, K) retroactive triangle for one season (`GRID_SEASON=2023`) |
 | `make recipe-fixtures` | **Works now.** Weeks 5–15 under each **alternate lens** ([ADR 0011](docs/adr/0011-recipes.md)). Does not touch the published poll's tree |
+| `make variants` | **Works now.** Eight one-knob **variants** of the published poll — `margin.beta_w`, `margin.c`, `publication.headline_ordering` — as thin ordering documents carrying the top 40 and a `dial`/`convention` verdict computed against the 0.985 τ line. Does not touch the published poll's tree |
 | `make archive-lock` | Regenerate the committed lockfile from a backfill manifest. Only after a backfill or a new release tag |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
 | `make site` | Build the static site into `site/_build` |

@@ -18,7 +18,7 @@ DRAWS ?= 1000
 JOBS ?= 4
 
 .PHONY: help rankings archive archive-lock backtest cards demos fixtures \
-        recipe-fixtures projection projection-audit projection-2025 \
+        recipe-fixtures variants projection projection-audit projection-2025 \
         holdout-scorecard revision-numbers replay replay-tolerant grid \
         site test lint clean
 
@@ -34,6 +34,7 @@ help:
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
 	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
 	@echo "  make recipe-fixtures  the same weeks under each ALTERNATE LENS (ADR 0011)"
+	@echo "  make variants         eight one-knob variants -> thin ordering documents"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make projection       the 2026 Projection - a PREDICTION, never the poll"
 	@echo "  make projection-audit prove the Projection and the Poll stay separate"
@@ -178,6 +179,64 @@ recipe-fixtures: .venv archive
 	@echo
 	@echo "The lenses are $(FIXTURES)/$(RECIPE_SEASON)/recipes/<slug>/. The published"
 	@echo "poll is untouched at $(FIXTURES)/$(RECIPE_SEASON)/week-NN.json."
+
+# Real, and it is the ONLY supported way to regenerate the KNOB PLAYGROUND
+# (src/cfbpoll/publish/variants.py).
+#
+# WHAT IT MAKES. Eight one-knob perturbations of the published poll across three
+# axes, each ranked for every week in VARIANT_WEEKS and published as a THIN
+# ordering document at `<season>/variants/<id>/week-NN.json` — top 40 rows, eleven
+# columns, and an agreement block whose `verdict` is the word `dial` or
+# `convention`, chosen by the pipeline against the 0.985 tau line ADR 0006 fixed.
+# About 5 KB each, against 200 KB for a week of the poll.
+#
+# IT DOES NOT REGENERATE THE PUBLISHED POLL AND IT DEPENDS ON IT. A variant is
+# defined as a difference from the house board, so `<season>/week-NN.json` must
+# already be in FIXTURES or `publish variants` refuses rather than inventing a
+# baseline. Run `make fixtures` first if the house tree is stale. Like
+# `recipe-fixtures` this writes only into its own subtree, so the three targets
+# compose and none overwrites another's files.
+#
+# IT DOES NOT DEPEND ON `backtest`, for the same reason `recipe-fixtures` does
+# not: a variant publishes no gate verdict at all. `[gate]` is written against the
+# published poll, and putting the house poll's numbers beside a board produced by
+# different constants would be worse than publishing none.
+#
+# THE OVERLAYS ARE GENERATED, NOT COMMITTED. `write_overlays` writes one real
+# recipe file per variant into scratch, so `cfbpoll rank` loads them through the
+# same `assert_values_only` and `merge_overlay` a hand-written recipe goes through
+# and stamps the variant's own id on the run. They land under `--recipe-dir`
+# rather than in configs/recipes/, so `recipes.roster()` never sees them and the
+# site's recipe selector is untouched.
+#
+# WEEKS 5-16, NOT 1-16, and it is the same reason `recipe-fixtures` starts at 5.
+# Weeks 1-4 are explicitly not the poll; asking whether a knob reorders a table
+# that is not yet a ranking is asking about nothing.
+VARIANT_SEASON ?= 2025
+VARIANT_WEEKS  ?= 5 6 7 8 9 10 11 12 13 14 15 16
+VARIANT_RUNS   ?= .cache/variants/runs
+VARIANT_CONFIGS ?= .cache/variants/overlays
+variants: .venv archive
+	$(UV) run python -c "from pathlib import Path; from cfbpoll.publish import variants; \
+	  print('overlays:', len(variants.write_overlays(Path('$(VARIANT_CONFIGS)'))))"
+	@for v in $$($(UV) run python -c "from cfbpoll.publish import variants; \
+	  print(' '.join(x.id for x in variants.VARIANTS))"); do \
+	  for w in $(VARIANT_WEEKS); do \
+	    printf 'rank %s %s week %s\n' "$$v" "$(VARIANT_SEASON)" "$$w"; \
+	    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	      $(UV) run cfbpoll rank --config $(CONFIG) --recipe $$v \
+	        --recipe-dir $(VARIANT_CONFIGS) \
+	        --season $(VARIANT_SEASON) --through-week $$w --seed $(SEED) \
+	        --draws $(DRAWS) --out $(VARIANT_RUNS)/$$v/w$$(printf '%02d' $$w) \
+	        >/dev/null || exit 1; \
+	  done; \
+	  $(UV) run cfbpoll publish variants --from $(VARIANT_RUNS)/$$v --out $(FIXTURES) \
+	    --variant $$v || exit 1; \
+	done
+	@echo
+	@echo "The playground is $(FIXTURES)/$(VARIANT_SEASON)/variants/<id>/. The published"
+	@echo "poll is untouched at $(FIXTURES)/$(VARIANT_SEASON)/week-NN.json, and so is"
+	@echo "index.json: a variant is not a recipe and never enters the roster."
 
 # Real. The weekly share card. No logos, no network, no headless browser: a
 # Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job

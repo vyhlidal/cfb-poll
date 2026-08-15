@@ -271,15 +271,31 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     through `serving.merge_season_index`, the same function the Postgres loader
     calls, so the two backends cannot disagree about which weeks exist.
 
-    A SEASON DIRECTORY WITH NO `week-*.json` IS NOT A SEASON OF THIS POLL, and
-    skipping it is load-bearing rather than tidy. `index.json` is the POLL's index.
-    The Projection (ADR 0010) writes `<season>/projection.json` into the same tree
-    for a season that has not kicked off, so `<dest>/2026/` exists, holds no poll,
-    and is named with digits like every other season directory. Indexing it put a
-    season with zero played weeks at the top of `seasons[]`, and the site takes the
-    current season to be `max(seasons)` and its current week to be the last PLAYED
-    one — so the front door resolved 2026, found no week, and returned a 404. The
-    two products share a directory on purpose; they do not share an index.
+    A SEASON WITH NO POLL BUT A PROJECTION IS INDEXED, WITH EVERY WEEK UNPLAYED,
+    and the history of this branch is worth keeping because it is a coupling
+    somebody will otherwise re-break.
+
+    The Projection (ADR 0010) writes `<season>/projection.json` into this tree for
+    a season that has not kicked off, so `<dest>/2026/` exists, holds no poll, and
+    is named with digits like every other season directory. Indexing it originally
+    put a season with zero played weeks at the top of `seasons[]`; the site took
+    the current season to be `max(seasons)` and its current week to be the last
+    PLAYED one, resolved 2026, found no week, and returned a 404 on the front
+    door. The fix at the time was to skip such a directory entirely.
+
+    That cost the 2026 week strip, which is supposed to render from day one:
+    report 05 §2.2 says "weeks not yet played are dimmed and unclickable, not
+    hidden. Seeing the empty right-hand side of the strip is part of the season
+    narrative", and a season indexed nowhere has no strip to dim. So the guard is
+    now on the SITE side, where it belongs — `frontDoorBoards` picks the newest
+    season that has a played week rather than the newest season — and this
+    function emits the season with `weeks[]` built from the schedule alone, every
+    entry `played: false`, and `recipes: []`.
+
+    THE TWO CHANGES ARE A PAIR. A fixture set written by this version and served
+    by a site whose front door still resolves `max(seasons)` will 404 exactly as
+    it did before. If that regression reappears, this is the half to look at
+    second; the front door is the half to look at first.
     """
     from cfbpoll import recipes as recipes_mod
     from cfbpoll.publish import serving
@@ -290,14 +306,29 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     for season_root in sorted(p for p in dest.iterdir() if p.is_dir() and p.name.isdigit()):
         season = int(season_root.name)
         published = sorted(season_root.glob("week-*.json"))
-        if not published:
-            # Another product's directory, not a season of this poll. See the
-            # docstring: the Projection writes `<season>/projection.json` for a
-            # season with no polls in it, and an entry here would make the site
-            # call that season current and then fail to find a week in it.
+        if not published and not (season_root / "projection.json").exists():
+            # Neither a season of this poll nor a season this project has said
+            # anything about. A bare digit-named directory is not an entry.
             continue
         weeks: list[dict[str, Any]] = []
         scheduled = serving.scheduled_weeks(season, archive)
+
+        if not published:
+            # A PROJECTION-ONLY SEASON: no poll, but a schedule, so the strip can
+            # be drawn entirely out of unplayed weeks. See the docstring for the
+            # site-side half of this pair.
+            seasons.append(
+                {
+                    "season": season,
+                    "headline_start_week": headline_start,
+                    "weeks": [
+                        serving.unplayed_week(season, week, headline_start)
+                        for week in scheduled
+                    ],
+                    "recipes": [],
+                }
+            )
+            continue
 
         for path in published:
             payload = json.loads(path.read_text(encoding="utf-8"))

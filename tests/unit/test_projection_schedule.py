@@ -18,7 +18,11 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from cfbpoll.projection import forward, recipe, schedule
+from cfbpoll.config import load_config
+from cfbpoll.ingest.plays import load_plays
+from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE as SDV_ARCHIVE
+from cfbpoll.ingest.sportsdataverse import load_games
+from cfbpoll.projection import fit, forward, offseason, recipe, schedule, seasons
 
 
 def _recipe(residual_sd: float = 9.0) -> recipe.Recipe:
@@ -373,3 +377,107 @@ def test_the_shared_rating_resolver_is_the_only_definition() -> None:
     value, source = rating("Ghost")
     assert source == "mean_reversion_only"
     assert value == pytest.approx(15.0 + 0.68 * -10.0)
+
+
+# --------------------------------------------------------------- the real season
+
+needs_archive = pytest.mark.skipif(
+    not (SDV_ARCHIVE / "schedules").exists(), reason="local archive not materialised"
+)
+
+
+@needs_archive
+def test_wins_on_median_schedule_is_monotone_with_projected_power_in_2026() -> None:
+    """THE PROPERTY THE COLUMN EXISTS TO HAVE, checked on the real 2026 board.
+
+    `wins_on_median_schedule` is sold to the reader as the number that makes the
+    ranking self-evident: every team run against ONE calendar, so the column is
+    comparable straight down the table and "Ohio State above Texas Tech" stops
+    needing prose. That promise is worth exactly as much as this property. If a
+    team with more projected power could post fewer wins on the shared schedule,
+    the column would not explain the ordering, it would contradict it - on the
+    same row, in the reader's face, about the one thing the extension was built to
+    resolve.
+
+    IT HOLDS FOR A REASON, WHICH IS WHY IT IS WORTH ASSERTING RATHER THAN HOPING.
+    `_wins_against` sums Phi((r - opponent + site*h)/sigma) over a FIXED calendar,
+    and Phi is strictly increasing in r, so the total is a strictly increasing
+    function of the team's own rating. The rating it uses is `rating(team)[0]`,
+    which for a team in the projection is that team's `projected_power`. So this
+    test is really asserting two things a refactor could break independently:
+    that every team is scored against the SAME calendar, and that the rating
+    driving the column is the SAME quantity the board sorts on. Substitute a
+    per-team schedule for the median one, or resolve a team's own rating through
+    the mean-reversion fallback while its published power comes from the
+    projection, and this fails.
+
+    ACROSS ALL TEAMS, not the published top 25. The truncated artifact is where a
+    violation would be least visible and least excusable, since a reader comparing
+    two teams thirty places apart is exactly who the column is for.
+    """
+    config = load_config()
+    proj_cfg = config["projection"]
+    transitions = [(int(a), int(b)) for a, b in proj_cfg["design_transitions"]]
+    source_season = int(proj_cfg["projection_source_season"])
+    target_season = int(proj_cfg["target_season"])
+    seasons_needed = sorted({s for pair in transitions for s in pair} | {source_season})
+
+    games = load_games(seasons_needed)
+    plays = load_plays(seasons_needed)
+    gathered = [fit.gather(games, a, b, plays, config) for a, b in transitions]
+    fitted = recipe.fit_recipe(
+        [g.design for g in gathered], [g.response for g in gathered], transitions
+    )
+
+    source = seasons.final_power(games, source_season, plays, config)
+    teams = sorted(
+        set(offseason.returning_production(target_season)["team"].to_list())
+        | set(offseason.coaching(target_season)["team"].to_list())
+    )
+    design = recipe.build_design(source.ratings, target_season, teams)
+    projection = recipe.project(fitted, design, teams)
+    center = float(design["prior_power_center"][0])
+    future = forward.schedule(target_season)
+    sigma = float(source.sigma or config["resume"]["sigma"])
+    wins = forward.expected_wins(
+        projection, future, fitted, source.ratings, center, sigma, float(source.home_field)
+    )
+    strength = schedule.strengths(
+        projection.join(wins.table, on="team", how="left"),
+        future,
+        fitted,
+        source.ratings,
+        center,
+        wins.sigma,
+        float(source.home_field),
+    )
+
+    board = (
+        projection.select(["team", "projected_power"])
+        .join(strength.table.select(["team", "wins_on_median_schedule"]), on="team", how="inner")
+        .drop_nulls()
+        .sort("projected_power")
+    )
+    # 2026 has about 138 teams. A guard, so a join that silently dropped the board
+    # to a handful cannot let this pass by having nothing left to compare.
+    assert board.height > 100
+
+    power = board["projected_power"].to_list()
+    on_median = board["wins_on_median_schedule"].to_list()
+    names = board["team"].to_list()
+
+    violations = [
+        (names[i], power[i], on_median[i], names[i + 1], power[i + 1], on_median[i + 1])
+        for i in range(len(power) - 1)
+        if on_median[i + 1] <= on_median[i]
+    ]
+    assert not violations, (
+        f"{len(violations)} team pair(s) where more projected power did not buy more "
+        f"wins on the shared median schedule: {violations[:3]}"
+    )
+    # STRICT, not merely non-decreasing, and the strictness is the interesting
+    # half: Phi is strictly increasing, so two teams tie here only if they have
+    # the same rating. A tie between distinct ratings would mean the column had
+    # saturated and stopped discriminating, which is a real failure mode for a
+    # comparison surface even though it violates no ordering.
+    assert len(set(on_median)) == len(on_median)

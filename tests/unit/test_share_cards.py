@@ -198,8 +198,53 @@ def test_rendering_the_sample_reproduces_the_committed_svg() -> None:
 
 
 def test_an_unknown_variant_is_refused(tmp_path: Path) -> None:
+    # This test used "top10" as its example of a name that does not exist, until
+    # top10 was built. A placeholder that becomes real is a test that stops
+    # testing, so the name here is one that never will be.
     with pytest.raises(ValueError, match="unknown card variant"):
-        cards.export(tmp_path, tmp_path, variant="top10")
+        cards.export(tmp_path, tmp_path, variant="no-such-variant")
+
+
+def test_every_variant_has_a_builder_and_a_declared_canvas() -> None:
+    """VARIANTS and BUILDERS cannot drift. The CLI's help reads one of them."""
+    assert set(cards.VARIANTS) == set(cards.BUILDERS)
+    for name, (_builder, width, height) in cards.BUILDERS.items():
+        assert width == cards.CARD_WIDTH, name
+        assert height in (cards.CARD_HEIGHT, cards.TALL_HEIGHT), name
+
+
+def test_the_team_stripe_is_clamped_into_the_legible_band() -> None:
+    """Navy must not vanish on #0B0C0F and neon must not shout over the numbers."""
+    # The tolerance is 8-BIT QUANTISATION, not slack in the clamp. The colour is
+    # clamped in OKLCH, rounded to three 8-bit sRGB channels for the SVG, and
+    # measured again here, and one channel step is worth about 0.003 of L. A
+    # tighter bound would be asserting that hex has more precision than it has.
+    quantisation = 0.005
+    for source in ("#0c2340", "#fee11a", "#000000", "#ffffff", "#ba0c2f"):
+        clamped = cards.stripe_colour(source)
+        lightness, chroma, _hue = cards._hex_to_oklch(clamped)
+        assert cards.STRIPE_L_RANGE[0] - quantisation <= lightness
+        assert lightness <= cards.STRIPE_L_RANGE[1] + quantisation
+        assert chroma <= cards.STRIPE_C_MAX + quantisation
+
+
+def test_a_missing_or_unparseable_team_colour_still_draws_a_stripe() -> None:
+    """The box is drawn on every row. Omitting it would break the grid on
+    exactly the rows whose data is weakest."""
+    for bad in (None, "", "rgb(1,2,3)", "not-a-colour", "#12"):
+        assert cards.stripe_colour(bad) == cards.PALETTE["stripe_fallback"]
+
+
+def test_the_accent_is_never_a_hairline_or_a_border() -> None:
+    """Gold is a filled slab or the odds numeral. Never a stroke.
+
+    The one exception is the playoff rule under rank 4, which is a deliberate
+    2px accent line and the card's loudest sports signal.
+    """
+    assert cards.PALETTE["accent"] == "#F0B429"
+    assert cards.PALETTE["brand_ink"] == "#0B0C0F"
+    # The rail is evidence and is deliberately not the accent.
+    assert cards.PALETTE["rail_band"] != cards.PALETTE["accent"]
 
 
 def test_word_wrap_never_exceeds_its_budget_and_marks_truncation() -> None:
@@ -209,3 +254,153 @@ def test_word_wrap_never_exceeds_its_budget_and_marks_truncation() -> None:
     assert all(len(line) <= 20 for line in lines)
     assert lines[-1].endswith("…")
     assert cards._wrap(text, 200, 3) == [text]
+
+
+# --------------------------------------------------------- the vendored typefaces
+
+#: A card in miniature: one line of text in each of the four stacks, at a fixed
+#: size, on a fixed canvas. Everything that decides the output bytes is in this
+#: string or in `assets/fonts`, which is what lets the hash below mean something.
+_FONT_PROBE = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="220">'
+    '<rect width="600" height="220" fill="#0B0C0F"/>'
+    f'<text x="16" y="48" font-size="30" fill="#fff" font-family="{cards.FONT_DISPLAY}">'
+    "Handgloves 123</text>"
+    f'<text x="16" y="96" font-size="26" fill="#fff" font-family="{cards.FONT_UI}">'
+    "Handgloves 123</text>"
+    f'<text x="16" y="144" font-size="24" fill="#fff" font-family="{cards.FONT_MONO}">'
+    "0.9841 tau</text>"
+    f'<text x="16" y="196" font-size="26" fill="#fff" font-family="{cards.FONT_PROSE}">'
+    "Handgloves 123</text>"
+    "</svg>"
+)
+
+#: sha256 of `_FONT_PROBE` rasterised against the vendored families. THIS IS THE
+#: HOST-INDEPENDENCE ASSERTION: the number is a pure function of the pinned resvg
+#: wheel and the font files in this repo, so it is the same on every machine that
+#: checks out this commit. Before the families were vendored there was no such
+#: number to write down - the bytes depended on whatever the host happened to have
+#: installed, which is precisely the defect.
+#:
+#: If this changes, something changed the rendering: a font file, the resvg pin,
+#: or a stack. All three are things a reviewer should be told about rather than
+#: discover in a published PNG.
+_FONT_PROBE_SHA256 = "f361e06dc24358b263471ba2f6ddc9e3d5de4e10974339e2fb658e45abafe863"
+
+
+def _render(svg: str, **kwargs: object) -> bytes:
+    import resvg_py
+
+    return bytes(resvg_py.svg_to_bytes(svg_string=svg, **kwargs))
+
+
+def test_the_font_families_are_vendored_in_repo() -> None:
+    """The check must see the families, which live one directory each.
+
+    A font file has to sit beside the licence that permits redistributing it, so
+    the families are vendored one subdirectory apiece. A non-recursive check found
+    nothing directly inside `assets/fonts/` and reported "not vendored", which
+    would silently have left the renderer back on the host's fonts on a machine
+    where the files were in fact present.
+    """
+    assert cards.fonts_are_vendored() is True
+    families = {p.parent.name for p in cards.FONT_DIR.rglob("*.ttf")}
+    assert families == {"archivo", "dejavu", "jetbrains-mono", "source-serif-4"}
+
+
+def test_every_vendored_family_ships_its_licence() -> None:
+    """Redistribution is what the licence permits; shipping it is the condition."""
+    for family in sorted(p for p in cards.FONT_DIR.iterdir() if p.is_dir()):
+        licences = [p for p in family.iterdir() if p.name in {"OFL.txt", "LICENSE"}]
+        assert licences, f"{family.name} ships font files with no licence beside them"
+        text = licences[0].read_text(encoding="utf-8", errors="replace")
+        assert "SIL OPEN FONT LICENSE" in text.upper() or "Bitstream Vera" in text, family.name
+
+
+@pytest.mark.parametrize(
+    ("name", "stack"),
+    [
+        ("display", cards.FONT_DISPLAY),
+        ("ui", cards.FONT_UI),
+        ("mono", cards.FONT_MONO),
+        ("prose", cards.FONT_PROSE),
+    ],
+)
+def test_no_font_stack_rasterises_to_nothing(name: str, stack: str) -> None:
+    """THE REGRESSION GUARD FOR A BUG THAT SHIPPED, and it is subtle enough to
+    deserve one test per stack.
+
+    An unquoted CSS family name is a sequence of identifiers and an identifier may
+    not start with a digit, so `Source Serif 4` unquoted is invalid and a parser
+    that meets the bare `4` throws away THE WHOLE DECLARATION - every fallback in
+    the list with it. The prose line on every card was rendering blank: not in the
+    DejaVu Serif sitting next in the stack, not in Georgia, blank. Nothing caught
+    it because a card with one invisible line still has the right dimensions, the
+    right file size and the right sha256.
+
+    So the assertion is against a family that does not exist. If a stack
+    rasterises to the same bytes as gibberish, that stack is drawing nothing.
+    """
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80">'
+        f'<text x="10" y="50" font-size="32" font-family="{stack}">Handgloves 123</text></svg>'
+    )
+    missing = svg.replace(stack, "NoSuchFamilyAnywhere")
+    kwargs = {"skip_system_fonts": True, "font_dirs": [str(cards.FONT_DIR)]}
+    assert _render(svg, **kwargs) != _render(missing, **kwargs), (
+        f"the {name} stack rasterises to the same bytes as a nonexistent family, "
+        f"which means it is drawing nothing: {stack}"
+    )
+
+
+def test_the_render_does_not_depend_on_the_host(request: pytest.FixtureRequest) -> None:
+    """The whole point of vendoring, as a number that can be written down.
+
+    `render_png` pins `skip_system_fonts=True` and points resvg at `FONT_DIR`, so
+    the output is a function of this repository and the pinned rasteriser and of
+    nothing else on the machine. That is what makes the hash below assertable at
+    all; before vendoring there was no such hash, because the bytes depended on
+    what the host had installed.
+    """
+    import hashlib
+
+    got = hashlib.sha256(cards.render_png(_FONT_PROBE)).hexdigest()
+    if _FONT_PROBE_SHA256 == "PLACEHOLDER":  # pragma: no cover - bootstrap only
+        pytest.fail(f"set _FONT_PROBE_SHA256 to {got!r}")
+    assert got == _FONT_PROBE_SHA256, (
+        "the rasterised probe changed. A font file, the resvg pin or a font stack "
+        "moved; all three change published artifacts and none should move quietly."
+    )
+
+
+def test_rendering_is_stable_across_calls() -> None:
+    assert cards.render_png(_FONT_PROBE) == cards.render_png(_FONT_PROBE)
+
+
+def test_the_dejavu_fallback_actually_covers_what_the_primaries_miss() -> None:
+    """Why 1.5 MB of fonts that change no current card are not dead weight.
+
+    Every card this project renders today is byte-identical with DejaVu removed:
+    the three primaries cover the whole board. That makes the fallback look
+    deletable, so this pins what it is FOR. With `skip_system_fonts=True` there is
+    no host font to catch a character the primaries lack, and the renderer draws a
+    tofu box onto an artifact that then gets hashed and published.
+
+    The probe is a character outside the primaries' coverage. If DejaVu ever stops
+    supplying it, the fallback has stopped working and the next unusual team name
+    is a box on a published PNG.
+    """
+    probe = "Ā Ə ŋ ʻ"
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80">'
+        f'<text x="10" y="50" font-size="28" font-family="{cards.FONT_UI}">{probe}</text></svg>'
+    )
+    primaries = [
+        str(cards.FONT_DIR / name) for name in ("archivo", "jetbrains-mono", "source-serif-4")
+    ]
+    with_fallback = _render(svg, skip_system_fonts=True, font_dirs=[str(cards.FONT_DIR)])
+    without = _render(svg, skip_system_fonts=True, font_dirs=primaries)
+    assert with_fallback != without, (
+        "DejaVu changed nothing on a string the primaries do not cover, which means "
+        "the missing-glyph fallback is not reaching the renderer"
+    )

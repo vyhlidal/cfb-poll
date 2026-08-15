@@ -684,6 +684,14 @@ def rank(
     recipe: Annotated[
         str, typer.Option(help="Named value system from configs/recipes/. Default: the house poll.")
     ] = "house",
+    recipe_dir: Annotated[
+        Path | None,
+        typer.Option(
+            help="Look --recipe up here instead of configs/recipes/. For the variants "
+            "playground; generated overlays obey every rule a hand-written recipe does "
+            "and never enter the published roster."
+        ),
+    ] = None,
     season: Annotated[str | None, typer.Option(help="Season; blank = current.")] = None,
     through_week: Annotated[
         str | None, typer.Option(help="Data window K. Blank = latest completed week.")
@@ -750,7 +758,7 @@ def rank(
     # key that would change what EVIDENCE the run reads. Every line below this one
     # is identical for every recipe; only the constants differ.
     try:
-        cfg, chosen = recipes_mod.resolve(recipe, config)
+        cfg, chosen = recipes_mod.resolve(recipe, config, directory=recipe_dir)
     except recipes_mod.RecipeError as error:
         raise typer.BadParameter(str(error)) from error
 
@@ -1521,6 +1529,67 @@ def publish_fixtures(
     typer.echo(f"wrote {len(written)} files to {out}:")
     for path in written:
         typer.echo(f"  {path.relative_to(out)}")
+
+
+@publish_app.command("variants")
+def publish_variants(
+    out: Annotated[
+        Path, typer.Option(help="Destination tree. The published poll must already be in it.")
+    ] = Path("site/_data"),
+    from_: Annotated[
+        Path,
+        typer.Option("--from", help="Directory of variant runs, one subdirectory per week."),
+    ] = Path(".cache/variants/runs"),
+    variant: Annotated[
+        str, typer.Option(help="Which variant these runs are. One of `cfbpoll publish variants`.")
+    ] = "",
+) -> None:
+    """Publish one variant's weeks as THIN ORDERING DOCUMENTS (the knob playground).
+
+    A variant is the published poll with ONE constant moved and every other left
+    alone, so a reader can find out which of this project's constants decide the
+    ranking and which are conventions. Each document carries the top 40 rows,
+    eleven columns, and an agreement block whose `verdict` is the word `dial` or
+    `convention`, chosen here against the 0.985 Kendall's tau line ADR 0006 fixed
+    - never by the page, which does not compute.
+
+    IT WRITES ONLY `<season>/variants/<id>/`. No index is rebuilt, no divergence
+    curve is written and the published poll is not touched, so this composes with
+    `publish fixtures` and neither overwrites the other. The house week must
+    already be on disk: a variant is defined as a difference from the house board
+    and there is nothing to compare against without one.
+    """
+    import json
+
+    from cfbpoll.publish import fixtures
+    from cfbpoll.publish import variants as variants_mod
+
+    if not variant:
+        raise typer.BadParameter(
+            "--variant is required. A run directory does not say which knob produced "
+            "it in a form this command should trust, and filing a variant under the "
+            "wrong id would publish a tau attributed to the wrong constant. Known: "
+            + ", ".join(v.id for v in variants_mod.VARIANTS)
+        )
+    try:
+        chosen = variants_mod.by_id(variant)
+    except KeyError as error:
+        raise typer.BadParameter(str(error)) from error
+
+    runs = fixtures.run_directories(from_)
+    typer.echo(
+        f"{len(runs)} run{'' if len(runs) == 1 else 's'} under {from_} for "
+        f"variant {chosen.id!r} ({chosen.axis} = {chosen.value})"
+    )
+    written = [variants_mod.export(run, out, chosen) for run in runs]
+    for path in written:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        agree = payload["agreement"]
+        typer.echo(
+            f"  {path.relative_to(out)}  {path.stat().st_size:>6,d} B  "
+            f"tau={agree['kendall_tau_vs_house']:.4f}  "
+            f"moved>=5: {agree['n_moved_5_or_more']:>3d}  {agree['verdict'].upper()}"
+        )
 
 
 # --------------------------------------------------------------------------- site

@@ -1,4 +1,4 @@
-"""The weekly share card: SVG in the pipeline, PNG beside it, no logos ever.
+"""The weekly share card: SVG in the pipeline, PNG beside it, school marks on it.
 
 Specified by report 05 §6 and report 06 §8.3.
 
@@ -16,34 +16,46 @@ the first two of which decide it):
      can be checked against its sha256 years later. The card should have the same
      integrity property as the poll it depicts.
 
-NO SCHOOL LOGO, EVER, AND THE RULE IS TESTED (report 06 §8.3, §8.4). The renderer
-draws GENERATED MARKS ONLY - a disc in the team's primary colour from
-`data/team-colors.csv` - and issues no network request of any kind. There is no
-`<image>` element in a card, no external href, and no path to one:
-`tests/unit/test_share_cards.py` is the CI guard report 06 §8.4 asked for, and it
-fails the build on an `<image>` element, on any external host in a card SVG, and
-on an image file appearing anywhere in the tree outside a named allow-list. The
-tempting mistake it exists to catch is someone adding a logo "just for the top 3".
+THE CARDS CARRY REAL SCHOOL MARKS, AND THAT IS A REVERSAL. Report 06 §8.3 said
+never, this module said never at length, and the project owner overturned it:
+"I don't care about the logo caution, every social post everywhere uses college
+logos, we're not making T-shirts: use the logos."
+
+The reasoning behind the old rule is restated rather than deleted, because it is
+what still makes this defensible. A mark is drawn UNALTERED, at the size a mark is
+drawn at, to IDENTIFY the team whose row it sits on and for no other purpose: no
+merchandise, no implied endorsement, no recolouring, no clipping into a silhouette
+the school does not use. The site carries the disclaimer and the licence footer,
+and every card carries a link back to it. What changed is the owner's assessment
+of the risk, which is his to make.
+
+THE GUARD DID NOT GO AWAY, IT CHANGED SIDES. A card must still be SELF-CONTAINED:
+every `<image>` on it is a `data:` URI over bytes from the pinned cache, and an
+external `http(s)` href in a card is a build failure, because a card that hotlinks
+is a card that renders a blank square the moment it is posted somewhere the host
+does not like. `tests/unit/test_share_cards.py` enforces that, that the cache
+directory is gitignored, and that the manifest covers every mark the card set
+draws.
 
 DETERMINISM, precisely, because the honest claim is narrower than "deterministic":
 
-  - THE SVG IS A PURE FUNCTION OF THE PUBLISHED DOCUMENTS, byte for byte, on any
-    machine. No wall clock, no RNG, no dict iteration order, every float formatted
-    to a fixed precision, every collection sorted before it is drawn. This is the
-    artifact that gets diffed and reviewed.
+  - THE SVG IS A PURE FUNCTION OF (THE PUBLISHED DOCUMENTS + THE PINNED LOGO
+    CACHE), byte for byte, on any machine. No wall clock, no RNG, no dict
+    iteration order, every float formatted to a fixed precision, every collection
+    sorted before it is drawn. THE NETWORK FETCH IS THE ONE NON-HERMETIC INPUT and
+    it lives in `publish/logos.warm`, which the export path calls BEFORE it
+    renders; the builders themselves read the cache and cannot reach the network.
+    `data/logo-cache-manifest.json` is the pin that makes that input auditable.
   - THE PNG IS DETERMINISTIC GIVEN THE SAME RENDERER AND THE SAME FONTS. resvg
     resolves `font-family` against the host's installed fonts, so a machine with a
-    different font stack produces different glyph rasterisation. The test asserts
-    byte-identity across two renders in one environment and checks the committed
-    sample structurally rather than by hash, which is what can honestly be
-    asserted rather than what would be nice to claim.
+    different font stack produces different glyph rasterisation. `render_png` pins
+    `skip_system_fonts=True` and points resvg at the vendored families, which is
+    what turns that conditional into an unconditional one.
 
-WHICH VARIANT THIS BUILDS. Report 05 §6.2's headline card is a top-ten table, and
-there is no headline poll to put on one yet. What exists is the weeks 1-4 launch
-product - the schedule graph and its diagnostics, report 05 §6.2's
-`share/2026-w03-connectivity.png` - so that is the variant implemented here, and
-it is also the more interesting one to publish first: no other poll's share image
-shows you the graph its ranking is standing on.
+WHICH VARIANTS THIS BUILDS. `connectivity` is the weeks 1-4 launch product, the
+schedule graph and its diagnostics, and no other poll's share image shows you the
+graph its ranking is standing on. `top10` and the two `top25` canvases are the
+board itself, and the projection has its own two.
 """
 
 from __future__ import annotations
@@ -54,6 +66,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+from cfbpoll.publish import logos
 from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
@@ -62,6 +75,7 @@ __all__ = [
     "CARD_WIDTH",
     "FONT_DIR",
     "PALETTE",
+    "PLATE_OPACITY",
     "PROJECTION_VARIANTS",
     "SAFE_TOP",
     "TALL_HEIGHT",
@@ -147,7 +161,22 @@ PALETTE: dict[str, str] = {
     # rather than the thing being admitted.
     "rail_track": "#2A2F36",
     "rail_band": "#C9D0D8",
+    # The ground a near-black school mark is set on so it does not vanish into
+    # the card. A warm off-white rather than pure white: at this size a #FFFFFF
+    # chip is a hole punched in the card, and this one reads as paper. One token
+    # rather than a literal in the drawing code, because it is a palette decision
+    # and the next person to retune the card should find it here with the rest.
+    "plate": "#E8E6E1",
 }
+
+#: How solid that plate is. NOT "subtle" in the sense of nearly invisible: the
+#: plate exists to deliver contrast a near-black mark cannot get from #0B0C0F, and
+#: a 15% white wash over a near-black ground is still a near-black ground. At 0.92
+#: the composite sits around #D6D4D0, which gives a black mark better than 13:1
+#: and still reads as a soft chip rather than a glaring white square. Subtlety is
+#: bought in the SHAPE and the SIZE instead: a small rounded rect, a few px larger
+#: than the mark, drawn only on the rows that need it.
+PLATE_OPACITY = 0.92
 
 #: Four roles rather than two, because the card now has a voice: a condensed
 #: display face for the wordmark and rank numerals, a text face for team names,
@@ -360,13 +389,13 @@ def stripe_colour(mark_bg: Any) -> str:
 
 
 def _mark_disc(x: float, y: float, radius: float, row: dict[str, Any]) -> str:
-    """The generated mark. NO SCHOOL LOGO, EVER, and the CI guard enforces it.
+    """The generated mark: a coloured disc with the school's initials on it.
 
-    `tests/unit/test_share_cards.py` fails the build on an `<image>` element or
-    an external host in a card. Hotlinking a logo for identification is the
-    site's position and it rests on the disclaimer strip, the licence footer and
-    a link back to the source; a PNG in somebody's timeline carries none of those
-    and travels further than all of them.
+    NO LONGER THE ONLY MARK A CARD MAY CARRY, and still the one every card falls
+    back to. A row whose document published no `logo_url` (which is what
+    `[display].logos = false` produces) and a row whose bytes are not in the
+    pinned cache both land here, so a fork with a cold cache and no network still
+    renders a complete, legible board rather than a column of empty squares.
     """
     label = _clip(str(row.get("mark_label") or row.get("abbreviation") or "")[:4], 4)
     return (
@@ -383,6 +412,50 @@ def _mark_disc(x: float, y: float, radius: float, row: dict[str, Any]) -> str:
             family=FONT_DISPLAY,
         )
     )
+
+
+def _mark(x: float, y: float, radius: float, row: dict[str, Any]) -> str:
+    """The school's real mark, on a plate if it needs one, or the generated disc.
+
+    THE BYTES COME FROM THE PINNED CACHE AND ARE EMBEDDED, never referenced. A
+    `data:` URI makes the SVG self-contained, which is the only form a share card
+    can safely take: an `<image href="https://...">` renders as a blank square the
+    moment the host blocks the referrer, and the SVG is itself a published
+    artifact somebody may open in five years.
+
+    THE PLATE IS THE LUMINANCE GUARD, and it is the same defect the website has in
+    the other direction. `logos.resolve` measures the mark's effective luminance
+    over its painted pixels and compares it against what #0B0C0F needs for WCAG's
+    3:1 non-text contrast. Below that the mark is set on a light neutral chip a
+    few px larger than itself. Asking the host for the `-dark` variant is not
+    enough on its own: some schools have no genuine dark file and the same
+    near-black artwork comes back under both URLs, which is exactly the case this
+    catches.
+
+    The mark is drawn into a SQUARE box with `xMidYMid meet`, so a wordmark that
+    is not square is letterboxed inside its slot rather than stretched. Altering a
+    school's mark is the thing the identification argument does not permit, and
+    "we squashed it to fit the row" would be altering it.
+    """
+    mark = logos.resolve(row, background=PALETTE["bg"])
+    if mark is None:
+        return _mark_disc(x, y, radius, row)
+
+    parts: list[str] = []
+    if mark.plate:
+        pad = max(2.0, radius * 0.18)
+        side = (radius + pad) * 2
+        parts.append(
+            f'<rect x="{_n(x - radius - pad)}" y="{_n(y - radius - pad)}" '
+            f'width="{_n(side)}" height="{_n(side)}" rx="{_n(side * 0.24)}" '
+            f'fill="{PALETTE["plate"]}" fill-opacity="{_n(PLATE_OPACITY)}"/>'
+        )
+    parts.append(
+        f'<image x="{_n(x - radius)}" y="{_n(y - radius)}" width="{_n(radius * 2)}" '
+        f'height="{_n(radius * 2)}" preserveAspectRatio="xMidYMid meet" '
+        f'href="{mark.data_uri}"/>'
+    )
+    return "".join(parts)
 
 
 def _lens_banner(week_view: dict[str, Any]) -> str | None:
@@ -809,7 +882,7 @@ def _poll_row(
 
     mark_r = height * 0.35
     mark_cx = rank_x + rank_size * 1.7 + mark_r
-    parts.append(_mark_disc(mark_cx, mid, mark_r, row))
+    parts.append(_mark(mark_cx, mid, mark_r, row))
 
     name = str(row.get("abbreviation") if use_abbreviation else row.get("team") or "")
     name_x = mark_cx + mark_r + 12
@@ -1263,20 +1336,27 @@ def fonts_are_vendored() -> bool:
     return any(p.suffix.lower() in (".ttf", ".otf", ".ttc") for p in FONT_DIR.rglob("*"))
 
 
-#: variant -> the function that draws it, and the canvas it draws on. One table
-#: so `export`, the CLI's help text and the CI guard cannot disagree about what
-#: a variant is.
+#: variant -> the function that draws it, the canvas it draws on, and HOW MANY
+#: ROWS IT DRAWS. One table so `export`, the CLI's help text and the CI guard
+#: cannot disagree about what a variant is.
+#:
+#: The row count is on this table rather than in a second dictionary because it is
+#: what the export path warms the logo cache from: fetching bytes for teams a card
+#: does not draw would pull marks onto our disk for no reason, and warming fewer
+#: than it draws would leave a row with the generated disc while its neighbours
+#: carry marks. `connectivity` draws none, because its team nodes are 4px wide and
+#: a school mark at 4px is a smudge.
 BUILDERS: dict[str, Any] = {
-    "connectivity": (lambda b: connectivity_svg(b), CARD_WIDTH, CARD_HEIGHT),
-    "top10": (lambda b: top10_svg(b), CARD_WIDTH, CARD_HEIGHT),
-    "top25_x": (lambda b: top25_x_svg(b), CARD_WIDTH, CARD_HEIGHT),
-    "top25_instagram": (lambda b: top25_instagram_svg(b), CARD_WIDTH, TALL_HEIGHT),
+    "connectivity": (lambda b: connectivity_svg(b), CARD_WIDTH, CARD_HEIGHT, 0),
+    "top10": (lambda b: top10_svg(b), CARD_WIDTH, CARD_HEIGHT, 10),
+    "top25_x": (lambda b: top25_x_svg(b), CARD_WIDTH, CARD_HEIGHT, 25),
+    "top25_instagram": (lambda b: top25_instagram_svg(b), CARD_WIDTH, TALL_HEIGHT, 25),
     # The projection variants take a DOCUMENT rather than a bundle. Same table
     # anyway, so the CLI's help, the CI guard and `export` still cannot disagree
     # about what a variant is; `export` reads PROJECTION_VARIANTS to know which
     # argument to hand the builder.
-    "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT),
-    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT),
+    "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
+    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT, 25),
 }
 
 
@@ -1304,12 +1384,20 @@ def export(
     archive: Path | None = None,
     backtest: Path | None = None,
     png: bool = True,
+    fetch_logos: bool = True,
 ) -> list[Path]:
     """Write `<dest>/<season>-w<NN>-<variant>.{svg,png}`. Returns the paths, sorted.
 
     `out` is the directory `cfbpoll rank` produced. A projection variant has no
     run directory and no week, so it goes through `export_projection` instead and
     is refused here rather than being handed a bundle it cannot read.
+
+    THE ONE NETWORK CALL IN THE WHOLE CARD PIPELINE IS HERE, in `logos.warm`,
+    before a single glyph is placed. It fills the cache for exactly the rows this
+    variant draws, skips anything already on disk, and pins what it fetched in
+    `data/logo-cache-manifest.json`. `fetch_logos=False` renders from whatever is
+    already cached, which is what an offline build wants: every uncached row falls
+    back to the generated mark rather than failing.
     """
     if variant not in VARIANTS:
         raise ValueError(f"unknown card variant {variant!r}; expected one of {VARIANTS}")
@@ -1320,6 +1408,13 @@ def export(
             "<path>` from the CLI."
         )
     bundle = build(out, archive=archive, backtest=backtest)
+    drawn = int(BUILDERS[variant][3])
+    if drawn:
+        logos.warm(
+            list(bundle.views["week"].get("poll") or [])[:drawn],
+            background=PALETTE["bg"],
+            fetch=fetch_logos,
+        )
     svg = BUILDERS[variant][0](bundle)
     return _write(dest, f"{bundle.season}-w{bundle.week:02d}-{variant}", svg, png=png)
 
@@ -1330,6 +1425,7 @@ def export_projection(
     *,
     variant: str = "projection_top10",
     png: bool = True,
+    fetch_logos: bool = True,
 ) -> list[Path]:
     """Write `<dest>/<season>-projection-<name>.{svg,png}`. Returns the paths, sorted.
 
@@ -1348,6 +1444,13 @@ def export_projection(
             f"{PROJECTION_VARIANTS}"
         )
     payload = json.loads(Path(document).read_text(encoding="utf-8"))
+    drawn = int(BUILDERS[variant][3])
+    if drawn:
+        logos.warm(
+            list(payload.get("rows") or [])[:drawn],
+            background=PALETTE["bg"],
+            fetch=fetch_logos,
+        )
     svg = BUILDERS[variant][0](payload)
     stem = f"{int(payload['season'])}-projection-{variant.removeprefix('projection_')}"
     return _write(dest, stem, svg, png=png)

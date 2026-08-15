@@ -1606,8 +1606,8 @@ def publish_cards(
     variant: Annotated[
         str,
         typer.Option(
-            help="Card variant: connectivity, top10, top25_x, top25_instagram, "
-            "projection_top10, projection_top25."
+            help="Card variant: connectivity, top5, top10, top25_x, top25_instagram, "
+            "projection_top5, projection_top10, projection_top25."
         ),
     ] = "connectivity",
     projection: Annotated[
@@ -1622,6 +1622,13 @@ def publish_cards(
         typer.Option(help="Gate metrics JSON. Default: <from>/backtest_metrics.json"),
     ] = None,
     png: Annotated[bool, typer.Option(help="Also rasterise to PNG.")] = True,
+    fetch_logos: Annotated[
+        bool,
+        typer.Option(
+            help="Fetch any school mark missing from .cache/logos/ and pin it in "
+            "data/logo-cache-manifest.json. Off renders from whatever is cached."
+        ),
+    ] = True,
 ) -> None:
     """Render the weekly share card: SVG in the pipeline, PNG beside it.
 
@@ -1630,13 +1637,18 @@ def publish_cards(
     the image and an edge-runtime route cannot prerender one, and a share card is
     a published claim that must be frozen at publication like the poll it depicts.
 
-    NO SCHOOL LOGO, EVER (report 06 §8.3). The renderer draws generated marks
-    only, fetches nothing, and `tests/unit/test_share_cards.py` fails the build if
-    an `<image>` element or an external host ever appears in a card.
+    THE CARDS CARRY REAL SCHOOL MARKS. Report 06 §8.3 said never and the owner
+    overturned it: "every social post everywhere uses college logos, we're not
+    making T-shirts". The marks are drawn unaltered, for identification, and the
+    site carries the disclaimer. What the CI guard enforces now is that a card is
+    SELF-CONTAINED: every `<image>` is a `data:` URI over bytes from the pinned
+    cache, and an external host in a card SVG still fails the build, because a
+    card that hotlinks is a blank square the first time somebody reposts it.
 
-    The SVG is a pure function of the published documents on any machine. The PNG
-    is deterministic given the same renderer and fonts; resvg resolves the font
-    stack against the host, which is stated rather than papered over.
+    The SVG is a pure function of (the published documents + the pinned logo
+    cache). The one network call is the cache warm, which happens before anything
+    is drawn and skips whatever is already on disk. The PNG is deterministic given
+    the same renderer and the vendored fonts, which `render_png` pins.
     """
     from cfbpoll.publish import cards
 
@@ -1646,7 +1658,9 @@ def publish_cards(
                 f"{variant} draws the published projection document. Pass "
                 "--projection <data root>/<season>/projection.json."
             )
-        written = cards.export_projection(projection, out, variant=variant, png=png)
+        written = cards.export_projection(
+            projection, out, variant=variant, png=png, fetch_logos=fetch_logos
+        )
     else:
         resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
         written = cards.export(
@@ -1655,6 +1669,7 @@ def publish_cards(
             variant=variant,
             backtest=resolved if resolved.exists() else None,
             png=png,
+            fetch_logos=fetch_logos,
         )
     for path in written:
         typer.echo(f"wrote {path} ({path.stat().st_size:,} bytes)")

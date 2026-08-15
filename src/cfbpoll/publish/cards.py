@@ -54,8 +54,10 @@ DETERMINISM, precisely, because the honest claim is narrower than "deterministic
 
 WHICH VARIANTS THIS BUILDS. `connectivity` is the weeks 1-4 launch product, the
 schedule graph and its diagnostics, and no other poll's share image shows you the
-graph its ranking is standing on. `top10` and the two `top25` canvases are the
-board itself, and the projection has its own two.
+graph its ranking is standing on. `top5`, `top10` and the two `top25` canvases are
+the board itself, and the projection has its own three. The top five is the hero:
+five rows means the rank numeral and the mark can be drawn at a size that reads at
+thumbnail scale, which is where most of these are actually seen.
 """
 
 from __future__ import annotations
@@ -84,10 +86,12 @@ __all__ = [
     "export",
     "export_projection",
     "fonts_are_vendored",
+    "projection_top5_svg",
     "projection_top10_svg",
     "projection_top25_svg",
     "render_png",
     "stripe_colour",
+    "top5_svg",
     "top10_svg",
     "top25_instagram_svg",
     "top25_x_svg",
@@ -122,10 +126,15 @@ SAFE_BOTTOM = CARD_HEIGHT - 126
 #: projection is one JSON file with no run behind it at all. Their files are
 #: `<season>-projection-<name>` rather than `<season>-wNN-<name>`, since a
 #: preseason guess has no week and stamping one on it would be inventing a fact.
-PROJECTION_VARIANTS: tuple[str, ...] = ("projection_top10", "projection_top25")
+PROJECTION_VARIANTS: tuple[str, ...] = (
+    "projection_top5",
+    "projection_top10",
+    "projection_top25",
+)
 
 VARIANTS: tuple[str, ...] = (
     "connectivity",
+    "top5",
     "top10",
     "top25_x",
     "top25_instagram",
@@ -944,6 +953,62 @@ def _card_open(width: float, height: float, label: str) -> list[str]:
     ]
 
 
+#: The hero card's row grid, and every number on it is one decision.
+#:
+#: FIVE ROWS OF 75 STARTING AT `SAFE_TOP` END AT 501, ONE PIXEL INSIDE
+#: `SAFE_BOTTOM`. That is the constraint the whole card is built around: X crops
+#: the top and bottom on mobile, and the top five is the variant most likely to be
+#: seen as a timeline thumbnail and never tapped. Every row has to survive the
+#: crop, so the block is sized to the safe band rather than to the canvas, and the
+#: wordmark and the constants footer sit outside it as the signature.
+#:
+#: 75px per row is 2.2x the top ten's 34, which is what buys the card its
+#: presence: a 52px mark and a 54px rank numeral are legible at the size a
+#: timeline actually shows this, and that is the entire argument for a five-row
+#: variant existing beside a ten-row one.
+HERO_ROW_HEIGHT = 75.0
+HERO_ROW_TOP = float(SAFE_TOP)
+
+
+def top5_svg(bundle: Bundle) -> str:
+    """The top five, at hero scale. 1200x628, the `summary_large_image` ratio.
+
+    Same two-panel structure as the top ten, deliberately: these are the same
+    board and a reader should be comparing numbers, not noticing that the card
+    changed shape. What changes is the scale.
+
+    THE GOLD PLAYOFF RULE IS THE REASON THIS VARIANT IS INTERESTING. It falls
+    after rank 4, so on a five-row card it lands between the last row and the
+    second to last: the whole card is the cut line and the one team sitting on the
+    wrong side of it. On the ten-row card that rule is a detail; here it is the
+    subject.
+    """
+    week_view = bundle.views["week"]
+    rows = list(week_view.get("poll") or [])[:5]
+    season, week = int(week_view["season"]), int(week_view["week"])
+
+    panel_w = 392.0
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Poll top five, {season} week {week}")
+    parts.extend(_left_panel(week_view, panel_w, CARD_HEIGHT, thesis_size=30))
+    parts.extend(
+        _row_block(
+            rows,
+            panel_w + 32,
+            HERO_ROW_TOP,
+            CARD_WIDTH - panel_w - 64,
+            height=HERO_ROW_HEIGHT,
+            playoff_after=4,
+            rank_size=54,
+            name_size=40,
+            odds_size=34,
+            use_abbreviation=False,
+        )
+    )
+    parts.extend(_constants_strip(week_view, CARD_WIDTH, CARD_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 def top10_svg(bundle: Bundle) -> str:
     """The top ten, two-panel split. 1200x628, the `summary_large_image` ratio.
 
@@ -1198,6 +1263,45 @@ def _projection_footer(document: dict[str, Any], width: float, height: float) ->
     return parts
 
 
+def projection_top5_svg(document: dict[str, Any]) -> str:
+    """The projected top five, on the poll hero card's grid exactly.
+
+    Same 75px rows, same 54px numerals, same safe-band block, because the two
+    boards get posted side by side and the only thing that should differ between
+    them is what they say. What differs: the wordmark reads THE PROJECTION, the
+    right-hand column is `projected_wins`, and the footer is the backtest rather
+    than the model constants.
+
+    The gold rule after rank 4 means the same thing here that it does on the poll
+    card, and it means it about a guess: these are the four the model would seed
+    in August and the one it has just outside.
+    """
+    rows = _projection_rows(document, 5)
+    season = int(document["season"])
+
+    panel_w = 392.0
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top five, {season} preseason")
+    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=24))
+    parts.extend(
+        _row_block(
+            rows,
+            panel_w + 32,
+            HERO_ROW_TOP,
+            CARD_WIDTH - panel_w - 64,
+            height=HERO_ROW_HEIGHT,
+            playoff_after=4,
+            rank_size=54,
+            name_size=40,
+            odds_size=34,
+            use_abbreviation=False,
+            value_of=_projected_wins,
+        )
+    )
+    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 def projection_top10_svg(document: dict[str, Any]) -> str:
     """The projected top ten. Same canvas and same grid as the poll's top ten.
 
@@ -1348,6 +1452,7 @@ def fonts_are_vendored() -> bool:
 #: a school mark at 4px is a smudge.
 BUILDERS: dict[str, Any] = {
     "connectivity": (lambda b: connectivity_svg(b), CARD_WIDTH, CARD_HEIGHT, 0),
+    "top5": (lambda b: top5_svg(b), CARD_WIDTH, CARD_HEIGHT, 5),
     "top10": (lambda b: top10_svg(b), CARD_WIDTH, CARD_HEIGHT, 10),
     "top25_x": (lambda b: top25_x_svg(b), CARD_WIDTH, CARD_HEIGHT, 25),
     "top25_instagram": (lambda b: top25_instagram_svg(b), CARD_WIDTH, TALL_HEIGHT, 25),
@@ -1355,6 +1460,7 @@ BUILDERS: dict[str, Any] = {
     # anyway, so the CLI's help, the CI guard and `export` still cannot disagree
     # about what a variant is; `export` reads PROJECTION_VARIANTS to know which
     # argument to hand the builder.
+    "projection_top5": (lambda d: projection_top5_svg(d), CARD_WIDTH, CARD_HEIGHT, 5),
     "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
     "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT, 25),
 }

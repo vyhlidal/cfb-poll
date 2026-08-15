@@ -347,9 +347,12 @@ cfbpoll publish {release,postgres,fixtures,cards}
                                         takes one run OR a directory of them, so
                                         `make fixtures` republishes a whole season;
                                         `cards` renders the share card (SVG + PNG);
-                                        `--variant projection_top10|projection_top25
-                                        --projection <season>/projection.json`
-                                        renders the Projection's cards instead
+                                        `--variant top5|top10|top25_x|top25_instagram`
+                                        picks the board, `top5` being the hero card;
+                                        `--variant projection_top5|projection_top10
+                                        |projection_top25 --projection
+                                        <season>/projection.json` renders the
+                                        Projection's cards instead
 cfbpoll site build                      build the static site
 cfbpoll projection {ingest,build,audit,fixture}
                                         THE PROJECTION - a preseason ranking from
@@ -377,8 +380,10 @@ cfbpoll projection {ingest,build,audit,fixture}
   `ingest/teams.py`) — 138 schools, a WCAG contrast repair on the 23 whose own
   two colours are illegible together, published on every poll row
 - The **weekly share card** (`publish/cards.py`, `cfbpoll publish cards`) — SVG
-  and PNG, generated marks only, with a CI guard that fails the build if a school
-  logo ever reaches the tree
+  and PNG, seven variants, carrying the schools' real marks from a pinned,
+  gitignored cache (`publish/logos.py`, `data/logo-cache-manifest.json`) with a
+  luminance guard that plates the marks too dark to sit on the card's ground, and
+  a CI guard that fails the build if a card ever hotlinks instead of embedding
 - The canonical **play loader** (`ingest/plays.py`), a 17-column allow-list out of
   a 362-column feed, with four new binding data findings recorded in
   `docs/data-findings.md` §8–§12

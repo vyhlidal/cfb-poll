@@ -60,7 +60,7 @@ contributes exactly zero after centring - "we know nothing, so this term says
 nothing". A team with no prior-season fitted rating gets 0.0, which is the fit
 universe's league-average prior and is what `PowerSource.rating` already returns
 for an unseen team. Every imputation is flagged per team on the output frame, so
-a reader can see which rows are guesses.
+a reader can see which rows are imputed.
 """
 
 from __future__ import annotations

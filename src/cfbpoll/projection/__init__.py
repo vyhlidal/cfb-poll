@@ -11,11 +11,11 @@ audit that is mechanically hostile to the other half.
                  docs/constraints.md. Its design matrices may not contain a
                  single column this package produces.
 
-  THE PROJECTION ranks what we GUESS a team will do, before anyone has played,
+  THE PROJECTION ranks what a team is EXPECTED TO DO, before anyone has played,
                  from last season's fitted ratings plus every knowable offseason
-                 change. It is a prediction, it is labelled as one everywhere it
-                 appears, and its job in the product is to BE GRADED IN PUBLIC
-                 by the Poll it is not allowed to touch.
+                 change. It is a modeled prediction, it is labelled as one
+                 everywhere it appears, and its job in the product is to BE
+                 GRADED IN PUBLIC by the Poll it is not allowed to touch.
 
 ADR 0010 records the separation and the holdout reasoning. `docs/constraints.md`
 is unchanged by this package, because nothing here is allowed near it.

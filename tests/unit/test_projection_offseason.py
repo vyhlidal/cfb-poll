@@ -130,7 +130,7 @@ def test_the_ppa_column_is_carried_and_is_not_the_usage_column() -> None:
 def test_a_coaching_change_is_a_change_of_name_and_unknowns_stay_unknown(
     season: int,
 ) -> None:
-    """`coach_change` is 1, 0 or null - never a guess. A school with no
+    """`coach_change` is 1, 0 or null - never inferred. A school with no
     prior-season row is a new FBS member, and "we do not know" and "they fired
     someone" are different facts."""
     frame = offseason.coaching(season)

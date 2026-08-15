@@ -7,7 +7,7 @@ Writes, all committed so a reader can see real output without running anything:
 
     demo/2026-preseason-projection.md    the ranking, every term's contribution
     demo/2026-preseason-projection.json  the same numbers, machine-readable
-    demo/projection-backtest.md          did we beat the AP's August guess
+    demo/projection-backtest.md          did we beat the AP's August ballot
     demo/projection-backtest.json
     demo/projection-grading-loop.md      what the loop reads like, worked on 2024
 
@@ -251,10 +251,9 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
     add(
         "> The poll ranks what a team has done, from on-field results only, and it "
         f"does not begin until week {CFG['publication']['headline_start_week']}. This "
-        "page is a guess made in August, before anybody has played a snap. It is "
-        "built from last season's fitted ratings plus every offseason change we "
-        "can measure, and its whole job is to be graded in public by the poll it "
-        "is not allowed to influence."
+        "page is the model's August projection, built from last season's fitted "
+        "ratings plus every offseason change we can measure. Its whole job is to "
+        "be graded in public by the poll it is not allowed to influence."
     )
     add(">")
     add(
@@ -479,11 +478,10 @@ def _caveats(
         sentence = (
             f"**{names} moved up from FCS for {TARGET_SEASON}, and their "
             "prior-season rating was earned against FCS opposition.** The Power "
-            "fit is all-divisions, so they have a real rating rather than a "
-            "guess — but ridge shrinks thin schedules toward the mean of a "
-            "universe that includes every FCS team, which is a softer standard "
-            "than the one they are about to be held to, and the recipe has no "
-            "term for promotion."
+            "fit is all-divisions, so they carry a real rating. Ridge still "
+            "shrinks thin schedules toward the mean of a universe that includes "
+            "every FCS team, which is a softer standard than the one they are "
+            "about to be held to, and the recipe has no term for promotion."
         )
         if placed.height:
             worked = "; ".join(
@@ -500,7 +498,8 @@ def _caveats(
         out.append(
             "**No AP preseason poll for 2026 was in the archive when this ran**, so "
             "the head-to-head comparison on this page is the historical one. The "
-            "AP's 2026 guess will be scored against this page's when it appears."
+            "AP's 2026 preseason ballot will be scored against this page's when "
+            "it appears."
         )
     return out
 
@@ -715,7 +714,7 @@ def write_grading_demo(state: dict[str, Any]) -> None:
     2024, not 2025: grading is scoring, and scoring the holdout is exactly what
     ADR 0010 says the projection may not do. The recipe used here is fitted on
     the transitions that EXCLUDE 2023->2024, so the 2024 projection being graded
-    is a genuine out-of-sample guess.
+    is a genuine out-of-sample projection.
     """
     games, plays = state["games"], state["plays"]
     others = [t for t in TRANSITIONS if t[1] != GRADING_DEMO_SEASON]

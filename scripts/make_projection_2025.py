@@ -11,7 +11,7 @@ Writes:
 
 WHY THIS IS A STRONGER ARTIFACT THAN THE 2024 GRADING DEMO, and the difference is
 worth stating before any number appears. `demo/projection-grading-loop.md` has to
-REFIT the recipe with the 2023->2024 transition removed, so the guess it grades is
+REFIT the recipe with the 2023->2024 transition removed, so the projection it grades is
 out of sample by construction rather than by history. This one does not remove
 anything. `[projection].design_transitions` is `2021->2022, 2022->2023,
 2023->2024`; the 2024->2025 transition was absent while 2025 was the sealed
@@ -265,7 +265,7 @@ def write_fixture(state: dict[str, Any], to: Path) -> Path:
         note=(
             f"The {TARGET_SEASON} season has been played, so this page can be read "
             "against the answer. The grading surface beside it shows where the "
-            "guess landed and which term was carrying the error."
+            "projection landed and which term was carrying the error."
         ),
         status="published",
         published_at=datetime.now(UTC).isoformat(timespec="seconds"),
@@ -509,7 +509,8 @@ def grading_payload(state: dict[str, Any]) -> dict[str, Any]:
     "how wrong were we about what had happened by week N". `vs_hindsight` is "how
     wrong were we about what these teams turned out to BE", which is the fairer
     question early, because in week 5 the live poll is itself provisional and
-    grading a preseason guess against a provisional answer double-counts the noise.
+    grading a preseason projection against a provisional answer double-counts the
+    noise.
     """
     graded: pl.DataFrame = state["graded"]["table"]
     weeks = state["graded"]["weeks"]
@@ -724,7 +725,7 @@ def render_grading(payload: dict[str, Any], state: dict[str, Any]) -> str:
     add(
         "Mean absolute rank error of the frozen projection against each surface. "
         "The `hindsight` column is the fairer early reading: in week 5 the live "
-        "poll is itself provisional, and grading an August guess against a "
+        "poll is itself provisional, and grading an August projection against a "
         "provisional answer double-counts the noise."
     )
     add("")

@@ -53,7 +53,7 @@ changed meaning, none were removed.
 | `grading_start_week` | int | the week the poll begins grading this in public. Read from `[publication].headline_start_week`, never typed |
 | `label` | str | **the marker every surface showing this document must display**, in the same words everywhere. `projection.PROJECTION_LABEL` |
 | `headline` | str | the one sentence the card leads with, verbatim |
-| `basis` | str | what the guess was built from. The card continues from it |
+| `basis` | str | what the projection was built from. The card continues from it |
 | `note` | str \| null | optional second sentence |
 | `backtest` | object \| null | §3 |
 | `schedule` | object \| null | §4 |
@@ -61,8 +61,8 @@ changed meaning, none were removed.
 | `projection_version` | str | the recipe that produced this. Not rendered |
 
 `projection_version` exists because the grading loop is season-over-season: a
-published guess that cannot say which recipe made it cannot be graded across
-years.
+published projection that cannot say which recipe made it cannot be graded
+across years.
 
 `label` is the projection's counterpart to `recipes.ALTERNATE_LABEL`
 (`docs/fixture-contract-recipes.md` §4): a document that is not the published
@@ -110,7 +110,7 @@ recipe is refitted. It reports a win as readily as a loss; a template that could
 only phrase a defeat would be a disclaimer wearing a measurement's clothes.
 
 The block **is not gated on `status`**. It describes how the METHOD has scored
-across past seasons rather than how this particular guess turned out, so it is
+across past seasons rather than how this particular projection turned out, so it is
 equally true while the card is dark. Gating it would make the one unflattering
 fact on the card the last thing to appear.
 

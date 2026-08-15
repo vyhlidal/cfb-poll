@@ -56,7 +56,7 @@ def test_every_system_is_censored_at_the_same_place() -> None:
 
     Uncensored, a full-rating system that buries a team at #80 pays 75 places
     while the AP's worst possible error is 21 - which would measure the shape of
-    the output rather than the quality of the guess. Censored at 26, both are
+    the output rather than the quality of the projection. Censored at 26, both are
     answering the AP's own question."""
     assert fit.CENSOR_AT == 26
 

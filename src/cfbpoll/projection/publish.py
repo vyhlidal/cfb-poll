@@ -54,7 +54,7 @@ SCHEMA_VERSION = 1
 #: Short on purpose. It goes in the accent slab above the thesis, where it has one
 #: line, and a label that gets truncated to fit is a label that stopped saying the
 #: thing it exists to say.
-PROJECTION_LABEL = "THE PROJECTION. A guess the poll will grade."
+PROJECTION_LABEL = "THE PROJECTION. The poll grades it weekly."
 
 
 #: Characters report 08 bans from the front door's visible copy. The em dash is
@@ -232,8 +232,8 @@ def build(
         "backtest": _backtest_block(backtest),
         "schedule": _schedule_block(strength, contrast, sigma),
         "rows": rows,
-        # Not in the site's interface, and carried anyway: a published guess that
-        # cannot say which recipe made it cannot be graded season over season.
+        # Not in the site's interface, and carried anyway: a published projection
+        # that cannot say which recipe made it cannot be graded season over season.
         "projection_version": PROJECTION_VERSION,
     }
 

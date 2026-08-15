@@ -131,7 +131,7 @@ publish_margin_resume_variant = true        # both resume flavours — report 02
 # THE PIN IS VALIDATED, NOT TRUSTED. `publish/serving.py` refuses to write a week
 # whose pin names a team outside the published top 25, or two teams whose records
 # differ, or an excluded team. Every candidate pair is published beside the pin on
-# the same document, so the choice can be second-guessed from the artifact.
+# the same document, so the choice can be re-litigated from the artifact.
 #
 # The exclusion list is an owner constraint and is honoured mechanically.
 same_record_pair_exclude = ["Washington"]
@@ -1028,7 +1028,7 @@ allow_third_party_ratings_as_features = false  # SP+/FPI/Elo/EPA are BENCHMARKS 
 # tests/unit/test_projection_separation.py plants one in a poll design matrix and
 # asserts the audit names it. Nothing above this line may read anything below it.
 #
-# The Projection ranks what we GUESS a team will do, from last season's fitted
+# The Projection ranks what a team is EXPECTED TO DO, from last season's fitted
 # ratings plus the offseason. The Poll ranks what a team HAS DONE, from on-field
 # results only. The Projection reads the Poll; the Poll may never read the
 # Projection. ADR 0010 is the whole argument.

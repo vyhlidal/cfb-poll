@@ -330,8 +330,8 @@ def _august_coach(
     WHEN CONTINUITY FINDS NOBODY the school both hired in the offseason and
     changed again during the season, so `coach_change` is 1 whichever candidate
     was the August man and the leak cannot reach the number. The NAME still has
-    to be filled in, it is taken from the games count as the least-bad guess, and
-    it is stamped `inferred_from_games` so that "this string is a guess and the
+    to be filled in, it is taken from the games count as the least-bad estimate, and
+    it is stamped `inferred_from_games` so that "this string is inferred and the
     flag beside it is not" is visible rather than assumed.
     `tests/unit/test_projection_offseason.py` asserts the implication
     (`inferred_from_games` => `coach_change != 0`) instead of trusting it.

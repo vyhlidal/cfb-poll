@@ -24,7 +24,7 @@ is no longer reachable from anything the Projection publishes.
 "HOW THE SEASON ACTUALLY SETTLED" IS R(final, final), the last bucket of the
 season evaluated with the whole season's data - the hindsight surface's last row.
 That is the most complete statement the poll ever makes about a season, which is
-the right thing to grade a preseason guess against.
+the right thing to grade a preseason projection against.
 
 It is NOT the same table as `[weights].final_poll_excludes_non_cfp_bowls`, which
 governs the poll's own published "final poll" and stops before the non-CFP bowls.

@@ -535,9 +535,9 @@ def _projection_document(status: str = "published", rows: int = 25) -> dict[str,
         "schema_version": 1,
         "season": 2026,
         "status": status,
-        "label": "THE PROJECTION. A guess the poll will grade.",
+        "label": "THE PROJECTION. The poll grades it weekly.",
         "headline": (
-            "This is the model's 2026 preseason projection, a guess made in August "
+            "This is the model's 2026 preseason projection, built in August "
             "about a season the poll will go on to measure."
         ),
         "grading_start_week": 5,
@@ -608,7 +608,7 @@ def test_the_projection_card_carries_the_documents_own_label() -> None:
     """The banner is a published field, exactly as the alternate-lens marker is.
 
     A card is the artifact most likely to arrive with no context at all, so the
-    sentence saying this is a guess rather than the poll has to be ON it, and it
+    sentence naming it as the projection rather than the poll has to be ON it, and it
     has to be the document's words rather than a string in this renderer.
     """
     document = _projection_document()
@@ -632,7 +632,7 @@ def test_the_projection_card_carries_its_backtest_footer() -> None:
 
     Report 05 §6.2's rule is that the footer is never dropped for space, and the
     projection's equivalent claim is the measured record against the AP's August
-    guess, published on the image whether or not it flatters.
+    ballot, published on the image whether or not it flatters.
     """
     svg = cards.projection_top10_svg(_projection_document())
     assert "recipe projection-1.0.0" in svg
@@ -668,7 +668,7 @@ def test_a_projection_variant_refuses_the_run_directory_path(tmp_path: Path) -> 
 def test_export_projection_names_the_files_after_the_season_and_no_week(
     tmp_path: Path,
 ) -> None:
-    """`2026-projection-top10`, because a preseason guess has no week to stamp."""
+    """`2026-projection-top10`, because a preseason projection has no week to stamp."""
     import json as _json
 
     document = tmp_path / "projection.json"

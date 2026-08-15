@@ -34,7 +34,7 @@ THE TWO DELTAS SAY DIFFERENT THINGS AND KEEPING THEM APART IS THE POINT.
 `projection_vs_live` is "how wrong were we about what would happen so far".
 `projection_vs_hindsight` is "how wrong were we about what these teams turned out
 to BE" - which is the fairer question in week 5, because in week 5 the live poll
-is itself provisional and grading a preseason guess against a provisional answer
+is itself provisional and grading a preseason projection against a provisional answer
 double-counts the noise. The published headline uses hindsight and shows live
 beside it.
 
@@ -335,7 +335,7 @@ def grade_season(
     """The whole loop for one season: every week graded, plus the attribution.
 
     `from_week` defaults to `[publication].headline_start_week`, because grading a
-    frozen preseason guess against a poll the project itself declines to publish
+    frozen preseason projection against a poll the project itself declines to publish
     would be scoring it against a number nobody was shown. The earlier weeks are
     still computed and carried in `weeks`; `headline_week` names the first one the
     published surface leads with.

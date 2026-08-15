@@ -23,8 +23,8 @@ from cfbpoll.projection import publish
 
 CONFIG = load_config()
 
-HEADLINE = "This is the model's 2026 preseason projection, a guess made in August."
-BASIS = "It is the model's August guess, built from last season's final ratings."
+HEADLINE = "This is the model's 2026 preseason projection, built in August."
+BASIS = "It runs last season's final ratings through a four-term recipe."
 
 #: The shape `fit.run(...)["summary"]` returns, trimmed to what `_backtest_block`
 #: reads. Real values from the published backtest, so a change to the recipe that
@@ -97,7 +97,7 @@ def test_an_em_dash_is_refused_in_every_copy_field(projection: pl.DataFrame) -> 
     front door's entire visible text, so the one sentence the page led with read
     as the one sentence somebody else wrote. A rule the pipeline knows is a rule
     the pipeline keeps."""
-    dashed = "This is the 2026 projection — a guess, not a measurement."
+    dashed = "This is the 2026 projection — the poll will grade it."
     for field, kwargs in (
         ("headline", {"headline": dashed, "basis": BASIS}),
         ("basis", {"headline": HEADLINE, "basis": dashed}),
@@ -108,7 +108,7 @@ def test_an_em_dash_is_refused_in_every_copy_field(projection: pl.DataFrame) -> 
         assert field  # names the field under test in the failure output
 
     # The shapes an em dash arrives under when somebody routes around a linter.
-    for bad in ("A guess – not a measurement.", "A guess -- not a measurement."):
+    for bad in ("The projection – graded weekly.", "The projection -- graded weekly."):
         with pytest.raises(ValueError, match="dash|hyphen"):
             publish.build(projection, 2026, CONFIG, HEADLINE, bad)
 
@@ -171,8 +171,8 @@ def test_a_team_the_recipe_barely_moved_gets_no_manufactured_clause() -> None:
 
 
 def test_the_document_carries_the_recipe_version(projection: pl.DataFrame) -> None:
-    """Not in the site's interface, and carried anyway: a published guess that
-    cannot say which recipe made it cannot be graded season over season."""
+    """Not in the site's interface, and carried anyway: a published projection
+    that cannot say which recipe made it cannot be graded season over season."""
     from cfbpoll.projection import PROJECTION_VERSION
 
     document = publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)

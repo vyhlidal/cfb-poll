@@ -1,6 +1,6 @@
 """Fitting the recipe, and the backtest whose headline question is the honest one.
 
-    Did our August guess beat the sportswriters' August guess?
+    Did our August projection beat the sportswriters' August ballot?
 
 Four systems are scored, all against the same target and all through the same
 code, because a comparison where the favourite gets its own function is not a
@@ -42,7 +42,7 @@ follows from taking that seriously rather than papering over it:
                            bucket". Uncensored, a full-rating system that buries
                            a team at 80 pays 75 while the AP's worst possible
                            error is 21, which would measure the shape of the
-                           output rather than the quality of the guess.
+                           output rather than the quality of the projection.
 
   spearman_full            rank correlation over all FBS teams. Full-information
                            systems only; the AP is reported as null rather than

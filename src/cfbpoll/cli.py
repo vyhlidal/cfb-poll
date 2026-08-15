@@ -1768,13 +1768,13 @@ def projection_fixture(
         # wrote. `_assert_no_em_dash` now catches half of that mechanically; the
         # other half is saying what this IS rather than what it is not.
         headline=(
-            f"This is the model's {season} preseason projection, a guess made in "
-            "August about a season the poll will go on to measure."
+            f"This is the model's {season} preseason projection, built in August "
+            "about a season the poll will go on to measure."
         ),
         basis=(
-            "It is the model's August guess, built from last season's final "
-            "ratings plus the offseason changes we can measure: returning "
-            "production, the transfer portal and coaching moves."
+            "It runs last season's final ratings through a four-term recipe with "
+            "every offseason change the model can measure: returning production, "
+            "the transfer portal and coaching moves."
         ),
         note=(
             "It is frozen the moment it publishes and is never edited, so when it "

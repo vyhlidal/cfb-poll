@@ -125,7 +125,7 @@ SAFE_BOTTOM = CARD_HEIGHT - 126
 #: of the poll comes out of a run directory through `serving.build`, and the
 #: projection is one JSON file with no run behind it at all. Their files are
 #: `<season>-projection-<name>` rather than `<season>-wNN-<name>`, since a
-#: preseason guess has no week and stamping one on it would be inventing a fact.
+#: preseason projection has no week and stamping one on it would be inventing a fact.
 PROJECTION_VARIANTS: tuple[str, ...] = (
     "projection_top5",
     "projection_top10",
@@ -511,7 +511,7 @@ def _left_panel(
     )
     # The gold bar under the wordmark: a filled slab, which is one of the two
     # sanctioned uses of the accent. Width is measured off the type size rather
-    # than guessed, so it tracks the wordmark on any face.
+    # than assumed, so it tracks the wordmark on any face.
     parts.append(_slab(x, y + 12, 30 * 0.62 * len("THE POLL"), 6, PALETTE["accent"]))
 
     y += 56
@@ -1171,7 +1171,7 @@ def _projection_panel(
 
     THE WORDMARK IS "THE PROJECTION" AND THAT IS THE POINT OF THE CARD. ADR 0010
     says the Projection is not the Poll and may never touch its math; a card
-    carrying the poll's wordmark over a preseason guess would undo that in the one
+    carrying the poll's wordmark over a preseason projection would undo that in the one
     artifact most likely to travel without its page.
 
     THE LABEL IS DRAWN FROM THE DOCUMENT, never typed here, for the same reason
@@ -1228,7 +1228,7 @@ def _projection_footer(document: dict[str, Any], width: float, height: float) ->
 
     The poll card's footer carries the model constants because no other poll's
     share image does. The projection's equivalent is the measured record of the
-    method against the AP's August guess, published on the image itself, whether
+    method against the AP's August ballot, published on the image itself, whether
     or not it flatters. Every figure is a published field printed verbatim.
     """
     lines = [
@@ -1273,7 +1273,7 @@ def projection_top5_svg(document: dict[str, Any]) -> str:
     than the model constants.
 
     The gold rule after rank 4 means the same thing here that it does on the poll
-    card, and it means it about a guess: these are the four the model would seed
+    card, and it means it about a projection: these are the four the model would seed
     in August and the one it has just outside.
     """
     rows = _projection_rows(document, 5)

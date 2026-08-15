@@ -915,3 +915,83 @@ class TestScheduledWeeks:
         weeks = serving.scheduled_weeks(2026, None)
         assert weeks
         assert min(weeks) == 1
+
+
+# ------------------------------------------------- the copy rules, on served prose
+
+#: Report 08 bans these from the front door's visible text, and
+#: `projection/publish.py` already refuses them mechanically on the projection
+#: card's copy fields. The same characters were still reaching the /data and
+#: /connectivity pages through prose this module owns, which is the gap these
+#: tests close: the rule now travels with every generator whose output a reader
+#: sees, not only with the one where it was first broken.
+BANNED_PUNCTUATION = ("—", "–", "--")
+
+
+def _served_prose() -> dict[str, str]:
+    """Every fixed string this module publishes as prose, named by where it lives.
+
+    Templated sentences are included by calling their template, because a rule
+    that only covers the constants is a rule that stops applying the moment
+    somebody interpolates a team name into it.
+    """
+    prose = {f"ARTIFACT_NOTES[{k!r}]": v for k, v in serving.ARTIFACT_NOTES.items()}
+    prose.update({f"DIAGNOSTIC_NOTES[{k!r}]": v for k, v in serving.DIAGNOSTIC_NOTES.items()})
+    for i, entry in enumerate(serving._licenses()):  # noqa: SLF001 - the published block
+        prose[f"licenses[{i}].name"] = entry["name"]
+        prose[f"licenses[{i}].body"] = entry["body"]
+    prose["bridge_note"] = serving.bridge_note("Jacksonville State", "UTEP", 2, 2)
+    prose["connector_note"] = serving.connector_note("Hawai'i", "Vanderbilt", 3, 4, 130)
+    return prose
+
+
+def test_no_served_prose_carries_banned_punctuation() -> None:
+    """The /data licences and the /connectivity glosses are published copy too.
+
+    The bridge-game sentence is the one that made this worth a test rather than a
+    convention: it joined the two schools with an en dash, so every connectivity
+    document in the tree shipped up to 230 of them onto a page whose own rule
+    forbids one.
+    """
+    for where, text in _served_prose().items():
+        for character in BANNED_PUNCTUATION:
+            assert character not in text, f"{where}: {text!r}"
+
+
+def test_the_diagnostics_rail_reads_its_glosses_from_the_published_dict() -> None:
+    """The dict is the single copy of these words, so the guard above sees them all.
+
+    Five of the rail's notes used to be literals inside the view builder, where a
+    guard could only reach them by building a whole bundle. Anything that moves a
+    sentence back inline moves it out of the test's sight, so this asserts the
+    wiring rather than the words.
+    """
+    labels = {
+        "teams in the fit",
+        "connected components",
+        "largest component",
+        "bridge games",
+        "fitted λ₂ (results core)",
+        "teams whose interval spans the league",
+        "teams no closer than three hops to the top ten",
+    }
+    assert set(serving.DIAGNOSTIC_NOTES) == labels
+    source = (Path(serving.__file__)).read_text(encoding="utf-8")
+    for label in labels:
+        assert f'DIAGNOSTIC_NOTES["{label}"]' in source, label
+
+
+def test_the_provisional_label_the_config_ships_obeys_the_same_rule() -> None:
+    """It is the string the share card prints in the accent slab, and it regressed.
+
+    `configs/default.toml` carried an em-dashed "PROVISIONAL - not the poll" while
+    the published fixture tree carried the affirmative version, which means the
+    fix had been made somewhere that never reached main and the next publication
+    would have put the dash back on every provisional week.
+    """
+    from cfbpoll.config import load_config
+
+    label = load_config()["publication"]["provisional_label"]
+    for character in BANNED_PUNCTUATION:
+        assert character not in label, label
+    assert ", not " not in label

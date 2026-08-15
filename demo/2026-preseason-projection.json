@@ -1,9 +1,9 @@
 {
  "artifact": "2026 PRESEASON PROJECTION \u2014 A PROJECTION, NOT THE POLL",
  "projection_version": "projection-1.0.0",
- "generated_at": "2026-08-15T17:17:53+00:00",
- "git_sha": "d867e0048ed8205dc5bf944eaeecc8c6fbaf9b02",
- "config_hash": "bf0fa1a3501cf7b8b3b5649a2082b84371724116e423022c56d64cdb96e112ec",
+ "generated_at": "2026-08-15T19:32:54+00:00",
+ "git_sha": "46572be4fd207f6070520a36b86e00e992d66847",
+ "config_hash": "68896b5aab42351f0e6309d7b1e4246a0485a3b1d761178ce08d76c376d12973",
  "season": 2026,
  "label": "This is a PROJECTION. It is not the poll, it never becomes the poll, and no number in it may reach the poll's math. The poll begins in week 5 and will grade this page in public.",
  "recipe": {
@@ -57,12 +57,14 @@
  },
  "provenance": {
   "projection_source_season": 2025,
-  "source_season_is_holdout": true,
-  "holdout_use": "fitted_ratings_as_projection_input",
+  "source_season_is_holdout": false,
+  "source_season_was_scored_holdout": true,
+  "scored_on": "2026-08-15",
+  "holdout_use": null,
   "holdout_seasons": [
-   2025
+   2026
   ],
-  "claim": "The recipe's coefficients were fitted on transitions whose target seasons exclude every locked season; this season's fitted ratings enter only as an input. No metric was read off it and no constant was chosen against it. See docs/adr/0010-projection-and-poll.md."
+  "claim": "This season was the project's sealed holdout. It was scored exactly once, on 2026-08-15, with every constant already frozen, and the result is published at demo/2025-holdout-scorecard.md whatever it says. The recipe's coefficients were fitted on transitions that exclude it and were not touched when it opened. See docs/adr/0012-2025-opens.md."
  },
  "coverage": {
   "season": 2026,

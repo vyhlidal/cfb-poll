@@ -6,7 +6,7 @@
 >
 > It is frozen. It will not be edited, quietly improved, or re-run when it starts to look bad. That is the deal.
 
-Recipe `projection-1.0.0` · source season 2025 · generated 2026-08-15T17:17:53+00:00 · `d867e0048e`
+Recipe `projection-1.0.0` · source season 2025 · generated 2026-08-15T19:32:54+00:00 · `46572be4fd`
 
 ## The recipe, in full
 
@@ -82,7 +82,7 @@ Projected records use sd(margin | projection) = sqrt(15.30^2 + 2 * 9.22^2) = 20.
 
 ## The holdout
 
-The recipe's coefficients were fitted on transitions whose target seasons exclude every locked season; this season's fitted ratings enter only as an input. No metric was read off it and no constant was chosen against it. See docs/adr/0010-projection-and-poll.md.
+This season was the project's sealed holdout. It was scored exactly once, on 2026-08-15, with every constant already frozen, and the result is published at demo/2025-holdout-scorecard.md whatever it says. The recipe's coefficients were fitted on transitions that exclude it and were not touched when it opened. See docs/adr/0012-2025-opens.md.
 
 ## The separation, measured
 

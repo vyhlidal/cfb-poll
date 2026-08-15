@@ -55,7 +55,12 @@ description = "C, beta_w and both mode switches fitted on 2021-2023 and validate
 # first ranking does not appear until roughly week 10.)
 headline_start_week = 5                     # report 02 §4, recommendation item 2
 publish_provisional_weeks = true            # report 02 §4, recommendation item 2
-provisional_label = "PROVISIONAL — not the poll. See docs/constraints.md."
+# AFFIRMATIVE AND DASHLESS, and it is the published string rather than a rewrite:
+# the fixture tree the site reads already carries these exact words. This line had
+# drifted back to an em-dashed "PROVISIONAL — not the poll", which is both banned
+# punctuation and an "X, not Y" construction, on the one label the share card
+# prints in the accent slab. Keep it in step with `headline_start_week` above.
+provisional_label = "PROVISIONAL. THE POLL OPENS IN WEEK 5. SEE docs/constraints.md."
 
 # ---------------------------------------------------------------------------------
 # THE HEADLINE ORDERING. Decided by the project owner on 2026-08-12, on the evidence

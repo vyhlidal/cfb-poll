@@ -163,9 +163,9 @@ WEAKNESS_SECTIONS: tuple[tuple[str, str], ...] = (
 #: The artifact index's human column. Report 03 §5.3 fixes the filenames; this
 #: fixes what each one is, so /data is a readable page and not a directory listing.
 ARTIFACT_NOTES: dict[str, str] = {
-    "ratings_live.parquet": "R(N,N) — every team in the fit, as of this week, every layer.",
+    "ratings_live.parquet": "R(N,N). Every team in the fit, as of this week, every layer.",
     "ratings_live.csv": "The same rows as CSV, for readers with no parquet reader.",
-    "ratings_hindsight.parquet": "R(N,final) — the same week re-scored with the season's answers.",
+    "ratings_hindsight.parquet": "R(N,final). The same week re-scored with the season's answers.",
     "ratings_hindsight.csv": "The same rows as CSV.",
     "rank_intervals.parquet": "The bootstrap: 90% rank and rating intervals, 1,000 draws.",
     "rank_intervals.csv": "The same rows as CSV.",
@@ -175,6 +175,62 @@ ARTIFACT_NOTES: dict[str, str] = {
     "backtest_metrics.json": "Walk-forward scores against every baseline, and the gate.",
     "_run.json": "git sha, config hash, input manifest hash, timestamps. The receipt.",
 }
+
+#: The connectivity rail's fixed glosses, keyed by the diagnostic they explain.
+#: A dict rather than five inline literals for the same reason ARTIFACT_NOTES is
+#: one: this is published prose, it reaches a page verbatim, and prose that
+#: reaches a page has to sit somewhere a guard can read it in one pass.
+DIAGNOSTIC_NOTES: dict[str, str] = {
+    "teams in the fit": "Every team with at least one game against an FBS or FCS opponent.",
+    "connected components": (
+        "Separate islands of the schedule graph. Two teams in different components "
+        "have no chain of results connecting them at all, at any length."
+    ),
+    "largest component": "Share of the field that is mutually comparable through played games.",
+    "bridge games": (
+        "Single games whose removal would split the graph in two, each holding at "
+        "least two teams on. Every rating on the far side rests on that one result."
+    ),
+    "fitted λ₂ (results core)": (
+        "Chosen by cross-validation every week. λ is a ratio of variances, a "
+        "statement about how much the model does not know, containing no "
+        "team-specific information whatsoever. It is large when the data is thin "
+        "and falls as the season accumulates. Regularization stays a statement "
+        "about variance and never becomes a reputation prior."
+    ),
+    "teams whose interval spans the league": (
+        "90% interval at least 90% as wide as the whole field."
+    ),
+    "teams no closer than three hops to the top ten": (
+        "They have not played a top-ten team and share no opponent with one. "
+        "Their position relative to the top of the poll is an extrapolation."
+    ),
+}
+
+
+def bridge_note(home: str, away: str, smaller: int, bigger: int) -> str:
+    """The sentence naming one bridge game, published on the connectivity page.
+
+    A FUNCTION RATHER THAN AN f-STRING AT THE CALL SITE, because this sentence
+    reaches a page and a share card verbatim and the copy rules that bind it are
+    easier to keep where a test can call the template with arguments of its own.
+    The two schools are joined by "against": the separator that reads most
+    naturally here is a dash, and a dash is the one character report 08 bans from
+    the front door's visible text.
+    """
+    return (
+        f"{home} against {away} is the only game linking {smaller} teams to the "
+        f"other {bigger}. Undo that one result and the graph splits in two."
+    )
+
+
+def connector_note(away: str, home: str, week: int, smaller: int, bigger: int) -> str:
+    """The sentence naming an upcoming game that would weld two components."""
+    return (
+        f"{away} at {home}, week {week}: the first game on the schedule that would "
+        f"connect a group of {smaller} to the group of {bigger}. It is worth more "
+        "to this poll than its TV slot suggests."
+    )
 
 
 # --------------------------------------------------------------------------- helpers
@@ -1376,10 +1432,8 @@ def _connectivity_view(
                 "home": graph.teams[a],
                 "away": graph.teams[b],
                 "splits": [near, far],
-                "note": (
-                    f"{graph.teams[a]}–{graph.teams[b]} is the only game linking "
-                    f"{smaller} teams to the other {max(near, far)}. Undo that one result "
-                    "and the graph splits in two."
+                "note": bridge_note(
+                    graph.teams[a], graph.teams[b], smaller, max(near, far)
                 ),
             }
         )
@@ -1406,10 +1460,8 @@ def _connectivity_view(
     for game in connectors:
         smaller = min(game["home_component_size"], game["away_component_size"])
         bigger = max(game["home_component_size"], game["away_component_size"])
-        game["note"] = (
-            f"{game['away']} at {game['home']}, week {game['week']}: the first game on the "
-            f"schedule that would connect a group of {smaller} to the group of {bigger}. "
-            "It is worth more to this poll than its TV slot suggests."
+        game["note"] = connector_note(
+            str(game["away"]), str(game["home"]), int(game["week"]), smaller, bigger
         )
 
     top_group = [r["team"] for r in poll_rows[:10]]
@@ -1428,7 +1480,7 @@ def _connectivity_view(
             "label": "teams in the fit",
             "display": f"{graph.n}",
             "value": float(graph.n),
-            "note": "Every team with at least one game against an FBS or FCS opponent.",
+            "note": DIAGNOSTIC_NOTES["teams in the fit"],
         },
         {
             "label": "games played",
@@ -1440,37 +1492,26 @@ def _connectivity_view(
             "label": "connected components",
             "display": f"{len(component_sizes)}",
             "value": float(len(component_sizes)),
-            "note": (
-                "Separate islands of the schedule graph. Two teams in different components "
-                "have no chain of results connecting them at all, at any length."
-            ),
+            "note": DIAGNOSTIC_NOTES["connected components"],
         },
         {
             "label": "largest component",
             "display": f"{component_sizes[0] if component_sizes else 0} teams "
             f"({largest_share * 100:.1f}%)",
             "value": largest_share,
-            "note": "Share of the field that is mutually comparable through played games.",
+            "note": DIAGNOSTIC_NOTES["largest component"],
         },
         {
             "label": "bridge games",
             "display": f"{len(bridge_games)}",
             "value": float(len(bridge_games)),
-            "note": (
-                "Single games whose removal would split the graph in two, each holding at "
-                "least two teams on. Every rating on the far side rests on that one result."
-            ),
+            "note": DIAGNOSTIC_NOTES["bridge games"],
         },
         {
             "label": "fitted λ₂ (results core)",
             "display": _fmt(_f(params.get("lambda_l2")), 3),
             "value": _f(params.get("lambda_l2")) or 0.0,
-            "note": (
-                "Chosen by cross-validation every week. λ is a ratio of variances — a "
-                "statement about how much we do not know, containing no team-specific "
-                "information whatsoever. It is large when the data is thin and falls as "
-                "the season accumulates. Regularization is not a reputation prior."
-            ),
+            "note": DIAGNOSTIC_NOTES["fitted λ₂ (results core)"],
         },
         {
             "label": "median 90% rank-interval width",
@@ -1485,16 +1526,13 @@ def _connectivity_view(
             "label": "teams whose interval spans the league",
             "display": f"{spanning}",
             "value": float(spanning),
-            "note": "90% interval at least 90% as wide as the whole field.",
+            "note": DIAGNOSTIC_NOTES["teams whose interval spans the league"],
         },
         {
             "label": "teams no closer than three hops to the top ten",
             "display": f"{far_from_top}",
             "value": float(far_from_top),
-            "note": (
-                "They have not played a top-ten team and share no opponent with one. "
-                "Their position relative to the top of the poll is an extrapolation."
-            ),
+            "note": DIAGNOSTIC_NOTES["teams no closer than three hops to the top ten"],
         },
     ]
 
@@ -1720,7 +1758,7 @@ def _duckdb_one_liner(season: int, week: int) -> str:
 def _licenses() -> list[dict[str, str]]:
     return [
         {
-            "name": "Our ratings and rankings — CC BY 4.0",
+            "name": "Our ratings and rankings: CC BY 4.0",
             "body": (
                 "Everything this project computes and publishes is released under CC BY 4.0. "
                 "Share and adapt it, including commercially, with credit and a link. "
@@ -1731,7 +1769,7 @@ def _licenses() -> list[dict[str, str]]:
             ),
         },
         {
-            "name": "Upstream inputs — SportsDataverse, MIT",
+            "name": "Upstream inputs: SportsDataverse, MIT",
             "body": (
                 "The input archive is republished from SportsDataverse under the MIT license, "
                 "and that single fact is load-bearing for the whole project: it means a "
@@ -1740,11 +1778,11 @@ def _licenses() -> list[dict[str, str]]:
             ),
         },
         {
-            "name": "Code — MIT",
+            "name": "Code: MIT",
             "body": "The pipeline is MIT licensed. See LICENSE in the repository.",
         },
         {
-            "name": "Team names and logos — trademarks of their institutions",
+            "name": "Team names and logos: trademarks of their institutions",
             "body": (
                 "Team names and logos are trademarks of their respective institutions and are "
                 "used here for identification only. This site is independent and is not "
@@ -1754,13 +1792,13 @@ def _licenses() -> list[dict[str, str]]:
                 "are shown unaltered, at small size, inside the rankings, and are never used "
                 "as this site's own mark. Any rights holder who would prefer their mark not "
                 "appear here can say so at github.com/vyhlidal/cfb-poll/issues and it will be "
-                "removed — the logo-free mode is a single configuration flag that was built "
+                "removed. The logo-free mode is a single configuration flag that was built "
                 "before the logos were, and the share cards this project publishes carry no "
                 "school logo at all."
             ),
         },
         {
-            "name": "Data — College Football Data",
+            "name": "Data: College Football Data",
             "body": (
                 "Some inputs come from collegefootballdata.com, whose terms say attribution "
                 "is not required but strongly encouraged. It is owed and it costs a line. "

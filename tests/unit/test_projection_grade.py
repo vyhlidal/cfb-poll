@@ -267,3 +267,67 @@ def test_every_story_line_names_itself_a_projection(projection: pl.DataFrame) ->
     assert lines
     for line in lines:
         assert "projection" in line.lower()
+
+
+# ------------------------------------------------- the voice, and the copy rules
+
+#: The same set `publish/serving.py` and `projection/publish.py` enforce. The
+#: grading document reaches the site as prose, so it is bound by the same rules
+#: as the card copy that sits one page away from it.
+BANNED_PUNCTUATION = ("—", "–", "--")
+
+#: THE SITE'S VOICE IS THE BUILDER'S "I" AND THE MODEL IS "THE MODEL". A generated
+#: sentence saying "we" imports a pipeline's voice into a first-person page, and
+#: the attribution sentence did exactly that: "this season wanted about 0.66x the
+#: coefficient we used" was published under a page written in the singular.
+_FIRST_PERSON_PLURAL = (" we ", "We ", " our ", "Our ", " us ", " we.", " we,")
+
+
+def _all_published_sentences(projection: pl.DataFrame) -> list[str]:
+    teams = projection["team"].to_list()
+    projected = dict(zip(teams, projection["projected_rank"].to_list(), strict=True))
+    hindsight = {t: len(teams) + 1 - projected[t] for t in teams}
+    powers = {t: 20.0 - 0.3 * projected[t] for t in teams}
+    graded = grade.grade_week(
+        projection, _surface(projected, powers), _surface(hindsight, powers), 5, "w", 2024
+    )
+    attribution = grade.attribution(graded)
+    sentences = [term["sentence"] for term in attribution["terms"].values()]
+    sentences.extend(grade.story_lines(graded, 5, top_n=8))
+    # Both branches of the attribution template, whichever this fixture happened
+    # to exercise: a verdict that never fires in the fixture is still published
+    # copy the first season it does.
+    for value, verdict in ((-0.34, "TOO STRONG"), (0.42, "TOO WEAK"), (0.01, "priced about right")):
+        sentences.append(
+            grade._attribution_sentence("prior_power", value, 4.4, verdict, 136)  # noqa: SLF001
+        )
+    return sentences
+
+
+def test_no_graded_sentence_carries_banned_punctuation(projection: pl.DataFrame) -> None:
+    for sentence in _all_published_sentences(projection):
+        for character in BANNED_PUNCTUATION:
+            assert character not in sentence, sentence
+
+
+def test_no_graded_sentence_speaks_in_the_first_person_plural(
+    projection: pl.DataFrame,
+) -> None:
+    """The model is the actor, and it is named. "We" is the pipeline talking."""
+    for sentence in _all_published_sentences(projection):
+        padded = f" {sentence} "
+        for token in _FIRST_PERSON_PLURAL:
+            assert token not in padded, sentence
+
+
+def test_the_attribution_sentence_names_the_model_and_states_the_multiplier() -> None:
+    """The verdict token, the actor and the number a reader would quote."""
+    sentence = grade._attribution_sentence(  # noqa: SLF001
+        "prior_power", -0.344457263344027, -4.407270999908184, "TOO STRONG", 136
+    )
+    assert sentence == (
+        "The model weighted last season's rating TOO STRONG. For every point of "
+        "Power it moved a team's projection, that team finished 0.34 points the "
+        "other way (4.4 standard errors over 136 teams). This season wanted about "
+        "0.66x the model's coefficient."
+    )

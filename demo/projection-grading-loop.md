@@ -10,11 +10,11 @@ This is what the published surface reads like. The projection below was made fro
 
 ### We thought this, and here is what we now know
 
-- The projection had Florida State at #9. The poll now has them at #105 — we over-rated them by 96 places, and they are -32.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +17.43 points of Power.
-- The projection had Kansas at #18. The poll now has them at #111 — we over-rated them by 93 places, and they are -11.4 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +9.58 points of Power.
-- The projection had Indiana at #100. The poll now has them at #13 — we under-rated them by 87 places, and they are +10.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.72 points of Power.
-- The projection had Navy at #109. The poll now has them at #23 — we under-rated them by 86 places, and they are +8.4 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -9.39 points of Power.
-- The projection had Pittsburgh at #101. The poll now has them at #15 — we under-rated them by 86 places, and they are -2.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was net portal flow, worth +0.18 points of Power.
+- The projection had Florida State at #9. The poll now has them at #105. The projection over-rated them by 96 places, and they are -32.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +17.43 points of Power.
+- The projection had Kansas at #18. The poll now has them at #111. The projection over-rated them by 93 places, and they are -11.4 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +9.58 points of Power.
+- The projection had Indiana at #100. The poll now has them at #13. The projection under-rated them by 87 places, and they are +10.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.72 points of Power.
+- The projection had Navy at #109. The poll now has them at #23. The projection under-rated them by 86 places, and they are +8.4 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -9.39 points of Power.
+- The projection had Pittsburgh at #101. The poll now has them at #15. The projection under-rated them by 86 places, and they are -2.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was net portal flow, worth +0.18 points of Power.
 
 ### Which offseason assumption was wrong
 
@@ -25,10 +25,10 @@ This is what the published surface reads like. The projection below was made fro
 | coaching_change | +6.189 | +2.0 | TOO WEAK |
 | net_portal | -1.549 | -2.4 | TOO STRONG |
 
-- Last season's rating was TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.39 points the other way (6.4 standard errors over 134 teams). This season wanted about 0.61x the coefficient we used.
-- Returning production was TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.76 points the other way (2.5 standard errors over 133 teams). This season wanted about 0.24x the coefficient we used.
-- The coaching-change penalty was TOO WEAK. For every point of Power it moved a team's projection, that team finished 6.19 points further in the same direction (2.0 standard errors over 33 teams). This season wanted about 7.19x the coefficient we used.
-- Net portal flow was TOO STRONG. For every point of Power it moved a team's projection, that team finished 1.55 points the other way (2.4 standard errors over 134 teams). This season wanted about -0.55x the coefficient we used.
+- The model weighted last season's rating TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.39 points the other way (6.4 standard errors over 134 teams). This season wanted about 0.61x the model's coefficient.
+- The model weighted returning production TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.76 points the other way (2.5 standard errors over 133 teams). This season wanted about 0.24x the model's coefficient.
+- The model weighted the coaching-change penalty TOO WEAK. For every point of Power it moved a team's projection, that team finished 6.19 points further in the same direction (2.0 standard errors over 33 teams). This season wanted about 7.19x the model's coefficient.
+- The model weighted net portal flow TOO STRONG. For every point of Power it moved a team's projection, that team finished 1.55 points the other way (2.4 standard errors over 134 teams). This season wanted about -0.55x the model's coefficient.
 
 > One season is one data point about the recipe, and the terms are correlated with each other - a team that changed coach also tends to lose production - so a single season's coefficient is suggestive and not a verdict. The loop's value is cumulative.
 
@@ -38,11 +38,11 @@ This is what the published surface reads like. The projection below was made fro
 
 ### We thought this, and here is what we now know
 
-- The projection had Florida State at #9. The poll now has them at #115 — we over-rated them by 106 places, and they are -32.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +17.43 points of Power.
-- The projection had Indiana at #100. The poll now has them at #10 — we under-rated them by 90 places, and they are +10.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.72 points of Power.
-- The projection had Arizona State at #91. The poll now has them at #9 — we under-rated them by 82 places, and they are +7.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.61 points of Power.
-- The projection had Arizona at #16. The poll now has them at #96 — we over-rated them by 80 places, and they are -24.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +11.59 points of Power.
-- The projection had Oklahoma State at #22. The poll now has them at #102 — we over-rated them by 80 places, and they are -22.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +7.55 points of Power.
+- The projection had Florida State at #9. The poll now has them at #115. The projection over-rated them by 106 places, and they are -32.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +17.43 points of Power.
+- The projection had Indiana at #100. The poll now has them at #10. The projection under-rated them by 90 places, and they are +10.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.72 points of Power.
+- The projection had Arizona State at #91. The poll now has them at #9. The projection under-rated them by 82 places, and they are +7.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.61 points of Power.
+- The projection had Arizona at #16. The poll now has them at #96. The projection over-rated them by 80 places, and they are -24.1 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +11.59 points of Power.
+- The projection had Oklahoma State at #22. The poll now has them at #102. The projection over-rated them by 80 places, and they are -22.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +7.55 points of Power.
 
 ### Which offseason assumption was wrong
 
@@ -53,10 +53,10 @@ This is what the published surface reads like. The projection below was made fro
 | coaching_change | +6.189 | +2.0 | TOO WEAK |
 | net_portal | -1.549 | -2.4 | TOO STRONG |
 
-- Last season's rating was TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.39 points the other way (6.4 standard errors over 134 teams). This season wanted about 0.61x the coefficient we used.
-- Returning production was TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.76 points the other way (2.5 standard errors over 133 teams). This season wanted about 0.24x the coefficient we used.
-- The coaching-change penalty was TOO WEAK. For every point of Power it moved a team's projection, that team finished 6.19 points further in the same direction (2.0 standard errors over 33 teams). This season wanted about 7.19x the coefficient we used.
-- Net portal flow was TOO STRONG. For every point of Power it moved a team's projection, that team finished 1.55 points the other way (2.4 standard errors over 134 teams). This season wanted about -0.55x the coefficient we used.
+- The model weighted last season's rating TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.39 points the other way (6.4 standard errors over 134 teams). This season wanted about 0.61x the model's coefficient.
+- The model weighted returning production TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.76 points the other way (2.5 standard errors over 133 teams). This season wanted about 0.24x the model's coefficient.
+- The model weighted the coaching-change penalty TOO WEAK. For every point of Power it moved a team's projection, that team finished 6.19 points further in the same direction (2.0 standard errors over 33 teams). This season wanted about 7.19x the model's coefficient.
+- The model weighted net portal flow TOO STRONG. For every point of Power it moved a team's projection, that team finished 1.55 points the other way (2.4 standard errors over 134 teams). This season wanted about -0.55x the model's coefficient.
 
 > One season is one data point about the recipe, and the terms are correlated with each other - a team that changed coach also tends to lose production - so a single season's coefficient is suggestive and not a verdict. The loop's value is cumulative.
 

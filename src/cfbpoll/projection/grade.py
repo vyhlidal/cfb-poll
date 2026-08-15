@@ -294,22 +294,22 @@ def _attribution_sentence(term: str, value: float, z: float, verdict: str, n_mov
     name = _TERM_NAMES.get(term, term)
     if verdict == "priced about right":
         return (
-            f"We priced {name} about right: over the {n_moved} teams it moved, the "
-            f"data cannot tell its effect from zero ({abs(z):.1f} standard errors)."
+            f"The model priced {name} about right: over the {n_moved} teams it moved, "
+            f"the data cannot tell its effect from zero ({abs(z):.1f} standard errors)."
         )
     if value < 0:
         return (
-            f"{name.capitalize()} was TOO STRONG. For every point of Power it "
+            f"The model weighted {name} TOO STRONG. For every point of Power it "
             f"moved a team's projection, that team finished {abs(value):.2f} "
             f"points the other way ({abs(z):.1f} standard errors over {n_moved} "
-            f"teams). This season wanted about {1.0 + value:.2f}x the coefficient "
-            "we used."
+            f"teams). This season wanted about {1.0 + value:.2f}x the model's "
+            "coefficient."
         )
     return (
-        f"{name.capitalize()} was TOO WEAK. For every point of Power it moved a "
+        f"The model weighted {name} TOO WEAK. For every point of Power it moved a "
         f"team's projection, that team finished {value:.2f} points further in the "
         f"same direction ({abs(z):.1f} standard errors over {n_moved} teams). "
-        f"This season wanted about {1.0 + value:.2f}x the coefficient we used."
+        f"This season wanted about {1.0 + value:.2f}x the model's coefficient."
     )
 
 
@@ -421,12 +421,12 @@ def story_lines(
             f"{contribution:+.2f} points of Power."
             if suspect
             else " No single term of the projection points the wrong way; the miss "
-            "is in the level, not in one assumption."
+            "is in the level rather than in one assumption."
         )
         lines.append(
             f"The projection had {team} at #{projected}. The poll now has them at "
-            f"#{actual} — we {direction} them by {abs(projected - actual)} places, "
-            f"and they are {error:+.1f} points of Power off the projected figure."
-            + tail
+            f"#{actual}. The projection {direction} them by "
+            f"{abs(projected - actual)} places, and they are {error:+.1f} points of "
+            "Power off the projected figure." + tail
         )
     return lines

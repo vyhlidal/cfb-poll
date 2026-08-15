@@ -2,7 +2,7 @@
 
 > The recipe below is the one this project publishes. It was fitted on 2021→2022, 2022→2023, 2023→2024 and **2024→2025 is not among those transitions**, so nothing here was fitted on the season it is being graded against. Nothing was excluded to make that true either: that transition has never been in the list.
 
-Recipe `projection-1.0.0` · source season 2024 · config sha256 `dfc23153e49a101b...` · code `d6dc2690bc`
+Recipe `projection-1.0.0` · source season 2024 · config sha256 `68896b5aab42351f...` · code `46572be4fd`
 
 The coefficients below are the ones on the published 2026 card, to 1e-9. Nothing was refitted, dropped or excluded to make 2025 out of sample: 2024->2025 was never in design_transitions.
 
@@ -42,11 +42,11 @@ The coefficients below are the ones on the published 2026 card, to 1e-9. Nothing
 
 ## What was wrong, in the projection's own words
 
-- The projection had Colorado at #21. The poll now has them at #102 — we over-rated them by 81 places, and they are -24.5 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +12.50 points of Power.
-- The projection had North Texas at #92. The poll now has them at #17 — we under-rated them by 75 places, and they are +9.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.63 points of Power.
-- The projection had South Carolina at #8. The poll now has them at #81 — we over-rated them by 73 places, and they are -20.6 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +12.47 points of Power.
-- The projection had Baylor at #15. The poll now has them at #75 — we over-rated them by 60 places, and they are -22.5 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +10.12 points of Power.
-- The projection had Virginia at #77. The poll now has them at #22 — we under-rated them by 55 places, and they are +3.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was returning production, worth -1.39 points of Power.
+- The projection had Colorado at #21. The poll now has them at #102. The projection over-rated them by 81 places, and they are -24.5 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +12.50 points of Power.
+- The projection had North Texas at #92. The poll now has them at #17. The projection under-rated them by 75 places, and they are +9.8 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth -4.63 points of Power.
+- The projection had South Carolina at #8. The poll now has them at #81. The projection over-rated them by 73 places, and they are -20.6 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +12.47 points of Power.
+- The projection had Baylor at #15. The poll now has them at #75. The projection over-rated them by 60 places, and they are -22.5 points of Power off the projected figure. The projection's largest term pointing the wrong way was last season's rating, worth +10.12 points of Power.
+- The projection had Virginia at #77. The poll now has them at #22. The projection under-rated them by 55 places, and they are +3.7 points of Power off the projected figure. The projection's largest term pointing the wrong way was returning production, worth -1.39 points of Power.
 
 ## Convergence, week by week
 
@@ -85,7 +85,7 @@ Regress every team's projection error on each term's contribution. A negative co
   "n_teams_moved": 136,
   "implied_multiplier": 0.655542736655973,
   "verdict": "TOO STRONG",
-  "sentence": "Last season's rating was TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.34 points the other way (4.4 standard errors over 136 teams). This season wanted about 0.66x the coefficient we used."
+  "sentence": "The model weighted last season's rating TOO STRONG. For every point of Power it moved a team's projection, that team finished 0.34 points the other way (4.4 standard errors over 136 teams). This season wanted about 0.66x the model's coefficient."
  },
  "returning_production": {
   "coefficient": -0.8087077338721921,
@@ -94,7 +94,7 @@ Regress every team's projection error on each term's contribution. A negative co
   "n_teams_moved": 134,
   "implied_multiplier": 0.19129226612780792,
   "verdict": "priced about right",
-  "sentence": "We priced returning production about right: over the 134 teams it moved, the data cannot tell its effect from zero (1.9 standard errors)."
+  "sentence": "The model priced returning production about right: over the 134 teams it moved, the data cannot tell its effect from zero (1.9 standard errors)."
  },
  "coaching_change": {
   "coefficient": 0.466829698126052,
@@ -103,7 +103,7 @@ Regress every team's projection error on each term's contribution. A negative co
   "n_teams_moved": 37,
   "implied_multiplier": 1.466829698126052,
   "verdict": "priced about right",
-  "sentence": "We priced the coaching-change penalty about right: over the 37 teams it moved, the data cannot tell its effect from zero (0.7 standard errors)."
+  "sentence": "The model priced the coaching-change penalty about right: over the 37 teams it moved, the data cannot tell its effect from zero (0.7 standard errors)."
  },
  "net_portal": {
   "coefficient": 0.13590682225032263,
@@ -112,11 +112,11 @@ Regress every team's projection error on each term's contribution. A negative co
   "n_teams_moved": 136,
   "implied_multiplier": 1.1359068222503226,
   "verdict": "priced about right",
-  "sentence": "We priced net portal flow about right: over the 136 teams it moved, the data cannot tell its effect from zero (0.1 standard errors)."
+  "sentence": "The model priced net portal flow about right: over the 136 teams it moved, the data cannot tell its effect from zero (0.1 standard errors)."
  }
 }
 ```
 
 The league-wide attribution is a regression of projection error on each term's contribution, over about 134 teams and four correlated terms. One season is one data point about the recipe. It is suggestive and it is not a verdict.
 
-Generated by `scripts/make_projection_2025.py` at 2026-08-15T17:48:47+00:00. The machine-readable form is `2025/projection-grading.json` in the site's data tree.
+Generated by `scripts/make_projection_2025.py` at 2026-08-15T19:32:24+00:00. The machine-readable form is `2025/projection-grading.json` in the site's data tree.

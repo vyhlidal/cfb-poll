@@ -10,7 +10,11 @@ projection input where it does not belong and require the audit to name it:
   * plant one in the games FRAME - presence alone must fail, with no consumption
     test, which is the one asymmetry in the module;
   * plant the AP poll and CFBD's PPA in the PROJECTION design - the projection has
-    its own deny-list and a baseline that is also an input measures nothing.
+    its own deny-list and a baseline that is also an input measures nothing;
+  * plant a WITHIN-SEASON quantity in the PROJECTION design - ADR 0013's temporal
+    guard, added after `coach_change` spent three seasons reading a coaches file
+    pulled after the season it was projecting. Every check above passed the whole
+    time, because the column name was innocent and only the clock was wrong.
 """
 
 from __future__ import annotations
@@ -226,3 +230,99 @@ def test_every_projection_allow_listed_column_carries_a_reason() -> None:
         for column, reason in spec.allowed.items():
             assert isinstance(reason, str) and len(reason) > 10, (spec.name, column)
         assert set(spec.allowed) == set(recipe.DESIGN_COLUMNS), spec.name
+
+
+# ------------------------------------------- and the Projection may not read the future
+#
+# ADR 0013. The two halves above ask WHICH columns reached a fit. These ask WHEN
+# their values became knowable, which is the question that would have caught a
+# coaching term reading a coaches file pulled after the season it was projecting.
+
+
+def test_a_planted_within_season_column_is_named_a_temporal_leak(
+    design: pl.DataFrame,
+) -> None:
+    """THE PLANTED LEAK. A column whose value the projected season itself decides
+    must be named as a TEMPORAL breach in its own words, with its own exception
+    type, because "outside the allow-list" is a different problem with a different
+    fix."""
+    planted = design.with_columns(season_wins=pl.lit(9.0))
+    report = leakage.audit(config=CONFIG, projection_design=planted)
+
+    assert not report.passed
+    breach = [v for v in report.violations if "TEMPORAL LEAK" in v]
+    assert breach, report.violations
+    assert "season_wins" in breach[0]
+    assert "ADR 0013" in breach[0]
+
+    layer = next(x for x in report.layers if x.layer == "projection")
+    assert layer.temporal_hits == ("season_wins",)
+    assert not layer.ok
+    # And provably UNCONSUMED, exactly as the projection-input asymmetry is: the
+    # guard fails on the clock, not on a rebuild that came out different.
+    assert layer.identical
+    assert layer.consumed_outside_allow_list == ()
+
+
+def test_fail_on_banned_raises_the_temporal_type(design: pl.DataFrame) -> None:
+    """`TemporalLeak` is a `BannedFeature`, so every existing caller keeps
+    catching it, and a caller that wants to know the clock was the problem can
+    now ask."""
+    planted = design.with_columns(final_power_actual=pl.lit(20.0))
+    with pytest.raises(leakage.TemporalLeak, match="TEMPORAL"):
+        leakage.audit(config=CONFIG, projection_design=planted, fail_on_banned=True)
+    with pytest.raises(leakage.BannedFeature):
+        leakage.audit(config=CONFIG, projection_design=planted, fail_on_banned=True)
+
+
+def test_an_undeclared_column_fails_closed(design: pl.DataFrame) -> None:
+    """The half that actually holds. A leak nobody predicted will not match a
+    pattern, so the gate is the positive declaration: every column present has to
+    arrive with the sentence that says what settles its value and by when."""
+    planted = design.with_columns(october_firing=pl.lit(1))
+    report = leakage.audit(config=CONFIG, projection_design=planted)
+
+    assert not report.passed
+    breach = [v for v in report.violations if "TEMPORAL GUARD" in v]
+    assert breach, report.violations
+    assert "october_firing" in breach[0]
+    assert leakage.banned_hits(["october_firing"], "projection") == ()
+
+
+def test_the_real_projection_frame_clears_the_guard(design: pl.DataFrame) -> None:
+    """The positive result, and the reason the declaration is worth maintaining:
+    on a healthy frame the guard is silent, so a line in the CI log means
+    something."""
+    report = leakage.audit(config=CONFIG, projection_design=design)
+    layer = next(x for x in report.layers if x.layer == "projection")
+    assert layer.temporal_hits == ()
+    assert layer.temporal_undeclared == ()
+    assert layer.temporal_as_of
+    assert layer.ok
+    assert report.context["temporal_guard"]["as_of"] == layer.temporal_as_of
+
+
+def test_the_recipes_own_columns_are_all_declared_knowable() -> None:
+    """A term added to the recipe without a knowability sentence fails here rather
+    than in a season's worth of published numbers."""
+    for column in recipe.DESIGN_COLUMNS:
+        assert column in leakage.PROJECTION_KNOWABLE_IN_AUGUST, column
+        assert len(leakage.PROJECTION_KNOWABLE_IN_AUGUST[column]) > 20, column
+
+
+def test_no_poll_layer_carries_a_temporal_guard() -> None:
+    """A poll layer is fitted on games that have been played and has no August to
+    be honest about. Giving it a guard would produce a check that passes
+    vacuously on every run, which is how a check stops being read."""
+    assert all(spec.temporal is None for spec in leakage.LAYERS)
+    assert all(spec.temporal is not None for spec in leakage.PROJECTION_LAYERS)
+
+
+def test_the_deny_patterns_do_not_fire_on_the_frame_they_guard() -> None:
+    """`coach_of_record_source` is the near miss: a pattern on the bare word
+    `record` would have reported a violation on every healthy run, and a guard
+    that cries wolf every run is a guard nobody reads."""
+    hits, _ = leakage.PROJECTION_TEMPORAL_GUARD.check(
+        list(leakage.PROJECTION_KNOWABLE_IN_AUGUST)
+    )
+    assert hits == ()

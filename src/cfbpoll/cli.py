@@ -1681,6 +1681,13 @@ def projection_fixture(
         status=status,
         published_at=datetime.now(UTC).isoformat(timespec="seconds"),
         top_n=top_n,
+        # Schedule strength, the median-schedule column and the gloss pair. These
+        # are what make the board's ordering checkable rather than assertable: it
+        # ranks on projected power and displays wins, and without them a reader
+        # cannot tell a deliberate ordering from a broken one.
+        strength=state["schedule_strength"],
+        contrast=state["contrast"],
+        sigma=state["wins"].sigma,
         # The honest result travels WITH the ranking, templated from the numbers
         # the backtest just measured rather than typed. The site prints nothing it
         # did not read out of a file, and "the AP beat us" is exactly the kind of

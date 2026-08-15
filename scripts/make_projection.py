@@ -45,6 +45,7 @@ from cfbpoll.projection import (
     holdout,
     offseason,
     recipe,
+    schedule,
     seasons,
 )
 from cfbpoll.validate import leakage
@@ -120,6 +121,22 @@ def build() -> dict[str, Any]:
     )
     projection = projection.join(wins.table, on="team", how="left")
 
+    center = float(design["prior_power_center"][0])
+    strength = schedule.strengths(
+        projection,
+        future,
+        fitted,
+        source.ratings,
+        center,
+        wins.sigma,
+        float(source.home_field),
+        promoted=tuple(t for t in teams_2026 if t not in seasons.fbs_teams(games, SOURCE_SEASON)),
+    )
+    projection = projection.join(strength.table, on="team", how="left")
+    contrast = schedule.contrast(
+        projection, future, fitted, source.ratings, center, wins.sigma, float(source.home_field)
+    )
+
     # The separation proof, run on the frames this very artifact was built from.
     audit = leakage.audit(
         games.filter(pl.col("season") == SOURCE_SEASON),
@@ -142,6 +159,13 @@ def build() -> dict[str, Any]:
         "source": source,
         "games": games,
         "plays": plays,
+        "future": future,
+        # The centring constant the design used. Returned rather than recomputed
+        # downstream, because a schedule-strength number derived from a second
+        # copy of this could disagree with the win total on the same row.
+        "prior_power_center": float(design["prior_power_center"][0]),
+        "schedule_strength": strength,
+        "contrast": contrast,
         "n_future_games": int(future.height),
     }
 

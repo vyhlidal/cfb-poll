@@ -173,13 +173,27 @@ class Recipe:
             "is_house": self.is_house,
             "label": None if self.is_house else ALTERNATE_LABEL,
             "changes": self.flat_overrides(),
-            "source": (
-                None if self.path is None else str(self.path.relative_to(REPO_ROOT))
-            ),
+            "source": (None if self.path is None else _source_path(self.path)),
         }
 
 
 # --------------------------------------------------------------------------- helpers
+
+
+def _source_path(path: Path) -> str:
+    """The recipe file, repo-relative when it lives in the repo.
+
+    A hand-written recipe is `configs/recipes/full-merit.toml` and always will be.
+    A generated variant overlay lives in scratch, which is normally `.cache/` —
+    inside the repo — but need not be, and `relative_to` raises rather than
+    falling back. The published string is for a reader to find the file with, so
+    an absolute path is a worse answer than a relative one and a crash is a worse
+    answer than either.
+    """
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _flatten(mapping: dict[str, Any], prefix: str = "") -> dict[str, Any]:
@@ -256,25 +270,43 @@ def slugs() -> tuple[str, ...]:
     return tuple(r.slug for r in available())
 
 
-def available() -> tuple[Recipe, ...]:
+def available(directory: Path | None = None) -> tuple[Recipe, ...]:
     """Every recipe in `configs/recipes/`, in display order.
 
     Display order is `stance`, so the selector reads left to right along the axis
     the recipes exist to span rather than alphabetically, which would put the
     house poll first and imply the other two are footnotes.
+
+    `directory` DEFAULTS TO `configs/recipes/` AND `roster()` NEVER PASSES IT, so
+    the published selector shows the three named value systems and nothing else no
+    matter what other overlay directories exist on the machine. See `load`.
     """
-    if not RECIPES_DIR.is_dir():
+    root = Path(directory) if directory is not None else RECIPES_DIR
+    if not root.is_dir():
         return ()
-    found = [load(path.stem) for path in sorted(RECIPES_DIR.glob("*.toml"))]
+    found = [load(path.stem, directory=root) for path in sorted(root.glob("*.toml"))]
     return tuple(sorted(found, key=lambda r: (r.stance, r.slug)))
 
 
-def load(slug: str) -> Recipe:
-    """Parse one recipe file. Raises `RecipeError` on anything a human must fix."""
-    path = RECIPES_DIR / f"{slug}.toml"
+def load(slug: str, directory: Path | None = None) -> Recipe:
+    """Parse one recipe file. Raises `RecipeError` on anything a human must fix.
+
+    `directory` OVERRIDES WHERE THE FILE IS LOOKED UP, and exists for the variants
+    playground (`publish/variants.py`), which generates one overlay per knob
+    setting into scratch and needs `cfbpoll rank` to produce artifacts that name
+    the knob rather than claiming to be the house poll. Everything else about a
+    recipe still applies to those files: `assert_values_only` refuses one that
+    moves evidence, and `merge_overlay` refuses a key the default config does not
+    define, so a generated overlay is held to exactly the rules a hand-written one
+    is. What `directory` does NOT do is enter the roster: `roster()` and the
+    zero-argument `available()` read `configs/recipes/` only, so a scratch overlay
+    can never reach the site's selector or `index.json`.
+    """
+    root = Path(directory) if directory is not None else RECIPES_DIR
+    path = root / f"{slug}.toml"
     if not path.exists():
-        known = ", ".join(sorted(p.stem for p in RECIPES_DIR.glob("*.toml"))) or "none"
-        raise RecipeError(f"no recipe {slug!r} in {RECIPES_DIR}. Available: {known}.")
+        known = ", ".join(sorted(p.stem for p in root.glob("*.toml"))) or "none"
+        raise RecipeError(f"no recipe {slug!r} in {root}. Available: {known}.")
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
 
@@ -312,7 +344,9 @@ def load(slug: str) -> Recipe:
 
 
 def resolve(
-    slug: str, base: Path | dict[str, Any] | None = None
+    slug: str,
+    base: Path | dict[str, Any] | None = None,
+    directory: Path | None = None,
 ) -> tuple[dict[str, Any], Recipe]:
     """`(resolved config, recipe)`. The one place a recipe becomes a methodology.
 
@@ -320,8 +354,10 @@ def resolve(
     `config.merge_overlay`, so a key the base config does not define is REFUSED
     rather than accepted, and a recipe that misspells `beta_w` fails loudly
     instead of publishing a poll under constants nobody set.
+
+    `directory` is passed straight to `load`; see its docstring.
     """
-    recipe = load(slug)
+    recipe = load(slug, directory=directory)
     if isinstance(base, dict):
         config = base
     else:

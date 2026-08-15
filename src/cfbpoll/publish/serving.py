@@ -152,6 +152,12 @@ WEAKNESS_SECTIONS: tuple[tuple[str, str], ...] = (
     ("0007-tuned-constants.md", "The calibration diagnosis: diagnosed, and deliberately unfixed"),
     ("0007-tuned-constants.md", "What this does not settle"),
     ("0006-fit-universe.md", "Consequences, including the uncomfortable ones"),
+    # ADR 0011's costs go on the methodology page under every recipe, including the
+    # published one. "Selectable value systems are a rhetorical risk" is the most
+    # important sentence this feature produced and the page it least wants to be on
+    # is the one it therefore has to be on.
+    ("0011-recipes.md", "The price, stated plainly"),
+    ("0011-recipes.md", "Where this decision is weak"),
 )
 
 #: The artifact index's human column. Report 03 §5.3 fixes the filenames; this

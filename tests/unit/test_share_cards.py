@@ -198,8 +198,53 @@ def test_rendering_the_sample_reproduces_the_committed_svg() -> None:
 
 
 def test_an_unknown_variant_is_refused(tmp_path: Path) -> None:
+    # This test used "top10" as its example of a name that does not exist, until
+    # top10 was built. A placeholder that becomes real is a test that stops
+    # testing, so the name here is one that never will be.
     with pytest.raises(ValueError, match="unknown card variant"):
-        cards.export(tmp_path, tmp_path, variant="top10")
+        cards.export(tmp_path, tmp_path, variant="no-such-variant")
+
+
+def test_every_variant_has_a_builder_and_a_declared_canvas() -> None:
+    """VARIANTS and BUILDERS cannot drift. The CLI's help reads one of them."""
+    assert set(cards.VARIANTS) == set(cards.BUILDERS)
+    for name, (_builder, width, height) in cards.BUILDERS.items():
+        assert width == cards.CARD_WIDTH, name
+        assert height in (cards.CARD_HEIGHT, cards.TALL_HEIGHT), name
+
+
+def test_the_team_stripe_is_clamped_into_the_legible_band() -> None:
+    """Navy must not vanish on #0B0C0F and neon must not shout over the numbers."""
+    # The tolerance is 8-BIT QUANTISATION, not slack in the clamp. The colour is
+    # clamped in OKLCH, rounded to three 8-bit sRGB channels for the SVG, and
+    # measured again here, and one channel step is worth about 0.003 of L. A
+    # tighter bound would be asserting that hex has more precision than it has.
+    quantisation = 0.005
+    for source in ("#0c2340", "#fee11a", "#000000", "#ffffff", "#ba0c2f"):
+        clamped = cards.stripe_colour(source)
+        lightness, chroma, _hue = cards._hex_to_oklch(clamped)
+        assert cards.STRIPE_L_RANGE[0] - quantisation <= lightness
+        assert lightness <= cards.STRIPE_L_RANGE[1] + quantisation
+        assert chroma <= cards.STRIPE_C_MAX + quantisation
+
+
+def test_a_missing_or_unparseable_team_colour_still_draws_a_stripe() -> None:
+    """The box is drawn on every row. Omitting it would break the grid on
+    exactly the rows whose data is weakest."""
+    for bad in (None, "", "rgb(1,2,3)", "not-a-colour", "#12"):
+        assert cards.stripe_colour(bad) == cards.PALETTE["stripe_fallback"]
+
+
+def test_the_accent_is_never_a_hairline_or_a_border() -> None:
+    """Gold is a filled slab or the odds numeral. Never a stroke.
+
+    The one exception is the playoff rule under rank 4, which is a deliberate
+    2px accent line and the card's loudest sports signal.
+    """
+    assert cards.PALETTE["accent"] == "#F0B429"
+    assert cards.PALETTE["brand_ink"] == "#0B0C0F"
+    # The rail is evidence and is deliberately not the accent.
+    assert cards.PALETTE["rail_band"] != cards.PALETTE["accent"]
 
 
 def test_word_wrap_never_exceeds_its_budget_and_marks_truncation() -> None:

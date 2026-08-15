@@ -44,9 +44,45 @@ __all__ = ["SCHEMA_VERSION", "build", "write"]
 SCHEMA_VERSION = 1
 
 
+#: Characters report 08 bans from the front door's visible copy. The em dash is
+#: the one that matters and the other two are the shapes it arrives under when
+#: somebody works around a linter.
+_BANNED_PUNCTUATION: tuple[tuple[str, str], ...] = (
+    ("—", "em dash"),
+    ("–", "en dash"),
+    ("--", "a double hyphen standing in for a dash"),
+)
+
+
+def _assert_no_em_dash(field: str, value: str) -> str:
+    """Report 08's copy rule, made mechanical.
+
+    THE FAILURE THIS EXISTS FOR ACTUALLY HAPPENED. The first `headline` this
+    module shipped carried an em dash, it was printed verbatim in the largest
+    type on the card, and it was the only em dash in the front door's entire
+    visible text - so the one sentence the page leads with read as the one
+    sentence somebody else wrote. Every other string on that page was written
+    around the rule; this one was written around a spec that did not mention it.
+
+    A rule the pipeline knows is a rule the pipeline keeps. Report 08's OTHER
+    binding rule - no "X, not Y" constructions - cannot be linted, so it stays a
+    matter of writing the sentence affirmatively, which is what the `headline`
+    below now does.
+    """
+    for character, name in _BANNED_PUNCTUATION:
+        if character in value:
+            raise ValueError(
+                f"`{field}` contains {name}. Report 08 bans it from the front "
+                "door's visible copy, and this field is printed verbatim. Write "
+                "the sentence affirmatively instead of splicing two clauses. "
+                f"Got: {value!r}"
+            )
+    return value
+
+
 def _assert_sentence(field: str, value: str) -> str:
-    """A field the card continues from has to end like a sentence."""
-    text = value.strip()
+    """A field the card continues from has to end like a sentence, cleanly punctuated."""
+    text = _assert_no_em_dash(field, value.strip())
     if not text or text[-1] not in ".!?":
         raise ValueError(
             f"`{field}` must be a COMPLETE SENTENCE ending in a full stop - the "
@@ -112,6 +148,7 @@ def build(
     published_at: str | None = None,
     top_n: int = 25,
     archive_root: Any = None,
+    backtest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The fixture document. Every displayed number is a string or a plain scalar."""
     if status not in ("coming", "published"):
@@ -152,11 +189,75 @@ def build(
         "headline": _assert_sentence("headline", headline),
         "basis": _assert_sentence("basis", basis),
         "note": _assert_sentence("note", note) if note else None,
+        "backtest": _backtest_block(backtest),
         "rows": rows,
         # Not in the site's interface, and carried anyway: a published guess that
         # cannot say which recipe made it cannot be graded season over season.
         "projection_version": PROJECTION_VERSION,
     }
+
+
+def _backtest_block(summary: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The honest result, as a published field rather than prose anybody hard-codes.
+
+    The site prints nothing it did not read out of a file, so "the AP beat us"
+    cannot live in a React component: it has to arrive as a sentence, with the
+    numbers that justify it beside it, in the same document as the ranking it
+    qualifies. And the sentence is TEMPLATED FROM THE MEASURED VALUES rather than
+    written out, so it cannot drift from `demo/projection-backtest.md` the way a
+    hand-typed paragraph would the first time the recipe is refitted.
+
+    `summary` is `fit.run(...)["summary"]`. None when the caller has not run the
+    backtest, in which case the field is absent and the card says nothing about
+    quality, which is the correct behaviour for a claim nobody has measured.
+    """
+    if not summary:
+        return None
+    ranks = summary.get("out_of_sample") or {}
+    games = summary.get("early_season") or {}
+    ours, theirs = ranks.get("projection"), ranks.get("ap_preseason")
+    naive = ranks.get("naive_carryover")
+    if not ours or not theirs:
+        return None
+
+    ap_hits = float(theirs["top25_overlap"])
+    our_hits = float(ours["top25_overlap"])
+    better = "better" if our_hits > ap_hits else "slightly better"
+    leader, trailer = ("this projection", "the AP preseason poll") if our_hits > ap_hits else (
+        "the AP preseason poll",
+        "this projection",
+    )
+    first = (
+        f"Over three out-of-sample season transitions {leader} ranked the "
+        f"following season {better} than {trailer} did, hitting "
+        f"{max(ap_hits, our_hits):.1f} of the final top 25 against "
+        f"{min(ap_hits, our_hits):.1f}."
+    )
+
+    parts = [first]
+    if games.get("projection") and games.get("ap_preseason"):
+        our_su = float(games["projection"]["su_accuracy"])
+        ap_su = float(games["ap_preseason"]["su_accuracy"])
+        verb = "was the better predictor of" if our_su > ap_su else "was worse at predicting"
+        parts.append(
+            f"This projection {verb} September's games, at {our_su:.1%} straight "
+            f"up against {ap_su:.1%}."
+        )
+    if naive:
+        parts.append(
+            "Both beat the floor of carrying last season's ratings forward "
+            f"unchanged, which hits {float(naive['top25_overlap']):.1f}."
+        )
+
+    block = {
+        "headline": _assert_sentence("backtest.headline", " ".join(parts)),
+        "ap_top25_hits": f"{ap_hits:.1f}",
+        "projection_top25_hits": f"{our_hits:.1f}",
+        "naive_top25_hits": (f"{float(naive['top25_overlap']):.1f}" if naive else None),
+        "transitions": 3,
+        "source": "demo/projection-backtest.md",
+    }
+    return block
 
 
 def _note(row: dict[str, Any]) -> str | None:
@@ -176,9 +277,14 @@ def _note(row: dict[str, Any]) -> str | None:
     points = float(value)
     if abs(points) < 0.5:
         return None
-    if points > 0:
-        return f"{name} adds {points:.1f} points to the projection."
-    return f"{name} costs the projection {abs(points):.1f} points."
+    text = (
+        f"{name} adds {points:.1f} points to the projection."
+        if points > 0
+        else f"{name} costs the projection {abs(points):.1f} points."
+    )
+    # The template carries no dash today and this is what keeps that true after
+    # somebody rewrites it: these clauses are front-door visible copy too.
+    return _assert_no_em_dash("row note", text)
 
 
 def write(document: dict[str, Any], destination: Path) -> Path:

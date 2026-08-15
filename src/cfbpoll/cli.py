@@ -1536,9 +1536,15 @@ def projection_fixture(
         state["projection"],
         season,
         cfg,
+        # AFFIRMATIVE, AND DASHLESS, both on purpose. Report 08 bans em dashes and
+        # "X, not Y" constructions from the front door's visible copy, and this
+        # string is printed verbatim as the card's heading. The first version of
+        # it broke both rules at once and read as the one sentence somebody else
+        # wrote. `_assert_no_em_dash` now catches half of that mechanically; the
+        # other half is saying what this IS rather than what it is not.
         headline=(
-            f"This is the model's {season} preseason projection, and it is a "
-            "projection — not the poll."
+            f"This is the model's {season} preseason projection, a guess made in "
+            "August about a season the poll will go on to measure."
         ),
         basis=(
             "It is the model's August guess, built from last season's final "
@@ -1553,6 +1559,11 @@ def projection_fixture(
         status=status,
         published_at=datetime.now(UTC).isoformat(timespec="seconds"),
         top_n=top_n,
+        # The honest result travels WITH the ranking, templated from the numbers
+        # the backtest just measured rather than typed. The site prints nothing it
+        # did not read out of a file, and "the AP beat us" is exactly the kind of
+        # sentence that must not live in a component.
+        backtest=state["backtest"]["summary"],
     )
     path = projection_publish.write(document, to)
     typer.echo(f"wrote {path} ({len(document['rows'])} rows, status={document['status']})")

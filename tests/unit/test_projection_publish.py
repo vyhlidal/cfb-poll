@@ -23,8 +23,24 @@ from cfbpoll.projection import publish
 
 CONFIG = load_config()
 
-HEADLINE = "This is the model's 2026 preseason projection, and it is a projection."
+HEADLINE = "This is the model's 2026 preseason projection, a guess made in August."
 BASIS = "It is the model's August guess, built from last season's final ratings."
+
+#: The shape `fit.run(...)["summary"]` returns, trimmed to what `_backtest_block`
+#: reads. Real values from the published backtest, so a change to the recipe that
+#: flips the verdict shows up here as a failing assertion rather than as prose on
+#: a website that nobody re-read.
+_SUMMARY = {
+    "out_of_sample": {
+        "projection": {"top25_overlap": 14.333333},
+        "ap_preseason": {"top25_overlap": 14.666667},
+        "naive_carryover": {"top25_overlap": 13.333333},
+    },
+    "early_season": {
+        "projection": {"su_accuracy": 0.713442},
+        "ap_preseason": {"su_accuracy": 0.689945},
+    },
+}
 
 
 @pytest.fixture
@@ -71,6 +87,48 @@ def test_a_fragment_is_refused_where_the_card_continues_from_it() -> None:
         publish.build(frame, 2026, CONFIG, "the 2026 projection", BASIS)
     # And a good one goes through.
     assert publish.build(frame, 2026, CONFIG, HEADLINE, BASIS)["basis"].endswith(".")
+
+
+def test_an_em_dash_is_refused_in_every_copy_field(projection: pl.DataFrame) -> None:
+    """REPORT 08'S RULE, AND THIS TEST EXISTS BECAUSE THE RULE WAS BROKEN ONCE.
+
+    The first headline this module shipped carried an em dash. It was printed
+    verbatim in the largest type on the card and was the only em dash in the
+    front door's entire visible text, so the one sentence the page led with read
+    as the one sentence somebody else wrote. A rule the pipeline knows is a rule
+    the pipeline keeps."""
+    dashed = "This is the 2026 projection — a guess, not a measurement."
+    for field, kwargs in (
+        ("headline", {"headline": dashed, "basis": BASIS}),
+        ("basis", {"headline": HEADLINE, "basis": dashed}),
+        ("note", {"headline": HEADLINE, "basis": BASIS, "note": dashed}),
+    ):
+        with pytest.raises(ValueError, match="em dash"):
+            publish.build(projection, 2026, CONFIG, **kwargs)  # type: ignore[arg-type]
+        assert field  # names the field under test in the failure output
+
+    # The shapes an em dash arrives under when somebody routes around a linter.
+    for bad in ("A guess – not a measurement.", "A guess -- not a measurement."):
+        with pytest.raises(ValueError, match="dash|hyphen"):
+            publish.build(projection, 2026, CONFIG, HEADLINE, bad)
+
+
+def test_the_shipped_copy_carries_no_banned_punctuation(
+    projection: pl.DataFrame,
+) -> None:
+    """The whole document, not only the fields the builder happens to check."""
+    document = publish.build(
+        projection,
+        2026,
+        CONFIG,
+        HEADLINE,
+        BASIS,
+        note="It is frozen the moment it publishes.",
+        backtest=_SUMMARY,
+    )
+    blob = json.dumps(document, ensure_ascii=False)
+    for character in ("—", "–"):
+        assert character not in blob, character
 
 
 def test_status_is_authoritative_and_not_inferred_from_rows(
@@ -155,3 +213,63 @@ def test_write_lands_at_the_path_the_loader_reads(projection: pl.DataFrame, tmp_
 def test_top_n_is_respected(projection: pl.DataFrame) -> None:
     document = publish.build(projection, 2026, CONFIG, HEADLINE, BASIS, top_n=2)
     assert [row["rank"] for row in document["rows"]] == [1, 2]
+
+
+# --------------------------------------------------- the honest result, as a field
+
+
+def test_the_backtest_sentence_is_templated_from_the_measured_numbers(
+    projection: pl.DataFrame,
+) -> None:
+    """"The AP beat us" must not live in a React component, and it must not live
+    in a hand-typed paragraph here either. It is composed from the values the
+    backtest measured, so it cannot drift from demo/projection-backtest.md the
+    first time the recipe is refitted."""
+    block = publish.build(
+        projection, 2026, CONFIG, HEADLINE, BASIS, backtest=_SUMMARY
+    )["backtest"]
+
+    assert "14.7" in block["headline"] and "14.3" in block["headline"]
+    assert block["ap_top25_hits"] == "14.7"
+    assert block["projection_top25_hits"] == "14.3"
+    assert block["naive_top25_hits"] == "13.3"
+    assert block["source"] == "demo/projection-backtest.md"
+    # The losing half is named first and is not softened away.
+    assert block["headline"].startswith("Over three out-of-sample season transitions")
+    assert "the AP preseason poll ranked the following season slightly better" in (
+        block["headline"]
+    )
+    assert "71.3% straight up against 69.0%" in block["headline"]
+
+
+def test_the_sentence_flips_when_the_result_flips(projection: pl.DataFrame) -> None:
+    """The template must be able to report a win as readily as a loss, or it is a
+    disclaimer rather than a measurement."""
+    winning = {
+        "out_of_sample": {
+            "projection": {"top25_overlap": 17.0},
+            "ap_preseason": {"top25_overlap": 14.0},
+            "naive_carryover": {"top25_overlap": 13.0},
+        },
+        "early_season": {
+            "projection": {"su_accuracy": 0.60},
+            "ap_preseason": {"su_accuracy": 0.70},
+        },
+    }
+    block = publish.build(
+        projection, 2026, CONFIG, HEADLINE, BASIS, backtest=winning
+    )["backtest"]
+    assert "this projection ranked the following season better" in block["headline"]
+    assert "17.0 of the final top 25 against 14.0" in block["headline"]
+    # And the half we now lose is still reported.
+    assert "was worse at predicting September's games" in block["headline"]
+
+
+def test_no_backtest_means_no_claim(projection: pl.DataFrame) -> None:
+    """A caller that has not run the backtest gets a card that says nothing about
+    quality, which is the correct behaviour for an unmeasured claim."""
+    assert publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)["backtest"] is None
+    assert (
+        publish.build(projection, 2026, CONFIG, HEADLINE, BASIS, backtest={})["backtest"]
+        is None
+    )

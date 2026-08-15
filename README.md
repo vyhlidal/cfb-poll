@@ -143,6 +143,44 @@ nobody knows yet, and we would rather show the math for why than pretend.
 
 ---
 
+## A ranking is a value system, so we ship three of them
+
+Where margin should count is not a modelling question with an answer. It is a
+disagreement about what a poll is *for*: if point differential pays, teams **will**
+run up the score on an overmatched opponent, and everyone has seen it — but
+ignoring margin entirely throws away the real information in a 70-point win against
+a 1-point win. The poll's compromise is a defensible position, and it is *a
+position*. So the positions are named ([ADR 0011](docs/adr/0011-recipes.md),
+[`configs/recipes/`](configs/recipes/)):
+
+| recipe | what it believes | 2023: where does 13-0 Liberty land? |
+|---|---|---:|
+| **Full Merit** | margin at face value, no compression, ranked on the margin-aware résumé | **#20** |
+| **The House Poll** | margin in the engine, out of the headline. **This is the published poll.** | **#10** |
+| **Just Win** | winning is what counts; running the score up buys nothing | **#2** |
+
+```bash
+uv run cfbpoll recipes                                        # the roster, with costs
+uv run cfbpoll rank --season 2023 --through-week 15 --recipe full-merit
+```
+
+Every recipe carries a one-paragraph manifesto **and a list of what it gets wrong**,
+which is required and non-empty: a value system that will not state its own cost is
+a marketing page. Only the house recipe is published as *the poll*; the others are
+labelled alternate lenses everywhere they appear.
+
+**A recipe changes values. It never changes evidence.** Every recipe reads the same
+archive, through the same walk-forward window, under the same constraints, and
+passes the same leakage audit — enforced at load time by `recipes.EVIDENCE_KEYS`,
+and measured directly by digesting the frames each one actually fits on. The three
+digests are published on every week document so a reader can check it rather than
+believe it.
+
+The whole board, side by side, with the 21 rows that move and why:
+[`demo/2023-recipes.md`](demo/2023-recipes.md).
+
+---
+
 ## The fork promise
 
 ```bash
@@ -282,6 +320,7 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 | `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
 | `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
 | `make grid` | **Works now.** The R(N, K) retroactive triangle for one season (`GRID_SEASON=2023`) |
+| `make recipe-fixtures` | **Works now.** Weeks 5–15 under each **alternate lens** ([ADR 0011](docs/adr/0011-recipes.md)). Does not touch the published poll's tree |
 | `make archive-lock` | Regenerate the committed lockfile from a backfill manifest. Only after a backfill or a new release tag |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
 | `make site` | Build the static site into `site/_build` |
@@ -292,7 +331,8 @@ cfbpoll ingest {cfbd,sportsdataverse}   pull a week or a season into the archive
 cfbpoll archive {sync,push}             materialise or push the raw archive
 cfbpoll validate                        data-quality gate; halt and publish nothing on failure
 cfbpoll audit-features                  fail the build if a banned input reached a model matrix
-cfbpoll rank                            fit the model, write the poll and both surfaces
+cfbpoll recipes                         the named value systems, with their costs
+cfbpoll rank [--recipe <slug>]          fit the model, write the poll and both surfaces
 cfbpoll grid                            the full R(N,K) retroactive triangle for a season
 cfbpoll bootstrap                       rank + rating intervals (parametric, fixed schedule)
 cfbpoll guard                           has this week already been published?

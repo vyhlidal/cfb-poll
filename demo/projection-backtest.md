@@ -21,27 +21,27 @@ Target: `R(final, final)`, the poll evaluated on the whole season — the most c
 
 | system | top-25 hits /25 | rank MAE (censored) | Spearman, all FBS |
 |---|---:|---:|---:|
-| `projection` | 14.3 | 8.33 | 0.638 |
-| `regress_only` | 13.3 | 8.81 | 0.632 |
-| `naive_carryover` | 13.3 | 8.81 | 0.632 |
-| `ap_preseason` | 14.7 | 8.07 | — |
+| `projection` | 13.0 | 8.27 | 0.585 |
+| `regress_only` | 13.0 | 8.55 | 0.578 |
+| `naive_carryover` | 13.0 | 8.55 | 0.578 |
+| `ap_preseason` | 13.7 | 8.36 | — |
 
 ### Season by season
 
 | target | system | top-25 hits | rank MAE (censored) |
 |---:|---|---:|---:|
-| 2022 | `projection` | 10 | 8.80 |
-| 2022 | `regress_only` | 9 | 9.80 |
-| 2022 | `naive_carryover` | 9 | 9.80 |
-| 2022 | `ap_preseason` | 10 | 9.72 |
-| 2023 | `projection` | 18 | 7.44 |
-| 2023 | `regress_only` | 18 | 8.08 |
-| 2023 | `naive_carryover` | 18 | 8.08 |
-| 2023 | `ap_preseason` | 19 | 6.72 |
-| 2024 | `projection` | 15 | 8.76 |
-| 2024 | `regress_only` | 13 | 8.56 |
-| 2024 | `naive_carryover` | 13 | 8.56 |
-| 2024 | `ap_preseason` | 15 | 7.76 |
+| 2022 | `projection` | 10 | 9.08 |
+| 2022 | `regress_only` | 9 | 10.04 |
+| 2022 | `naive_carryover` | 9 | 10.04 |
+| 2022 | `ap_preseason` | 10 | 9.96 |
+| 2023 | `projection` | 14 | 7.48 |
+| 2023 | `regress_only` | 15 | 7.72 |
+| 2023 | `naive_carryover` | 15 | 7.72 |
+| 2023 | `ap_preseason` | 17 | 6.44 |
+| 2024 | `projection` | 15 | 8.24 |
+| 2024 | `regress_only` | 15 | 7.88 |
+| 2024 | `naive_carryover` | 15 | 7.88 |
+| 2024 | `ap_preseason` | 14 | 8.68 |
 
 ## Predicting the first four weeks
 
@@ -49,20 +49,20 @@ FBS-vs-FBS, weeks 1–4 of the target season. Straight-up accuracy is the honest
 
 | system | SU accuracy | MAE (points) |
 |---|---:|---:|
-| `projection` | 0.7134 | 14.112 |
-| `regress_only` | 0.7171 | 14.195 |
-| `naive_carryover` | 0.7171 | 14.195 |
+| `projection` | 0.7131 | 14.604 |
+| `regress_only` | 0.7161 | 14.575 |
+| `naive_carryover` | 0.7161 | 14.575 |
 | `ap_preseason` | 0.6899 | 15.444 |
 
 ## The verdict
 
-**We do not beat the AP preseason poll at ranking the season that followed.** The writers hit 14.7 of the final top 25 on average against our 14.3, and their censored rank error is 8.07 against our 8.33. It is close, and it is a loss, and a loss reported by the party that lost is worth more than a win reported by the party that won.
+**The comparison against the AP splits.** We win one of the two rank metrics and lose the other: top-25 hits 13.0 against 13.7, censored rank error 8.27 against 8.36.
 
-**We beat the naive floor.** Carrying last season's final rating forward unchanged hits 13.3 of the final top 25; the recipe hits 14.3. The offseason terms are worth about 1.0 teams a season, and about 0.48 places of censored rank error. That is a small edge and it is a real one.
+**We match the naive floor on hits and beat it on rank error.** Carrying last season's final rating forward unchanged hits 13.0 of the final top 25; the recipe hits 13.0. The offseason terms are worth about 0.0 teams a season, and about 0.28 places of censored rank error. The offseason terms did not put a single extra team in the top 25 over these three seasons. They moved teams closer to where the season put them, which is a smaller claim, and it is the one the numbers support.
 
 **`regress_only` and `naive_carryover` are identical on every rank metric, and that is arithmetic rather than coincidence.** Regressing toward the mean is `a + phi * (x - mean)`, a positive affine map, which cannot reorder anything. The mean-reversion coefficient changes what we predict a team's rating will BE; it cannot change who we think is better than whom. Only the three offseason terms can move a rank — which is precisely why the gap between `projection` and `naive_carryover` is the whole measured value of the offseason data.
 
-**We beat the AP at predicting games, and by more than we lose to them at ranking.** Over the first four weeks the recipe is right on 71.3% of straight-up results against the AP's 69.0%, and its margin MAE is 1.33 points lower. That is not a contradiction of the paragraph above: the AP ranks 25 teams well and expresses no opinion at all about the other 109, and most games in September involve at least one of those 109.
+**We beat the AP at predicting games, and by more than we lose to them at ranking.** Over the first four weeks the recipe is right on 71.3% of straight-up results against the AP's 69.0%, and its margin MAE is 0.84 points lower. That is not a contradiction of the paragraph above: the AP ranks 25 teams well and expresses no opinion at all about the other 109, and most games in September involve at least one of those 109.
 
-**Three transitions is not many.** Every number here rests on three season pairs, and the honest reading of a 0.3-team difference in top-25 hits over three seasons is that it is inside the noise. The grading loop exists because this table only becomes an argument after several more seasons have been added to it, in public, without the recipe being quietly re-tuned in between.
+**Three transitions is not many.** Every number here rests on three season pairs, and the honest reading of a 0.7-team difference in top-25 hits over three seasons is that it is inside the noise. The grading loop exists because this table only becomes an argument after several more seasons have been added to it, in public, without the recipe being quietly re-tuned in between.
 

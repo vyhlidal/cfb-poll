@@ -1,32 +1,32 @@
 {
  "artifact": "2026 PRESEASON PROJECTION \u2014 A PROJECTION, NOT THE POLL",
- "projection_version": "projection-1.0.0",
- "generated_at": "2026-08-15T19:32:54+00:00",
- "git_sha": "46572be4fd207f6070520a36b86e00e992d66847",
+ "projection_version": "projection-2.0.0",
+ "generated_at": "2026-08-15T22:57:36+00:00",
+ "git_sha": "8eefee5e04d269ba36fe78d3e27fcbc623090c33",
  "config_hash": "68896b5aab42351f0e6309d7b1e4246a0485a3b1d761178ce08d76c376d12973",
  "season": 2026,
  "label": "This is a PROJECTION. It is not the poll, it never becomes the poll, and no number in it may reach the poll's math. The poll begins in week 5 and will grade this page in public.",
  "recipe": {
-  "version": "projection-1.0.0",
+  "version": "projection-2.0.0",
   "terms": [
    "prior_power",
    "returning_production",
    "coaching_change",
    "net_portal"
   ],
-  "intercept": 14.979230015383752,
-  "intercept_se": 0.5322272012883863,
+  "intercept": 6.231766793910834,
+  "intercept_se": 0.380644364871863,
   "coefficients": {
-   "prior_power": 0.6826446256853831,
-   "returning_production": 7.082917766233177,
-   "coaching_change": -2.334567888105185,
-   "net_portal": -0.4106013630234672
+   "prior_power": 0.6053424508501754,
+   "returning_production": 5.001594013274762,
+   "coaching_change": -1.3010249375014176,
+   "net_portal": -0.18046435985732978
   },
   "standard_errors": {
-   "prior_power": 0.03662527045893591,
-   "returning_production": 2.151417653784408,
-   "coaching_change": 1.1321914393814427,
-   "net_portal": 0.47418293507726095
+   "prior_power": 0.03513585452185198,
+   "returning_production": 1.5507439793636368,
+   "coaching_change": 0.8329375511554995,
+   "net_portal": 0.3399632531242234
   },
   "fitted_on_transitions": [
    [
@@ -43,17 +43,18 @@
    ]
   ],
   "n_team_seasons": 398,
-  "r_squared": 0.5073084521124374,
-  "residual_sd": 9.216750777154871
+  "r_squared": 0.4628070567151118,
+  "residual_sd": 6.649221492593261
  },
+ "power_definition": "retro.season_power(...)[final]: the WALK-FORWARD Power at the season's last bucket, whose blend weights are estimated out of sample week by week. This is the surface the poll publishes, the surface the gate uses, and the surface the grading page scores against. It is the projection's input, its response and its grading target, and they are the same object",
  "win_model": {
-  "sigma": 20.099427598227017,
+  "sigma": 17.958682939322927,
   "season_sigma": 15.3,
-  "season_sigma_source": "[resume].sigma, the documented fallback and floor",
-  "recipe_residual_sd": 9.216750777154871,
-  "home_field_points": 3.948363209308768,
+  "season_sigma_source": "[resume].sigma, the documented floor, which the source season's own walk-forward estimate came in under",
+  "recipe_residual_sd": 6.649221492593261,
+  "home_field_points": 3.7077552907571207,
   "n_games": 888,
-  "sigma_note": "sd(margin | projection) = sqrt(15.30^2 + 2 * 9.22^2) = 20.10 points, with the first term from [resume].sigma, the documented fallback and floor. The second term is the recipe's own residual error, carried by both teams independently. In-season the poll works with the first term alone; in August it does not have that luxury, and every win probability here is correspondingly closer to a coin flip."
+  "sigma_note": "sd(margin | projection) = sqrt(15.30^2 + 2 * 6.65^2) = 17.96 points, with the first term from [resume].sigma, the documented floor, which the source season's own walk-forward estimate came in under. The second term is the recipe's own residual error, carried by both teams independently. In-season the poll works with the first term alone; in August it does not have that luxury, and every win probability here is correspondingly closer to a coin flip."
  },
  "provenance": {
   "projection_source_season": 2025,
@@ -104,6 +105,67 @@
   "passed": true,
   "violations": [],
   "projection_audited": true,
+  "temporal_guard": {
+   "guard": "projection_as_of_august",
+   "as_of": "the day before the projected season's first kickoff. Every value on this frame must be settled by then; a value that is not is a leak whatever the column is called, and it flatters the model, because the things that move during a season move against the teams that are losing",
+   "n_declared_columns": 30,
+   "declared": {
+    "coach_change": "1 when the head coach who OPENS season Y differs from the one who opened Y-1. Decided by `offseason._august_coach` from prior-season continuity and never from season Y's own games count, which is precisely the leak this guard exists to prevent: `projection-1.0.0` read it off a coaches file pulled after the season and turned October firings into August coaching changes at five schools in 2025 (ADR 0013)",
+    "coach_change_imputed": "whether this school had no prior-season coach row",
+    "coach_change_rate": "the league's own change rate, used as the imputation value",
+    "coach_name": "who opens season Y, by the rule above",
+    "coach_name_prior": "who opened season Y-1, which is settled history by August",
+    "coach_of_record_source": "how that name was decided; one of three declared cases",
+    "coach_of_record_source_prior": "how THAT name was decided",
+    "portal_in": "arrivals in the same cycle, undercounted and said to be",
+    "portal_in_coverage": "the cycle's populated-destination rate, a data-quality fact",
+    "portal_net": "arrivals minus departures over that cycle",
+    "portal_net_center": "the cycle's mean net flow",
+    "portal_net_imputed": "whether this school had no portal row at all",
+    "portal_net_sd": "the cycle's standard deviation of net flow",
+    "portal_net_z": "the transfer cycle that closes before the season opens, standardised within that cycle",
+    "portal_out": "departures in the cycle that closes before the season",
+    "prior_power": "last season's published Power, uncentred",
+    "prior_power_center": "the mean of the column above over the projected teams",
+    "prior_power_centered": "the PRIOR season's final published Power, centred. The prior season is over before this one begins, so the whole of it is August knowledge",
+    "prior_power_imputed": "whether this team had no prior rating at all",
+    "returning_passing_usage": "roster fact, published split",
+    "returning_percent_ppa": "CFBD's fitted PPA, archived so the choice not to use it is visible. August-knowable and BANNED anyway, by `PROJECTION_BANNED_PATTERNS`",
+    "returning_receiving_usage": "roster fact, published split",
+    "returning_rushing_usage": "roster fact, published split",
+    "returning_usage": "the same roster fact, uncentred",
+    "returning_usage_center": "the mean of that column over the projected teams",
+    "returning_usage_centered": "CFBD's `/player/returning?year=Y`, which is a roster fact about who came back and is published before the season opens",
+    "returning_usage_filled": "the roster fact with the league mean substituted where absent",
+    "returning_usage_imputed": "whether that substitution happened",
+    "season": "the season being projected, which is a label and not a measurement",
+    "team": "a school name"
+   },
+   "patterns": [
+    "actual",
+    "final_",
+    "_final",
+    "hindsight",
+    "settled",
+    "in_season",
+    "inseason",
+    "mid_season",
+    "midseason",
+    "interim",
+    "games_played",
+    "_wins",
+    "_losses",
+    "win_pct",
+    "season_record",
+    "outcome",
+    "result_",
+    "postseason",
+    "bowl",
+    "playoff",
+    "week_",
+    "through_week"
+   ]
+  },
   "layers": [
    {
     "layer": "games_loader",
@@ -171,18 +233,18 @@
   {
    "rank": 1,
    "team": "Ohio State",
-   "projected_power": 37.9111123452077,
-   "projected_wins": 9.07153706591923,
+   "projected_power": 21.46350008419876,
+   "projected_wins": 8.667660800094794,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 20.032621244692642,
-    "returning_production": 1.9030133468982364,
+    "intercept": 6.231766793910834,
+    "prior_power": 13.45005950342323,
+    "returning_production": 1.3438106268019097,
     "coaching_change": 0.0,
-    "net_portal": 0.996247738233065
+    "net_portal": 0.43786316006278647
    },
    "inputs": {
-    "prior_power": 44.80018082295554,
+    "prior_power": 29.44866482990085,
     "returning_usage": 0.709,
     "coach_change": 0.0,
     "coach_name": "Ryan Day",
@@ -193,42 +255,19 @@
   },
   {
    "rank": 2,
-   "team": "Oregon",
-   "projected_power": 37.570275145576986,
-   "projected_wins": 9.546178499115749,
-   "scheduled_games": 12,
-   "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 20.082300620884478,
-    "returning_production": 1.626779554015143,
-    "coaching_change": 0.0,
-    "net_portal": 0.881964955293611
-   },
-   "inputs": {
-    "prior_power": 44.87295569632682,
-    "returning_usage": 0.67,
-    "coach_change": 0.0,
-    "coach_name": "Dan Lanning",
-    "portal_out": 31,
-    "portal_in": 13,
-    "portal_net_z": -2.1479835059466272
-   }
-  },
-  {
-   "rank": 3,
    "team": "Indiana",
-   "projected_power": 37.203723328427444,
-   "projected_wins": 9.59772391961217,
+   "projected_power": 20.992563273194484,
+   "projected_wins": 9.053001030243712,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 24.71120584862046,
-    "returning_production": -2.2829910529455706,
+    "intercept": 6.231766793910834,
+    "prior_power": 16.462466016883607,
+    "returning_production": -1.6121314350434743,
     "coaching_change": 0.0,
-    "net_portal": -0.2037214826312003
+    "net_portal": -0.08953810255648001
    },
    "inputs": {
-    "prior_power": 51.65379751880291,
+    "prior_power": 34.42503235415029,
     "returning_usage": 0.118,
     "coach_change": 0.0,
     "coach_name": "Curt Cignetti",
@@ -238,43 +277,66 @@
    }
   },
   {
-   "rank": 4,
-   "team": "Georgia",
-   "projected_power": 33.57187515504728,
-   "projected_wins": 9.058518071692594,
+   "rank": 3,
+   "team": "Oregon",
+   "projected_power": 20.440375096275307,
+   "projected_wins": 8.973839890762871,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 16.202485857352983,
-    "returning_production": 2.1367496331839315,
+    "intercept": 6.231766793910834,
+    "prior_power": 12.672225373695516,
+    "returning_production": 1.1487484602841944,
     "coaching_change": 0.0,
-    "net_portal": 0.253409649126615
+    "net_portal": 0.387634468384761
    },
    "inputs": {
-    "prior_power": 39.18944978776405,
-    "returning_usage": 0.742,
+    "prior_power": 28.163715907790262,
+    "returning_usage": 0.67,
     "coach_change": 0.0,
-    "coach_name": "Kirby Smart",
-    "portal_out": 16,
-    "portal_in": 9,
-    "portal_net_z": -0.6171670918494535
+    "coach_name": "Dan Lanning",
+    "portal_out": 31,
+    "portal_in": 13,
+    "portal_net_z": -2.1479835059466272
+   }
+  },
+  {
+   "rank": 4,
+   "team": "Texas Tech",
+   "projected_power": 20.21494621060723,
+   "projected_wins": 9.798995054301894,
+   "scheduled_games": 12,
+   "contributions": {
+    "intercept": 6.231766793910834,
+    "prior_power": 13.439133242335988,
+    "returning_production": 0.6335842769168935,
+    "coaching_change": 0.0,
+    "net_portal": -0.08953810255648001
+   },
+   "inputs": {
+    "prior_power": 29.430615110982412,
+    "returning_usage": 0.567,
+    "coach_change": 0.0,
+    "coach_name": "Joey McGuire",
+    "portal_out": 21,
+    "portal_in": 22,
+    "portal_net_z": 0.4961539365848548
    }
   },
   {
    "rank": 5,
    "team": "Notre Dame",
-   "projected_power": 33.55210517333589,
-   "projected_wins": 9.650507203056613,
+   "projected_power": 19.392535315055202,
+   "projected_wins": 9.358369130860432,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 18.115874376483383,
-    "returning_production": 0.1464497408724091,
+    "intercept": 6.231766793910834,
+    "prior_power": 12.920862199639966,
+    "returning_production": 0.10341531150976907,
     "coaching_change": 0.0,
-    "net_portal": 0.3105510405963419
+    "net_portal": 0.13649100999463418
    },
    "inputs": {
-    "prior_power": 41.99235549761174,
+    "prior_power": 28.574453376466465,
     "returning_usage": 0.461,
     "coach_change": 0.0,
     "coach_name": "Marcus Freeman",
@@ -286,18 +348,18 @@
   {
    "rank": 6,
    "team": "Miami",
-   "projected_power": 33.211874220324674,
-   "projected_wins": 9.750108346614338,
+   "projected_power": 18.67691817267688,
+   "projected_wins": 9.211346716208213,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 17.677438673424625,
-    "returning_production": 0.3589372738594042,
+    "intercept": 6.231766793910834,
+    "prior_power": 12.105425928541422,
+    "returning_production": 0.2534631319080118,
     "coaching_change": 0.0,
-    "net_portal": 0.1962682576568881
+    "net_portal": 0.0862623183166088
    },
    "inputs": {
-    "prior_power": 41.35009496180431,
+    "prior_power": 27.227387315011,
     "returning_usage": 0.491,
     "coach_change": 0.0,
     "coach_name": "Mario Cristobal",
@@ -308,88 +370,19 @@
   },
   {
    "rank": 7,
-   "team": "Texas Tech",
-   "projected_power": 32.608787350808925,
-   "projected_wins": 9.966122749007813,
-   "scheduled_games": 12,
-   "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 16.936039793963246,
-    "returning_production": 0.8972390240931253,
-    "coaching_change": 0.0,
-    "net_portal": -0.2037214826312003
-   },
-   "inputs": {
-    "prior_power": 40.26402638151335,
-    "returning_usage": 0.567,
-    "coach_change": 0.0,
-    "coach_name": "Joey McGuire",
-    "portal_out": 21,
-    "portal_in": 22,
-    "portal_net_z": 0.4961539365848548
-   }
-  },
-  {
-   "rank": 8,
-   "team": "BYU",
-   "projected_power": 32.33680530886866,
-   "projected_wins": 9.197280255775011,
-   "scheduled_games": 12,
-   "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 14.147231698310897,
-    "returning_production": 3.1283581204565762,
-    "coaching_change": 0.0,
-    "net_portal": 0.08198547471743427
-   },
-   "inputs": {
-    "prior_power": 36.17872637222615,
-    "returning_usage": 0.882,
-    "coach_change": 0.0,
-    "coach_name": "Kalani Sitake",
-    "portal_out": 13,
-    "portal_in": 9,
-    "portal_net_z": -0.19967170618658792
-   }
-  },
-  {
-   "rank": 9,
-   "team": "Oklahoma",
-   "projected_power": 30.897230367184214,
-   "projected_wins": 8.113703771355242,
-   "scheduled_games": 12,
-   "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 13.156661049606619,
-    "returning_production": 2.165081304248864,
-    "coaching_change": 0.0,
-    "net_portal": 0.5962579979449765
-   },
-   "inputs": {
-    "prior_power": 34.727648298170074,
-    "returning_usage": 0.746,
-    "coach_change": 0.0,
-    "coach_name": "Brent Venables",
-    "portal_out": 29,
-    "portal_in": 16,
-    "portal_net_z": -1.4521578631751848
-   }
-  },
-  {
-   "rank": 10,
    "team": "Utah",
-   "projected_power": 30.333973272076072,
-   "projected_wins": 8.945973105212534,
+   "projected_power": 16.972524282662015,
+   "projected_wins": 8.597358918435154,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 15.718956208054163,
-    "returning_production": 1.9455108534956356,
-    "coaching_change": -2.334567888105185,
-    "net_portal": 0.02484408324770736
+    "intercept": 6.231766793910834,
+    "prior_power": 10.657042954571466,
+    "returning_production": 1.3738201908815582,
+    "coaching_change": -1.3010249375014176,
+    "net_portal": 0.010919280799570738
    },
    "inputs": {
-    "prior_power": 38.48113153386532,
+    "prior_power": 24.83472020247698,
     "returning_usage": 0.715,
     "coach_change": 1.0,
     "coach_name": "Morgan Scalley",
@@ -399,43 +392,43 @@
    }
   },
   {
-   "rank": 11,
-   "team": "Ole Miss",
-   "projected_power": 29.83770844331742,
-   "projected_wins": 8.255881184259948,
+   "rank": 8,
+   "team": "Georgia",
+   "projected_power": 16.92623780678687,
+   "projected_wins": 8.180370211744647,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 15.820524767698263,
-    "returning_production": 1.6905258139112418,
-    "coaching_change": -2.334567888105185,
-    "net_portal": -0.3180042655706541
+    "intercept": 6.231766793910834,
+    "prior_power": 9.074231119480437,
+    "returning_production": 1.5088632292399768,
+    "coaching_change": 0.0,
+    "net_portal": 0.11137666415562147
    },
    "inputs": {
-    "prior_power": 38.62991840747782,
-    "returning_usage": 0.679,
-    "coach_change": 1.0,
-    "coach_name": "Pete Golding",
-    "portal_out": 25,
-    "portal_in": 28,
-    "portal_net_z": 0.7744841936934318
+    "prior_power": 22.21998232498624,
+    "returning_usage": 0.742,
+    "coach_change": 0.0,
+    "coach_name": "Kirby Smart",
+    "portal_out": 16,
+    "portal_in": 9,
+    "portal_net_z": -0.6171670918494535
    }
   },
   {
-   "rank": 12,
+   "rank": 9,
    "team": "Texas A&M",
-   "projected_power": 29.68301490619748,
-   "projected_wins": 8.488387910330488,
+   "projected_power": 16.48144406800655,
+   "projected_wins": 8.16092772670724,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 12.882649276501144,
-    "returning_production": 1.8534329225346042,
+    "intercept": 6.231766793910834,
+    "prior_power": 8.955072870426172,
+    "returning_production": 1.3087994687089863,
     "coaching_change": 0.0,
-    "net_portal": -0.032297308222019545
+    "net_portal": -0.014195065039441948
    },
    "inputs": {
-    "prior_power": 34.32625090515557,
+    "prior_power": 22.02313796211872,
     "returning_usage": 0.702,
     "coach_change": 0.0,
     "coach_name": "Mike Elko",
@@ -445,20 +438,43 @@
    }
   },
   {
-   "rank": 13,
-   "team": "USC",
-   "projected_power": 29.655364481678188,
-   "projected_wins": 8.094147402997729,
+   "rank": 10,
+   "team": "North Dakota State",
+   "projected_power": 16.418096185905345,
+   "projected_wins": 9.481389282954718,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 12.545174845295346,
-    "returning_production": 1.5347016230541117,
-    "coaching_change": 0.0,
-    "net_portal": 0.5962579979449765
+    "intercept": 6.231766793910834,
+    "prior_power": 10.465985639896708,
+    "returning_production": 0.0,
+    "coaching_change": -0.3156898745407851,
+    "net_portal": 0.03603362663858342
    },
    "inputs": {
-    "prior_power": 33.83188763251284,
+    "prior_power": 24.51910163912259,
+    "returning_usage": 0.4403235294117648,
+    "coach_change": 0.2426470588235294,
+    "coach_name": "Tim Polasek",
+    "portal_out": 7,
+    "portal_in": 3,
+    "portal_net_z": -0.19967170618658792
+   }
+  },
+  {
+   "rank": 11,
+   "team": "USC",
+   "projected_power": 16.36538095117645,
+   "projected_wins": 7.9057966574657215,
+   "scheduled_games": 12,
+   "contributions": {
+    "intercept": 6.231766793910834,
+    "prior_power": 8.787823679964298,
+    "returning_production": 1.0837277381116224,
+    "coaching_change": 0.0,
+    "net_portal": 0.26206273918969764
+   },
+   "inputs": {
+    "prior_power": 21.746849408049897,
     "returning_usage": 0.657,
     "coach_change": 0.0,
     "coach_name": "Lincoln Riley",
@@ -468,43 +484,66 @@
    }
   },
   {
-   "rank": 14,
-   "team": "Washington",
-   "projected_power": 27.090368320933344,
-   "projected_wins": 7.6032681351086575,
+   "rank": 12,
+   "team": "BYU",
+   "projected_power": 15.98331085694613,
+   "projected_wins": 8.300722192145225,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 10.817875178325465,
-    "returning_production": 0.925570695158058,
+    "intercept": 6.231766793910834,
+    "prior_power": 7.506424045298269,
+    "returning_production": 2.2090863910984435,
     "coaching_change": 0.0,
-    "net_portal": 0.36769243206606883
+    "net_portal": 0.03603362663858342
    },
    "inputs": {
-    "prior_power": 31.30158181601915,
-    "returning_usage": 0.571,
+    "prior_power": 19.630031674771217,
+    "returning_usage": 0.882,
     "coach_change": 0.0,
-    "coach_name": "Jedd Fisch",
-    "portal_out": 23,
-    "portal_in": 14,
-    "portal_net_z": -0.8954973489580306
+    "coach_name": "Kalani Sitake",
+    "portal_out": 13,
+    "portal_in": 9,
+    "portal_net_z": -0.19967170618658792
    }
   },
   {
-   "rank": 15,
-   "team": "Vanderbilt",
-   "projected_power": 26.690221091334,
-   "projected_wins": 7.9099797615415035,
+   "rank": 13,
+   "team": "Oklahoma",
+   "projected_power": 15.525005275440899,
+   "projected_wins": 7.508094489163016,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 12.610173933211065,
-    "returning_production": -0.8097441575690698,
+    "intercept": 6.231766793910834,
+    "prior_power": 7.50230613704729,
+    "returning_production": 1.528869605293076,
     "coaching_change": 0.0,
-    "net_portal": -0.08943869969174646
+    "net_portal": 0.26206273918969764
    },
    "inputs": {
-    "prior_power": 33.92710421442097,
+    "prior_power": 19.623229065363606,
+    "returning_usage": 0.746,
+    "coach_change": 0.0,
+    "coach_name": "Brent Venables",
+    "portal_out": 29,
+    "portal_in": 16,
+    "portal_net_z": -1.4521578631751848
+   }
+  },
+  {
+   "rank": 14,
+   "team": "Vanderbilt",
+   "projected_power": 15.193258066961429,
+   "projected_wins": 7.776457146716217,
+   "scheduled_games": 12,
+   "contributions": {
+    "intercept": 6.231766793910834,
+    "prior_power": 9.572600564211372,
+    "returning_production": -0.5717998802823238,
+    "coaching_change": 0.0,
+    "net_portal": -0.03930941087845464
+   },
+   "inputs": {
+    "prior_power": 23.043267465539326,
     "returning_usage": 0.326,
     "coach_change": 0.0,
     "coach_name": "Clark Lea",
@@ -514,20 +553,43 @@
    }
   },
   {
-   "rank": 16,
-   "team": "Alabama",
-   "projected_power": 26.661829841107156,
-   "projected_wins": 7.752366115549498,
+   "rank": 15,
+   "team": "Washington",
+   "projected_power": 14.48872343581063,
+   "projected_wins": 7.417588022579363,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 12.416007278321691,
-    "returning_production": -0.9868171017248993,
+    "intercept": 6.231766793910834,
+    "prior_power": 7.441760633096157,
+    "returning_production": 0.6535906529699925,
     "coaching_change": 0.0,
-    "net_portal": 0.253409649126615
+    "net_portal": 0.16160535583364685
    },
    "inputs": {
-    "prior_power": 33.64267122017535,
+    "prior_power": 19.52321046619532,
+    "returning_usage": 0.571,
+    "coach_change": 0.0,
+    "coach_name": "Jedd Fisch",
+    "portal_out": 23,
+    "portal_in": 14,
+    "portal_net_z": -0.8954973489580306
+   }
+  },
+  {
+   "rank": 16,
+   "team": "Alabama",
+   "projected_power": 13.5780002807697,
+   "projected_wins": 7.253866771715318,
+   "scheduled_games": 12,
+   "contributions": {
+    "intercept": 6.231766793910834,
+    "prior_power": 7.931696553317438,
+    "returning_production": -0.6968397306141929,
+    "coaching_change": 0.0,
+    "net_portal": 0.11137666415562147
+   },
+   "inputs": {
+    "prior_power": 20.33256378270763,
     "returning_usage": 0.301,
     "coach_change": 0.0,
     "coach_name": "Kalen DeBoer",
@@ -538,42 +600,42 @@
   },
   {
    "rank": 17,
-   "team": "Arizona",
-   "projected_power": 26.63473087722673,
-   "projected_wins": 7.697589202413753,
+   "team": "Ole Miss",
+   "projected_power": 13.566814405058775,
+   "projected_wins": 7.284778037698075,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 10.176257497669031,
-    "returning_production": 1.740106238274874,
-    "coaching_change": 0.0,
-    "net_portal": -0.2608628741009272
+    "intercept": 6.231766793910834,
+    "prior_power": 7.582076536480196,
+    "returning_production": 1.1937628064036672,
+    "coaching_change": -1.3010249375014176,
+    "net_portal": -0.1397667942345054
    },
    "inputs": {
-    "prior_power": 30.361681820450823,
-    "returning_usage": 0.686,
-    "coach_change": 0.0,
-    "coach_name": "Brent Brennan",
-    "portal_out": 20,
-    "portal_in": 22,
-    "portal_net_z": 0.6353190651391433
+    "prior_power": 19.75500637475414,
+    "returning_usage": 0.679,
+    "coach_change": 1.0,
+    "coach_name": "Pete Golding",
+    "portal_out": 25,
+    "portal_in": 28,
+    "portal_net_z": 0.7744841936934318
    }
   },
   {
    "rank": 18,
    "team": "Texas",
-   "projected_power": 26.394810386994564,
-   "projected_wins": 7.1164578289437825,
+   "projected_power": 13.294942471662191,
+   "projected_wins": 6.783376812500546,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 10.229995158899765,
-    "returning_production": 0.9893169550541567,
+    "intercept": 6.231766793910834,
+    "prior_power": 6.278308360345284,
+    "returning_production": 0.6986049990894654,
     "coaching_change": 0.0,
-    "net_portal": 0.1962682576568881
+    "net_portal": 0.0862623183166088
    },
    "inputs": {
-    "prior_power": 30.440401639239084,
+    "prior_power": 17.601236761696555,
     "returning_usage": 0.58,
     "coach_change": 0.0,
     "coach_name": "Steve Sarkisian",
@@ -585,18 +647,18 @@
   {
    "rank": 19,
    "team": "Michigan",
-   "projected_power": 25.266222353141092,
-   "projected_wins": 7.0284509016461705,
+   "projected_power": 12.864538502846855,
+   "projected_wins": 6.947243490505436,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 9.936698871077661,
-    "returning_production": 1.917179182430703,
-    "coaching_change": -2.334567888105185,
-    "net_portal": 0.7676821723541573
+    "intercept": 6.231766793910834,
+    "prior_power": 6.242577054902244,
+    "returning_production": 1.353813814828459,
+    "coaching_change": -1.3010249375014176,
+    "net_portal": 0.33740577670673566
    },
    "inputs": {
-    "prior_power": 30.01075453328314,
+    "prior_power": 17.54221016378845,
     "returning_usage": 0.711,
     "coach_change": 1.0,
     "coach_name": "Kyle Whittingham",
@@ -607,42 +669,65 @@
   },
   {
    "rank": 20,
-   "team": "SMU",
-   "projected_power": 25.05358506518752,
-   "projected_wins": 8.45887317896001,
-   "scheduled_games": 12,
+   "team": "San Diego State",
+   "projected_power": 12.7387390564584,
+   "projected_wins": 7.401835525541349,
+   "scheduled_games": 11,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 8.67437010674628,
-    "returning_production": 0.9751511195216903,
+    "intercept": 6.231766793910834,
+    "prior_power": 3.7821247226267163,
+    "returning_production": 2.789271296638316,
     "coaching_change": 0.0,
-    "net_portal": 0.4248338235357958
+    "net_portal": -0.06442375671746732
    },
    "inputs": {
-    "prior_power": 28.161580428874146,
-    "returning_usage": 0.578,
+    "prior_power": 13.477647487207719,
+    "returning_usage": 0.998,
     "coach_change": 0.0,
-    "coach_name": "Rhett Lashlee",
-    "portal_out": 25,
-    "portal_in": 15,
-    "portal_net_z": -1.0346624775123192
+    "coach_name": "Sean Lewis",
+    "portal_out": 26,
+    "portal_in": 26,
+    "portal_net_z": 0.3569888080305662
    }
   },
   {
    "rank": 21,
-   "team": "Iowa",
-   "projected_power": 24.682874138290284,
-   "projected_wins": 7.444794609432142,
+   "team": "Arizona",
+   "projected_power": 12.535891880557415,
+   "projected_wins": 7.132918278097052,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 10.50749052615898,
-    "returning_production": -0.2572765718028819,
+    "intercept": 6.231766793910834,
+    "prior_power": 5.190003570545484,
+    "returning_production": 1.2287739644965905,
     "coaching_change": 0.0,
-    "net_portal": -0.5465698314495617
+    "net_portal": -0.11465244839549268
    },
    "inputs": {
-    "prior_power": 30.84690211813849,
+    "prior_power": 15.80340350504765,
+    "returning_usage": 0.686,
+    "coach_change": 0.0,
+    "coach_name": "Brent Brennan",
+    "portal_out": 20,
+    "portal_in": 22,
+    "portal_net_z": 0.6353190651391433
+   }
+  },
+  {
+   "rank": 22,
+   "team": "Iowa",
+   "projected_power": 12.168498020517887,
+   "projected_wins": 7.319379910814175,
+   "scheduled_games": 12,
+   "contributions": {
+    "intercept": 6.231766793910834,
+    "prior_power": 6.3586309514445025,
+    "returning_production": -0.18167554724689233,
+    "coaching_change": 0.0,
+    "net_portal": -0.24022417759055614
+   },
+   "inputs": {
+    "prior_power": 17.73392626825009,
     "returning_usage": 0.404,
     "coach_change": 0.0,
     "coach_name": "Kirk Ferentz",
@@ -652,95 +737,72 @@
    }
   },
   {
-   "rank": 22,
-   "team": "Illinois",
-   "projected_power": 24.59540021852106,
-   "projected_wins": 7.488875795997136,
-   "scheduled_games": 12,
-   "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 9.400466675060349,
-    "returning_production": -0.03770612104965363,
-    "coaching_change": 0.0,
-    "net_portal": 0.253409649126615
-   },
-   "inputs": {
-    "prior_power": 29.225232790577074,
-    "returning_usage": 0.435,
-    "coach_change": 0.0,
-    "coach_name": "Bret Bielema",
-    "portal_out": 27,
-    "portal_in": 20,
-    "portal_net_z": -0.6171670918494535
-   }
-  },
-  {
    "rank": 23,
-   "team": "North Dakota State",
-   "projected_power": 24.40979696317271,
-   "projected_wins": 9.463132190374104,
+   "team": "SMU",
+   "projected_power": 12.09290576334043,
+   "projected_wins": 7.776910310054699,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 9.915057504744105,
-    "returning_production": 0.0,
-    "coaching_change": -0.5664760316725816,
-    "net_portal": 0.08198547471743427
+    "intercept": 6.231766793910834,
+    "prior_power": 4.985817456694021,
+    "returning_production": 0.6886018110629158,
+    "coaching_change": 0.0,
+    "net_portal": 0.18671970167265955
    },
    "inputs": {
-    "prior_power": 29.979052289510506,
-    "returning_usage": 0.4403235294117648,
-    "coach_change": 0.2426470588235294,
-    "coach_name": "Tim Polasek",
-    "portal_out": 7,
-    "portal_in": 3,
-    "portal_net_z": -0.19967170618658792
+    "prior_power": 15.46609672346527,
+    "returning_usage": 0.578,
+    "coach_change": 0.0,
+    "coach_name": "Rhett Lashlee",
+    "portal_out": 25,
+    "portal_in": 15,
+    "portal_net_z": -1.0346624775123192
    }
   },
   {
    "rank": 24,
-   "team": "Pittsburgh",
-   "projected_power": 23.046841319055954,
-   "projected_wins": 8.412429983017256,
+   "team": "Tennessee",
+   "projected_power": 11.967234505740462,
+   "projected_wins": 7.067845804307278,
    "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 7.47038631489837,
-    "returning_production": 0.45809812258666877,
+    "intercept": 6.231766793910834,
+    "prior_power": 5.965711227573053,
+    "returning_production": -0.36673452573805865,
     "coaching_change": 0.0,
-    "net_portal": 0.1391268661871612
+    "net_portal": 0.13649100999463418
    },
    "inputs": {
-    "prior_power": 26.39787535225526,
-    "returning_usage": 0.505,
+    "prior_power": 17.084839584638836,
+    "returning_usage": 0.367,
     "coach_change": 0.0,
-    "coach_name": "Pat Narduzzi",
-    "portal_out": 21,
-    "portal_in": 16,
-    "portal_net_z": -0.33883683474087645
+    "coach_name": "Josh Heupel",
+    "portal_out": 29,
+    "portal_in": 21,
+    "portal_net_z": -0.756332220403742
    }
   },
   {
    "rank": 25,
-   "team": "Boise State",
-   "projected_power": 22.6030441209412,
-   "projected_wins": 7.025738361741468,
-   "scheduled_games": 11,
+   "team": "Missouri",
+   "projected_power": 11.227054550864,
+   "projected_wins": 6.792794916322442,
+   "scheduled_games": 12,
    "contributions": {
-    "intercept": 14.979230015383752,
-    "prior_power": 5.23317677390704,
-    "returning_production": 2.0800862910540663,
+    "intercept": 6.231766793910834,
+    "prior_power": 4.826573885133637,
+    "returning_production": 0.3084806660540342,
     "coaching_change": 0.0,
-    "net_portal": 0.3105510405963419
+    "net_portal": -0.1397667942345054
    },
    "inputs": {
-    "prior_power": 23.120607126866176,
-    "returning_usage": 0.734,
+    "prior_power": 15.203033111559755,
+    "returning_usage": 0.502,
     "coach_change": 0.0,
-    "coach_name": "Spencer Danielson",
-    "portal_out": 19,
-    "portal_in": 11,
-    "portal_net_z": -0.756332220403742
+    "coach_name": "Eli Drinkwitz",
+    "portal_out": 27,
+    "portal_in": 30,
+    "portal_net_z": 0.7744841936934318
    }
   }
  ]

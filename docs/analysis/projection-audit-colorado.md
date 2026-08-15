@@ -505,3 +505,77 @@ no constant. The Campaign 3 protocol above is a specification and none of its le
 executed. Every number was recomputed from the archive and the shipped recipe, and the
 reconstruction reproduces the published `demo/2025-projection-grading.md` row for Colorado
 exactly.
+
+---
+
+## Addendum, 2026-08-15: Lead 0 landed. Every number above is now historical.
+
+**This document is preserved as written.** It is the record of what the shipped
+`projection-1.0.0` did, and a repair note that edited the evidence it rests on would be
+worth nothing. Read everything above as a description of the artifacts that existed before
+the fix, and read [ADR 0013](../adr/0013-projection-measurement-defects.md) for what
+replaced them.
+
+**Both defects in Part 2 are repaired and the version is `projection-2.0.0`.**
+
+- **§2.1.** The recommendation in §3.2.0 was adopted. `seasons.final_power` returns
+  `retro.season_power(...)[final]`, the published walk-forward surface, so the recipe's
+  input, its response and the grading page's answer key are one object. The recipe was
+  refitted on the same three transitions with the same four terms and the same OLS; no
+  search ran and no constant was selected.
+- **§2.2.** `offseason._august_coach` decides the head coach of record from prior-season
+  continuity, never from the target season's own games count. The five 2025 false flags
+  this audit named are gone, as are the five in 2022 and the one in 2023. A false NEGATIVE
+  this audit did not count went with them: Georgia Tech replaced Geoff Collins with Brent
+  Key between the 2022 and 2023 Augusts, and the old rule called Key the 2022 coach and
+  scored 2023 as no change. **The pre-week-1 coaches pull suggested as the first option is
+  not available** — the archive holds no such file for any past season and the repair made
+  no network call — so the continuity rule is the archive-derivable substitute, and its one
+  gap (2021 has no anchor, so three of its schools fall back to the games count, on the
+  prior side of the first transition) is published per team.
+- **§2.2's closing gap.** `validate/leakage.py` now has a TEMPORAL guard class with a
+  planted-leak test. It runs on projection layers only and asks when a value became knowable
+  rather than what the column is called, which is the question none of the existing checks
+  could ask.
+
+**Three findings above did not survive the repair, and the corrections matter.**
+
+1. **The corrected attribution is more moved than §2.1 predicted.** That section
+   recomputed the scale defect in isolation, holding the shipped coefficients and
+   transforming `actual_power`, and got `prior_power` **+0.0093 at z 0.09**. The landing
+   point after refitting on the published surface AND removing the coaching leak is
+   **+0.1242 at z 0.88**. The verdict is what this audit said it would be, all four terms
+   priced about right, and the magnitude is four times larger. A simulation of a fix is not
+   the fix.
+2. **Colorado is 28th on the corrected surfaces, not 21st, and 18th by 2024 Power, not
+   12th.** The walk-forward Power orders 2024 differently from the full-season refit, so
+   §1.1's arithmetic, §1.2's layer walk and §1.4's control table are all on the superseded
+   scale. The structural finding is unchanged and the spans are smaller in the same
+   proportion as everything else: `prior_power` commands 27.6 points of range against
+   `returning_production`'s 4.6, where this audit measured 42.6 against 6.5.
+3. **The published paragraph in Part 4 was rewritten rather than patched.** Two of its
+   claims stop being true: Colorado is no longer inside the projected top 25, so "the
+   biggest miss on this page" and "the AP left Colorado out and we ranked them" both fail;
+   and "the grading loop is what found that" attributed the finding to a verdict that was
+   an artifact of §2.1. The replacement ships as a published field, `feature_story` on
+   `<season>/projection-grading.json`, with every number read off the live frames and every
+   claim, including its superlative, asserted before the sentence carrying it is allowed
+   out.
+
+**What did not change.** §1's verdict on Colorado stands in full: no term misfired, no data
+gap masked anything, no sign is wrong, and the magnitude asymmetry is a property of the
+design rather than a bug. §1.4's controls still work the same way on the corrected numbers,
+South Carolina still finishes 81st on the opposite offseason evidence, and Indiana still
+returns less than Colorado and finishes first. §1.5's portal finding stands. The
+counterfactual in §1.2 was re-run on the corrected coefficients and behaves identically:
+every setting of `b_rp` that moves Colorado down moves Indiana down and promotes Penn State
+toward first, and Spearman falls monotonically as the dial turns.
+
+**Campaign 3 remains specified and not run.** §3.2.0 said Lead 0 blocks every lead below
+it. Lead 0 is discharged. Leads 1 through 4 have not been executed, no candidate has been
+scored, and the adoption rule in §3.2.4 stands exactly as pre-registered. The one thing the
+repair adds to the specification is a prior worth recording before Lead 3 runs: the
+corrected implied multiplier on `prior_power` is **1.124 with z 0.88**, and four independent
+per-transition fits put phi between 0.552 and 0.762, so the grid is expected to select 1.00
+and close the question rather than move the recipe. That is a prediction, made in public,
+before the lead exists.

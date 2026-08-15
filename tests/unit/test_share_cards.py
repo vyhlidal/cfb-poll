@@ -215,6 +215,28 @@ def test_the_manifest_matches_the_cached_bytes() -> None:
         )
 
 
+def test_the_manifest_covers_every_mark_the_card_set_could_draw() -> None:
+    """The pin is complete, not merely correct about what it happens to mention.
+
+    `logos.resolve` draws from the cache and from nowhere else, so "every mark the
+    card set draws" is exactly "every file in the cache". The invariant is
+    maintained by construction - `warm` pins everything it fetches in the same
+    call - and this is what catches somebody dropping a file into the cache by
+    hand and shipping a card drawn from bytes nobody recorded.
+    """
+    if not logos.CACHE_DIR.is_dir():
+        pytest.skip(f"{logos.CACHE_DIR} is cold; nothing to check")
+    cached = sorted(logos.CACHE_DIR.glob("*.png"))
+    if not cached:
+        pytest.skip(f"{logos.CACHE_DIR} is cold; nothing to check")
+    pinned = {logos.cache_path(url) for url in logos.read_manifest()}
+    unpinned = [p.name for p in cached if p not in pinned]
+    assert unpinned == [], (
+        "these cached marks are not in data/logo-cache-manifest.json, so a card "
+        f"could draw bytes nobody recorded: {unpinned}"
+    )
+
+
 # ------------------------------------------------------------------- the artifact
 
 

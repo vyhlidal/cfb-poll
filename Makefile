@@ -238,9 +238,15 @@ variants: .venv archive
 	@echo "poll is untouched at $(FIXTURES)/$(VARIANT_SEASON)/week-NN.json, and so is"
 	@echo "index.json: a variant is not a recipe and never enters the roster."
 
-# Real. The weekly share card. No logos, no network, no headless browser: a
-# Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job
-# hermetic (report 05 §6.1, report 06 §8.3).
+# Real. The weekly share card. No headless browser: a Jinja-free SVG template
+# rendered by resvg, which is what keeps the Sunday job cheap (report 05 §6.1).
+#
+# ONE NETWORK CALL, AND ONLY WHEN THE CACHE IS COLD. The cards carry the schools'
+# real marks since the owner overturned report 06 §8.3, and `publish/logos.py`
+# fetches each one once into a gitignored .cache/logos/, pins it in
+# data/logo-cache-manifest.json and embeds it as a data: URI. A warm cache renders
+# with no network at all; `--no-fetch-logos` forces that and falls back to the
+# generated marks for anything missing.
 PROJECTION_SOURCE ?= 2025
 CARD_FROM ?= $(OUT)
 cards: .venv

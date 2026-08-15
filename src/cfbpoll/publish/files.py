@@ -176,6 +176,12 @@ def write_rank_outputs(
                     "hindsight_data_bucket",
                     "hindsight_is_live",
                     "saturation_tiebreak",
+                    # WHICH VALUE SYSTEM THIS IS (ADR 0011). poll.json is the
+                    # document a reader is most likely to open first and the one
+                    # a fork is most likely to render, so the recipe travels on
+                    # it rather than only on model_params.json.
+                    "recipe",
+                    "recipe_config_sha256",
                     # The headline ordering's one free constant, with the team it
                     # was read off, on the poll itself rather than in a footnote.
                     "q_ref",

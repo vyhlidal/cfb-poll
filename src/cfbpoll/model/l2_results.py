@@ -43,6 +43,7 @@ betting line (report 02 §3.10).
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -186,10 +187,31 @@ def fit(
     )
 
 
+def _publishable(value: float) -> float | str:
+    """A constant that JSON can carry, without dropping the one that it cannot.
+
+    `[margin].c = inf` is a REAL value of the parameter and not a missing one: it
+    is the limit of the tanh family, `s = m + beta_w*sign(m)`, which campaign 2
+    pre-registered and searched and which `configs/recipes/full-merit.toml`
+    selects. JSON has no infinity, `json.dumps` would emit the invalid literal
+    `Infinity`, and any writer with `allow_nan=False` (publish/fixtures.py) would
+    raise instead. So the limit is published under the name campaign 2 gave it.
+
+    Dropping it would be worse than either. `model_params.json` publishes every
+    constant a run used, every week, without exception (constraint 5), and the one
+    week it is allowed to omit a constant must not be the week that constant is
+    the entire argument.
+    """
+    number = float(value)
+    if math.isfinite(number):
+        return number
+    return "uncapped" if number > 0 else "-uncapped"
+
+
 def _static_params(cfg: dict[str, Any]) -> dict[str, Any]:
     """The constants that must appear in model_params.json every single week."""
     return {
-        "C": float(cfg["margin"]["c"]),
+        "C": _publishable(cfg["margin"]["c"]),
         "beta_w": float(cfg["margin"]["beta_w"]),  # PUBLISH THIS PROMINENTLY - §3.2
         "recency_gamma": float(cfg["weights"]["recency_gamma"]),
         "weight_bowl_non_cfp": float(cfg["weights"]["bowl_non_cfp"]),

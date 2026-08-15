@@ -80,6 +80,31 @@ app.add_typer(site_app)
 app.add_typer(challenge_app)
 
 
+#: Headline ordering -> (the column that sorted the table, its terminal header,
+#: the one sentence that says what the key MEANS). The rank key is the single most
+#: important thing a run has to be able to state about itself, and two of the
+#: three recipes rank on something other than the schedule odds, so it is looked
+#: up rather than assumed (ADR 0011). `publish/poll.ORDER_KEYS` is the authority
+#: on the sort itself; this is only how a human is told about it.
+_HEADLINE_KEY: dict[str, tuple[str, str, str]] = {
+    "schedule_odds": (
+        "odds_key",
+        "-log10P",
+        "-log10 P(W >= W_t): how improbable this record was against this exact schedule",
+    ),
+    "L4_resume": (
+        "resume",
+        "resume",
+        "the wins-based resume: what quality of team these WINS imply, margin excluded",
+    ),
+    "L4_resume_margin": (
+        "resume_margin",
+        "r-margin",
+        "the margin-aware resume: what quality of team these SCORES imply, margin included",
+    ),
+}
+
+
 def _stub(what: str, spec: str) -> None:
     """Fail loudly and honestly. No command may silently pretend to have worked."""
     raise NotImplementedError(
@@ -601,9 +626,54 @@ def audit_features(
         raise typer.Exit(code=1)
 
 
+@app.command("recipes")
+def list_recipes(
+    out: Annotated[Path | None, typer.Option(help="Write the roster as JSON to this path.")] = None,
+) -> None:
+    """The named value systems the poll can be read under (configs/recipes/).
+
+    A ranking is a value system, so this project ships more than one and names
+    them. `full-merit` takes margin at face value; `house` is the published poll
+    and compresses margin in the engine while keeping it out of the headline;
+    `just-win` compresses margin almost to nothing and ranks on wins alone.
+
+    A RECIPE CHANGES VALUES, NEVER EVIDENCE. Every recipe reads the same archive
+    through the same walk-forward window under the same constraints, and
+    `recipes.EVIDENCE_KEYS` makes that a load-time refusal rather than a
+    convention. Only `house` is published as the poll; the rest are alternate
+    lenses and every artifact they touch says so.
+    """
+    import json
+
+    from cfbpoll import recipes as recipes_mod
+
+    roster = recipes_mod.roster()
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(roster, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    for entry in roster:
+        flag = "  [PUBLISHED POLL, default]" if entry["is_house"] else "  [alternate lens]"
+        typer.echo(f"{entry['slug']:<12}{entry['name']:<18}{flag}")
+        typer.echo(f"  {entry['one_liner']}")
+        changes = entry["changes"]
+        typer.echo(
+            "  changes: "
+            + (", ".join(f"{k} = {v}" for k, v in changes.items()) if changes else "nothing at all")
+        )
+        for cost in entry["tradeoffs"]:
+            typer.echo(f"  cost: {cost}")
+        typer.echo("")
+    if out is not None:
+        typer.echo(f"wrote: {out}")
+
+
 @app.command()
 def rank(
     config: Annotated[Path, typer.Option(help="Model config TOML.")] = Path("configs/default.toml"),
+    recipe: Annotated[
+        str, typer.Option(help="Named value system from configs/recipes/. Default: the house poll.")
+    ] = "house",
     season: Annotated[str | None, typer.Option(help="Season; blank = current.")] = None,
     through_week: Annotated[
         str | None, typer.Option(help="Data window K. Blank = latest completed week.")
@@ -649,7 +719,7 @@ def rank(
     """
     import polars as pl
 
-    from cfbpoll.config import load_config
+    from cfbpoll import recipes as recipes_mod
     from cfbpoll.ingest import windows
     from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE, load_games
     from cfbpoll.model import bootstrap as bootstrap_mod
@@ -664,7 +734,15 @@ def rank(
             "(report 01 §3.7). Try --season 2023."
         )
     season_i = int(season)
-    cfg = load_config(config)
+    # THE RECIPE IS RESOLVED BEFORE ANYTHING ELSE HAPPENS. `resolve` merges the
+    # recipe's diff onto `--config` through `merge_overlay`, which refuses a key
+    # the base does not define, and `assert_values_only` has already refused any
+    # key that would change what EVIDENCE the run reads. Every line below this one
+    # is identical for every recipe; only the constants differ.
+    try:
+        cfg, chosen = recipes_mod.resolve(recipe, config)
+    except recipes_mod.RecipeError as error:
+        raise typer.BadParameter(str(error)) from error
 
     games = load_games([season_i], universe=str(cfg["model"]["fit_universe"]))
     plays = _plays_if_needed(cfg, [season_i])
@@ -722,9 +800,12 @@ def rank(
         )
         interval_table = bootstrap_mod.intervals(draw_set, float(cfg["bootstrap"]["interval"]))
 
-    table = poll_mod.headline_frame(live, hindsight, interval_table)
-    provisional, label = poll_mod.publication_status(week_i, cfg)
     ordering = poll_mod.headline_ordering(cfg)
+    # The interval beside a rank must be an interval on THAT rank, so the ordering
+    # is threaded into the join rather than assumed (publish/poll.py's
+    # HEADLINE_INTERVAL_ORDERING).
+    table = poll_mod.headline_frame(live, hindsight, interval_table, ordering)
+    provisional, label = poll_mod.publication_status(week_i, cfg)
 
     l2 = power.l2
     params = {
@@ -745,6 +826,13 @@ def rank(
         "headline_ordering": ordering,
         "headline_layer": cfg["publication"]["headline_layer"],
         "headline_decided": "2026-08-12, docs/adr/0005-headline-ordering.md",
+        # WHICH VALUE SYSTEM PRODUCED THIS RANKING, on the artifact, by name, with
+        # its manifesto and its costs attached (ADR 0011). Every run carries it,
+        # including the house run, because "no recipe was named" and "the house
+        # recipe ran" are the same event and an artifact that leaves a reader to
+        # infer which is being coy about what produced a number.
+        "recipe": chosen.as_dict(),
+        "recipe_config_sha256": recipes_mod.resolved_hash(cfg),
         "companion_layer": cfg["publication"]["companion_layer"],
         "hindsight_variant": retro.HINDSIGHT_VARIANT,
         "hindsight_data_bucket": final.label,
@@ -783,6 +871,18 @@ def rank(
         "n_teams_in_fit": int(live.height),
         "n_ranked_teams": int(table.height),
         "game_sources": _game_sources(window),
+        "recipe": chosen.slug,
+        "recipe_base_config": str(config),
+        # The hash of the RESOLVED methodology, not of a file. `config_hash` below
+        # still hashes the base config's bytes, so a house run's receipt is
+        # unchanged; this is the field that distinguishes two recipes sharing one
+        # base, and it is a pure function of every constant that ran (ADR 0011).
+        "recipe_config_sha256": recipes_mod.resolved_hash(cfg),
+        # THE EVIDENCE DIGEST. Same archive, same window, same games, under every
+        # recipe. It is published on every run so the claim is checkable by diffing
+        # two receipts rather than by trusting this sentence; the assertion itself
+        # lives in tests/unit/test_recipes.py.
+        "fit_window_sha256": leakage.digest(window),
     }
     written = files.write_rank_outputs(
         out, live, hindsight, table, params, run, config_path=config, intervals=interval_table
@@ -790,23 +890,45 @@ def rank(
 
     saturated = int(table.filter(pl.col("saturated") != 0).height)
     typer.echo(
-        f"{schedule_odds.LAYER} {schedule_odds.VERSION} - the headline ordering "
+        f"recipe {chosen.slug!r} ({chosen.name}): "
+        + ("THE PUBLISHED POLL" if chosen.is_house else recipes_mod.ALTERNATE_LABEL)
+        + " - "
+        + chosen.one_liner
+    )
+    # WHAT ACTUALLY SORTED THIS TABLE, named on the terminal as well as on the
+    # artifact. Two of the three recipes rank on a column that is not the schedule
+    # odds, and a run that prints "the headline ordering is schedule odds" while
+    # ranking on the résumé is lying to the one person who can still catch it.
+    key_column, key_header, key_note = _HEADLINE_KEY[ordering]
+    typer.echo(
+        f"{cfg['publication']['headline_layer']} - the headline ordering "
         f"(Power = {params['power_source']} {params['power_version']}) - "
         f"{season_i} through {evaluated.label}: {window.height} games, "
         f"{live.height} teams, {table.height} ranked, "
         f"lambda_l2={l2.lam:g} h={power.home_field:.3f}"
         if l2 is not None
-        else f"{schedule_odds.LAYER} - {season_i} through {evaluated.label}"
+        else f"{cfg['publication']['headline_layer']} - {season_i} through {evaluated.label}"
     )
+    typer.echo(f"  rank key {key_note}")
     typer.echo(
-        f"  rank key -log10 P(W >= W_t), q_ref = {odds.q_ref.value:.2f} points"
+        f"  q_ref = {odds.q_ref.value:.2f} points"
         + (f" ({odds.q_ref.team})" if odds.q_ref.team else "")
-        + f" by {odds.q_ref.method}; margin never enters the key"
+        + f" by {odds.q_ref.method}"
+        + (
+            "; margin never enters the key"
+            if ordering == "schedule_odds"
+            else "; the schedule odds are published beside every team but do not sort this table"
+        )
     )
     typer.echo(
-        f"  {saturated} ranked team(s) saturated at the q bound (*) on the RESUME "
-        "column, which is published beside the key and no longer orders the poll "
-        "(docs/adr/0005-headline-ordering.md)" + ("  [PROVISIONAL]" if provisional else "")
+        f"  {saturated} ranked team(s) saturated at the q bound (*) on the RESUME column"
+        + (
+            ", which IS the key under this recipe: every one of them is tied at the "
+            "bound and separated only by the margin-aware tie-break"
+            if ordering == "L4_resume"
+            else ", which is published beside the key and does not order this table"
+        )
+        + ("  [PROVISIONAL]" if provisional else "")
     )
     if draw_set is not None:
         level = int(round(100 * float(cfg["bootstrap"]["interval"])))
@@ -817,8 +939,8 @@ def rank(
             "and is not what this does"
         )
     typer.echo(
-        f"{'#':>3} {'90% int':>9}  {'team':<24}{'-log10P':>9}{'P':>10}{'resume':>9}"
-        f"{'power':>8}{'+/-':>6}{'gap':>7}   rec   retro"
+        f"{'#':>3} {'90% int':>9}  {'team':<24}{key_header + ' *':>11}{'-log10P':>9}"
+        f"{'resume':>9}{'r-margin':>10}{'power':>8}{'+/-':>6}{'gap':>7}   rec   retro"
     )
     for row in table.head(25).iter_rows(named=True):
         mark = "*" if row["saturated"] else " "
@@ -829,8 +951,8 @@ def rank(
         )
         se = f"{row['power_se']:>6.2f}" if row["power_se"] is not None else " " * 6
         typer.echo(
-            f"{row['rank']:>3} {interval}  {row['team']:<24}{row['odds_key']:>9.3f}"
-            f"{row['tail_p']:>10.2e}{row['resume']:>8.2f}{mark}"
+            f"{row['rank']:>3} {interval}  {row['team']:<24}{row[key_column]:>11.3f}"
+            f"{row['odds_key']:>9.3f}{row['resume']:>8.2f}{mark}{row['resume_margin']:>10.2f}"
             f"{row['power']:>8.2f}{se}{row['gap']:>7.2f}"
             f"  {row['wins']}-{row['losses']}  {row['rank_delta']:+d}"
         )

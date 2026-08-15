@@ -1,0 +1,67 @@
+####################################################################################
+# RECIPE: Just Win. The sportsmanship end of the axis.
+#
+# A recipe is a `[recipe]` block plus ONLY the constants it changes from
+# configs/default.toml. See configs/recipes/README.md.
+#
+# WHY THE NAME IS NOT "SPORTSMANSHIP", which was the working title. A poll cannot
+# enforce sportsmanship and should not claim to. What it can do is decline to pay
+# for the opposite, which is a statement about the poll rather than about anybody's
+# character, and "Just Win" says exactly that and nothing more. The reasoning is
+# preserved here rather than in a commit message because the rejected name is the
+# clearer statement of the MOTIVE, and a reader deserves both.
+####################################################################################
+
+[recipe]
+slug = "just-win"
+name = "Just Win"
+stance = 2
+one_liner = "Win the game. Running the score up buys you nothing here."
+
+manifesto = """
+If point differential pays, teams will run up the score on an opponent who cannot
+stop them. Everybody has seen it happen and nobody enjoyed it. This recipe takes
+the incentive off the table the only way a poll actually can, by refusing to look:
+the compression scale drops to a single point against a 7 point win premium, so
+margin can move a game's contribution by at most 1 point in 8 and beating someone
+by 70 is worth almost exactly what beating them by 1 is worth. There is nothing
+left to chase in the fourth quarter. The table is then ordered by the wins based
+resume, which asks one question and only one, what quality of team would have been
+expected to produce this record against this schedule. That is Colley's principle
+arrived at from the other direction, and the cost of it is written down below in
+full, because this recipe throws away real information on purpose and a reader is
+owed the size of what it threw away.
+"""
+
+tradeoffs = [
+    "It throws away information that is genuinely there. A 70 point win and a 1 point win are not the same event and this recipe values them within about 15 percent of each other. That is the whole objection to Colley and it lands.",
+    "It cannot move an unbeaten team, at all, ever. Expected wins approaches n from below, so an undefeated team has no finite root and every one of them lands on exactly the published bracket of +60, which is not a function of the schedule. The retroactive re-ranking that is this project's most differentiated product therefore cannot move an unbeaten team by a single place, in any week, in any direction. If September turns out to have been harder than it looked, this recipe cannot say so.",
+    "No team with a loss can ever be ranked above an unbeaten team. Not rarely. Never, by construction, in every season measured. In 2021 that forced a 13-0 Cincinnati to number one ahead of Alabama, Georgia and Michigan, a position no independent judge reached.",
+    "The saturation tie-break is still the margin aware resume, so margin is not literally at zero. At C = 1 that variant is nearly margin free itself, which is the honest reason it is left in place rather than switched off: something has to order teams that are all sitting on the same bound, and alphabetical order would be worse.",
+    "Compressing to a single point is far outside anything the tuning campaigns searched. Campaign 1's grid opened at C = 18 and campaign 2 only widened it upward. This constant is a value judgement taken to its logical end, not a fitted number, and nothing in this repository claims it predicts well.",
+]
+
+####################################################################################
+# THE TWO CONSTANTS
+####################################################################################
+
+[margin]
+# C = 1.0 against beta_w = 7.0. The response is s = 1.0*tanh(m) + 7*sign(m), which
+# is within 0.02 of +/-8 for any margin past 3 points, so the whole scoreboard is
+# worth one eighth of what winning is worth and the derivative is flat almost
+# everywhere. It is not zero, and that is deliberate: a hard zero would make the
+# design matrix a pure win/loss indicator and lose the only tie-break available
+# between two teams with identical records against identical schedules.
+c = 1.0
+beta_w = 7.0
+
+####################################################################################
+# THE HEADLINE
+####################################################################################
+
+[publication]
+# The wins based resume: the ordering that was the headline until 2026-08-12, that
+# ADR 0005 replaced, and that the default config has always kept reachable because
+# "a choice that cannot be switched back is not a choice". This recipe is what that
+# sentence was reserving room for.
+headline_ordering = "L4_resume"

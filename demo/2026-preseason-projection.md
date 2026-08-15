@@ -2,11 +2,11 @@
 
 > **THIS IS A PROJECTION. IT IS NOT THE POLL.**
 >
-> The poll ranks what a team has done, from on-field results only, and it does not begin until week 5. This page is a guess made in August, before anybody has played a snap. It is built from last season's fitted ratings plus every offseason change we can measure, and its whole job is to be graded in public by the poll it is not allowed to influence.
+> The poll ranks what a team has done, from on-field results only, and it does not begin until week 5. This page is the model's August projection, built from last season's fitted ratings plus every offseason change we can measure. Its whole job is to be graded in public by the poll it is not allowed to influence.
 >
 > It is frozen. It will not be edited, quietly improved, or re-run when it starts to look bad. That is the deal.
 
-Recipe `projection-2.0.0` · source season 2025 · generated 2026-08-15T22:57:36+00:00 · `8eefee5e04`
+Recipe `projection-2.0.0` · source season 2025 · generated 2026-08-15T23:25:29+00:00 · `5b35533d83`
 
 ## The recipe, in full
 
@@ -77,8 +77,8 @@ Projected records use sd(margin | projection) = sqrt(15.30^2 + 2 * 6.65^2) = 17.
 - **Coverage.** 136 of 138 FBS teams have a returning-production row; the 2 missing (North Dakota State, Sacramento State) are new to FBS and have no prior FBS production to return, which is a correct absence rather than a gap.
 - **The win totals are timid on purpose.** sd(margin | projection) = sqrt(15.30^2 + 2 * 6.65^2) = 17.96 points, with the first term from [resume].sigma, the documented floor, which the source season's own walk-forward estimate came in under. The second term is the recipe's own residual error, carried by both teams independently. In-season the poll works with the first term alone; in August it does not have that luxury, and every win probability here is correspondingly closer to a coin flip.
 - **The 2026 schedule is 888 games as CFBD had it when this ran.** Schedules change; the projection does not get re-run when they do.
-- **North Dakota State, Sacramento State moved up from FCS for 2026, and their prior-season rating was earned against FCS opposition.** The Power fit is all-divisions, so they have a real rating rather than a guess — but ridge shrinks thin schedules toward the mean of a universe that includes every FCS team, which is a softer standard than the one they are about to be held to, and the recipe has no term for promotion. It is not hypothetical here: North Dakota State lands #10. Treat that as the single least trustworthy row on this page, and watch what the grading loop does to it.
-- **No AP preseason poll for 2026 was in the archive when this ran**, so the head-to-head comparison on this page is the historical one. The AP's 2026 guess will be scored against this page's when it appears.
+- **North Dakota State, Sacramento State moved up from FCS for 2026, and their prior-season rating was earned against FCS opposition.** The Power fit is all-divisions, so they carry a real rating. Ridge still shrinks thin schedules toward the mean of a universe that includes every FCS team, which is a softer standard than the one they are about to be held to, and the recipe has no term for promotion. It is not hypothetical here: North Dakota State lands #10. Treat that as the single least trustworthy row on this page, and watch what the grading loop does to it.
+- **No AP preseason poll for 2026 was in the archive when this ran**, so the head-to-head comparison on this page is the historical one. The AP's 2026 preseason ballot will be scored against this page's when it appears.
 
 ## The holdout
 

@@ -281,6 +281,8 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 | `make rankings` | **Works now.** `archive` → fit → `out/poll.csv`, `out/poll.json`, `out/_run.json`. `RANK_SEASON=2023 RANK_WEEK=15` by default |
 | `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
 | `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
+| `make projection` | **Works now.** Regenerate the 2026 Projection, its backtest and the grading-loop demo. A labelled prediction, never the poll — [ADR 0010](docs/adr/0010-projection-and-poll.md) |
+| `make projection-audit` | **Works now.** The separation proof: both products, both deny-lists, one report. Non-zero if a projection input is anywhere near a poll layer |
 | `make grid` | **Works now.** The R(N, K) retroactive triangle for one season (`GRID_SEASON=2023`) |
 | `make archive-lock` | Regenerate the committed lockfile from a backfill manifest. Only after a backfill or a new release tag |
 | `make replay` | Recompute a known historical week offline and assert a byte-match |
@@ -303,6 +305,12 @@ cfbpoll publish {release,postgres,fixtures,cards}
                                         `make fixtures` republishes a whole season;
                                         `cards` renders the share card (SVG + PNG)
 cfbpoll site build                      build the static site
+cfbpoll projection {ingest,build,audit,fixture}
+                                        THE PROJECTION - a preseason ranking from
+                                        last season's fitted ratings plus the
+                                        offseason, published to be graded in
+                                        public by the poll it may not touch.
+                                        `audit` proves the separation both ways
 ```
 
 ---

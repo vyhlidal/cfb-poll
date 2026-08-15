@@ -17,7 +17,8 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive archive-lock backtest cards demos fixtures replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive archive-lock backtest cards demos fixtures projection \
+        projection-audit replay replay-tolerant grid site test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -31,6 +32,8 @@ help:
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
 	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
 	@echo "  make demos            regenerate demo/ from the local archive"
+	@echo "  make projection       the 2026 Projection - a PREDICTION, never the poll"
+	@echo "  make projection-audit prove the Projection and the Poll stay separate"
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
 	@echo "  make site             build the static site into site/_build      [stub]"
@@ -133,6 +136,7 @@ fixtures: .venv backtest
 # Real. The weekly share card. No logos, no network, no headless browser: a
 # Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job
 # hermetic (report 05 §6.1, report 06 §8.3).
+PROJECTION_SOURCE ?= 2025
 CARD_FROM ?= $(OUT)
 cards: .venv
 	$(UV) run cfbpoll publish cards --from $(CARD_FROM) --out $(OUT)/share
@@ -141,6 +145,17 @@ cards: .venv
 demos: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run python scripts/make_demos.py
+
+# Real. The PROJECTION - a labelled prediction, and never the poll (ADR 0010).
+# Regenerates demo/2026-preseason-projection.md and friends from the archive.
+projection: .venv
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run python scripts/make_projection.py
+
+# The separation proof: both products, both deny-lists, one report. Exits
+# non-zero if a projection input is anywhere near a poll layer.
+projection-audit: .venv
+	$(UV) run cfbpoll projection audit --season $(PROJECTION_SOURCE) --fail-on-banned
 
 replay: .venv
 	@echo "[stub] uv run --frozen --offline cfbpoll rank --season 2023 --through-week 10 \\"

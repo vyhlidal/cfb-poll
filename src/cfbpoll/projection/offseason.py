@@ -16,7 +16,12 @@ FOUR ENDPOINTS, ALL VERIFIED ON THE FREE TIER on 2026-08-15 against a key whose
                               names.
   /coaches?year=Y             one row per coach, each carrying a `seasons` list.
                               A school can appear more than once in a year
-                              (interims), so `primary_coach` picks by games.
+                              (interims, and coaches who left before working a
+                              game), so `_august_coach` decides which of them
+                              opened the season - from prior-season continuity,
+                              never from the season's own games count. See ADR
+                              0013: the games count was `projection-1.0.0`'s
+                              temporal leak.
   /rankings?year=Y&week=1     the AP preseason top 25. BASELINE ONLY. It is the
                               thing this product is trying to beat and it is
                               banned from every projection design matrix by
@@ -59,9 +64,11 @@ from cfbpoll.ingest import cfbd
 
 __all__ = [
     "AP_POLL_NAME",
+    "COACH_OF_RECORD_SOURCES",
     "PULL_CALL_BUDGET",
     "RETURNING_COLUMNS",
     "ap_preseason",
+    "august_head_coaches",
     "coaching",
     "coverage",
     "portal",
@@ -254,18 +261,19 @@ def portal(season: int, archive_root: str | Path | None = None) -> pl.DataFrame:
     ).sort("team")
 
 
-def _primary_coach(payload: Any, season: int) -> dict[str, str]:
-    """school -> the coach who worked the most games there in `season`.
+def _coach_rows(payload: Any, season: int) -> dict[str, list[tuple[str, int]]]:
+    """school -> [(coach name, games worked)] for `season`, sorted for determinism.
 
-    Interims are why this is a max and not a lookup: CFBD's 2024 file has Rice
-    with a four-game Pete Alamar row beside the coach who worked the rest, and a
-    naive first-match would call that school's 2025 hire a non-change or a
-    double-change depending on iteration order. Ties break on the coach's name so
-    the answer does not depend on file order either.
+    The raw shape of CFBD's file, before any decision is taken about which of
+    them was actually running the program. A school appears more than once
+    whenever it changed coaches during the season, and it also appears more than
+    once when a coach who never worked a game is carried on the roster: CFBD's
+    2024 file has Buffalo with Maurice Linguist at **zero** games beside Pete
+    Lembo's thirteen, because Linguist left in January and the row stayed.
     """
     if not isinstance(payload, list):
         return {}
-    best: dict[str, tuple[int, str]] = {}
+    rows: dict[str, list[tuple[str, int]]] = {}
     for coach in payload:
         first = str(coach.get("firstName") or "").strip()
         last = str(coach.get("lastName") or "").strip()
@@ -276,21 +284,126 @@ def _primary_coach(payload: Any, season: int) -> dict[str, str]:
             school = str(row.get("school") or "")
             if not school or not name:
                 continue
-            games = int(row.get("games") or 0)
-            current = best.get(school)
-            if current is None or (games, name) > current:
-                best[school] = (games, name)
-    return {school: name for school, (_, name) in best.items()}
+            rows.setdefault(school, []).append((name, int(row.get("games") or 0)))
+    return {school: sorted(v) for school, v in sorted(rows.items())}
+
+
+#: How `_august_coach` decided, per school. Published on the offseason frame,
+#: because the three cases carry different amounts of confidence and a column
+#: that hides which one applied is a column a reader has to trust rather than
+#: check.
+COACH_OF_RECORD_SOURCES: tuple[str, ...] = (
+    "sole_coach_of_record",
+    "prior_season_continuity",
+    "inferred_from_games",
+)
+
+
+def _august_coach(
+    rows: dict[str, list[tuple[str, int]]], prior_rows: dict[str, list[tuple[str, int]]]
+) -> dict[str, tuple[str, str]]:
+    """school -> (the head coach at the START of the season, how we know).
+
+    THIS IS THE TEMPORAL FIX (ADR 0013). The version this replaced took the coach
+    with the most games, from a `/coaches?year=Y` file pulled AFTER season Y had
+    been played. A school that fires its head coach in October and whose interim
+    then works more games than he did came out of that function as the interim,
+    so `coach_change` read 1 for a firing that had not happened in August. Five
+    schools were docked 2.33 points of projected Power that way in 2025, Penn
+    State among them, and the leak FLATTERS the model, because coaches get fired
+    for losing and a false "new coach" flag lands on teams about to underperform.
+
+    The rule here uses only facts an August reader has:
+
+      1. A coach with ZERO games did not open the season. He is dropped from the
+         candidate pool whenever anybody at that school worked one, which is what
+         separates Buffalo's phantom Linguist row from a real mid-season change.
+         In a season nobody has played yet every row is zero, so the pool is
+         every row and this step is a no-op - which is the correct behaviour for
+         the file the live projection actually reads.
+      2. One candidate means one head coach, and somebody coached game one.
+      3. More than one candidate means the season had a mid-season change in it.
+         The August coach is then the one who was already at that school the
+         season before, and PRIOR-SEASON CONTINUITY IS THE ONLY THING THAT
+         DECIDES IT. No within-season quantity is consulted.
+
+    WHEN CONTINUITY FINDS NOBODY the school both hired in the offseason and
+    changed again during the season, so `coach_change` is 1 whichever candidate
+    was the August man and the leak cannot reach the number. The NAME still has
+    to be filled in, it is taken from the games count as the least-bad guess, and
+    it is stamped `inferred_from_games` so that "this string is a guess and the
+    flag beside it is not" is visible rather than assumed.
+    `tests/unit/test_projection_offseason.py` asserts the implication
+    (`inferred_from_games` => `coach_change != 0`) instead of trusting it.
+    """
+    out: dict[str, tuple[str, str]] = {}
+    for school, entries in rows.items():
+        played = [entry for entry in entries if entry[1] >= 1]
+        candidates = played or list(entries)
+        if not candidates:
+            continue
+        if len(candidates) == 1:
+            out[school] = (candidates[0][0], "sole_coach_of_record")
+            continue
+        prior_names = {name for name, _ in prior_rows.get(school, [])}
+        continuing = [entry for entry in candidates if entry[0] in prior_names]
+        if continuing:
+            # Ties break on (games, name) so the answer never depends on file
+            # order. More than one continuing head coach at one school is not a
+            # thing that happens; the max is here so that it cannot crash if it
+            # ever does.
+            name = max(continuing, key=lambda entry: (entry[1], entry[0]))[0]
+            out[school] = (name, "prior_season_continuity")
+            continue
+        name = max(candidates, key=lambda entry: (entry[1], entry[0]))[0]
+        out[school] = (name, "inferred_from_games")
+    return out
+
+
+def august_head_coaches(
+    season: int, archive_root: str | Path | None = None
+) -> dict[str, tuple[str, str]]:
+    """school -> (head coach at the start of `season`, how we know). Offline.
+
+    Public because the temporal claim this module makes is worth being able to
+    check from the outside: hand it a season and it answers with the man who
+    opened it, and the second element says whether that answer came from there
+    being only one candidate, from prior-season continuity, or from a games count
+    that could not decide the flag anyway.
+    """
+    return _august_coach(
+        _coach_rows(_body("/coaches", season, archive_root, {"year": season}), season),
+        _coach_rows(
+            _body("/coaches", season - 1, archive_root, {"year": season - 1}), season - 1
+        ),
+    )
 
 
 def coaching(season: int, archive_root: str | Path | None = None) -> pl.DataFrame:
-    """Who is coaching in `season`, and whether that is a change from `season - 1`.
+    """Who opens `season` as head coach, and whether that is a change from `season - 1`.
 
-    `coach_change` is 1 when the primary coach's NAME differs from the primary
-    coach's name at the same school the season before, and 0 when it matches.
+    `coach_change` is 1 when the head coach at the START of `season` differs by
+    NAME from the head coach at the start of the season before, and 0 when it
+    matches. Both sides come through `_august_coach`, so the question the column
+    answers is "did this program replace its head coach over the offseason" and
+    not "did anything happen to its head coach at any point in either year".
     A school with no prior-season row - a new FBS member - gets `coach_change`
     null rather than 1, because "we do not know" and "they fired someone" are
     different facts and the recipe treats the unknown as the league mean.
+
+    KNOWABLE IN AUGUST, WHICH IS THE WHOLE POINT (ADR 0013). Everything about
+    `season - 1` is settled by the August this column is read in, and nothing
+    about `season` itself is consulted beyond the roster of names, which is why
+    `validate/leakage.py`'s TEMPORAL guard admits `coach_change` and would refuse
+    the version of this function that shipped in `projection-1.0.0`.
+
+    THE ONE PLACE THE ARCHIVE CANNOT REACH, stated rather than papered over: the
+    earliest archived coaches file is 2021, so `_august_coach` has no continuity
+    anchor for 2021 itself and falls back to the games count for the three 2021
+    schools that changed coach mid-season. Those are all on the PRIOR side of the
+    2021 -> 2022 transition, i.e. in the past relative to the projection that
+    reads them, so it is an accuracy limit and not a leak. It is published per
+    team in `coach_of_record_source_prior`.
 
     WHAT THIS TERM IS NOT. It is a binary "is the head coach new", not coaching
     QUALITY and not coordinator movement. FPI uses coaching tenure as a
@@ -299,18 +412,20 @@ def coaching(season: int, archive_root: str | Path | None = None) -> pl.DataFram
     every school that changed. Whether that is a good model of coaching change is
     exactly the kind of thing the grading loop exists to find out.
     """
-    now = _primary_coach(_body("/coaches", season, archive_root, {"year": season}), season)
-    before = _primary_coach(
-        _body("/coaches", season - 1, archive_root, {"year": season - 1}), season - 1
-    )
+    now = august_head_coaches(season, archive_root)
+    before = august_head_coaches(season - 1, archive_root)
     teams = sorted(now)
     return pl.DataFrame(
         {
             "team": teams,
-            "coach_name": [now[t] for t in teams],
-            "coach_name_prior": [before.get(t) for t in teams],
+            "coach_name": [now[t][0] for t in teams],
+            "coach_of_record_source": [now[t][1] for t in teams],
+            "coach_name_prior": [before[t][0] if t in before else None for t in teams],
+            "coach_of_record_source_prior": [
+                before[t][1] if t in before else None for t in teams
+            ],
             "coach_change": pl.Series(
-                [None if t not in before else int(now[t] != before[t]) for t in teams],
+                [None if t not in before else int(now[t][0] != before[t][0]) for t in teams],
                 dtype=pl.Int32,
             ),
         }

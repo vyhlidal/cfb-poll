@@ -97,6 +97,28 @@ difference between them is the whole separation:
   the recipe onto CFBD's `usage` (a counting-stat share) rather than its
   `percentPPA`, mechanically, rather than by anyone remembering to.
 
+THE THIRD QUESTION, ADDED AFTER IT WAS ANSWERED WRONG (ADR 0013). The two checks
+above ask WHICH columns reached a fit. Neither asks WHEN their values became
+knowable, and a projection is published in August and graded against the season
+that follows, so a column can be perfectly allow-listed and still be answered
+from the future. `coach_change` was: it came off a `/coaches?year=Y` file pulled
+after season Y had been played, `_primary_coach` picked the school's coach by
+games worked, and a school that fired in October and whose interim then outworked
+him arrived in the design matrix as an August coaching change. Five schools were
+docked 2.33 points that way in 2025, Penn State among them. Every existing check
+in this module passed the whole time, because the column name was innocent.
+
+`TemporalGuard` is the check that would have caught it. It runs on PROJECTION
+layers only - a poll layer is fitted on games that have been played and has no
+August to be honest about - and it has the same two halves as everything else
+here: a deny-list of names that announce a within-season quantity, and, as the
+gate, a positive declaration of every column on the frame with the sentence that
+says what settles its value and by when. Undeclared is a violation, so a column
+added to the offseason frame has to be reasoned about before it can ride along.
+`TemporalLeak` is its own exception type and
+`tests/unit/test_projection_separation.py` plants one and asserts the audit names
+it.
+
 For projection inputs alone, PRESENCE in a poll layer's frame is a violation, and
 the exception is earned by provenance rather than granted by preference. Every
 other banned column in this archive is here because a third party shipped it in
@@ -130,12 +152,17 @@ __all__ = [
     "LAYERS",
     "PROJECTION_BANNED_PATTERNS",
     "PROJECTION_INPUT_PATTERNS",
+    "PROJECTION_KNOWABLE_IN_AUGUST",
     "PROJECTION_LAYERS",
+    "PROJECTION_TEMPORAL_GUARD",
+    "TEMPORAL_BANNED_PATTERNS",
     "AuditReport",
     "BannedFeature",
     "LayerResult",
     "LayerSpec",
     "ProjectionInputInPoll",
+    "TemporalGuard",
+    "TemporalLeak",
     "audit",
     "banned_hits",
     "digest",
@@ -145,6 +172,24 @@ __all__ = [
 
 class BannedFeature(RuntimeError):
     """A banned or un-allow-listed column reached a design matrix."""
+
+
+class TemporalLeak(BannedFeature):
+    """A projection frame carries something August could not have known (ADR 0013).
+
+    Its own type because it is its own breach, and because the audit that existed
+    before it could not see this one at all. Every other check in this module asks
+    WHICH column reached a fit. This one asks WHEN its value became knowable, and
+    the two questions come apart: `coach_change` is on the projection's allow-list
+    for good reasons, it passed every check here for three seasons, and its value
+    was being read off a `/coaches?year=Y` file pulled after season Y had been
+    played. The column name was innocent. The clock was not.
+
+    A projection is published in August and graded against the season that
+    follows. Any input whose value could only be settled after that season's first
+    kickoff is a leak, whatever it is called, and the leak FLATTERS the model,
+    which is why it has to fail the build rather than warn.
+    """
 
 
 class ProjectionInputInPoll(BannedFeature):
@@ -289,6 +334,44 @@ PROJECTION_BANNED_PATTERNS: tuple[str, ...] = (
     "betting",
 )
 
+#: Substrings naming a quantity that cannot be settled until the projected
+#: season has started, matched case-insensitively against the columns of a
+#: PROJECTION frame. The deny half of the temporal guard, and the weaker half for
+#: the same reason every deny-list here is: a leak nobody predicted would not be
+#: on it. `TemporalGuard.knowable` is the half that fails closed.
+#:
+#: Nothing on this list may collide with a column the projection legitimately
+#: carries, which is what rules out the obvious entries: "usage" and "net" belong
+#: to the offseason frame, and "power" is last season's, which August has. The
+#: bare "record" is out for the same reason and it is the one that nearly got
+#: through: `coach_of_record_source` is the column that says HOW the August head
+#: coach was decided, and a pattern that fired on it would have made this guard
+#: report a violation on every healthy run, which is how a guard gets ignored.
+TEMPORAL_BANNED_PATTERNS: tuple[str, ...] = (
+    "actual",
+    "final_",
+    "_final",
+    "hindsight",
+    "settled",
+    "in_season",
+    "inseason",
+    "mid_season",
+    "midseason",
+    "interim",
+    "games_played",
+    "_wins",
+    "_losses",
+    "win_pct",
+    "season_record",
+    "outcome",
+    "result_",
+    "postseason",
+    "bowl",
+    "playoff",
+    "week_",
+    "through_week",
+)
+
 #: Patterns for which a mere PRESENCE in a poll layer's frame is a violation
 #: rather than a note. Exactly `PROJECTION_INPUT_PATTERNS`, and the asymmetry
 #: against every other banned pattern is deliberate and is argued in
@@ -315,6 +398,64 @@ EP_TEAM_LABELS_NOTE = (
 
 
 @dataclass(frozen=True)
+class TemporalGuard:
+    """WHEN each column of a projection frame became knowable, checked per run.
+
+    THE CHECK THE AUDIT DID NOT HAVE, and the reason `projection-1.0.0` shipped a
+    coaching term that read the season it was projecting. Everything else in this
+    module is about WHICH columns reach a fit. This is about WHEN their values
+    exist, and a column can be perfectly allow-listed and still be answered from
+    the future.
+
+    Two halves, in the same shape as the rest of the module:
+
+      `knowable`  the ALLOW half and the gate. Every column present on the frame
+                  must be declared here with the sentence that says what settles
+                  it and by when. Anything undeclared is a violation, so a new
+                  column has to be reasoned about before it can ride along. This
+                  fails closed, which is the only property that matters.
+      patterns    the DENY half and the courtesy. A column whose NAME says it is
+                  a within-season quantity is named as one even before anybody
+                  asks whether it was consumed, because "your frame contains
+                  `final_power_actual`" is a more useful sentence than "an
+                  undeclared column".
+
+    `as_of` is the sentence every published projection artifact quotes: the
+    moment the guard measures against. A guard whose cut-off is unstated is a
+    guard that gets argued with after the fact.
+    """
+
+    name: str
+    as_of: str
+    knowable: dict[str, str]
+    patterns: tuple[str, ...] = TEMPORAL_BANNED_PATTERNS
+
+    def check(self, columns: Any) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        """(named by pattern, undeclared) for the columns of one frame. Sorted."""
+        present = [str(c) for c in columns]
+        hits = tuple(
+            sorted(
+                {
+                    c
+                    for c in present
+                    if any(pattern in c.lower() for pattern in self.patterns)
+                }
+            )
+        )
+        undeclared = tuple(sorted({c for c in present if c not in self.knowable}))
+        return hits, undeclared
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "guard": self.name,
+            "as_of": self.as_of,
+            "n_declared_columns": len(self.knowable),
+            "declared": dict(sorted(self.knowable.items())),
+            "patterns": list(self.patterns),
+        }
+
+
+@dataclass(frozen=True)
 class LayerSpec:
     """One layer's allow-list, with a reason per column and a probe that proves it.
 
@@ -333,6 +474,10 @@ class LayerSpec:
     #: projection input present in the frame is a violation. Defaults to "poll"
     #: so that a layer added without thinking about it gets the strict treatment.
     kind: str = "poll"
+    #: The temporal contract, for a layer that has one. Only the projection has
+    #: one today: a poll layer is fitted on games that have been played and has
+    #: no August to be honest about.
+    temporal: TemporalGuard | None = None
 
 
 @dataclass(frozen=True)
@@ -358,10 +503,19 @@ class LayerResult:
     #: Projection inputs found in a POLL layer's frame. Always empty on a healthy
     #: run, and a violation whenever it is not - no consumption test required.
     projection_inputs_present: tuple[str, ...] = ()
+    #: Columns whose NAME says they are a within-season quantity, on a layer that
+    #: carries a `TemporalGuard`. A violation on sight, same as above.
+    temporal_hits: tuple[str, ...] = ()
+    #: Columns the guard has no as-of sentence for. The fail-closed half: a
+    #: column nobody has reasoned about is a column nobody can vouch for.
+    temporal_undeclared: tuple[str, ...] = ()
+    #: The cut-off this layer was judged against, published so a reader never has
+    #: to guess which August the guard means.
+    temporal_as_of: str | None = None
 
     @property
     def ok(self) -> bool:
-        if self.projection_inputs_present:
+        if self.projection_inputs_present or self.temporal_hits or self.temporal_undeclared:
             return False
         return self.skipped is not None or (self.identical and not self.consumed_outside_allow_list)
 
@@ -375,6 +529,9 @@ class LayerResult:
             "extra_present": list(self.extra_present),
             "banned_present": list(self.banned_present),
             "projection_inputs_present": list(self.projection_inputs_present),
+            "temporal_as_of": self.temporal_as_of,
+            "temporal_hits": list(self.temporal_hits),
+            "temporal_undeclared": list(self.temporal_undeclared),
             "consumed_outside_allow_list": list(self.consumed_outside_allow_list),
             "banned_consumed": list(self.banned_consumed),
             "digest_full": self.digest_full,
@@ -805,6 +962,80 @@ def _probe_projection(design: pl.DataFrame, cfg: dict[str, Any], **_: Any) -> An
     return np.column_stack(columns)
 
 
+#: EVERY COLUMN THE PROJECTION'S DESIGN FRAME CARRIES, AND WHEN AUGUST KNOWS IT.
+#: The fail-closed half of `TemporalGuard`, so a column added to the offseason
+#: frame has to arrive with the sentence that says what settles it. The four the
+#: recipe actually consumes are at the top; the rest ride along as published
+#: context and are declared anyway, because a guard that only looks at the four
+#: consumed columns is a guard that stops working the day somebody consumes a
+#: fifth.
+PROJECTION_KNOWABLE_IN_AUGUST: dict[str, str] = {
+    "team": "a school name",
+    "season": "the season being projected, which is a label and not a measurement",
+    # --- the four the recipe consumes
+    "prior_power_centered": (
+        "the PRIOR season's final published Power, centred. The prior season is "
+        "over before this one begins, so the whole of it is August knowledge"
+    ),
+    "returning_usage_centered": (
+        "CFBD's `/player/returning?year=Y`, which is a roster fact about who came "
+        "back and is published before the season opens"
+    ),
+    "coach_change": (
+        "1 when the head coach who OPENS season Y differs from the one who opened "
+        "Y-1. Decided by `offseason._august_coach` from prior-season continuity "
+        "and never from season Y's own games count, which is precisely the leak "
+        "this guard exists to prevent: `projection-1.0.0` read it off a coaches "
+        "file pulled after the season and turned October firings into August "
+        "coaching changes at five schools in 2025 (ADR 0013)"
+    ),
+    "portal_net_z": (
+        "the transfer cycle that closes before the season opens, standardised "
+        "within that cycle"
+    ),
+    # --- the offseason frame, carried for publication
+    "returning_usage": "the same roster fact, uncentred",
+    "returning_passing_usage": "roster fact, published split",
+    "returning_receiving_usage": "roster fact, published split",
+    "returning_rushing_usage": "roster fact, published split",
+    "returning_percent_ppa": (
+        "CFBD's fitted PPA, archived so the choice not to use it is visible. "
+        "August-knowable and BANNED anyway, by `PROJECTION_BANNED_PATTERNS`"
+    ),
+    "portal_out": "departures in the cycle that closes before the season",
+    "portal_in": "arrivals in the same cycle, undercounted and said to be",
+    "portal_net": "arrivals minus departures over that cycle",
+    "portal_in_coverage": "the cycle's populated-destination rate, a data-quality fact",
+    "coach_name": "who opens season Y, by the rule above",
+    "coach_of_record_source": "how that name was decided; one of three declared cases",
+    "coach_name_prior": "who opened season Y-1, which is settled history by August",
+    "coach_of_record_source_prior": "how THAT name was decided",
+    # --- the imputation and centring block, all computed from the above
+    "prior_power": "last season's published Power, uncentred",
+    "prior_power_center": "the mean of the column above over the projected teams",
+    "prior_power_imputed": "whether this team had no prior rating at all",
+    "returning_usage_filled": "the roster fact with the league mean substituted where absent",
+    "returning_usage_center": "the mean of that column over the projected teams",
+    "returning_usage_imputed": "whether that substitution happened",
+    "coach_change_rate": "the league's own change rate, used as the imputation value",
+    "coach_change_imputed": "whether this school had no prior-season coach row",
+    "portal_net_center": "the cycle's mean net flow",
+    "portal_net_sd": "the cycle's standard deviation of net flow",
+    "portal_net_imputed": "whether this school had no portal row at all",
+}
+
+PROJECTION_TEMPORAL_GUARD = TemporalGuard(
+    name="projection_as_of_august",
+    as_of=(
+        "the day before the projected season's first kickoff. Every value on this "
+        "frame must be settled by then; a value that is not is a leak whatever the "
+        "column is called, and it flatters the model, because the things that move "
+        "during a season move against the teams that are losing"
+    ),
+    knowable=PROJECTION_KNOWABLE_IN_AUGUST,
+)
+
+
 #: The Projection's layers. DELIBERATELY NOT IN `LAYERS`: the poll's audit must
 #: run, and pass, on a machine that has never computed a projection, and a layer
 #: that reports itself "skipped" on every ordinary run is a layer a reader learns
@@ -830,9 +1061,11 @@ PROJECTION_LAYERS: tuple[LayerSpec, ...] = (
                 "distinction mechanical rather than a matter of discipline"
             ),
             "coach_change": (
-                "1 when the primary head coach differs from last season's. One "
-                "coefficient for every school that changed; no coach is credited "
-                "by name and there is no tenure term"
+                "1 when the head coach who OPENS this season differs from the one "
+                "who opened last season. One coefficient for every school that "
+                "changed; no coach is credited by name and there is no tenure "
+                "term. The August-side determination is `offseason._august_coach` "
+                "and the TEMPORAL guard below is what holds it there"
             ),
             "portal_net_z": (
                 "net portal flow, standardised WITHIN the season because CFBD's "
@@ -841,6 +1074,7 @@ PROJECTION_LAYERS: tuple[LayerSpec, ...] = (
             ),
         },
         probe=_probe_projection,
+        temporal=PROJECTION_TEMPORAL_GUARD,
         note=(
             "the response is the TARGET season's final Power and it is not a "
             "column of this frame; `projection/holdout.py` is what keeps a locked "
@@ -894,11 +1128,20 @@ def _run_layer(
             identical=True,
             skipped=f"no {spec.frame} frame supplied to this audit",
             kind=spec.kind,
+            temporal_as_of=None if spec.temporal is None else spec.temporal.as_of,
         )
 
     present = tuple(frame.columns)
     extra = tuple(c for c in present if c not in spec.allowed)
     banned_present = banned_hits(present, spec.kind)
+    # THE CLOCK, checked over EVERY column on the frame rather than the four the
+    # probe consumes. A temporal leak arrives as a value, not as a name, so the
+    # cheapest moment to catch it is while the column is still sitting on the
+    # frame with nothing yet reading it.
+    temporal_hits: tuple[str, ...] = ()
+    temporal_undeclared: tuple[str, ...] = ()
+    if spec.temporal is not None:
+        temporal_hits, temporal_undeclared = spec.temporal.check(present)
     # THE ONE ASYMMETRY. In a poll layer a projection input is a violation on
     # sight, without waiting for the rebuild to prove consumption, because this
     # repository is the only thing that writes those columns and nothing here has
@@ -926,6 +1169,9 @@ def _run_layer(
             identical=not outside,
             kind=spec.kind,
             projection_inputs_present=projection_inputs,
+            temporal_hits=temporal_hits,
+            temporal_undeclared=temporal_undeclared,
+            temporal_as_of=None if spec.temporal is None else spec.temporal.as_of,
         )
 
     full = _try_probe(spec, frame, cfg, power)
@@ -945,6 +1191,9 @@ def _run_layer(
             skipped="the probe could not run on this window (empty or degenerate)",
             kind=spec.kind,
             projection_inputs_present=projection_inputs,
+            temporal_hits=temporal_hits,
+            temporal_undeclared=temporal_undeclared,
+            temporal_as_of=None if spec.temporal is None else spec.temporal.as_of,
         )
 
     restricted = _try_probe(spec, _restrict(frame, set(spec.allowed)), cfg, power)
@@ -973,6 +1222,9 @@ def _run_layer(
         identical=restricted == full,
         kind=spec.kind,
         projection_inputs_present=projection_inputs,
+        temporal_hits=temporal_hits,
+        temporal_undeclared=temporal_undeclared,
+        temporal_as_of=None if spec.temporal is None else spec.temporal.as_of,
     )
 
 
@@ -1067,6 +1319,7 @@ def audit(
                         "the Poll may never read the Projection (ADR 0010)."
                     )
 
+    temporal_breaches: list[str] = []
     for layer in report.layers:
         if layer.projection_inputs_present:
             report.violations.append(
@@ -1076,6 +1329,24 @@ def audit(
                 "that writes these, so presence is the breach and no consumption "
                 "test is required (ADR 0010)."
             )
+        if layer.temporal_hits:
+            message = (
+                f"{layer.layer}: TEMPORAL LEAK. {list(layer.temporal_hits)} name a "
+                "quantity the projected season itself decides. This frame is read "
+                f"as of {layer.temporal_as_of} (ADR 0013)."
+            )
+            report.violations.append(message)
+            temporal_breaches.append(message)
+        if layer.temporal_undeclared:
+            message = (
+                f"{layer.layer}: TEMPORAL GUARD, undeclared column(s): "
+                f"{list(layer.temporal_undeclared)}. Every column on a projection "
+                "frame has to arrive with the sentence that says what settles its "
+                "value and by when. Add it to `PROJECTION_KNOWABLE_IN_AUGUST` or "
+                "take the column off the frame; the guard fails closed on purpose."
+            )
+            report.violations.append(message)
+            temporal_breaches.append(message)
         if layer.consumed_outside_allow_list:
             report.violations.append(
                 f"{layer.layer}: consumes column(s) outside its allow-list: "
@@ -1098,11 +1369,20 @@ def audit(
         "projection_input_patterns": list(PROJECTION_INPUT_PATTERNS),
         "projection_banned_patterns": list(PROJECTION_BANNED_PATTERNS),
         "projection_audited": projection_design is not None,
+        "temporal_guard": (
+            PROJECTION_TEMPORAL_GUARD.as_dict() if projection_design is not None else None
+        ),
         "fail_on_banned": bool(fail_on_banned),
     }
 
     if fail_on_banned and report.violations:
-        raise BannedFeature(
+        # A temporal breach raises its OWN type. `TemporalLeak` is a
+        # `BannedFeature`, so every existing caller and every existing test keeps
+        # catching it, and a caller that wants to know the clock was the problem
+        # can now ask. The two failures have different fixes and a single
+        # exception type made them look like one problem.
+        error = TemporalLeak if temporal_breaches else BannedFeature
+        raise error(
             "the feature audit failed (report 02 §3.10):\n  " + "\n  ".join(report.violations)
         )
     return report

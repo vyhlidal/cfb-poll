@@ -60,6 +60,7 @@ __all__ = [
     "rating_resolver",
     "projection_sigma",
     "schedule",
+    "season_sigma_for",
 ]
 
 #: The only six things this package reads off a future schedule. Everything else
@@ -121,6 +122,36 @@ def schedule(
     if not rows:
         return empty
     return pl.DataFrame(rows).sort("game_id").select(SCHEDULE_COLUMNS)
+
+
+#: `l3_power.SigmaEstimate.source` in words a reader of the front door can use.
+#: The projection publishes `sigma_note` verbatim on the card, so a bare
+#: `config_floor` would arrive on the page as a variable name.
+_SIGMA_PROSE: dict[str, str] = {
+    "walk_forward_residuals": (
+        "this system's own walk-forward residuals over the source season"
+    ),
+    "config_floor": (
+        "[resume].sigma, the documented floor, which the source season's own "
+        "walk-forward estimate came in under"
+    ),
+    "config": "[resume].sigma, the documented fallback and floor",
+}
+
+
+def season_sigma_for(source: Any, config: dict[str, Any]) -> tuple[float, str]:
+    """(sigma, a sentence fragment saying where it came from) for a source season.
+
+    Wraps `l4_resume.sigma_for` so the projection's denominator is decided in the
+    same one place the poll's is, and translates its provenance token into
+    something the card can print. Both scripts call this rather than each
+    assembling the phrase, because two copies of a caveat is two chances for one
+    of them to stop being true.
+    """
+    from cfbpoll.model import l4_resume
+
+    value, token = l4_resume.sigma_for(source, config)
+    return float(value), _SIGMA_PROSE.get(token, token)
 
 
 def projection_sigma(fitted: recipe.Recipe, season_sigma: float) -> float:

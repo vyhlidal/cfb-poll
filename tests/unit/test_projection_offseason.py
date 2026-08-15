@@ -149,13 +149,101 @@ def test_a_coaching_change_is_a_change_of_name_and_unknowns_stay_unknown(
 
 @requires_cfbd
 def test_an_interim_does_not_become_the_head_coach() -> None:
-    """A school can carry more than one coach row in a season and the primary is
-    picked by games worked. Rice 2024 is the worked example: a four-game interim
-    beside the coach who worked the rest."""
+    """A school can carry more than one coach row in a season and only one of them
+    opened it. Rice 2024 is the worked example: a four-game interim beside the
+    coach who was already there in 2023."""
     frame = offseason.coaching(2025)
     rice = frame.filter(pl.col("team") == "Rice")
     assert rice.height == 1
     assert rice["coach_name_prior"][0] not in (None, "Pete Alamar")
+
+
+# --------------------------------------------------- the coach the season OPENED with
+
+
+@requires_cfbd
+def test_a_midseason_firing_is_not_an_august_coaching_change() -> None:
+    """THE DEFECT ADR 0013 REPAIRS, pinned by the five schools it happened to.
+
+    `projection-1.0.0` read `/coaches?year=2025` after the 2025 season, picked
+    each school's coach by games worked, and so recorded an October firing as an
+    August coaching change wherever the interim outworked the man he replaced.
+    Penn State opened 2025 with James Franklin and was docked 2.33 points of
+    projected Power for hiring somebody it had not yet hired.
+    """
+    frame = offseason.coaching(2025)
+    for school, opener in (
+        ("Penn State", "James Franklin"),
+        ("Arkansas", "Sam Pittman"),
+        ("Oklahoma State", "Mike Gundy"),
+        ("UCLA", "Deshaun Foster"),
+        ("Virginia Tech", "Brent Pry"),
+    ):
+        row = frame.filter(pl.col("team") == school).to_dicts()[0]
+        assert row["coach_name"] == opener, school
+        assert row["coach_change"] == 0, school
+        assert row["coach_of_record_source"] == "prior_season_continuity", school
+
+
+@requires_cfbd
+def test_the_august_coach_is_never_decided_by_the_seasons_own_games() -> None:
+    """The temporal claim, asserted as an implication rather than promised.
+
+    A school with more than one candidate is decided by prior-season continuity.
+    When continuity finds nobody, the games count fills in the NAME - and in that
+    case the school both hired over the offseason and changed again during the
+    season, so `coach_change` is 1 (or null, for a school with no prior season at
+    all) whichever candidate opened it. The games count therefore cannot reach
+    the number the recipe consumes, on any row, in any season.
+    """
+    for season in (2022, 2023, 2024, 2025, 2026):
+        frame = offseason.coaching(season)
+        inferred = frame.filter(pl.col("coach_of_record_source") == "inferred_from_games")
+        for row in inferred.to_dicts():
+            assert row["coach_change"] != 0, (season, row["team"])
+        assert set(frame["coach_of_record_source"].to_list()) <= set(
+            offseason.COACH_OF_RECORD_SOURCES
+        ), season
+
+
+@requires_cfbd
+def test_a_retained_interim_is_still_a_coaching_change() -> None:
+    """The mirror error, which the old rule also made and in the other direction.
+
+    Georgia Tech opened 2022 with Geoff Collins, fired him in September, and Brent
+    Key worked the other eight games. The old rule called Key the school's 2022
+    coach, so Key coaching 2023 came out as NO change. The program had in fact
+    replaced its head coach between the two Augusts, and the corrected column says
+    so.
+    """
+    row = offseason.coaching(2023).filter(pl.col("team") == "Georgia Tech").to_dicts()[0]
+    assert row["coach_name"] == "Brent Key"
+    assert row["coach_name_prior"] == "Geoff Collins"
+    assert row["coach_change"] == 1
+
+
+@requires_cfbd
+def test_a_coach_who_never_worked_a_game_did_not_open_the_season() -> None:
+    """Buffalo 2024: CFBD carries Maurice Linguist at zero games beside Pete
+    Lembo's thirteen, because Linguist left in January and the row stayed. A rule
+    that reads the roster without reading the games count would call that
+    continuity and miss a real hire."""
+    row = offseason.coaching(2024).filter(pl.col("team") == "Buffalo").to_dicts()[0]
+    assert row["coach_name"] == "Pete Lembo"
+    assert row["coach_name_prior"] == "Maurice Linguist"
+    assert row["coach_change"] == 1
+
+
+@requires_cfbd
+def test_a_season_nobody_has_played_still_names_its_coaches() -> None:
+    """The file the LIVE projection reads has every coach at zero games, because
+    the season has not happened. Dropping zero-game rows there would leave every
+    school with no coach at all, so the rule only drops them when somebody at that
+    school worked one."""
+    frame = offseason.coaching(2026)
+    assert frame.height > 130
+    assert frame["coach_name"].null_count() == 0
+    assert frame.filter(pl.col("coach_change") == 1).height > 5
 
 
 @requires_cfbd

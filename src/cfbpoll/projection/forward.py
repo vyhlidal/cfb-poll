@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,8 @@ __all__ = [
     "SCHEDULE_COLUMNS",
     "WinProjection",
     "expected_wins",
+    "normal_cdf",
+    "rating_resolver",
     "projection_sigma",
     "schedule",
 ]
@@ -160,8 +163,51 @@ class WinProjection:
         }
 
 
-def _normal_cdf(x: float) -> float:
+def normal_cdf(x: float) -> float:
+    """Phi. Public because the schedule-strength module scores the same games."""
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+#: Backwards-compatible private alias. `expected_wins` was written against it and
+#: renaming a function is not worth touching the arithmetic it is embedded in.
+_normal_cdf = normal_cdf
+
+
+def rating_resolver(
+    projection: pl.DataFrame,
+    fitted: recipe.Recipe,
+    prior_power: dict[str, float],
+    prior_center: float,
+) -> Callable[[str], tuple[float, str]]:
+    """team -> (projected rating, provenance). ONE definition, two consumers.
+
+    `expected_wins` and `schedule.strengths` both have to answer "how good do we
+    think this opponent is", and the answer has two cases: a team the recipe
+    could see, and a team it could not. Two copies of that rule would be two
+    chances for a schedule-strength number to disagree with the win total sitting
+    beside it on the same row, which is exactly the kind of self-contradiction
+    the fixture contract exists to prevent.
+
+    The provenance string is returned rather than swallowed because it is what
+    `opponent_source` and the row-level `schedule_is_mixed` flag are built from:
+    an FCS opponent has no returning-production, portal or coaching row anywhere,
+    so it gets the MEAN-REVERSION-ONLY projection - the recipe with its offseason
+    terms silent, which is what "we know last season and nothing else" should
+    produce - and any average that mixes the two kinds has to say so.
+    """
+    projected = dict(
+        zip(projection["team"].to_list(), projection["projected_power"].to_list(), strict=True)
+    )
+    intercept = float(fitted.intercept)
+    phi = float(fitted.coefficients["prior_power"])
+
+    def rating(team: str) -> tuple[float, str]:
+        if team in projected:
+            return float(projected[team]), "projection"
+        base = float(prior_power.get(team, 0.0)) - prior_center
+        return (intercept + phi * base, "mean_reversion_only")
+
+    return rating
 
 
 def expected_wins(
@@ -183,21 +229,7 @@ def expected_wins(
     available at all, and the projection's uncertainty dwarfs the correction it
     would buy.
     """
-    projected = dict(
-        zip(projection["team"].to_list(), projection["projected_power"].to_list(), strict=True)
-    )
-
-    def rating(team: str) -> tuple[float, str]:
-        if team in projected:
-            return float(projected[team]), "projection"
-        # Mean reversion only: the recipe with its offseason terms silent, which
-        # is what "we know last season and nothing else" should produce.
-        base = float(prior_power.get(team, 0.0)) - prior_center
-        return (
-            float(fitted.intercept) + float(fitted.coefficients["prior_power"]) * base,
-            "mean_reversion_only",
-        )
-
+    rating = rating_resolver(projection, fitted, prior_power, prior_center)
     sigma = projection_sigma(fitted, season_sigma)
     wins: dict[str, float] = {}
     games: dict[str, int] = {}

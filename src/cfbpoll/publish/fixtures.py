@@ -27,6 +27,29 @@ Layout, which the loader in the sandbox app depends on:
     <dir>/<season>/methodology-NN.json  constants, gate, "where this is weak"
     <dir>/<season>/data-NN.json         artifact index, sha256s, licences
     <dir>/<season>/divergence.json      mean |Δrank| by evaluation week
+
+RECIPES ARE AN ADDITIVE EXTENSION OF EXACTLY THAT TREE (ADR 0011, and
+docs/fixture-contract-recipes.md is the contract the site is owed):
+
+    <dir>/<season>/recipes/<slug>/week-NN.json         one week under one lens
+    <dir>/<season>/recipes/<slug>/methodology-NN.json  that lens's constants
+    <dir>/<season>/recipes/<slug>/divergence.json      that lens's retro curve
+
+NOTHING ABOVE MOVES AND `schema_version` DOES NOT CHANGE. `<season>/week-NN.json`
+is still the published poll, still the house recipe, and a site that has never
+heard of a recipe keeps reading exactly the paths it read before and keeps
+getting the same numbers. That is not politeness: the site is a separate
+repository on a separate deploy cadence, and a data contract that can only be
+extended by breaking it is a contract that gets extended by nobody. The version
+of the extension itself travels as `recipes_contract_version`, so a site can ask
+whether recipes are present without asking whether the poll changed shape.
+
+CONNECTIVITY AND /data ARE HOUSE-ONLY, and the reason is the whole point of the
+feature. The connectivity report is a function of the SCHEDULE GRAPH, which is
+evidence, and evidence is identical under every recipe by construction — writing
+it three times would publish the same bytes three times and invite a reader to
+wonder which one is right. The /data page indexes the artifacts of a PUBLISHED
+run, and only the house recipe is published.
 """
 
 from __future__ import annotations
@@ -39,26 +62,51 @@ from cfbpoll.publish import serving
 from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
+    "RECIPE_DOCUMENTS",
+    "RECIPES_CONTRACT_VERSION",
     "SCHEMA_VERSION",
     "export",
     "export_all",
     "rebuild_index",
     "run_directories",
+    "season_dir",
     "week_documents",
 ]
 
 #: Bumped when a document's shape changes. The site checks it on load and fails
 #: loudly rather than rendering nulls, because a contract that drifts silently is
 #: not a contract (report 05 §7.2).
+#:
+#: RECIPES DID NOT BUMP IT, and that is a deliberate reading of what this number
+#: is for. Every path, every document and every field the site reads today is
+#: unchanged; recipes add optional fields and an optional subtree. Bumping would
+#: make the loader throw on a set that is strictly more capable than the one it
+#: was written against, which is the opposite of failing loudly about a real
+#: problem. The extension carries its own version below.
 SCHEMA_VERSION = 1
 
-#: Written per week. The key is the filename stem; the value is the view name in
-#: `serving.Bundle.views`.
+#: The recipe extension's own version, published on `index.json`. A site reads it
+#: to decide whether to render the selector at all, and it moves independently of
+#: `SCHEMA_VERSION` because the two answer different questions: "has the poll
+#: changed shape" and "which recipe contract is this set written to".
+RECIPES_CONTRACT_VERSION = 1
+
+#: Written per week for the published poll. The key is the filename stem; the
+#: value is the view name in `serving.Bundle.views`.
 DOCUMENTS: dict[str, str] = {
     "week": "week",
     "connectivity": "connectivity",
     "methodology": "methodology",
     "data": "data",
+}
+
+#: Written per week for an ALTERNATE LENS. Two documents rather than four: the
+#: connectivity report is a function of the evidence and the evidence is identical
+#: under every recipe, and the /data page indexes a published run of which there
+#: is exactly one. See the module docstring.
+RECIPE_DOCUMENTS: dict[str, str] = {
+    "week": "week",
+    "methodology": "methodology",
 }
 
 
@@ -76,8 +124,26 @@ def _dump(path: Path, payload: Any) -> None:
 
 
 def week_documents(bundle: Bundle) -> dict[str, Any]:
-    """The four per-week documents, keyed by filename stem."""
-    return {stem: bundle.views[view] for stem, view in DOCUMENTS.items()}
+    """The per-week documents for this bundle, keyed by filename stem.
+
+    Four for the published poll, two for an alternate lens. Which one a bundle is
+    comes off the RUN (`serving.Bundle.recipe`, read from model_params.json), not
+    off a flag, so a directory cannot be filed under the wrong lens by a typo.
+    """
+    documents = DOCUMENTS if bundle.is_house else RECIPE_DOCUMENTS
+    return {stem: bundle.views[view] for stem, view in documents.items()}
+
+
+def season_dir(dest: Path, season: int, recipe_slug: str = "house") -> Path:
+    """Where one run's documents land. The house poll keeps the path it has.
+
+    The published poll is `<dest>/<season>/`, exactly where it has always been, so
+    a site that knows nothing about recipes is unaffected. An alternate lens lands
+    under `<dest>/<season>/recipes/<slug>/`, which is a new subtree rather than a
+    new shape.
+    """
+    base = Path(dest) / str(season)
+    return base if recipe_slug == "house" else base / "recipes" / recipe_slug
 
 
 def run_directories(source: Path) -> list[Path]:
@@ -136,14 +202,35 @@ def export_all(
     runs = run_directories(source)
     for run in runs:
         resolved = backtest if backtest is not None else (run / "backtest_metrics.json")
-        bundle = build(run, archive=archive, backtest=resolved if resolved.exists() else None)
-        season_dir = dest / str(bundle.season)
+        # THE GATE IS NOT ATTACHED TO AN ALTERNATE LENS. `[gate]` is written
+        # against the published poll and `cfbpoll backtest` scores orderings under
+        # the default config, so handing those metrics to a lens would put the
+        # HOUSE poll's verdict on a page describing a different value system. The
+        # recipe is read off the run's own model_params.json before the build, so
+        # the decision is made from what the run IS rather than from a flag.
+        if resolved.exists() and not _is_house_run(run):
+            resolved = None  # type: ignore[assignment]
+        bundle = build(run, archive=archive, backtest=resolved if resolved else None)
+        target = season_dir(dest, bundle.season, bundle.recipe_slug)
         for stem, payload in week_documents(bundle).items():
-            path = season_dir / f"{stem}-{bundle.week:02d}.json"
+            path = target / f"{stem}-{bundle.week:02d}.json"
             _dump(path, payload)
             written.append(path)
     written.extend(rebuild_index(dest, archive=archive))
     return sorted(written)
+
+
+def _is_house_run(run: Path) -> bool:
+    """Is this run directory the published poll? Read off its own artifact.
+
+    A run written before `configs/recipes/` existed carries no recipe block and is
+    the house poll by definition, which is what the default says.
+    """
+    try:
+        params = json.loads((run / "model_params.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # pragma: no cover - checked by check_run_directory
+        return True
+    return bool((params.get("recipe") or {}).get("is_house", True))
 
 
 def export(
@@ -159,10 +246,10 @@ def export(
     the same rule the website obeys, applied one layer earlier.
     """
     bundle = build(out, archive=archive, backtest=backtest)
-    season_dir = dest / str(bundle.season)
+    target = season_dir(dest, bundle.season, bundle.recipe_slug)
     written: list[Path] = []
     for stem, payload in week_documents(bundle).items():
-        path = season_dir / f"{stem}-{bundle.week:02d}.json"
+        path = target / f"{stem}-{bundle.week:02d}.json"
         _dump(path, payload)
         written.append(path)
     written.extend(rebuild_index(dest, archive=archive))
@@ -184,55 +271,68 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
     through `serving.merge_season_index`, the same function the Postgres loader
     calls, so the two backends cannot disagree about which weeks exist.
     """
+    from cfbpoll import recipes as recipes_mod
     from cfbpoll.publish import serving
 
     headline_start = serving.headline_start_week()
     written: list[Path] = []
     seasons: list[dict[str, Any]] = []
-    for season_dir in sorted(p for p in dest.iterdir() if p.is_dir() and p.name.isdigit()):
-        season = int(season_dir.name)
+    for season_root in sorted(p for p in dest.iterdir() if p.is_dir() and p.name.isdigit()):
+        season = int(season_root.name)
         weeks: list[dict[str, Any]] = []
-        divergence: list[dict[str, Any]] = []
         scheduled = serving.scheduled_weeks(season, archive)
 
-        for path in sorted(season_dir.glob("week-*.json")):
+        for path in sorted(season_root.glob("week-*.json")):
             payload = json.loads(path.read_text(encoding="utf-8"))
-            week = int(payload["week"])
-            poll = payload.get("poll") or []
-            deltas = [abs(r["rank_delta"]) for r in poll if r.get("rank_delta") is not None]
             weeks = serving.merge_season_index(
                 weeks,
                 {
                     "season": season,
-                    "week": week,
+                    "week": int(payload["week"]),
                     "season_type": payload.get("season_type", "regular"),
                     "provisional": bool(payload.get("provisional", False)),
                     "played": True,
                     "published_at": (payload.get("run") or {}).get("published_at"),
-                    "n_ranked": len(poll),
+                    "n_ranked": len(payload.get("poll") or []),
                 },
                 scheduled,
                 headline_start,
             )
-            if deltas:
-                divergence.append(
-                    {
-                        "week": week,
-                        "mean_abs_delta": sum(deltas) / len(deltas),
-                        "max_abs_delta": max(deltas),
-                    }
-                )
 
-        divergence.sort(key=lambda row: row["week"])
-        path = season_dir / "divergence.json"
-        _dump(path, divergence)
-        written.append(path)
+        written.append(_write_divergence(season_root))
+
+        # EACH ALTERNATE LENS GETS ITS OWN DIVERGENCE CURVE. Retro-vs-live
+        # divergence is a property of an ORDERING - it is how far the retroactive
+        # re-ranking moves the published one - so the house curve does not
+        # describe a recipe that ranks on a different column. Under `just-win` it
+        # is structurally pinned for every unbeaten team (ADR 0005 §A), which is
+        # a finding the page should be able to draw rather than a caveat it has
+        # to be told.
+        present: list[dict[str, Any]] = []
+        lens_root = season_root / "recipes"
+        lenses = sorted(p for p in lens_root.iterdir() if p.is_dir()) if lens_root.is_dir() else []
+        for lens in lenses:
+            week_files = sorted(lens.glob("week-*.json"))
+            if not week_files:
+                continue
+            written.append(_write_divergence(lens))
+            present.append(
+                {
+                    "slug": lens.name,
+                    "weeks": [int(json.loads(p.read_text("utf-8"))["week"]) for p in week_files],
+                }
+            )
 
         seasons.append(
             {
                 "season": season,
                 "headline_start_week": headline_start,
                 "weeks": weeks,
+                # Which lenses this season actually carries, and for which weeks.
+                # The house poll is not listed: it is the season itself, it is
+                # every week in `weeks`, and listing it beside the alternates
+                # would blur the one distinction the page has to keep sharp.
+                "recipes": present,
             }
         )
 
@@ -257,7 +357,45 @@ def rebuild_index(dest: Path, archive: Path | None = None) -> list[Path]:
             "generated_at": max(published) if published else None,
             "generator": "cfbpoll publish fixtures",
             "seasons": seasons,
+            # THE RECIPE ROSTER, so a selector can be built from ONE document.
+            # Name, one-liner, manifesto, honest costs and the constants each one
+            # changes all travel here; a page never has to open a week file to
+            # find out what it is offering, and it never has to hold a copy of the
+            # prose that would then drift from the config it describes.
+            "recipes_contract_version": RECIPES_CONTRACT_VERSION,
+            "recipes": recipes_mod.roster(),
         },
     )
     written.append(index)
     return written
+
+
+def _write_divergence(directory: Path) -> Path:
+    """`divergence.json` for one tree of `week-*.json` documents.
+
+    Mean and maximum |Δrank| between the live and hindsight surfaces, per
+    evaluation week. An aggregate ACROSS weeks, so it cannot live in any one of
+    them, and it is computed once per tree rather than once per recipe-aware
+    branch so the published poll and an alternate lens cannot end up with two
+    slightly different definitions of the same curve.
+    """
+    rows: list[dict[str, Any]] = []
+    for path in sorted(directory.glob("week-*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        deltas = [
+            abs(r["rank_delta"])
+            for r in (payload.get("poll") or [])
+            if r.get("rank_delta") is not None
+        ]
+        if deltas:
+            rows.append(
+                {
+                    "week": int(payload["week"]),
+                    "mean_abs_delta": sum(deltas) / len(deltas),
+                    "max_abs_delta": max(deltas),
+                }
+            )
+    rows.sort(key=lambda row: row["week"])
+    path = directory / "divergence.json"
+    _dump(path, rows)
+    return path

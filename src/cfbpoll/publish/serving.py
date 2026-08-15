@@ -816,6 +816,25 @@ def build(
             {k: v for k, v in row.items() if k != "run_id"} for row in metrics
         ],
         "gate": gate,
+        # WHY THERE IS NO GATE VERDICT, when there is none. An empty list renders
+        # as an empty table and an empty table reads as an oversight, so the
+        # absence carries its own reason. The two reasons are genuinely different:
+        # a house run with no metrics file is an operational gap somebody can
+        # close by running `cfbpoll backtest`, and an alternate lens has no gate
+        # verdict because `[gate]` is written against the PUBLISHED poll and has
+        # never been applied per recipe. Inventing one for a lens would be worse
+        # than saying so (ADR 0011, "where this is weak").
+        "gate_note": (
+            None
+            if gate
+            else (
+                "The publication gate is written against the published poll and is not "
+                "applied per recipe. This is an alternate lens: its constants are below, "
+                "and it has no gate verdict of its own."
+                if not _is_house(recipe)
+                else "No backtest accompanied this run, so the gate has not been evaluated."
+            )
+        ),
         "weaknesses": _weaknesses(),
         "divergence": [],  # filled by the fixture writer across weeks; see fixtures.py
     }

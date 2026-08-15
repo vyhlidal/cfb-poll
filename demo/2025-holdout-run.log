@@ -1,0 +1,22 @@
+# THE ONE-SHOT 2025 HOLDOUT EVALUATION
+# run at: 2026-08-15T17:08:07Z
+# git: c5ee855139cda9c52cd2034c0fed19618df73dea on season-2025
+# command:
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run cfbpoll backtest --config configs/default.toml --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct --seasons 2025 --out out/holdout-2025 --unlock-holdout
+
+walk-forward [2025] - FBS-vs-FBS, weeks >= 5 (the published window)
+system             n     SU%     MAE    RMSE   Brier  logloss   viol%   churn
+schedule_odds    567   69.49  12.635  15.997  0.1916   0.5609   17.20    9.09
+resume           567   69.49  12.635  15.997  0.1916   0.5609   17.33    8.68
+l3               567   69.49  12.635  15.997  0.1916   0.5609   20.92   10.32
+l2               567   70.90  12.752  16.131  0.1874   0.5513   19.06    7.39
+l1               567   69.49  12.671  16.010  0.1906   0.5588   22.65    7.01
+colley           567   67.55  13.385  16.843  0.1983   0.5800   17.70    9.11
+srs              567   70.02  12.736  15.964  0.1914   0.5608   18.32    7.11
+elo              567   69.66  13.184  16.573  0.1900   0.5585   20.17    9.09
+random_walker    567   65.26  14.049  17.723  0.2147   0.6196   18.44   11.78
+winpct           567   67.37  13.710  17.274  0.2058   0.5981   16.71    9.81
+home_team        567   57.14  15.685  19.760  0.2476   0.6917     nan     nan
+L3 blend, last bucket (2025-post-w01): w1=0.5184 w2=0.3169 k=72.96 h=3.71 (out_of_sample, n=714); contribution SD efficiency=7.98 results=4.76
+wrote: out/holdout-2025/backtest_metrics.json
+EXIT=0

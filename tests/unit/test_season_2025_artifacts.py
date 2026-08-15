@@ -216,3 +216,71 @@ def test_the_graded_season_is_read_from_the_config() -> None:
     assert projection_2025.SOURCE_SEASON == 2024
     # The claim the artifact rests on: the recipe never saw the season it grades.
     assert (2024, 2025) not in projection_2025.TRANSITIONS
+
+
+# ------------------------------------------------------------ the holdout record
+
+
+def test_the_scoring_run_is_recorded_in_a_committed_file() -> None:
+    """`out/` and `.cache/` are gitignored, so a single-shot test whose only
+    record lived there would be a provenance claim nobody outside one machine
+    could check. Both the run log and the metrics tree are committed."""
+    log = REPO_ROOT / "demo" / "2025-holdout-run.log"
+    metrics = REPO_ROOT / "demo" / "2025-holdout-metrics.json"
+    assert log.exists() and metrics.exists()
+    text = log.read_text(encoding="utf-8")
+    assert "--unlock-holdout" in text
+    assert "--seasons 2025" in text
+    assert "# git:" in text and "# run at:" in text
+
+
+def test_the_scorecard_stamps_the_config_that_was_scored_not_the_current_one() -> None:
+    """THE BUG THIS GUARDS AGAINST SHIPPED. The scorecard stamped the config hash
+    at RENDER time, so editing the config moved the hash printed beside the
+    sentence "no constant was chosen after this was read" - which is exactly the
+    hash a reader would use to check that sentence."""
+    import json as _json
+
+    scorecard = _json.loads(
+        (REPO_ROOT / "demo" / "2025-holdout-scorecard.json").read_text(encoding="utf-8")
+    )
+    scored = scorecard["scored_with"]
+    log = (REPO_ROOT / "demo" / "2025-holdout-run.log").read_text(encoding="utf-8")
+    sha = next(
+        ln.split("# git:", 1)[1].strip().split()[0]
+        for ln in log.splitlines()
+        if ln.startswith("# git:")
+    )
+    assert scored["git_sha"] == sha
+    assert scored["config_sha256"] and len(scored["config_sha256"]) == 64
+    # The config has moved since the run, so these must NOT be equal. If they ever
+    # are, the stamp has started tracking the working tree again.
+    assert scored["config_sha256"] != scorecard["rendered_with_config_hash"]
+
+
+def test_the_verdict_is_the_one_the_adr_records() -> None:
+    """One of five decidable criteria passes, two stay undecided, and the pass is
+    MAE. If any of that changes, ADR 0012 is out of date."""
+    import json as _json
+
+    scorecard = _json.loads(
+        (REPO_ROOT / "demo" / "2025-holdout-scorecard.json").read_text(encoding="utf-8")
+    )
+    verdict = scorecard["verdict"]
+    assert verdict["passed"] is False
+    assert verdict["n_decidable"] == 5
+    assert verdict["passed_criteria"] == ["mae"]
+    assert sorted(verdict["failed_criteria"]) == [
+        "calibration",
+        "rmse",
+        "su_accuracy",
+        "violations_vs_baselines",
+    ]
+    assert sorted(verdict["undecided_criteria"]) == [
+        "brier_beats_all_baselines",
+        "retro_vs_live_monotone",
+    ]
+    # The undecided pair is published with evidence and no verdict, on purpose.
+    assert scorecard["brier_evidence"]["verdict"] is None
+    assert scorecard["monotone_evidence"]["verdict"] is None
+    assert scorecard["monotone_evidence"]["strictly_declining"] is False

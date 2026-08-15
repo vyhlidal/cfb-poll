@@ -114,8 +114,6 @@
   }
  ],
  "command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 uv run cfbpoll backtest --config configs/default.toml --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct --seasons 2025 --out out/holdout-2025 --unlock-holdout",
- "config_hash": "dfc23153e49a101b385aa8a7fa5c8855739a4e2233e50801327422b990deedc6",
- "config_version": "0.2.0",
  "connectivity_2025": [
   {
    "bucket": "2025-regu-w02",
@@ -464,8 +462,7 @@
    "n_teams": 136
   }
  ],
- "generated_at": "2026-08-15T17:30:12+00:00",
- "git_sha": "b61a958ea6b35d180cdd8f0c7ce1ed238e099f11",
+ "generated_at": "2026-08-15T18:07:28+00:00",
  "monotone_evidence": {
   "first_mean_abs_delta": 7.176470588235294,
   "last_mean_abs_delta": 0.0,
@@ -627,8 +624,17 @@
   "mean_all": 9.088235294117649,
   "mean_top25": 7.993163315493125
  },
+ "rendered_with_config_hash": "b6b9ddaf6d03b6aa1cc2e212ee640f541d92458fd649e9f64e0a6a55a2e6087a",
+ "rendered_with_config_version": "0.2.0",
+ "rendered_with_git_sha": "e1e0e91976cb1a1a30266000593dce1cb0bc92d4",
  "schema_version": 1,
  "scored_at": "2026-08-15T17:08:07Z",
+ "scored_with": {
+  "config_sha256": "bf0fa1a3501cf7b8b3b5649a2082b84371724116e423022c56d64cdb96e112ec",
+  "config_version": "0.2.0",
+  "git_sha": "c5ee855139cda9c52cd2034c0fed19618df73dea",
+  "note": "The code and the config AS THEY WERE WHEN THE SCORING PASS RAN, read out of git at the sha the run log records. These do not move when this document is re-rendered, which is the whole point of printing them."
+ },
  "season": 2025,
  "segments_2025": {
   "bowl": {

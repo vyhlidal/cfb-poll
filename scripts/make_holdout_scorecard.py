@@ -11,13 +11,19 @@ Writes:
 THIS SCRIPT DOES NOT SCORE ANYTHING. It reads the metrics tree that
 `cfbpoll backtest --seasons 2025 --unlock-holdout` already wrote and formats it.
 That separation is the point: the scoring pass happened once, by a human typing a
-flag, and is recorded in `.cache/holdout-2025.log` with its command and its git
-sha. Re-running this file re-renders a document; it cannot re-run the test, and
-it cannot quietly become a loop somebody tunes against.
+flag, and is recorded in `demo/2025-holdout-run.log` with its command, its git sha
+and its timestamp. Re-running this file re-renders a document; it cannot re-run
+the test, and it cannot quietly become a loop somebody tunes against.
+
+Everything the document says about WHEN and WITH WHAT the test was run is read out
+of that log and out of git at the sha the log names, so re-rendering this file
+after the config changes does not move one character of the provenance.
 
 INPUTS, all local, no network:
 
-    out/holdout-2025/backtest_metrics.json   the one-shot run
+    out/holdout-2025/backtest_metrics.json   the one-shot run, or its committed
+    demo/2025-holdout-metrics.json           copy, which is what a fork reads
+    demo/2025-holdout-run.log                the command, the sha and the date
     demo/backtest-2021-2023.json             the tune seasons, for contrast
     out/grid-2025/ratings_{live,hindsight}.parquet   the divergence curve
 
@@ -33,9 +39,11 @@ and then decide them, in that order.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import subprocess
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -47,10 +55,28 @@ from cfbpoll.config import DEFAULT_CONFIG_PATH, config_hash, load_config
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / "demo"
 
-HOLDOUT_METRICS = ROOT / "out" / "holdout-2025" / "backtest_metrics.json"
+
+def _first(*candidates: Path) -> Path:
+    """The first path that exists, or the last one so the error names the fallback."""
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[-1]
+
+
+#: THE COMMITTED COPIES ARE THE RECORD. `out/` and `.cache/` are gitignored, so a
+#: run log and a metrics tree that lived only there would be a provenance claim
+#: nobody outside this machine could check - which is the one thing a single-shot
+#: test cannot afford. The originals are preferred when present, because a
+#: regeneration on the machine that ran the test should read what that run wrote;
+#: the committed copies are the fallback and are what a fork gets.
+HOLDOUT_METRICS = _first(
+    ROOT / "out" / "holdout-2025" / "backtest_metrics.json",
+    DEMO / "2025-holdout-metrics.json",
+)
 TUNE_METRICS = DEMO / "backtest-2021-2023.json"
 GRID_DIR = ROOT / "out" / "grid-2025"
-RUN_LOG = ROOT / ".cache" / "holdout-2025.log"
+RUN_LOG = _first(ROOT / ".cache" / "holdout-2025.log", DEMO / "2025-holdout-run.log")
 
 #: The house ordering. The gate is written against this system and no other.
 HOUSE = "schedule_odds"
@@ -306,9 +332,13 @@ def build() -> dict[str, Any]:
         "schema_version": 1,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "scored_at": _scored_at(),
-        "git_sha": _git_sha(),
-        "config_hash": config_hash(DEFAULT_CONFIG_PATH),
-        "config_version": cfg["meta"]["config_version"],
+        "scored_with": _scored_with(),
+        # The RENDER-time identity, kept clearly apart from the SCORED-time one
+        # above. Both are useful and confusing them is how a provenance claim
+        # quietly becomes false.
+        "rendered_with_git_sha": _git_sha(),
+        "rendered_with_config_hash": config_hash(DEFAULT_CONFIG_PATH),
+        "rendered_with_config_version": cfg["meta"]["config_version"],
         "season": 2025,
         "system": HOUSE,
         "command": _command(),
@@ -379,6 +409,53 @@ def build() -> dict[str, Any]:
     }
 
 
+def _scored_with() -> dict[str, str | None]:
+    """The code and the config AS THEY WERE WHEN THE TEST WAS RUN.
+
+    THE BUG THIS EXISTS TO FIX ACTUALLY SHIPPED, for about half an hour. The
+    scorecard stamped `config_hash(DEFAULT_CONFIG_PATH)` and `git rev-parse HEAD`,
+    which are the config and the code AT RENDER TIME. Re-rendering the document
+    after editing the config therefore moved the hash printed beside the sentence
+    "no constant was chosen after this was read" - which is precisely the claim
+    the hash is there to let a reader check, and precisely the hash that must not
+    move.
+
+    The run log records the sha the scoring pass ran at. Everything below is read
+    out of git AT THAT SHA, so re-rendering this document a year from now prints
+    the same provenance it prints today.
+    """
+    sha = None
+    if RUN_LOG.exists():
+        for line in RUN_LOG.read_text(encoding="utf-8").splitlines():
+            if line.startswith("# git:"):
+                sha = line.split("# git:", 1)[1].strip().split()[0]
+                break
+    config_sha256 = None
+    config_version = None
+    if sha:
+        try:
+            blob = subprocess.run(
+                ["git", "show", f"{sha}:configs/default.toml"],
+                cwd=ROOT,
+                capture_output=True,
+                check=True,
+            ).stdout
+            config_sha256 = hashlib.sha256(blob).hexdigest()
+            config_version = tomllib.loads(blob.decode("utf-8"))["meta"]["config_version"]
+        except Exception:  # noqa: BLE001 - a shallow clone is a legitimate state
+            config_sha256 = None
+    return {
+        "git_sha": sha,
+        "config_sha256": config_sha256,
+        "config_version": config_version,
+        "note": (
+            "The code and the config AS THEY WERE WHEN THE SCORING PASS RAN, read "
+            "out of git at the sha the run log records. These do not move when this "
+            "document is re-rendered, which is the whole point of printing them."
+        ),
+    }
+
+
 def _command() -> str:
     return (
         "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 "
@@ -418,10 +495,20 @@ def render(payload: dict[str, Any]) -> str:
         "published exactly as it came out."
     )
     add("")
+    scored_with = payload["scored_with"]
     add(
         f"Season {payload['season']} · system `{payload['system']}` · "
-        f"config `{payload['config_version']}` "
-        f"sha256 `{payload['config_hash'][:16]}...` · code `{payload['git_sha'][:10]}`"
+        f"config `{scored_with['config_version'] or 'unknown'}` sha256 "
+        f"`{(scored_with['config_sha256'] or 'unknown')[:16]}...` · code "
+        f"`{(scored_with['git_sha'] or 'unknown')[:10]}`"
+    )
+    add("")
+    add(
+        "**Those are the code and the config AS THEY WERE WHEN THIS WAS SCORED**, "
+        "read out of git at the sha the run log records, so they do not move when "
+        "this document is re-rendered. That is the whole reason for printing them: "
+        "a hash beside the sentence \"no constant was chosen after this was read\" "
+        "is worthless if it tracks the current file."
     )
     add("")
     add("```")
@@ -674,9 +761,11 @@ def render(payload: dict[str, Any]) -> str:
     add("")
     add(
         f"Generated by `scripts/make_holdout_scorecard.py` at "
-        f"{payload['generated_at']} from `out/holdout-2025/backtest_metrics.json`, "
-        "which was written by the single scoring pass logged in "
-        "`.cache/holdout-2025.log`."
+        f"{payload['generated_at']} from the metrics tree the single scoring pass "
+        "wrote. That tree and its run log are committed as "
+        "`demo/2025-holdout-metrics.json` and `demo/2025-holdout-run.log`, because "
+        "`out/` and `.cache/` are gitignored and a provenance record nobody outside "
+        "one machine can read is not a record."
     )
     return "\n".join(lines) + "\n"
 

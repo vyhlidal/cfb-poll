@@ -109,6 +109,54 @@ companion_layer = "L3_power"
 publish_rank_intervals = true               # every week, forever — report 02 §3.3
 publish_margin_resume_variant = true        # both resume flavours — report 02 §3.4
 
+# ---------------------------------------------------------------------------------
+# THE SAME-RECORD COMPARISON, which is a DISPLAY decision and reaches no fit.
+#
+# Two teams with identical records and different numbers beside them is the single
+# clearest demonstration this poll can make, and the front door has a module for
+# it. Which two teams it makes it with is an editorial choice, so it is written
+# down here with its reason attached rather than derived on the page.
+#
+# WHY NOT A RULE. The site's first version took the #1 team and the lowest-ranked
+# team sharing its record. That returns NOTHING on 2025's final board - Indiana
+# finished 13-0 and nobody else in the country shares that record - so the clearest
+# demonstration available would simply not have rendered. A rule that goes silent
+# exactly when the season is most interesting is not a good rule.
+#
+# THE PIN IS VALIDATED, NOT TRUSTED. `publish/serving.py` refuses to write a week
+# whose pin names a team outside the published top 25, or two teams whose records
+# differ, or an excluded team. Every candidate pair is published beside the pin on
+# the same document, so the choice can be second-guessed from the artifact.
+#
+# The exclusion list is an owner constraint and is honoured mechanically.
+same_record_pair_exclude = ["Washington"]
+
+[[publication.pinned_same_record_pairs]]
+season = 2025
+week = 16
+leader = "Georgia"
+foil = "James Madison"
+why = """
+Both finished 12-1. Not similar records: the same record, thirteen games each and \
+one loss each, which is the cleanest form the comparison can take. The poll \
+separates them by eleven places and by a factor of twelve in the headline number: \
+Georgia's season is a 1-in-86 result against its schedule and James Madison's is \
+1-in-7 against its own. \
+This is the hard direction to show, and that is why it was chosen. A poll with a \
+conference bias would also put Georgia ahead of James Madison, so the pair cannot \
+be read as evidence by itself. What the page can show is the WHY, entirely from \
+published fields: the tail probability, the reference team it was measured \
+against by name, and the Power column beside it. Agreeing with conventional \
+wisdom is a derived result here rather than an input, and the only way to \
+demonstrate that is on a case where the conventional answer is the one that comes \
+out. \
+The alternatives were weaker. Ohio State and James Madison is the same argument \
+with a smaller gap. BYU and North Texas has a wider gap at 11-2 but both sides \
+are unfamiliar enough that a reader learns less. Alabama and Virginia at 10-3 is \
+a fourteen-place gap between two power-conference teams, which teaches about \
+schedule strength within a tier rather than across one.\
+"""
+
 ####################################################################################
 # Display-only publication settings — report 06 (logo sourcing), report 05 §8
 #

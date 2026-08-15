@@ -207,3 +207,116 @@ Two consequences for the Sunday job as report 01 §3.7 specified it:
 
 Both figures are worth re-measuring if the key ever moves off the free tier: this
 is observed behaviour on one tier and is not documented anywhere.
+
+---
+
+## 14. The 2025 season, as the archive actually has it
+
+**Date:** 2026-08-15. Written while generating the 2025 fixture tree
+([ADR 0012](adr/0012-2025-opens.md)), which is the first time this project has
+built a full season of published documents out of 2025.
+
+Nothing below blocked anything. All of it changes a count somebody might otherwise
+compare against 2023 and find alarming.
+
+### 14.1 Sixteen regular weeks, not fifteen
+
+2023 has regular weeks 1-15 and 2025 has 1-16. Week 15 carries 9 FBS-vs-FBS games
+and week 16 carries **one**, the conference-championship straggler. The fixture
+tree therefore ships `week-01.json` through `week-16.json`, and any code that
+assumed a fifteen-week season - a hard-coded `FIXTURE_WEEKS`, a strip that draws
+fifteen tabs - is wrong for 2025 rather than broken by it. `index.json` publishes
+the actual week list per season, and that is the field to read.
+
+The one-game week is not a defect and does not need special handling: a bucket is
+a bucket, `season_buckets` orders it by first kickoff like every other, and the
+divergence curve simply flattens across it (mean |Δrank| is 0.91 at both week 15
+and week 16, because one game moved almost nothing).
+
+### 14.2 One bucket of postseason, where 2023 has four
+
+In the model universe (at least one FBS or FCS participant):
+
+| season | postseason buckets | detail |
+|---|---|---|
+| 2023 | `post-w11`…`post-w15`, `post-w01` | the FCS playoff bracket, 25 FCS-vs-FCS games |
+| 2024 | `post-w01` | 4 FCS-vs-FCS games |
+| 2025 | `post-w01` | 4 FCS-vs-FCS games |
+
+2025 has 86 postseason rows across all divisions in weeks 1, 13 and 14, but the
+32 games in weeks 13 and 14 are **D-II and D-III championships**, which the model
+universe excludes. So 2025's season tree has 17 buckets where 2023's has 19, and
+the last one is `2025-post-w01`. 2025 matches 2024 here, so this is a property of
+how the parquet series carries recent FCS playoffs rather than anything specific
+to 2025.
+
+Consequence for the R(N, K) grid: `final` means through the bowls and the CFP for
+2025, which is what it should mean, and the hindsight surface for every week is
+computed against that window.
+
+### 14.3 The one missing bowl is `game_id 401778314`, and it is missing PLAYS, not the game
+
+This is the game behind the archive's "99.9%" 2025 coverage figure
+([§0](#backfill-findings--corrections-and-constraints-for-implementation), the
+`100/100/100/100/99.9%` line), and it is worth naming precisely because "a missing
+bowl game" reads worse than what it is:
+
+```
+game_id 401778314   postseason week 1   New Mexico at Minnesota   17-20
+```
+
+The **game is present** in the schedule parquet with both scores, so it is in the
+fit universe, it counts toward records, it is scored by the walk-forward harness,
+and it appears in the résumé and schedule-odds layers exactly like every other
+game. What is absent is its **play-by-play**: it is the only FBS-vs-FBS game of
+2025 with zero rows in `play_by_play_2025.parquet`.
+
+The effect is confined to L1, the efficiency layer, which sees one fewer game out
+of 808. It cannot reach L2, L4 or the headline ordering, all of which read the
+scoreboard. No guard fires and none should.
+
+This is also the game report 01 flagged as a one-off December bowl labelled
+`week=1`; [§1](#1-week-numbering-is-unreliable--key-on-season_type-week-never-week-alone)
+already established that the label is a convention rather than an error, and 54
+games in 2025 share it.
+
+### 14.4 Two rows with `completed = true` and null scores, both D-II
+
+```
+401773541  regular w09  Angelo State at Sul Ross State      away 62, home null
+401833535  regular w12  Kentucky State at Delta State       both null
+```
+
+The `completed` filter is load-bearing ([§4](#4-the-completed-filter-is-load-bearing))
+and these two rows are why the loader also requires both score columns to be
+non-null. Both are D-II-vs-D-II and neither is in the model universe, so they are
+invisible to every layer. They are the whole of 2025's incompleteness: 3,829 of
+3,831 canonical rows are complete, and 808/808 FBS-vs-FBS games have scores.
+
+### 14.5 There is no CFBD `/games` pull for 2025 in the archive
+
+`archive/cfbd/2025/season/` holds returning production, the transfer portal,
+coaches and the week-1 rankings. It does **not** hold a `/games` response, which
+is what `projection.forward.schedule()` reads to find a season's future calendar.
+`forward.schedule(2025)` therefore returns an empty frame, which is the documented
+answer for a fork with no key and is the correct one.
+
+The 2025 Projection needs a calendar to project wins and schedule strength onto,
+so `scripts/make_projection_2025.py` builds one from the MIT schedule parquet
+instead: the season's regular-season games, projected to the seven columns
+`forward.SCHEDULE_COLUMNS` names, restricted to games with at least one FBS
+participant. `home_points` and `away_points` are not among those columns and are
+never read, so no result reaches a win projection through that frame. 888 games.
+
+**This is a substitution and it is declared on the artifact** as
+`schedule_source`, rather than left for a reader to infer from a count. A schedule
+is published months before a season is played, so the season's own calendar is the
+honest stand-in for what an August projection would have been given.
+
+### 14.6 Team count moved: 136 ranked teams, where 2023 ranked 133
+
+Straightforward FBS expansion plus the FCS teams the fit universe carries. It
+matters only because the divergence curve's denominator changes with it, so a
+mean |Δrank| for 2025 is not directly comparable with 2023's at the third decimal.
+`divergence.json` publishes the curve and `index.json` publishes `n_ranked` per
+week; both are on the documents.

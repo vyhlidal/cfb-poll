@@ -651,7 +651,8 @@ def build(
     check_run_directory(out)
 
     archive = archive or DEFAULT_ARCHIVE
-    display = dict(load_config(REPO_ROOT / "configs" / "default.toml").get("display") or {})
+    config = load_config(REPO_ROOT / "configs" / "default.toml")
+    display = dict(config.get("display") or {})
     poll = _read_json(out / "poll.json")
     params = _read_json(out / "model_params.json")
     run_meta = _read_json(out / "_run.json")
@@ -788,6 +789,13 @@ def build(
         "median_interval_width": median_width,
         "max_abs_gap": max_abs_gap,
         "hindsight_is_live": bool(params.get("hindsight_is_live", False)),
+        # THE SAME-RECORD COMPARISON, decided here and never on the page. Two
+        # teams with identical records and different numbers beside them is the
+        # single clearest demonstration this poll can make, and which two it
+        # makes it with is an editorial decision that has to be reviewable. Both
+        # fields may be null, which is a legitimate week rather than a fault.
+        "same_record_pair": _pinned_same_record_pair(poll_rows, season, week, config),
+        "same_record_candidates": _same_record_candidates(poll_rows, config),
         "poll": poll_rows,
     }
 
@@ -873,6 +881,130 @@ def build(
     ]
     bundle.tables["cfb_season_index"] = []  # merged across weeks by each target
     return bundle
+
+
+def _same_record_slot(row: dict[str, Any]) -> dict[str, Any]:
+    """One side of the comparison, carrying only what the module prints."""
+    return {
+        "team": row.get("team"),
+        "team_id": row.get("team_id"),
+        "rank": row.get("rank"),
+        "record": row.get("record"),
+        "one_in": row.get("one_in"),
+        "tail_p": row.get("tail_p"),
+        "power": row.get("power"),
+        "q_ref_team": row.get("q_ref_team"),
+        "mark_bg": row.get("mark_bg"),
+        "mark_fg": row.get("mark_fg"),
+        "mark_label": row.get("mark_label"),
+        "logo_url": row.get("logo_url"),
+        "logo_url_2x": row.get("logo_url_2x"),
+        "logo_url_dark": row.get("logo_url_dark"),
+        "logo_url_dark_2x": row.get("logo_url_dark_2x"),
+    }
+
+
+def _same_record_candidates(
+    poll_rows: list[dict[str, Any]], config: dict[str, Any], limit: int = 25
+) -> list[dict[str, Any]]:
+    """Every pair inside the published top N that shares a record, with its gap.
+
+    Published so the PIN is reviewable. An editorial choice a reader cannot see
+    the alternatives to is indistinguishable from a cherry-pick, and this module
+    exists to make the opposite point.
+    """
+    exclude = {
+        str(t) for t in ((config.get("publication") or {}).get("same_record_pair_exclude") or [])
+    }
+    rows = [r for r in poll_rows[:limit] if r.get("record") and r.get("rank") is not None]
+    out: list[dict[str, Any]] = []
+    for i, a in enumerate(rows):
+        for b in rows[i + 1 :]:
+            if a["record"] != b["record"] or a.get("one_in") == b.get("one_in"):
+                continue
+            out.append(
+                {
+                    "record": a["record"],
+                    "leader": a.get("team"),
+                    "leader_rank": a.get("rank"),
+                    "leader_one_in": a.get("one_in"),
+                    "foil": b.get("team"),
+                    "foil_rank": b.get("rank"),
+                    "foil_one_in": b.get("one_in"),
+                    "rank_gap": int(b["rank"]) - int(a["rank"]),
+                    "excluded": bool({str(a.get("team")), str(b.get("team"))} & exclude),
+                }
+            )
+    out.sort(key=lambda p: (-p["rank_gap"], str(p["leader"]), str(p["foil"])))
+    return out
+
+
+def _pinned_same_record_pair(
+    poll_rows: list[dict[str, Any]], season: int, week: int, config: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The pair the front door's same-record module renders, PINNED, never derived.
+
+    WHY A PIN AND NOT A RULE. The site's first version took the #1 team and the
+    lowest-ranked team sharing its record. That is a rule, it is reproducible, and
+    it returns NOTHING in most weeks that matter: 2025 finishes with a 13-0
+    Indiana at the top, whose record nobody else in the country shares, so the
+    single clearest demonstration this poll can make would simply not render on
+    the final board. A rule that goes silent exactly when the season is most
+    interesting is not a good rule.
+
+    So the pair is an editorial decision, written down in
+    `[[publication.pinned_same_record_pairs]]` with the reason attached, and
+    VALIDATED here against the published rows: both teams must be in the top 25,
+    they must genuinely share a record, and neither may be on the exclusion list.
+    A pin that fails any of those raises rather than silently disappearing,
+    because a comparison module that quietly renders nothing is how a claim gets
+    dropped without anybody deciding to drop it.
+
+    `same_record_candidates` beside this field lists every pair the pin was chosen
+    from, so the choice can be second-guessed from the document itself.
+    """
+    publication = config.get("publication") or {}
+    pins = publication.get("pinned_same_record_pairs") or []
+    exclude = {str(t) for t in (publication.get("same_record_pair_exclude") or [])}
+    pin = next(
+        (
+            p
+            for p in pins
+            if int(p.get("season", -1)) == int(season) and int(p.get("week", -1)) == int(week)
+        ),
+        None,
+    )
+    if pin is None:
+        return None
+
+    by_team = {str(r.get("team")): r for r in poll_rows[:25]}
+    leader, foil = str(pin["leader"]), str(pin["foil"])
+    missing = [t for t in (leader, foil) if t not in by_team]
+    if missing:
+        raise ValueError(
+            f"pinned same-record pair for {season} week {week} names {missing}, which "
+            "is not in the published top 25. A pin that cannot be rendered must be "
+            "corrected in configs/default.toml rather than silently dropped."
+        )
+    if by_team[leader]["record"] != by_team[foil]["record"]:
+        raise ValueError(
+            f"pinned same-record pair for {season} week {week} is "
+            f"{leader} ({by_team[leader]['record']}) and {foil} "
+            f"({by_team[foil]['record']}), which are not the same record."
+        )
+    if {leader, foil} & exclude:
+        raise ValueError(
+            f"pinned same-record pair for {season} week {week} names an excluded "
+            f"team: {sorted({leader, foil} & exclude)}."
+        )
+
+    return {
+        "pinned": True,
+        "why": str(pin.get("why", "")),
+        "excluded_teams": sorted(exclude),
+        "leader": _same_record_slot(by_team[leader]),
+        "foil": _same_record_slot(by_team[foil]),
+    }
 
 
 def _median(values: list[float]) -> float:

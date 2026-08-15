@@ -5,7 +5,7 @@
   "metrics": [],
   "params": {
     "footer_lines": [
-      "run bfe83915 \u00b7 published 2026-08-15 09:16:15 UTC \u00b7 code 137b5f2 \u00b7 config c836cec3\u2026",
+      "run a567a5f1 \u00b7 published 2026-08-15 09:55:31 UTC \u00b7 code a137fbe \u00b7 config bf0fa1a3\u2026",
       "q_ref 13.84 (Tennessee) \u00b7 \u03b2_w 7 \u00b7 C 1 \u00b7 h 2.394 \u00b7 \u03c3 15.300 \u00b7 \u03bb\u2081 175 \u00b7 \u03bb\u2082 2.0 \u00b7 k 69.72 \u00b7 w\u2081 0.6214 \u00b7 w\u2082 0.9390"
     ],
     "labels": {
@@ -36,7 +36,7 @@
       "q_ref_method": "power_rank_25",
       "q_ref_team": "Tennessee",
       "ranking_key": "-log10(P(W >= W_t)) under a Poisson-binomial over the exact schedule; margin never enters",
-      "recipe_config_sha256": "45ab528ce006fe9e3441dc393f59887bbff8727f71be0b74ea6fe7ea78d5f2fe",
+      "recipe_config_sha256": "cadaeb945e90d873bd0520caa7ca9d1d9b7dce9f5fadde4ea2ac2e1fc5f94d4e",
       "resume_layer": "L4 resume rating",
       "resume_target": "raw wins, and raw compressed margin; game weights shape the Power fit, not the accomplishment",
       "resume_version": "v0",
@@ -107,7 +107,7 @@
       "margin.c": 1.0,
       "publication.headline_ordering": "L4_resume"
     },
-    "config_sha256": "45ab528ce006fe9e3441dc393f59887bbff8727f71be0b74ea6fe7ea78d5f2fe",
+    "config_sha256": "cadaeb945e90d873bd0520caa7ca9d1d9b7dce9f5fadde4ea2ac2e1fc5f94d4e",
     "evidence": {
       "archive_manifest_sha256": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
       "fit_window_sha256": "60d23f76c131e8f70faea6e47f26a5a6fc427d4e7265d797106874e4f513561c",
@@ -131,12 +131,12 @@
   },
   "run": {
     "archive_hash": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
-    "config_hash": "c836cec36f7d49d3c2c6f1a67bf36c87d2d6bac680bd471eed6cd233aa57605b",
-    "git_sha": "137b5f261006f7c2141a7a24de3f50441714adc5",
+    "config_hash": "bf0fa1a3501cf7b8b3b5649a2082b84371724116e423022c56d64cdb96e112ec",
+    "git_sha": "a137fbeda9eeacbdaca94dfff4ece0df5b7bf161",
     "notes": null,
-    "published_at": "2026-08-15T09:16:15+00:00",
-    "ran_at": "2026-08-15T09:16:15+00:00",
-    "run_id": "bfe83915-f007-57e0-adff-f1396586840c",
+    "published_at": "2026-08-15T09:55:31+00:00",
+    "ran_at": "2026-08-15T09:55:31+00:00",
+    "run_id": "a567a5f1-c42c-5e34-a6e7-b83598afed68",
     "season": 2023,
     "status": "published",
     "through_week": 14,

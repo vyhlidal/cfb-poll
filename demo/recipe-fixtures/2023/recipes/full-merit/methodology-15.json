@@ -5,7 +5,7 @@
   "metrics": [],
   "params": {
     "footer_lines": [
-      "run 354d8b09 \u00b7 published 2026-08-15 09:11:03 UTC \u00b7 code 0b6c701 \u00b7 config c836cec3\u2026",
+      "run 17dc047d \u00b7 published 2026-08-15 09:50:28 UTC \u00b7 code a137fbe \u00b7 config bf0fa1a3\u2026",
       "q_ref 16.76 (Troy) \u00b7 \u03b2_w 12 \u00b7 C uncapped \u00b7 h 2.421 \u00b7 \u03c3 15.300 \u00b7 \u03bb\u2081 200 \u00b7 \u03bb\u2082 0.5 \u00b7 k 71.90 \u00b7 w\u2081 0.4238 \u00b7 w\u2082 0.3095"
     ],
     "labels": {
@@ -37,7 +37,7 @@
       "q_ref_method": "power_rank_25",
       "q_ref_team": "Troy",
       "ranking_key": "-log10(P(W >= W_t)) under a Poisson-binomial over the exact schedule; margin never enters",
-      "recipe_config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+      "recipe_config_sha256": "d21aaa06428fad6b1b8345ddee74086741c046ec693cfabb1eb50f2dfa49a0a8",
       "resume_layer": "L4 resume rating",
       "resume_target": "raw wins, and raw compressed margin; game weights shape the Power fit, not the accomplishment",
       "resume_version": "v0",
@@ -108,7 +108,7 @@
       "margin.c": "uncapped",
       "publication.headline_ordering": "L4_resume_margin"
     },
-    "config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+    "config_sha256": "d21aaa06428fad6b1b8345ddee74086741c046ec693cfabb1eb50f2dfa49a0a8",
     "evidence": {
       "archive_manifest_sha256": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
       "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
@@ -132,12 +132,12 @@
   },
   "run": {
     "archive_hash": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
-    "config_hash": "c836cec36f7d49d3c2c6f1a67bf36c87d2d6bac680bd471eed6cd233aa57605b",
-    "git_sha": "0b6c70197c500711deb21b3e00ed55a070d353be",
+    "config_hash": "bf0fa1a3501cf7b8b3b5649a2082b84371724116e423022c56d64cdb96e112ec",
+    "git_sha": "a137fbeda9eeacbdaca94dfff4ece0df5b7bf161",
     "notes": null,
-    "published_at": "2026-08-15T09:11:03+00:00",
-    "ran_at": "2026-08-15T09:11:03+00:00",
-    "run_id": "354d8b09-04e3-5f8c-9546-898714590110",
+    "published_at": "2026-08-15T09:50:28+00:00",
+    "ran_at": "2026-08-15T09:50:28+00:00",
+    "run_id": "17dc047d-6783-5431-8a6b-c0bfd6dc4b00",
     "season": 2023,
     "status": "published",
     "through_week": 15,

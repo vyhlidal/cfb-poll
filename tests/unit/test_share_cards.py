@@ -404,3 +404,154 @@ def test_the_dejavu_fallback_actually_covers_what_the_primaries_miss() -> None:
         "DejaVu changed nothing on a string the primaries do not cover, which means "
         "the missing-glyph fallback is not reaching the renderer"
     )
+
+
+# --------------------------------------------------------------- the projection card
+
+#: A projection document in the shape `projection/publish.build` writes, trimmed
+#: to the fields a card reads. Deliberately hand-built rather than loaded from the
+#: fixture tree: these tests are about the renderer, and a card that only works
+#: against one committed season is a card nobody can change safely.
+def _projection_document(status: str = "published", rows: int = 25) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "season": 2026,
+        "status": status,
+        "label": "THE PROJECTION. A guess the poll will grade.",
+        "headline": (
+            "This is the model's 2026 preseason projection, a guess made in August "
+            "about a season the poll will go on to measure."
+        ),
+        "grading_start_week": 5,
+        "projection_version": "projection-1.0.0",
+        "backtest": {
+            "ap_top25_hits": "14.7",
+            "projection_top25_hits": "14.3",
+            "naive_top25_hits": "13.3",
+            "transitions": 3,
+        },
+        "rows": [
+            {
+                "rank": i + 1,
+                "team": f"Team {i + 1}",
+                "abbreviation": f"T{i + 1:02d}",
+                "mark_bg": "#0c2340",
+                "mark_fg": "#ffffff",
+                "mark_label": f"T{i + 1:02d}",
+                "projected_wins": f"{12.0 - i * 0.2:.1f}",
+            }
+            for i in range(rows)
+        ],
+    }
+
+
+@pytest.mark.parametrize("variant", ["projection_top10", "projection_top25"])
+def test_the_projection_card_is_logo_free_and_offline(variant: str) -> None:
+    """The report 06 §8.3 rule is about CARDS, so a new card inherits it whole."""
+    svg = cards.BUILDERS[variant][0](_projection_document())
+    assert "<image" not in svg
+    assert "xlink:href" not in svg
+    body = svg.replace(SVG_NAMESPACE, "")
+    assert re.findall(r"https?://[^\"'\s>]+", body) == []
+    assert "@import" not in svg and "url(http" not in svg
+    # The generated mark is drawn instead, which is what makes the rule survivable.
+    assert "<circle" in svg
+
+
+@pytest.mark.parametrize("variant", ["projection_top10", "projection_top25"])
+def test_the_projection_card_declares_the_summary_large_image_canvas(variant: str) -> None:
+    svg = cards.BUILDERS[variant][0](_projection_document())
+    assert 'width="1200"' in svg and 'height="628"' in svg
+    assert 'viewBox="0 0 1200 628"' in svg
+    assert 'role="img"' in svg and "aria-label=" in svg
+
+
+def test_the_projection_card_prints_projected_wins_and_never_an_odds_key() -> None:
+    """The right-hand column is the projection's number, verbatim from the field.
+
+    `projected_wins` is published PRE-FORMATTED, so the assertion is that the
+    string on the card is the string in the document. A card that reformatted it
+    could disagree with the JSON a reader downloads.
+    """
+    document = _projection_document()
+    svg = cards.projection_top10_svg(document)
+    assert "1 in " not in svg
+    for row in document["rows"][:10]:  # type: ignore[index]
+        assert f"{row['projected_wins']} wins" in svg
+    # And the eleventh row is not on a top-ten card.
+    assert f"{document['rows'][10]['projected_wins']} wins" not in svg  # type: ignore[index]
+
+
+def test_the_projection_card_carries_the_documents_own_label() -> None:
+    """The banner is a published field, exactly as the alternate-lens marker is.
+
+    A card is the artifact most likely to arrive with no context at all, so the
+    sentence saying this is a guess rather than the poll has to be ON it, and it
+    has to be the document's words rather than a string in this renderer.
+    """
+    document = _projection_document()
+    document["label"] = "SOMETHING ELSE ENTIRELY."
+    svg = cards.projection_top10_svg(document)
+    assert "SOMETHING ELSE ENTIRELY." in svg
+    assert cards.PALETTE["accent"] in svg  # drawn on the accent slab
+
+
+def test_the_projection_label_fits_its_slab_without_being_clipped() -> None:
+    """A truncated "this is not the poll" notice is the one truncation that matters."""
+    from cfbpoll.projection.publish import PROJECTION_LABEL
+
+    svg = cards.projection_top10_svg(_projection_document())
+    assert PROJECTION_LABEL in svg
+    assert "…" not in svg.split("</svg>")[0].split(PROJECTION_LABEL)[0][-80:]
+
+
+def test_the_projection_card_carries_its_backtest_footer() -> None:
+    """The poll card's signature is its constants. This one's is the honest score.
+
+    Report 05 §6.2's rule is that the footer is never dropped for space, and the
+    projection's equivalent claim is the measured record against the AP's August
+    guess, published on the image whether or not it flatters.
+    """
+    svg = cards.projection_top10_svg(_projection_document())
+    assert "recipe projection-1.0.0" in svg
+    assert "AP 14.7" in svg and "this projection 14.3" in svg
+    assert "sb.unleashepic.com/cfb-poll" in svg
+
+
+def test_a_dark_projection_is_refused_rather_than_drawn() -> None:
+    """`status` is authoritative. Rendering a card from a dark document would
+    publish the very thing the field exists to keep unpublished."""
+    with pytest.raises(ValueError, match="not published"):
+        cards.projection_top10_svg(_projection_document(status="coming"))
+    with pytest.raises(ValueError, match="no rows"):
+        cards.projection_top25_svg(_projection_document(rows=0))
+
+
+def test_the_projection_svg_is_a_pure_function_of_the_document() -> None:
+    """No wall clock, no RNG, no dict iteration order."""
+    for variant in cards.PROJECTION_VARIANTS:
+        builder = cards.BUILDERS[variant][0]
+        assert builder(_projection_document()) == builder(_projection_document())
+
+
+def test_a_projection_variant_refuses_the_run_directory_path(tmp_path: Path) -> None:
+    """It has no run directory and no week; sending it through `export` would
+    have to invent both."""
+    with pytest.raises(ValueError, match="export_projection"):
+        cards.export(tmp_path, tmp_path, variant="projection_top10")
+    with pytest.raises(ValueError, match="unknown projection card variant"):
+        cards.export_projection(tmp_path / "p.json", tmp_path, variant="top10")
+
+
+def test_export_projection_names_the_files_after_the_season_and_no_week(
+    tmp_path: Path,
+) -> None:
+    """`2026-projection-top10`, because a preseason guess has no week to stamp."""
+    import json as _json
+
+    document = tmp_path / "projection.json"
+    document.write_text(_json.dumps(_projection_document()), encoding="utf-8")
+    written = cards.export_projection(
+        document, tmp_path / "share", variant="projection_top25", png=False
+    )
+    assert [p.name for p in written] == ["2026-projection-top25.svg"]

@@ -39,9 +39,22 @@ from cfbpoll.ingest import cfbd
 from cfbpoll.ingest.teams import PALETTE_MARK, load_colors, mark_for
 from cfbpoll.projection import PROJECTION_VERSION
 
-__all__ = ["SCHEMA_VERSION", "build", "write"]
+__all__ = ["PROJECTION_LABEL", "SCHEMA_VERSION", "build", "write"]
 
 SCHEMA_VERSION = 1
+
+#: THE MARKER EVERY SURFACE SHOWING THIS DOCUMENT HAS TO CARRY, in the same words
+#: everywhere, exactly as `recipes.ALTERNATE_LABEL` works for a poll produced
+#: under an alternate lens (ADR 0011 §4). The projection is not the poll (ADR
+#: 0010) and the surface most likely to arrive with no context at all is a share
+#: card in somebody's timeline, so the label is a published FIELD rather than
+#: copy in a renderer: the card cannot draw the board without also being handed
+#: the sentence that says what the board is.
+#:
+#: Short on purpose. It goes in the accent slab above the thesis, where it has one
+#: line, and a label that gets truncated to fit is a label that stopped saying the
+#: thing it exists to say.
+PROJECTION_LABEL = "THE PROJECTION. A guess the poll will grade."
 
 
 #: Characters report 08 bans from the front door's visible copy. The em dash is
@@ -209,6 +222,10 @@ def build(
         "status": status,
         "published_at": published_at,
         "grading_start_week": int(config["publication"]["headline_start_week"]),
+        # The "this is not the poll" marker, carried as data so every surface
+        # shows the same words. Additive: a consumer written against the original
+        # field set never reads it and stays valid.
+        "label": _assert_sentence("label", PROJECTION_LABEL),
         "headline": _assert_sentence("headline", headline),
         "basis": _assert_sentence("basis", basis),
         "note": _assert_sentence("note", note) if note else None,

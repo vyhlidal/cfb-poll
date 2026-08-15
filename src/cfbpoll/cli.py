@@ -1604,8 +1604,19 @@ def publish_cards(
         Path, typer.Option("--from", help="Model output directory to render.")
     ] = Path("out"),
     variant: Annotated[
-        str, typer.Option(help="Card variant. Currently: connectivity.")
+        str,
+        typer.Option(
+            help="Card variant: connectivity, top10, top25_x, top25_instagram, "
+            "projection_top10, projection_top25."
+        ),
     ] = "connectivity",
+    projection: Annotated[
+        Path | None,
+        typer.Option(
+            help="The published projection.json a projection_* variant draws. "
+            "Required for those, ignored by the rest."
+        ),
+    ] = None,
     backtest: Annotated[
         Path | None,
         typer.Option(help="Gate metrics JSON. Default: <from>/backtest_metrics.json"),
@@ -1629,14 +1640,22 @@ def publish_cards(
     """
     from cfbpoll.publish import cards
 
-    resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
-    written = cards.export(
-        from_,
-        out,
-        variant=variant,
-        backtest=resolved if resolved.exists() else None,
-        png=png,
-    )
+    if variant in cards.PROJECTION_VARIANTS:
+        if projection is None:
+            raise typer.BadParameter(
+                f"{variant} draws the published projection document. Pass "
+                "--projection <data root>/<season>/projection.json."
+            )
+        written = cards.export_projection(projection, out, variant=variant, png=png)
+    else:
+        resolved = backtest if backtest is not None else (from_ / "backtest_metrics.json")
+        written = cards.export(
+            from_,
+            out,
+            variant=variant,
+            backtest=resolved if resolved.exists() else None,
+            png=png,
+        )
     for path in written:
         typer.echo(f"wrote {path} ({path.stat().st_size:,} bytes)")
 

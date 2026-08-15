@@ -346,7 +346,10 @@ cfbpoll publish {release,postgres,fixtures,cards}
                                         publish out/ to its destinations. `fixtures`
                                         takes one run OR a directory of them, so
                                         `make fixtures` republishes a whole season;
-                                        `cards` renders the share card (SVG + PNG)
+                                        `cards` renders the share card (SVG + PNG);
+                                        `--variant projection_top10|projection_top25
+                                        --projection <season>/projection.json`
+                                        renders the Projection's cards instead
 cfbpoll site build                      build the static site
 cfbpoll projection {ingest,build,audit,fixture}
                                         THE PROJECTION - a preseason ranking from

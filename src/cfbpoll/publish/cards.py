@@ -49,6 +49,7 @@ shows you the graph its ranking is standing on.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from pathlib import Path
 from typing import Any
@@ -61,12 +62,16 @@ __all__ = [
     "CARD_WIDTH",
     "FONT_DIR",
     "PALETTE",
+    "PROJECTION_VARIANTS",
     "SAFE_TOP",
     "TALL_HEIGHT",
     "VARIANTS",
     "connectivity_svg",
     "export",
+    "export_projection",
     "fonts_are_vendored",
+    "projection_top10_svg",
+    "projection_top25_svg",
     "render_png",
     "stripe_colour",
     "top10_svg",
@@ -97,7 +102,21 @@ SAFE_BOTTOM = CARD_HEIGHT - 126
 #: separate variants rather than one variant with an option, because each is a
 #: published artifact with its own sha256 and neither is a derivative of the
 #: other.
-VARIANTS: tuple[str, ...] = ("connectivity", "top10", "top25_x", "top25_instagram")
+#: The variants that draw THE PROJECTION rather than a week of the poll. They are
+#: named apart rather than flagged because they read a DIFFERENT DOCUMENT: a week
+#: of the poll comes out of a run directory through `serving.build`, and the
+#: projection is one JSON file with no run behind it at all. Their files are
+#: `<season>-projection-<name>` rather than `<season>-wNN-<name>`, since a
+#: preseason guess has no week and stamping one on it would be inventing a fact.
+PROJECTION_VARIANTS: tuple[str, ...] = ("projection_top10", "projection_top25")
+
+VARIANTS: tuple[str, ...] = (
+    "connectivity",
+    "top10",
+    "top25_x",
+    "top25_instagram",
+    *PROJECTION_VARIANTS,
+)
 
 #: One dark palette, fixed. A share card has no theme toggle: it is a PNG in
 #: somebody else's timeline, and it has to hold up against both a white and a
@@ -734,6 +753,25 @@ def connectivity_svg(bundle: Bundle) -> str:
     return "\n".join(parts) + "\n"
 
 
+def _odds_key(row: dict[str, Any]) -> str:
+    """The poll board's right-hand column: the published odds key, in gold.
+
+    `one_in` is published; it is never recomputed from `tail_p`.
+    """
+    return f"1 in {int(row['one_in']):,}"
+
+
+def _projected_wins(row: dict[str, Any]) -> str:
+    """The projection board's right-hand column.
+
+    `projected_wins` arrives PRE-FORMATTED to one decimal place (the fixture
+    contract §6), so the unit is the only thing this adds. A card that reformatted
+    the number could disagree with the JSON a reader downloads, which is the whole
+    reason the field is a string.
+    """
+    return f"{row['projected_wins']} wins"
+
+
 def _poll_row(
     row: dict[str, Any],
     x: float,
@@ -745,12 +783,17 @@ def _poll_row(
     name_size: float,
     odds_size: float,
     use_abbreviation: bool,
+    value_of: Any = _odds_key,
 ) -> list[str]:
     """One team, on Look's row grid. Every value is printed, none is derived.
 
-    `one_in` is published; it is never recomputed from `tail_p`. The rank, the
-    record and the odds key are fields. This function does arithmetic on pixels
-    and on nothing else.
+    The rank, the record and the right-hand value are fields. This function does
+    arithmetic on pixels and on nothing else.
+
+    `value_of` is what makes the row shared between the two products: the poll
+    prints its odds key and the projection prints its win total, on the same grid,
+    in the same slot, in the same gold. Two row renderers would be two places for
+    the stripe clamp and the name budget to drift apart.
     """
     mid = y + height / 2
     parts: list[str] = [
@@ -773,7 +816,7 @@ def _poll_row(
     # The odds string is right-aligned to the row's right edge and the name is
     # clipped to what is left, so a long school name can never collide with the
     # number. Budgeted in characters because the raster's metrics are the host's.
-    odds = f"1 in {int(row['one_in']):,}"
+    odds = value_of(row)
     odds_w = odds_size * len(odds) * 0.62
     name_budget = max(4, int((width - (name_x - x) - odds_w) / (name_size * 0.56)))
     parts.append(
@@ -960,6 +1003,209 @@ def top25_instagram_svg(bundle: Bundle) -> str:
     return "\n".join(parts) + "\n"
 
 
+# ------------------------------------------------------------------ the projection
+
+
+def _projection_rows(document: dict[str, Any], top_n: int) -> list[dict[str, Any]]:
+    """The board, refused rather than half-drawn when the document is not one.
+
+    A share card is a published claim (report 05 §6.1(2)), so drawing one from a
+    document whose own `status` says it is dark would publish the thing the status
+    field exists to keep unpublished. `status` is authoritative and is never
+    inferred from the row count, which is exactly why it has to be READ.
+    """
+    status = str(document.get("status") or "")
+    if status != "published":
+        raise ValueError(
+            f"the projection's status is {status!r}; a share card is a published "
+            "claim and this document says it is not published yet"
+        )
+    rows = list(document.get("rows") or [])
+    if not rows:
+        raise ValueError("the projection carries no rows to draw")
+    return rows[:top_n]
+
+
+def _projection_panel(
+    document: dict[str, Any], panel_w: float, height: float, thesis_size: float
+) -> list[str]:
+    """Wordmark, gold bar, season, the label in the accent slab, and the headline.
+
+    THE WORDMARK IS "THE PROJECTION" AND THAT IS THE POINT OF THE CARD. ADR 0010
+    says the Projection is not the Poll and may never touch its math; a card
+    carrying the poll's wordmark over a preseason guess would undo that in the one
+    artifact most likely to travel without its page.
+
+    THE LABEL IS DRAWN FROM THE DOCUMENT, never typed here, for the same reason
+    `_lens_banner` reads `recipe.label`: the words a document uses to say what it
+    is belong to the document.
+    """
+    season = int(document["season"])
+    parts: list[str] = [_slab(0, 0, panel_w, height, PALETTE["panel"])]
+    parts.append(
+        f'<line x1="{_n(panel_w)}" y1="0" x2="{_n(panel_w)}" y2="{_n(height)}" '
+        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
+    )
+
+    x, y = 32.0, 96.0
+    parts.append(
+        _text(x, y, "THE PROJECTION", size=26, fill=PALETTE["ink"], weight="800",
+              anchor="start", family=FONT_DISPLAY, spacing=1.4)
+    )
+    parts.append(_slab(x, y + 12, 26 * 0.62 * len("THE PROJECTION"), 6, PALETTE["accent"]))
+
+    y += 52
+    parts.append(
+        _text(x, y, f"{season} PRESEASON", size=16, fill=PALETTE["ink_dim"],
+              weight="700", family=FONT_DISPLAY, spacing=1.6)
+    )
+
+    banner = str(document.get("label") or "")
+    if banner:
+        y += 30
+        # An accent slab with brand_ink on it, the same sanctioned use as the
+        # alternate-lens marker. The budget is 46 rather than the poll card's 34
+        # because this label is longer and a truncated "this is not the poll"
+        # notice is the one string on the card that must not be truncated.
+        parts.append(_slab(x - 6, y - 14, panel_w - (x - 6) - 20, 24, PALETTE["accent"]))
+        parts.append(
+            _text(x, y + 3, _clip(banner, 46), size=12, fill=PALETTE["brand_ink"],
+                  weight="700", family=FONT_DISPLAY, spacing=0.4)
+        )
+
+    thesis = str(document.get("headline") or "")
+    if thesis:
+        y += 52
+        budget = max(12, int((panel_w - x - 26) / (thesis_size * 0.46)))
+        for line in _wrap(thesis, budget, 7):
+            parts.append(
+                _text(x, y, line, size=thesis_size, fill=PALETTE["ink"], family=FONT_PROSE)
+            )
+            y += thesis_size * 1.09
+    return parts
+
+
+def _projection_footer(document: dict[str, Any], width: float, height: float) -> list[str]:
+    """The projection's signature strip, and it is the backtest that lost.
+
+    The poll card's footer carries the model constants because no other poll's
+    share image does. The projection's equivalent is the measured record of the
+    method against the AP's August guess, published on the image itself, whether
+    or not it flatters. Every figure is a published field printed verbatim.
+    """
+    lines = [
+        f"recipe {document.get('projection_version')} · the poll grades this from "
+        f"week {document.get('grading_start_week')}"
+    ]
+    backtest = document.get("backtest") or {}
+    if backtest:
+        lines.append(
+            f"backtest, {backtest.get('transitions')} transitions: AP "
+            f"{backtest.get('ap_top25_hits')} top 25 hits, this projection "
+            f"{backtest.get('projection_top25_hits')}, carry forward "
+            f"{backtest.get('naive_top25_hits')}"
+        )
+
+    top = height - 60
+    parts = [
+        _slab(0, top, width, 60, PALETTE["panel"]),
+        f'<line x1="0" y1="{_n(top)}" x2="{_n(width)}" y2="{_n(top)}" '
+        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>',
+    ]
+    y = top + 24
+    for line in lines[:2]:
+        parts.append(
+            _text(32, y, _clip(line, 118), size=15, fill=PALETTE["ink_faint"], family=FONT_MONO)
+        )
+        y += 19
+    parts.append(
+        _text(width - 32, top + 24, "sb.unleashepic.com/cfb-poll", size=15,
+              fill=PALETTE["ink_dim"], anchor="end", family=FONT_MONO)
+    )
+    return parts
+
+
+def projection_top10_svg(document: dict[str, Any]) -> str:
+    """The projected top ten. Same canvas and same grid as the poll's top ten.
+
+    Deliberately the same geometry: the two boards sit on one page and a reader
+    comparing them should be comparing the numbers, not noticing that one card's
+    rows are taller. What differs is what the card says it is, and the column on
+    the right: `projected_wins` where the poll prints its odds key.
+    """
+    rows = _projection_rows(document, 10)
+    season = int(document["season"])
+
+    panel_w = 392.0
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top ten, {season} preseason")
+    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=24))
+    parts.extend(
+        _row_block(
+            rows,
+            panel_w + 32,
+            144.0,
+            CARD_WIDTH - panel_w - 64,
+            height=34.0,
+            playoff_after=4,
+            rank_size=30,
+            name_size=26,
+            odds_size=26,
+            use_abbreviation=False,
+            value_of=_projected_wins,
+        )
+    )
+    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+def projection_top25_svg(document: dict[str, Any]) -> str:
+    """The projected top 25, two columns of 13 and 12 on the 1200x628 canvas.
+
+    ONE top 25 rather than the poll's two, and it is the `summary_large_image`
+    ratio rather than the 4:5 one. The poll publishes both because it ships every
+    week and each canvas is a surface it posts to; the projection ships once a
+    year and its job is to be the image that embeds anywhere, which the 16:9 card
+    does and the portrait card does not.
+    """
+    rows = _projection_rows(document, 25)
+    season = int(document["season"])
+    split = (13, 12)
+
+    panel_w = 392.0
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top 25, {season} preseason")
+    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=21))
+
+    area_x, area_w = panel_w + 24, CARD_WIDTH - panel_w - 48
+    gutter = 16.0
+    col_w = (area_w - gutter * (len(split) - 1)) / len(split)
+
+    start = 0
+    for index, count in enumerate(split):
+        chunk = rows[start : start + count]
+        x = area_x + index * (col_w + gutter)
+        after = 4 - start if any(int(r["rank"]) == 4 for r in chunk) else None
+        parts.extend(
+            _row_block(
+                chunk, x, 150.0, col_w, height=26.0, playoff_after=after,
+                rank_size=22, name_size=19, odds_size=19,
+                use_abbreviation=True, value_of=_projected_wins,
+            )
+        )
+        if index < len(split) - 1:
+            gx = x + col_w + gutter / 2
+            parts.append(
+                f'<line x1="{_n(gx)}" y1="150" x2="{_n(gx)}" '
+                f'y2="{_n(150.0 + max(split) * 26.0)}" stroke="{PALETTE["rule"]}" '
+                f'stroke-width="1"/>'
+            )
+        start += count
+
+    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 def render_png(svg: str) -> bytes:
     """Rasterise. No network, no headless browser, no system-font surprise hidden.
 
@@ -1025,7 +1271,29 @@ BUILDERS: dict[str, Any] = {
     "top10": (lambda b: top10_svg(b), CARD_WIDTH, CARD_HEIGHT),
     "top25_x": (lambda b: top25_x_svg(b), CARD_WIDTH, CARD_HEIGHT),
     "top25_instagram": (lambda b: top25_instagram_svg(b), CARD_WIDTH, TALL_HEIGHT),
+    # The projection variants take a DOCUMENT rather than a bundle. Same table
+    # anyway, so the CLI's help, the CI guard and `export` still cannot disagree
+    # about what a variant is; `export` reads PROJECTION_VARIANTS to know which
+    # argument to hand the builder.
+    "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT),
+    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT),
 }
+
+
+def _write(dest: Path, stem: str, svg: str, *, png: bool) -> list[Path]:
+    """Both files, and the SVG always. Returns the paths, sorted.
+
+    The SVG because it is the diffable, reviewable, vector artifact and the thing
+    a test can assert about; the PNG because that is what travels.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    written = [dest / f"{stem}.svg"]
+    written[0].write_text(svg, encoding="utf-8")
+    if png:
+        target = dest / f"{stem}.png"
+        target.write_bytes(render_png(svg))
+        written.append(target)
+    return sorted(written)
 
 
 def export(
@@ -1039,24 +1307,50 @@ def export(
 ) -> list[Path]:
     """Write `<dest>/<season>-w<NN>-<variant>.{svg,png}`. Returns the paths, sorted.
 
-    `out` is the directory `cfbpoll rank` produced. Both files are written: the
-    SVG because it is the diffable, reviewable, vector artifact and the thing a
-    test can assert about, and the PNG because that is what travels.
+    `out` is the directory `cfbpoll rank` produced. A projection variant has no
+    run directory and no week, so it goes through `export_projection` instead and
+    is refused here rather than being handed a bundle it cannot read.
     """
     if variant not in VARIANTS:
         raise ValueError(f"unknown card variant {variant!r}; expected one of {VARIANTS}")
+    if variant in PROJECTION_VARIANTS:
+        raise ValueError(
+            f"{variant!r} draws the projection document, which has no run directory "
+            "and no week. Use `export_projection`, or `publish cards --projection "
+            "<path>` from the CLI."
+        )
     bundle = build(out, archive=archive, backtest=backtest)
     svg = BUILDERS[variant][0](bundle)
+    return _write(dest, f"{bundle.season}-w{bundle.week:02d}-{variant}", svg, png=png)
 
-    dest.mkdir(parents=True, exist_ok=True)
-    stem = f"{bundle.season}-w{bundle.week:02d}-{variant}"
-    written = [dest / f"{stem}.svg"]
-    written[0].write_text(svg, encoding="utf-8")
-    if png:
-        target = dest / f"{stem}.png"
-        target.write_bytes(render_png(svg))
-        written.append(target)
-    return sorted(written)
+
+def export_projection(
+    document: Path,
+    dest: Path,
+    *,
+    variant: str = "projection_top10",
+    png: bool = True,
+) -> list[Path]:
+    """Write `<dest>/<season>-projection-<name>.{svg,png}`. Returns the paths, sorted.
+
+    `document` is `cfb-poll-data/<season>/projection.json`, the published fixture,
+    and it is the ONLY input. Not the model, not a run directory, not a refit: the
+    card is drawn from the artifact a reader can download, so the two cannot
+    disagree, and the projection is frozen at publication anyway.
+
+    NO WEEK IN THE FILENAME. A preseason projection is a single claim about a
+    whole season, so `2026-projection-top10` says exactly what it is, where
+    `2026-w00-projection_top10` would have invented a week that does not exist.
+    """
+    if variant not in PROJECTION_VARIANTS:
+        raise ValueError(
+            f"unknown projection card variant {variant!r}; expected one of "
+            f"{PROJECTION_VARIANTS}"
+        )
+    payload = json.loads(Path(document).read_text(encoding="utf-8"))
+    svg = BUILDERS[variant][0](payload)
+    stem = f"{int(payload['season'])}-projection-{variant.removeprefix('projection_')}"
+    return _write(dest, stem, svg, png=png)
 
 
 def sha256_of(path: Path) -> str:

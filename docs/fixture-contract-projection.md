@@ -51,6 +51,7 @@ changed meaning, none were removed.
 | `status` | `"coming"` \| `"published"` | **authoritative**, never inferred from `rows`. A complete projection may sit on disk dark |
 | `published_at` | str \| null | ISO 8601 |
 | `grading_start_week` | int | the week the poll begins grading this in public. Read from `[publication].headline_start_week`, never typed |
+| `label` | str | **the marker every surface showing this document must display**, in the same words everywhere. `projection.PROJECTION_LABEL` |
 | `headline` | str | the one sentence the card leads with, verbatim |
 | `basis` | str | what the guess was built from. The card continues from it |
 | `note` | str \| null | optional second sentence |
@@ -62,6 +63,32 @@ changed meaning, none were removed.
 `projection_version` exists because the grading loop is season-over-season: a
 published guess that cannot say which recipe made it cannot be graded across
 years.
+
+`label` is the projection's counterpart to `recipes.ALTERNATE_LABEL`
+(`docs/fixture-contract-recipes.md` §4): a document that is not the published
+poll says so, in the same string, on every surface that shows it. It is a FIELD
+rather than copy in a renderer because the surface most likely to arrive with no
+context at all is a share card in somebody's timeline, and a card cannot draw the
+board without also being handed the sentence that says what the board is. The
+share-card variants `projection_top10` and `projection_top25` print it in the
+accent slab above the headline; a site that shows the board without it is not
+honouring this contract.
+
+### The share cards
+
+`cfbpoll publish cards --variant projection_top10 --projection <path>` writes
+`<season>-projection-top10.{svg,png}`, and `projection_top25` writes the 25-row
+version. No week is in the filename because a preseason projection is one claim
+about a whole season. Both draw ONLY from this document: the right-hand column is
+`projected_wins` printed verbatim, the banner is `label`, the thesis is
+`headline`, and the footer is `projection_version`, `grading_start_week` and the
+three `backtest` hit counts. One top 25 rather than the poll's two, on the
+1200x628 `summary_large_image` canvas, because the projection ships once a year
+and its job is to be the image that embeds anywhere.
+
+A card is refused when `status` is not `"published"`. `status` is authoritative,
+so drawing one from a dark document would publish the thing the field exists to
+keep unpublished.
 
 ---
 

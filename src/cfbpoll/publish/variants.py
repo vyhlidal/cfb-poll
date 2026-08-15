@@ -401,10 +401,20 @@ def agreement(house: dict[int, int], variant: dict[int, int]) -> dict[str, Any]:
 
     `n_moved_5_or_more` counts teams whose rank changed by at least five places in
     either direction. Tau is a single number about a whole ordering and says
-    nothing about whether the movement is spread thin or concentrated; the count
-    is the second question, and five places is roughly the width of the rank
-    intervals this project publishes, so a team that moved five has moved further
-    than its own uncertainty.
+    nothing about whether the movement is spread thin or concentrated - a tau of
+    0.99 is consistent with everybody shuffling one place and with two teams
+    moving thirty - so the count is the second question.
+
+    FIVE IS A LEGIBILITY THRESHOLD AND NOT A SIGNIFICANCE ONE, and saying so is
+    load-bearing because the number invites the opposite reading. It is not
+    "further than its own uncertainty": the published 90% rank intervals on this
+    poll have a MEDIAN WIDTH OF 75 PLACES (65 across the top 40), so a five-place
+    move is deep inside the noise this project already publishes and a reader must
+    not take the count as evidence that anything real happened. What five places
+    is, is roughly the point at which a move is visible to somebody looking at the
+    board - it crosses a row group, it changes who a team is printed next to. The
+    count answers "would a reader notice?", the interval answers "does the model
+    claim to know?", and they are different questions with different answers.
     """
     from scipy.stats import kendalltau
 

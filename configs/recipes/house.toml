@@ -1,0 +1,48 @@
+####################################################################################
+# RECIPE: The House Poll. THE PUBLISHED POLL.
+#
+# THIS FILE OVERRIDES NOTHING, AND THAT IS THE POINT.
+#
+# `recipes.load` REFUSES this file if it ever carries a single constant. The house
+# recipe is configs/default.toml, byte for byte, resolved through a merge with an
+# empty diff, and `tests/unit/test_recipes.py` asserts the resolved dictionary is
+# equal to the loaded default config.
+#
+# So "adding recipes did not change the poll" is not a promise in a paragraph. It
+# is a property of this file, checked on every test run, and it stays true no
+# matter what the other recipes do. If someone ever wants to change the published
+# poll, the place to do it is configs/default.toml with an ADR beside it, exactly
+# as before, and this file will follow automatically because it IS that file.
+####################################################################################
+
+[recipe]
+slug = "house"
+name = "The House Poll"
+stance = 1
+one_liner = "Margin in the engine, schedule odds in the headline. The published poll."
+
+manifesto = """
+This is the poll this project publishes and this recipe changes nothing about it.
+Margin counts, and it counts less and less as it grows: the response is
+C*tanh(m/C) with C at 32 points plus a 7 point win premium, so the gap between a 3
+point win and a 24 point win is large and the gap between a 45 point win and a 70
+point win is almost nothing. There is no cliff anywhere for a coach to aim at,
+which is what tanh buys over a hard cap. Then the headline does not read margin at
+all. Teams are ordered by schedule odds, the probability that a team of published
+reference quality would have gone at least this well against this exact schedule,
+and the harder it was to do what you did the higher you go. Margin is in the
+engine because it carries real information about how good a team is. It is out of
+the headline because the headline is about what a team earned, and those are two
+different questions that deserve two different columns.
+"""
+
+tradeoffs = [
+    "An unbeaten team can finish behind a one loss team, and that will need explaining every single year. It is the direct consequence of the promise. The explanation is on the page: the tail probability, the reference team it was measured against by name, and the Power column beside it.",
+    "One published constant the wins based resume did not need. q_ref is the Power rating of the 25th ranked team that week, the least flattering defensible reading of ESPN's average Top-25 team. The study measured the ordering across a 16 point swing in it: Kendall's tau never fell below 0.985 and at most one team entered or left the top 25.",
+    "It loses forward ordering accuracy to Full Merit by about two points. Accepted, and for a stated reason: forward accuracy is a prediction metric and the headline poll is not the instrument this project ships for prediction. L3 Power is, and it beats all three orderings on that axis.",
+    "It is a compromise and it will satisfy neither end of the argument completely. Someone who believes margin is the only honest measurement will find the compression arbitrary, and someone who believes point differential should never pay will find 32 points of it far too generous. Both are reading the position correctly.",
+]
+
+####################################################################################
+# No constants. Do not add any. `recipes.load` raises if you do.
+####################################################################################

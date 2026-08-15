@@ -56,7 +56,14 @@ reason: an undefeated team's résumé saturates at the published bracket, which 
 not a function of the schedule and therefore not a function of the data window, so
 the retroactive re-ranking of constraint 4 could not move an unbeaten team at all.
 `[publication].headline_ordering` still accepts `"L4_resume"`, and switching it
-regenerates the whole pipeline under the old ordering.
+regenerates the whole pipeline under the old ordering. Since
+[ADR 0011](adr/0011-recipes.md) it also accepts `"L4_resume_margin"`, the study's
+candidate B, which was computed on every published row from the beginning and was
+the one candidate the pipeline could not be pointed at. All three are named
+**recipes** now — `just-win`, `house` and `full-merit` respectively — and a reader
+can see the poll under each. Only the house recipe is published as the poll; see
+[`configs/recipes/`](../configs/recipes/) and
+[`demo/2023-recipes.md`](../demo/2023-recipes.md).
 
 Schedule odds is the poll; Power is the engine; the résumé is the same accomplishment
 stated on the points scale.

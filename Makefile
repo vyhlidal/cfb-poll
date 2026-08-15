@@ -17,8 +17,9 @@ SEED ?= 20260812
 DRAWS ?= 1000
 JOBS ?= 4
 
-.PHONY: help rankings archive archive-lock backtest cards demos fixtures projection \
-        projection-audit replay replay-tolerant grid site test lint clean
+.PHONY: help rankings archive archive-lock backtest cards demos fixtures \
+        recipe-fixtures projection projection-audit replay replay-tolerant grid \
+        site test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -31,6 +32,7 @@ help:
 	@echo "  make grid             the R(N,K) retroactive triangle for one season"
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
 	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
+	@echo "  make recipe-fixtures  the same weeks under each ALTERNATE LENS (ADR 0011)"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make projection       the 2026 Projection - a PREDICTION, never the poll"
 	@echo "  make projection-audit prove the Projection and the Poll stay separate"
@@ -132,6 +134,46 @@ fixtures: .venv backtest
 	done
 	$(UV) run cfbpoll publish fixtures --from $(RUNS) --out $(FIXTURES) \
 	  --backtest $(OUT)/backtest_metrics.json
+
+# Real, and it is the ONLY supported way to regenerate the ALTERNATE LENSES
+# (configs/recipes/, ADR 0011, docs/fixture-contract-recipes.md).
+#
+# IT DOES NOT REGENERATE THE PUBLISHED POLL. That is `make fixtures`' job, and
+# writing the house tree from two commands would be two procedures that have to
+# agree forever. This one writes only `<season>/recipes/<slug>/`, into the same
+# destination, additively, so the two targets compose and neither overwrites the
+# other's files. Run `make fixtures` first if the house tree is stale.
+#
+# IT ALSO DOES NOT DEPEND ON `backtest`, and that is not an oversight. An
+# alternate lens publishes no gate verdict at all: `[gate]` is written against the
+# published poll, and attaching the house poll's numbers to a page describing a
+# different value system would be worse than publishing none. The document says so
+# in `gate_note` rather than leaving an empty table to read as a mistake.
+#
+# WEEKS 5-15, NOT 1-15, AND THE REASON IS THE SAME ONE THAT SETS
+# `headline_start_week`. Weeks 1-4 are explicitly not the poll: they ship a
+# connectivity report and provisional output. Offering a reader three value
+# systems to rank a table with is offering a choice about something that is not yet
+# a ranking, so the lenses start where the poll starts.
+RECIPES       ?= full-merit just-win
+RECIPE_SEASON ?= 2023
+RECIPE_WEEKS  ?= 5 6 7 8 9 10 11 12 13 14 15
+RECIPE_RUNS   ?= .cache/recipes
+recipe-fixtures: .venv archive
+	@for r in $(RECIPES); do \
+	  for w in $(RECIPE_WEEKS); do \
+	    printf 'rank %s %s week %s\n' "$$r" "$(RECIPE_SEASON)" "$$w"; \
+	    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	      $(UV) run cfbpoll rank --config $(CONFIG) --recipe $$r \
+	        --season $(RECIPE_SEASON) --through-week $$w --seed $(SEED) \
+	        --draws $(DRAWS) --out $(RECIPE_RUNS)/$$r/w$$(printf '%02d' $$w) \
+	        >/dev/null || exit 1; \
+	  done; \
+	  $(UV) run cfbpoll publish fixtures --from $(RECIPE_RUNS)/$$r --out $(FIXTURES) || exit 1; \
+	done
+	@echo
+	@echo "The lenses are $(FIXTURES)/$(RECIPE_SEASON)/recipes/<slug>/. The published"
+	@echo "poll is untouched at $(FIXTURES)/$(RECIPE_SEASON)/week-NN.json."
 
 # Real. The weekly share card. No logos, no network, no headless browser: a
 # Jinja-free SVG template rendered by resvg, which is what keeps the Sunday job

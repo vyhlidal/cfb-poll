@@ -114,12 +114,36 @@ def test_the_two_names_for_the_headline_cannot_drift_apart() -> None:
     assert poll_mod.headline_ordering(cfg) == cfg["publication"]["headline_ordering"]
 
 
-def test_the_rejected_ordering_is_still_reachable() -> None:
-    """A choice that cannot be switched back is not a choice. The résumé ordering
-    lost on the evidence of the study; it did not stop being implemented."""
+def test_every_ordering_the_study_measured_is_still_reachable() -> None:
+    """A choice that cannot be switched back is not a choice.
+
+    WIDENED WHEN `configs/recipes/` LANDED, and the widening is the same argument
+    rather than a new one. The headline ordering study measured three candidates
+    (docs/adr/0005-headline-ordering.md): A the wins-based résumé, B the
+    margin-aware résumé, C the schedule odds. C won and is published. A was always
+    reachable by config, on exactly this principle. B was computed on every
+    published row and was the one candidate the pipeline could not actually be
+    pointed at, which made "we measured it and it lost" a claim a reader had to
+    take on trust.
+
+    All three are reachable now, and each one is a named recipe (ADR 0011): C is
+    `house`, A is `just-win`, B is `full-merit`. Nothing about which one is
+    PUBLISHED changed.
+    """
     from cfbpoll.publish import poll as poll_mod
 
-    assert set(poll_mod.HEADLINE_ORDERINGS) == {"schedule_odds", "L4_resume"}
+    assert set(poll_mod.HEADLINE_ORDERINGS) == {
+        "schedule_odds",
+        "L4_resume",
+        "L4_resume_margin",
+    }
+    # Every ordering has a sort rule, a display name and a bootstrap ordering to
+    # read its rank interval from. A headline with no interval is the one thing
+    # this project says it will never publish.
+    for ordering in poll_mod.HEADLINE_ORDERINGS:
+        assert ordering in poll_mod.ORDER_KEYS
+        assert ordering in poll_mod.ORDERING_LAYER
+        assert ordering in poll_mod.HEADLINE_INTERVAL_ORDERING
 
 
 def test_q_ref_convention_and_its_sensitivity_set_are_published() -> None:

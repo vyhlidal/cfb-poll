@@ -103,11 +103,17 @@ __all__ = [
     "run",
 ]
 
-#: The three orderings a rank interval is published for. The headline is the one
-#: that sorts the table; the other two are on every row already (report 02 §3.5),
-#: so leaving them without an interval would say the uncertainty applies only to
-#: the column we chose.
-ORDERINGS: tuple[str, ...] = ("schedule_odds", "resume", "power")
+#: The orderings a rank interval is published for. The headline is the one that
+#: sorts the table; the others are on every row already (report 02 §3.5), so
+#: leaving them without an interval would say the uncertainty applies only to the
+#: column we chose.
+#:
+#: `resume_margin` joined the list with `configs/recipes/`. It is the fourth
+#: number that was already on every row and the only one that had no interval, and
+#: it needs one for the same reason the other three do: `full-merit` ranks on it,
+#: so under that recipe it IS the headline, and a headline rank published without
+#: its own interval is the one thing this project says it will never do.
+ORDERINGS: tuple[str, ...] = ("schedule_odds", "resume", "resume_margin", "power")
 
 
 @dataclass(frozen=True)
@@ -342,9 +348,10 @@ def run(
         resume = l4_resume.fit(simulated, cfg, power=drawn)
         odds = schedule_odds.fit(simulated, cfg, power=drawn, classes=classes)
 
-        # The two published orderings, by exactly the keys publish/poll.py sorts
-        # on: ascending tail then mid-p for the headline; résumé then the
-        # margin-aware tie-break for the one it replaced.
+        # Every published ordering, by exactly the keys publish/poll.ORDER_KEYS
+        # sorts on: ascending tail then mid-p for the house headline; résumé then
+        # the margin-aware tie-break for the one it replaced; the margin-aware
+        # résumé alone for the ordering `full-merit` selects.
         rank["schedule_odds"][i] = _ranks(
             {t: (odds.tail[t], odds.mid_p[t]) for t in odds.tail},
             ranked,
@@ -357,6 +364,7 @@ def run(
             descending=True,
             width=2,
         )
+        rank["resume_margin"][i] = _ranks(resume.resume_margin, ranked, descending=True)
         rank["power"][i] = _ranks(drawn.ratings, ranked, descending=True)
         power_draws[i] = np.array([drawn.rating(t) for t in ranked], dtype=np.float64)
 

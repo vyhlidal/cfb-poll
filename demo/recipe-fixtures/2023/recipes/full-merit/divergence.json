@@ -1,0 +1,57 @@
+[
+  {
+    "max_abs_delta": 21,
+    "mean_abs_delta": 5.864661654135339,
+    "week": 5
+  },
+  {
+    "max_abs_delta": 15,
+    "mean_abs_delta": 4.315789473684211,
+    "week": 6
+  },
+  {
+    "max_abs_delta": 16,
+    "mean_abs_delta": 3.6390977443609023,
+    "week": 7
+  },
+  {
+    "max_abs_delta": 13,
+    "mean_abs_delta": 2.7218045112781954,
+    "week": 8
+  },
+  {
+    "max_abs_delta": 12,
+    "mean_abs_delta": 2.5413533834586466,
+    "week": 9
+  },
+  {
+    "max_abs_delta": 7,
+    "mean_abs_delta": 1.7593984962406015,
+    "week": 10
+  },
+  {
+    "max_abs_delta": 6,
+    "mean_abs_delta": 1.2030075187969924,
+    "week": 11
+  },
+  {
+    "max_abs_delta": 7,
+    "mean_abs_delta": 0.9022556390977443,
+    "week": 12
+  },
+  {
+    "max_abs_delta": 6,
+    "mean_abs_delta": 0.8872180451127819,
+    "week": 13
+  },
+  {
+    "max_abs_delta": 6,
+    "mean_abs_delta": 1.112781954887218,
+    "week": 14
+  },
+  {
+    "max_abs_delta": 5,
+    "mean_abs_delta": 0.9323308270676691,
+    "week": 15
+  }
+]

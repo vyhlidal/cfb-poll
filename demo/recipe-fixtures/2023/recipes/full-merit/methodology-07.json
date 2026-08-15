@@ -1,0 +1,189 @@
+{
+  "divergence": [],
+  "gate": [],
+  "gate_note": "The publication gate is written against the published poll and is not applied per recipe. This is an alternate lens: its constants are below, and it has no gate verdict of its own.",
+  "metrics": [],
+  "params": {
+    "footer_lines": [
+      "run 61082cdb \u00b7 published 2026-08-15 09:07:46 UTC \u00b7 code 0b6c701 \u00b7 config c836cec3\u2026",
+      "q_ref 14.59 (Miami) \u00b7 \u03b2_w 12 \u00b7 C uncapped \u00b7 h 2.366 \u00b7 \u03c3 17.024 \u00b7 \u03bb\u2081 300 \u00b7 \u03bb\u2082 0.5 \u00b7 k 95.25 \u00b7 w\u2081 0.4738 \u00b7 w\u2082 0.2690"
+    ],
+    "labels": {
+      "C": "uncapped",
+      "blend_weight_source": "out_of_sample",
+      "bootstrap_jobs_note": "draws run sequentially; per-draw streams come from SeedSequence.spawn, so parallelising later cannot move a published number (report 03 \u00a79.3 item 2)",
+      "bootstrap_lambda_note": "held at the value the real data's CV selected; the bootstrap propagates sampling uncertainty at a fixed hyperparameter",
+      "bootstrap_note": "parametric on the FIXED schedule: outcomes redrawn from the fitted model, refit, re-ranked. Games are edges in the schedule graph and are not exchangeable, so resampling them with replacement - which report 02 \u00a73.3's parenthetical specified - is invalid here; see naive_resample_diagnostic. The L1 efficiency half of Power is held at its point estimate because plays are not resimulated, so these intervals are a LOWER BOUND on total uncertainty.",
+      "bootstrap_power_source": "L3",
+      "bootstrap_scheme": "parametric_on_fixed_schedule",
+      "bootstrap_sigma_source": "walk_forward_residuals",
+      "companion_layer": "L3_power",
+      "cv_group": "game_id",
+      "estimator": "ols",
+      "fit_out_of_sample_only": "true",
+      "headline_decided": "2026-08-12, docs/adr/0005-headline-ordering.md",
+      "headline_layer": "L4_resume_margin",
+      "headline_ordering": "L4_resume_margin",
+      "hindsight_data_bucket": "2023-post-w01",
+      "hindsight_is_live": "false",
+      "hindsight_variant": "A_frozen_form",
+      "layer": "C schedule odds",
+      "power_scale_universe": "blend_regression_on_actual_margin",
+      "power_se_note": "ridge sandwich on the L2 half only (report 02 \u00a73.3), carried onto the points scale by w2. THE EFFICIENCY HALF IS HELD AT ITS POINT ESTIMATE: a play-level covariance over ~2,000 coefficients and 170,000 correlated rows is a different object and is not built, so this is a LOWER BOUND on the uncertainty of an L3 rating. The parametric bootstrap inherits the same limitation and says so",
+      "power_sigma_source": "walk_forward_residuals",
+      "power_source": "L3",
+      "power_version": "v1",
+      "provisional": "false",
+      "q_ref_method": "power_rank_25",
+      "q_ref_team": "Miami",
+      "ranking_key": "-log10(P(W >= W_t)) under a Poisson-binomial over the exact schedule; margin never enters",
+      "recipe_config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+      "resume_layer": "L4 resume rating",
+      "resume_target": "raw wins, and raw compressed margin; game weights shape the Power fit, not the accomplishment",
+      "resume_version": "v0",
+      "saturation_tiebreak": "margin",
+      "sigma_source": "walk_forward_residuals",
+      "tail_method": "exact_poisson_binomial_dp",
+      "tie_break": "mid_p",
+      "version": "v0"
+    },
+    "numeric": {
+      "beta_w": 12.0,
+      "bisection_max_iter": 60.0,
+      "blend_n_games": 324.0,
+      "bootstrap_draws": 1000.0,
+      "bootstrap_jobs_requested": 4.0,
+      "bootstrap_jobs_used": 1.0,
+      "bootstrap_lambda": 0.5,
+      "bootstrap_n_games": 856.0,
+      "bootstrap_n_ranked_teams": 133.0,
+      "bootstrap_seed": 20260812.0,
+      "bootstrap_sigma": 17.024287671928185,
+      "cv_folds": 5.0,
+      "gauss_hermite_nodes": 20.0,
+      "h_points": 2.365981112483905,
+      "home_field": 7.056972463240578,
+      "interval_level": 0.9,
+      "k_points_per_unit": 95.25293195044337,
+      "lambda": 0.5,
+      "lambda_l1": 300.0,
+      "lambda_l2": 0.5,
+      "max_games_one_team": 8.0,
+      "min_out_of_sample_games": 40.0,
+      "min_tail": 1e-300,
+      "n_games": 856.0,
+      "n_plays": 99213.0,
+      "n_record_games": 856.0,
+      "n_resume_games": 856.0,
+      "n_resume_teams": 301.0,
+      "n_saturated_high": 20.0,
+      "n_saturated_low": 42.0,
+      "n_teams": 301.0,
+      "power_home_field_points": 2.365981112483905,
+      "power_scale_b": 1.0,
+      "power_scale_n_games": 324.0,
+      "power_se_median_points": 2.2811703849289673,
+      "power_se_scale": 0.2690208189642071,
+      "power_sigma": 17.024287671928185,
+      "power_sigma_n_out_of_sample_games": 160.0,
+      "q_ref": 14.590846400247987,
+      "q_ref_pool_size": 133.0,
+      "recency_gamma": 1.0,
+      "season": 2023.0,
+      "seed": 20260812.0,
+      "sigma": 17.024287671928185,
+      "w1_efficiency": 0.4738476600934106,
+      "w2_results": 0.2690208189642071,
+      "weight_bowl_non_cfp": 0.25,
+      "weight_cfp": 1.0,
+      "weight_conference_championship": 1.0,
+      "weight_regular_season": 1.0
+    },
+    "reproduce": "uv run cfbpoll rank --season 2023 --through-week 7 --out out/"
+  },
+  "recipe": {
+    "changes": {
+      "margin.beta_w": 12.0,
+      "margin.c": "uncapped",
+      "publication.headline_ordering": "L4_resume_margin"
+    },
+    "config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+    "evidence": {
+      "archive_manifest_sha256": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
+      "fit_window_sha256": "f41cbb03d89a88998f3cda2c8d47ab47f0d3ce8e8bca63bd65c731a8c27f1510",
+      "n_games_in_fit": 856
+    },
+    "is_house": false,
+    "label": "ALTERNATE LENS. Not the published poll.",
+    "manifesto": "Best team wins. We measure as fairly as we can, and nothing else counts. This recipe takes the scoreboard at face value: the compression is switched off entirely, so a 70 point win is a 70 point win and not a 40 point win with the top trimmed off, and the win premium goes to 12 points, the top of the grid campaign 2 pre-registered. The table is then ordered by the margin aware resume, which asks how good these results say you are rather than how hard it was to produce them. Garbage time is still filtered and a kneel down is still worth nothing, because running the clock out is a clock decision and not merit, and charging a defense for allowing it would be measuring the scoreboard operator. Everything that happened while both teams were still playing is on the table, at full value, with no thumb anywhere.",
+    "name": "Full Merit",
+    "one_liner": "Margin counts for exactly what it is worth. Nothing is protected.",
+    "slug": "full-merit",
+    "source": "configs/recipes/full-merit.toml",
+    "stance": 0,
+    "tradeoffs": [
+      "It pays to run up the score, and this recipe does not pretend otherwise. That is the entire objection to margin and this end of the axis does not answer it. If you believe a coach will keep the starters in against a beaten opponent when the poll rewards it, this is the recipe that rewards it.",
+      "It is a worse resume and a better predictor, measured. The headline ordering here is candidate B of the headline ordering study, which lost retrodictive violations to both alternatives in 16 of 16 season by surface cells and won forward ordering accuracy 0.6822 against 0.6626. Report 02 already ships a predictor: the Power column, on every row, every week.",
+      "It puts teams with losses above teams without them, hard. In 2023 candidate B ranked an 8-4 Kansas State twelfth and a 7-5 Texas A&M twenty-third, above an 11-1 James Madison and a 13-0 Liberty, because beating people badly and losing narrowly is what it rewards. demo/2023-recipes.md measures this exact combination of constants rather than quoting the study's.",
+      "The data does like these constants, and that cuts both ways. C uncapped with a 12 point win premium is campaign 2's lead 1: it beat the incumbent on margin MAE on the tune seasons (13.0039 against 13.0102) and again on 2024 (12.8536 against 12.9096), cleared its own pre-registered rule, and was blocked by an interaction with the accumulation window rather than by its own result. The objective it won on is margin MAE, which has no opinion about desert whatsoever.",
+      "Kendall's tau against the house poll on the 2023 final board is far below the 0.985 the project treats as the line between a convention and a dial. This is a dial. It is meant to be one."
+    ]
+  },
+  "run": {
+    "archive_hash": "manifest:fd57f550893e9b909eb3bdab326eea742850a26f7e775c8c8a56b217b4674ead",
+    "config_hash": "c836cec36f7d49d3c2c6f1a67bf36c87d2d6bac680bd471eed6cd233aa57605b",
+    "git_sha": "0b6c70197c500711deb21b3e00ed55a070d353be",
+    "notes": null,
+    "published_at": "2026-08-15T09:07:46+00:00",
+    "ran_at": "2026-08-15T09:07:46+00:00",
+    "run_id": "61082cdb-b4e0-5637-a602-8c52df29cddb",
+    "season": 2023,
+    "status": "published",
+    "through_week": 7,
+    "trigger": "manual"
+  },
+  "season": 2023,
+  "weaknesses": [
+    {
+      "body": "Stated so it is not read as stronger than it is, and reproduced from study \u00a710.4:\n\n- **Four seasons.** The forward-accuracy gap between B and the other two (2 pp on\n  9,433 games) is comfortably significant. **The gap between A and C on violations\n  (0.1 to 0.5 pp) is not, and nothing here claims it is** \u2014 A and C are tied on\n  that axis and the decision was made on the structural finding, not on it.\n- The postseason axis is unusable at current sample sizes (14 CFP games, 4 non-CFP\n  NY6 games) and 2021-2022 cannot contribute to it at all, because the archive\n  carries no postseason rows for those seasons.\n- 2024 is the validation season. Every conclusion holds on it with the same sign,\n  but it was consulted once, in one pass, and must not be consulted again for a\n  re-tune.\n- 2025 is untouched and stays locked.\n- **No bootstrap intervals anywhere.** `model/bootstrap.py` is still a stub, so the\n  study reports point estimates and sample sizes and leaves the reader to judge.",
+      "heading": "Where this decision is weak",
+      "source": "docs/adr/0005-headline-ordering.md"
+    },
+    {
+      "body": "1. **An unbeaten team can finish behind a one-loss team, and that will require\n   explaining every year.** It is the direct consequence of the promise. The\n   explanation is on the page: the tail probability, the reference team it was\n   measured against by name, and the Power column.\n2. **One published constant that A did not have.** `q_ref` \u2014 the Power rating of\n   the 25th-ranked Power team that week, the least flattering defensible reading of\n   ESPN's \"average Top-25 team\", and a single team that can be *named* each week.\n   Study \u00a79 measured the ordering's sensitivity to it rather than asserting it was\n   fine: across a 16-point swing in reference quality, Kendall's \u03c4 never fell below\n   0.985, the mean rank change never reached one place, and at most one team\n   entered or left the top 25. 2023 Liberty spans #8 to #12 across that whole swing\n   and never reaches Georgia at #7 under any choice. The probability *values* move\n   by orders of magnitude, which is exactly why the value is published rather than\n   the rank alone.\n3. **C loses forward ordering accuracy to B by about 2 points.** Accepted, and for\n   a stated reason: forward accuracy is a prediction metric, and the headline poll\n   is not the instrument this project ships for prediction. L3 Power is, and it\n   beats all three orderings on that axis.\n\nC also inherits the invariance that makes the r\u00e9sum\u00e9's zero point harmless: shift\nevery Power rating by a constant and every rank-derived `q_ref` shifts with it, so\nno probability moves at all. Only the `fixed` method breaks that, which is why it\nis not the default.",
+      "heading": "The price of C, stated plainly",
+      "source": "docs/adr/0005-headline-ordering.md"
+    },
+    {
+      "body": "### 1. The optimum is a corner solution\n\n`C = 32` is the **top of `c_grid`**. The search did not bracket the optimum; the\ndata wants to keep going and the published grid stops it. The protocol fixed the\nsearch space as *exactly the config grids* precisely so this campaign could not\nwiden the net after seeing the numbers, so the boundary is reported rather than\ncrossed.\n\nIt also says something about where the bounds came from. The review's \u00a77 table\nlists C's range as Pasteur's cap of 21 and the CFBD SRS walkthrough's \u00b128 \u2014 other\npeople's answers on other people's datasets \u2014 and the fitted value is above both.\n**Widening `c_grid` is the first item for the next campaign, and it must be\npre-registered before it is searched.**\n\n### 2. Tuning cannot close the gate, and it is not close\n\nThe whole 416-cell factorial spans **0.135 points of MAE**, best cell to worst.\nThe winner beats the incumbent by **0.0086**. The gate needs **0.219** more than\nthe incumbent has, and the best cell in the entire searched space is still\n**0.210 points above the threshold**.\n\n**The gate gap is structural, not a tuning problem.** That is the most important\nsentence in this ADR and it is a negative result. Every constant in the pre-\nregistered space was searched at full resolution and the answer is that these\nconstants were never what stood between this system and its own thresholds.",
+      "heading": "The two uncomfortable results",
+      "source": "docs/adr/0007-tuned-constants.md"
+    },
+    {
+      "body": "Four candidate fixes were declared before any was run, with an adoption bar of\n**\u2265 2.0 pp on tune AND direction holding on 2024**. **None clears it, and the\nconfig does not move on account of the calibration criterion.**\n\n| Candidate | Tune \u0394 | Clears 2 pp? | 2024 \u0394 | Verdict |\n|---|---:|---|---:|---|\n| Student-t margins, at the fitted \u03bd = 92.7 | +2.50 pp | yes | \u22120.38 pp | direction reverses \u2014 not adopted |\n| Heteroscedastic \u03c3(\\|m\u0302\\|) | \u22123.22 pp | no | +0.81 pp | fails tune \u2014 not adopted |\n| Home-and-home `h` | \u2014 | \u2014 | \u2014 | **not runnable** under constraint 2 |\n| Favourite-longshot | \u2014 | \u2014 | \u2014 | **the diagnosis**, not a knob |\n\n**Neither named suspect did it.**\n\n- **The normal tail is eliminated.** Maximum likelihood on the walk-forward\n  residuals puts \u03bd at **92.7**; skew \u22120.098, excess kurtosis +0.020, Jarque-Bera\n  p = 0.275. These residuals are not distinguishable from normal. Low-\u03bd rows in\n  the sweep *do* cut the deviation, and that is a clue rather than an exoneration:\n  a t with a matched second moment and small \u03bd has a *narrower body*, so what\n  those rows buy is sharpness, not tail weight.\n- **The single home-field constant is eliminated as the cause** \u2014 the residual\n  mean is \u22121.13 points at home sites against \u22120.19 at neutral, an order of\n  magnitude too small to make a 13.67 pp decile \u2014 **and separately convicted of\n  something else.** The site coefficient the harness uses averages **6.39 points\n  with a standard deviation of 4.34** across published weeks, against **1.88 \u00b1\n  0.34** from 1,113 home-and-home pairs. Only 37 of 1,585 scored games are at\n  neutral sites, so the intercept and the site term are nearly collinear and `h`\n  is barely identified. Real defect. Different defect.\n\n**The cause is under-dispersion of the point forecast, tilted toward the home\nside**, and it replicates out of sample:\n\n| | Tune 2021-2023 | 2024 |\n|---|---:|---:|\n| Slope of actual on predicted margin | 1.1428 \u00b1 0.0435 | 1.2442 \u00b1 0.0851 |\n| Intercept, points | \u22121.606 | \u22122.108 |\n| Mean residual, points | \u22121.104 | \u22120.927 |\n\nA slope 3.3 standard errors above one means the forecasts are systematically too\ntimid about mismatches; probabilities built from them sit too close to 0.5, so low\ndeciles land below their predicted rate and high deciles above. The negative\nintercept pushes the whole curve down, which is why the low end misses by 13.67 pp\nand the high end by 1.23 pp. **That is the asymmetry.** It is not a distributional\nassumption, not a variance function and not a home-field constant, and there is no\nkey in `configs/default.toml` that sets it.\n\nThe mechanism is named in the campaign document: both the affine points\ncalibration and \u03c3 are fitted on the games *accumulated so far* in a season, and the\nratings feeding them improve as the season goes on, so a slope fitted on weeks 2-9\nunder-scales week 10 and a \u03c3 fitted on weeks 2-9 (18.46) over-covers week 10\n(16.55). **This does not license relaxing the out-of-sample rule** \u2014 fitting either\nestimator on the training window costs L2 0.44 points of MAE and inverts the\nordering against Elo. The defect is the *shape* of the accumulation window. A\ntrailing window is out of sample too, and it is the next campaign's first\npre-registered item.",
+      "heading": "The calibration diagnosis: diagnosed, and deliberately unfixed",
+      "source": "docs/adr/0007-tuned-constants.md"
+    },
+    {
+      "body": "**2025 is untouched and stays that way.** The harness refuses it without\n`unlock_holdout=True` and no code path passes it.\n\n**2024 has now been read once.** Every future decision that reads it again must\nsay so publicly and re-designate the split (report 02 \u00a75.1). This ADR is that\npublic statement for this campaign.\n\n**The next campaign's pre-registered items**, named here so they are on the record\nbefore they are searched: widen `c_grid` above 32; a trailing-window \u03c3 and a\ntrailing-window points calibration; a win-probability model so `garbage_time.mode\n= \"leverage\"` becomes measurable; and an identification strategy for `h` that does\nnot depend on 37 neutral-site games.",
+      "heading": "What this does not settle",
+      "source": "docs/adr/0007-tuned-constants.md"
+    },
+    {
+      "body": "**The margin is inside the noise, and three of the other criteria point the other\nway.** `model` wins the pre-registered rule by 0.055 points of MAE over\n`fbs_vs_fbs`, and the honest floor for distinguishing MAE over three seasons is\naround 0.3 points. On straight-up accuracy (69.65% vs 69.21%), on calibration\ndeviation (11.11pp vs 13.67pp) and on retrodictive violations (0.2006 vs 0.2015),\nthe FBS-only universe is ahead. A pre-registered rule that picks one column while\nthree others disagree is a rule doing its job, and a reader is entitled to know it\nwas close.\n\n**It is a dial.** Kendall's tau between the incumbent's ranking and the FBS-only\nranking is **0.9344**, against the 0.985 floor the published `q_ref` sweep never\ndipped below. Mean absolute rank change 3.32 places, maximum 17. By the project's\nown published standard that is a dial, and the config now says so.\n\n**The review's own example does not reproduce, and that is recorded rather than\nquietly dropped.** It reported James Madison moving #7 \u2192 #4 under `fbs_vs_fbs`.\nOn this build JMU is #4 under all three universes. The review measured against a\nbaseline this repository no longer has \u2014 \u03c3 was the 15.3 constant rather than an\nestimate ([ADR-adjacent, review S6](../analysis/fresh-eyes-review.md)) and its own\n\u00a7S4 baseline used in-sample blend weights. The *sensitivity* is real and larger\nthan `q_ref`'s; the particular team it landed on was a property of the\nconfiguration it was measured under. It now shows up on UCF (#66 \u2192 #83), Stanford\n(#80 \u2192 #65) and Northern Illinois (#97 \u2192 #80).\n\n**The G5 caveat is now a number.** Mean Power of a fourteen-team P4 sample minus a\nfourteen-team G5 sample, 2023 through week 10: 10.83 points under `model`, 9.64\nunder `fbs_vs_fbs`, 11.23 under `all`. Dropping the non-FBS teams *narrows* the\nP4-over-G5 gap by 1.19 points, so the mixed-division universe is mildly favourable\nto G5 teams \u2014 the review's direction, at a smaller magnitude than its framing\nsuggests. That caveat belongs on the methodology page and is no longer unstated.\n\n**What this does not settle.** 2024 (validate) and 2025 (holdout) are untouched.\nIf this decision is ever revisited against them, that has to be said publicly and\nthe split re-designated (report 02 \u00a75.1). And the mechanism numbers in \u00a73 of the\nanalysis are one week of one season: the direction is stable, the magnitude is not\nclaimed to be.",
+      "heading": "Consequences, including the uncomfortable ones",
+      "source": "docs/adr/0006-fit-universe.md"
+    },
+    {
+      "body": "1. **Two of the three recipes are not tuned and do not claim to be.**\n   `just-win`'s `C = 1` sits far outside anything either campaign searched:\n   campaign 1's grid opened at 18 and campaign 2 only widened it upward. It is a\n   value judgement taken to its logical end and nothing here claims it predicts\n   well.\n2. **No recipe has been backtested end to end as a system.**\n   [`demo/2023-recipes.md`](../../demo/2023-recipes.md) is one season's final board,\n   which compares outputs and does not evaluate them. `cfbpoll backtest` scores\n   orderings, not recipes.\n3. **The gate is not applied per recipe.** `[gate]` is written against the\n   published poll, so an alternate lens publishes no gate verdict and its\n   methodology document says why. A page showing three rankings and one verdict\n   would be less honest than one showing three verdicts, and the second does not\n   exist yet.\n4. **Selectable value systems are a rhetorical risk.** \"Here are three rankings,\n   pick the one you like\" is the opposite of what this project is for, and the only\n   thing separating this feature from that sentence is the labelling: one recipe is\n   published, the other two are lenses, and each one carries its own costs in its\n   own words on the same page as its ranking. If the site ever presents the three\n   as equals, this ADR should be reopened.\n5. **`full-merit` is an ordering this project rejected on the evidence and still\n   rejects.** B lost the r\u00e9sum\u00e9 axis in 16 of 16 season \u00d7 surface cells and ranks\n   teams with losses above unbeaten ones. Shipping it as a selectable lens does not\n   relitigate ADR 0005. It makes ADR 0005 checkable: \"we measured it and it lost\"\n   was a claim a reader had to take on trust, because B was the one candidate the\n   pipeline could not be pointed at.",
+      "heading": "The price, stated plainly",
+      "source": "docs/adr/0011-recipes.md"
+    },
+    {
+      "body": "- **Three recipes is a curated set and curation is a value judgement too.** The\n  axis has infinitely many points on it and this project picked three, including\n  its own. Anyone can add a fourth: `configs/recipes/` takes a file, and the\n  refusals in `recipes.load` are the only gatekeeping there is.\n- **The manifesto prose is versioned by nothing.** `recipe_config_sha256` changes\n  when a constant changes; editing a manifesto changes no hash anywhere.\n- **One season of comparison.** `demo/2023-recipes.md` is 2023. The structural\n  claims (`just-win` can never rank a beaten team above an unbeaten one;\n  `full-merit` routinely does) are properties of the orderings and hold in every\n  season; the specific movers are one season's.\n- **2025 is untouched and stays locked**, under every recipe. `EVIDENCE_KEYS`\n  includes `backtest.holdout_seasons` and `backtest.holdout_locked` precisely so a\n  recipe cannot be the thing that opens it.",
+      "heading": "Where this decision is weak",
+      "source": "docs/adr/0011-recipes.md"
+    }
+  ],
+  "week": 7
+}

@@ -152,6 +152,12 @@ WEAKNESS_SECTIONS: tuple[tuple[str, str], ...] = (
     ("0007-tuned-constants.md", "The calibration diagnosis: diagnosed, and deliberately unfixed"),
     ("0007-tuned-constants.md", "What this does not settle"),
     ("0006-fit-universe.md", "Consequences, including the uncomfortable ones"),
+    # ADR 0011's costs go on the methodology page under every recipe, including the
+    # published one. "Selectable value systems are a rhetorical risk" is the most
+    # important sentence this feature produced and the page it least wants to be on
+    # is the one it therefore has to be on.
+    ("0011-recipes.md", "The price, stated plainly"),
+    ("0011-recipes.md", "Where this decision is weak"),
 )
 
 #: The artifact index's human column. Report 03 §5.3 fixes the filenames; this
@@ -212,6 +218,25 @@ def _one_in(tail_p: float | None) -> int | None:
     if tail_p is None or tail_p <= 0.0:
         return None
     return min(int(round(1.0 / tail_p)), MAX_ONE_IN)
+
+
+def _is_house(recipe: dict[str, Any] | None) -> bool:
+    return bool((recipe or {}).get("is_house", True))
+
+
+def _house_recipe_block() -> dict[str, Any]:
+    """The house recipe's published block, for a run that predates recipes.
+
+    Read from `configs/recipes/house.toml` rather than hard-coded, so there is
+    exactly one place the house poll describes itself. A stripped checkout with no
+    recipe directory gets the minimum a renderer needs and no invented prose.
+    """
+    try:
+        from cfbpoll import recipes as recipes_mod
+
+        return recipes_mod.load(recipes_mod.HOUSE).as_dict()
+    except Exception:  # pragma: no cover - a checkout without configs/recipes/
+        return {"slug": "house", "name": "The House Poll", "is_house": True, "label": None}
 
 
 def _rank_map(frame: pl.DataFrame, column: str, teams: set[str]) -> dict[str, int]:
@@ -515,6 +540,19 @@ class Bundle:
     run_id: str
     tables: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     views: dict[str, Any] = field(default_factory=dict)
+    #: The recipe this run was produced under (ADR 0011). `publish fixtures` reads
+    #: it off the bundle rather than off a command-line flag, so the tree a run
+    #: lands in is decided by what the run actually IS and an operator cannot file
+    #: an alternate lens as the published poll by mistyping an option.
+    recipe: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def recipe_slug(self) -> str:
+        return str(self.recipe.get("slug") or "house")
+
+    @property
+    def is_house(self) -> bool:
+        return bool(self.recipe.get("is_house", True))
 
     def week_stub(self) -> dict[str, Any]:
         """This week's entry in the season index (report 05 §2.2's week strip)."""
@@ -622,6 +660,11 @@ def build(
     week = int(poll["through"]["week"])
     season_type = str(poll["through"]["season_type"])
 
+    # WHICH VALUE SYSTEM PRODUCED THESE ROWS (ADR 0011). A run without a recipe
+    # block predates `configs/recipes/` and is the house poll by definition, which
+    # is what the fallback says rather than leaving the field null.
+    recipe = params.get("recipe") or _house_recipe_block()
+
     run_id = str(
         uuid.uuid5(
             RUN_NAMESPACE,
@@ -634,6 +677,14 @@ def build(
                     str(run_meta.get("config_hash", "")),
                     str(run_meta.get("archive_manifest_sha256", "")),
                     str(params.get("headline_ordering", "")),
+                    # THE HOUSE RECIPE CONTRIBUTES NOTHING TO THE RUN ID, on
+                    # purpose. It IS `configs/default.toml`, so `config_hash`
+                    # above already determines it completely and appending a
+                    # constant string would change every published run id for a
+                    # fact that was already there. An alternate lens is a genuine
+                    # additional input and gets its own id, which is what stops
+                    # two lenses of one week colliding on a primary key.
+                    *([] if _is_house(recipe) else [str(recipe.get("slug"))]),
                 ]
             ),
         )
@@ -647,7 +698,13 @@ def build(
     resume_rank = _rank_map(live, "resume", ranked)
 
     bundle = Bundle(
-        season=season, week=week, season_type=season_type, run_id=run_id, tables={}, views={}
+        season=season,
+        week=week,
+        season_type=season_type,
+        run_id=run_id,
+        tables={},
+        views={},
+        recipe=dict(recipe),
     )
 
     # ---------------------------------------------------------------- dimensions
@@ -705,6 +762,26 @@ def build(
         "season_type": season_type,
         "run": run_row,
         "params": model_params_doc,
+        # THE RECIPE BLOCK. Name, manifesto, honest costs, the constants it
+        # changed, and the label an alternate lens carries. Published on the week
+        # document because the page that renders a ranking has to be able to say
+        # which value system it is rendering, in that value system's own words,
+        # without computing anything (report 05 §7.2). See
+        # docs/fixture-contract-recipes.md.
+        "recipe": {
+            **recipe,
+            "config_sha256": params.get("recipe_config_sha256"),
+            # THE INTEGRITY BLOCK, and the reason it is on the row rather than in
+            # a footnote: "recipes change values, never evidence" is a claim, and a
+            # claim a reader cannot check is a slogan. These three fields are
+            # identical across every recipe of a given week, by construction, so
+            # two lenses can be compared field by field on the page itself.
+            "evidence": {
+                "archive_manifest_sha256": run_meta.get("archive_manifest_sha256"),
+                "fit_window_sha256": run_meta.get("fit_window_sha256"),
+                "n_games_in_fit": _i(run_meta.get("n_games_in_fit")),
+            },
+        },
         "provisional": bool(poll.get("provisional", False)),
         "provisional_label": poll.get("provisional_label"),
         "league_size": len(poll_rows),
@@ -740,10 +817,30 @@ def build(
         "week": week,
         "params": model_params_doc,
         "run": run_row,
+        "recipe": bundle.views["week"]["recipe"],
         "metrics": [
             {k: v for k, v in row.items() if k != "run_id"} for row in metrics
         ],
         "gate": gate,
+        # WHY THERE IS NO GATE VERDICT, when there is none. An empty list renders
+        # as an empty table and an empty table reads as an oversight, so the
+        # absence carries its own reason. The two reasons are genuinely different:
+        # a house run with no metrics file is an operational gap somebody can
+        # close by running `cfbpoll backtest`, and an alternate lens has no gate
+        # verdict because `[gate]` is written against the PUBLISHED poll and has
+        # never been applied per recipe. Inventing one for a lens would be worse
+        # than saying so (ADR 0011, "where this is weak").
+        "gate_note": (
+            None
+            if gate
+            else (
+                "The publication gate is written against the published poll and is not "
+                "applied per recipe. This is an alternate lens: its constants are below, "
+                "and it has no gate verdict of its own."
+                if not _is_house(recipe)
+                else "No backtest accompanied this run, so the gate has not been evaluated."
+            )
+        ),
         "weaknesses": _weaknesses(),
         "divergence": [],  # filled by the fixture writer across weeks; see fixtures.py
     }
@@ -834,7 +931,12 @@ def _params_doc(
         [
             f"q_ref {_fmt(q_ref, 2)}" + (f" ({q_team})" if q_team else ""),
             f"β_w {_fmt(_f(numeric.get('beta_w')), 0)}",
-            f"C {_fmt(_f(numeric.get('C')), 0)}",
+            # C is a LABEL rather than a number under `full-merit`, where it is the
+            # limit of the tanh family and JSON cannot carry infinity
+            # (model/l2_results._publishable). The constants footer prints every
+            # constant every week; the one week C is the entire argument is not the
+            # week it may render as an em dash.
+            f"C {labels.get('C') or _fmt(_f(numeric.get('C')), 0)}",
             f"h {_fmt(_f(numeric.get('h_points')), 3)}",
             f"σ {_fmt(_f(numeric.get('sigma')), 3)}",
             f"λ₁ {_fmt(_f(numeric.get('lambda_l1')), 0)}",

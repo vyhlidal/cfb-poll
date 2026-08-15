@@ -1,0 +1,67 @@
+####################################################################################
+# RECIPE: Full Merit. The meritocratic end of the axis.
+#
+# A recipe is a `[recipe]` block plus ONLY the constants it changes from
+# configs/default.toml. `config.merge_overlay` REFUSES a key the default config
+# does not define, and `recipes.assert_values_only` refuses any key that decides
+# what EVIDENCE the model sees. See configs/recipes/README.md.
+#
+# Three constants move and nothing else does. That is the point: this is not a
+# different model, it is the same model asked a different question.
+####################################################################################
+
+[recipe]
+slug = "full-merit"
+name = "Full Merit"
+stance = 0
+one_liner = "Margin counts for exactly what it is worth. Nothing is protected."
+
+manifesto = """
+Best team wins. We measure as fairly as we can, and nothing else counts. This
+recipe takes the scoreboard at face value: the compression is switched off
+entirely, so a 70 point win is a 70 point win and not a 40 point win with the top
+trimmed off, and the win premium goes to 12 points, the top of the grid campaign 2
+pre-registered. The table is then ordered by the margin aware resume, which asks
+how good these results say you are rather than how hard it was to produce them.
+Garbage time is still filtered and a kneel down is still worth nothing, because
+running the clock out is a clock decision and not merit, and charging a defense
+for allowing it would be measuring the scoreboard operator. Everything that
+happened while both teams were still playing is on the table, at full value, with
+no thumb anywhere.
+"""
+
+tradeoffs = [
+    "It pays to run up the score, and this recipe does not pretend otherwise. That is the entire objection to margin and this end of the axis does not answer it. If you believe a coach will keep the starters in against a beaten opponent when the poll rewards it, this is the recipe that rewards it.",
+    "It is a worse resume and a better predictor, measured. The headline ordering here is candidate B of the headline ordering study, which lost retrodictive violations to both alternatives in 16 of 16 season by surface cells and won forward ordering accuracy 0.6822 against 0.6626. Report 02 already ships a predictor: the Power column, on every row, every week.",
+    "It puts teams with losses above teams without them, hard. In 2023 candidate B ranked an 8-4 Kansas State twelfth and a 7-5 Texas A&M twenty-third, above an 11-1 James Madison and a 13-0 Liberty, because beating people badly and losing narrowly is what it rewards. demo/2023-recipes.md measures this exact combination of constants rather than quoting the study's.",
+    "The data does like these constants, and that cuts both ways. C uncapped with a 12 point win premium is campaign 2's lead 1: it beat the incumbent on margin MAE on the tune seasons (13.0039 against 13.0102) and again on 2024 (12.8536 against 12.9096), cleared its own pre-registered rule, and was blocked by an interaction with the accumulation window rather than by its own result. The objective it won on is margin MAE, which has no opinion about desert whatsoever.",
+    "Kendall's tau against the house poll on the 2023 final board is far below the 0.985 the project treats as the line between a convention and a dial. This is a dial. It is meant to be one.",
+]
+
+####################################################################################
+# THE THREE CONSTANTS
+####################################################################################
+
+[margin]
+# `inf` is the LIMIT of the tanh family, not a missing value: s = m + beta_w*sign(m),
+# margin entering uncompressed. `design.tanh_term` takes the limit explicitly
+# because numpy would evaluate inf * tanh(m/inf) as nan and take the poll down
+# quietly. It is the top of the grid campaign 2 declared before it searched it, so
+# this is a value the project already measured rather than one invented here.
+c = inf
+
+# The top of campaign 2's beta_w grid, and beyond every precedent on record:
+# Sports-Reference's +/-7 margin floor corresponds to beta_w ~ 3.
+beta_w = 12.0
+
+####################################################################################
+# THE HEADLINE
+####################################################################################
+
+[publication]
+# The margin aware resume for everyone. In the headline ordering study this is
+# candidate B, which the house rejected and which nothing ever removed: it is
+# computed on every row of every artifact this project has published since the L4
+# build, in both surfaces, under both other recipes. Selecting it here changes
+# which column sorts the table and removes nothing.
+headline_ordering = "L4_resume_margin"

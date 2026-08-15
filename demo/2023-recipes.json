@@ -1,0 +1,648 @@
+{
+  "kendall_tau": {
+    "full-merit|just-win": 0.8298017771701983,
+    "house|full-merit": 0.8468899521531102,
+    "house|just-win": 0.9578491683754843
+  },
+  "movers": [
+    {
+      "full-merit": 46,
+      "house": 28,
+      "just-win": 22,
+      "spread": 24,
+      "team": "Miami (OH)"
+    },
+    {
+      "full-merit": 41,
+      "house": 18,
+      "just-win": 21,
+      "spread": 23,
+      "team": "Iowa"
+    },
+    {
+      "full-merit": 23,
+      "house": 40,
+      "just-win": 44,
+      "spread": 21,
+      "team": "Texas A&M"
+    },
+    {
+      "full-merit": 37,
+      "house": 19,
+      "just-win": 18,
+      "spread": 19,
+      "team": "Tulane"
+    },
+    {
+      "full-merit": 20,
+      "house": 10,
+      "just-win": 2,
+      "spread": 18,
+      "team": "Liberty"
+    },
+    {
+      "full-merit": 13,
+      "house": 26,
+      "just-win": 29,
+      "spread": 16,
+      "team": "Kansas State"
+    },
+    {
+      "full-merit": 35,
+      "house": 22,
+      "just-win": 24,
+      "spread": 13,
+      "team": "Oklahoma State"
+    },
+    {
+      "full-merit": 17,
+      "house": 27,
+      "just-win": 28,
+      "spread": 11,
+      "team": "Oregon State"
+    },
+    {
+      "full-merit": 2,
+      "house": 9,
+      "just-win": 12,
+      "spread": 10,
+      "team": "Oregon"
+    },
+    {
+      "full-merit": 11,
+      "house": 21,
+      "just-win": 19,
+      "spread": 10,
+      "team": "Notre Dame"
+    },
+    {
+      "full-merit": 10,
+      "house": 1,
+      "just-win": 4,
+      "spread": 9,
+      "team": "Washington"
+    },
+    {
+      "full-merit": 4,
+      "house": 13,
+      "just-win": 11,
+      "spread": 9,
+      "team": "Penn State"
+    },
+    {
+      "full-merit": 16,
+      "house": 8,
+      "just-win": 9,
+      "spread": 8,
+      "team": "Ole Miss"
+    },
+    {
+      "full-merit": 18,
+      "house": 14,
+      "just-win": 10,
+      "spread": 8,
+      "team": "James Madison"
+    },
+    {
+      "full-merit": 25,
+      "house": 31,
+      "just-win": 32,
+      "spread": 7,
+      "team": "Clemson"
+    },
+    {
+      "full-merit": 14,
+      "house": 20,
+      "just-win": 17,
+      "spread": 6,
+      "team": "SMU"
+    },
+    {
+      "full-merit": 22,
+      "house": 16,
+      "just-win": 16,
+      "spread": 6,
+      "team": "Troy"
+    },
+    {
+      "full-merit": 19,
+      "house": 24,
+      "just-win": 25,
+      "spread": 6,
+      "team": "Arizona"
+    },
+    {
+      "full-merit": 29,
+      "house": 23,
+      "just-win": 23,
+      "spread": 6,
+      "team": "NC State"
+    },
+    {
+      "full-merit": 24,
+      "house": 30,
+      "just-win": 30,
+      "spread": 6,
+      "team": "Tennessee"
+    },
+    {
+      "full-merit": 9,
+      "house": 12,
+      "just-win": 14,
+      "spread": 5,
+      "team": "Oklahoma"
+    }
+  ],
+  "recipes": {
+    "full-merit": {
+      "changes": {
+        "margin.beta_w": 12.0,
+        "margin.c": "uncapped",
+        "publication.headline_ordering": "L4_resume_margin"
+      },
+      "config_sha256": "d84b47e17f84f902f253ec88685aed1321bef7af62c28c0bcb047a17f4e437e4",
+      "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
+      "n_games": 1557,
+      "name": "Full Merit",
+      "ordering": "L4_resume_margin",
+      "top25": [
+        {
+          "losses": 0,
+          "rank": 1,
+          "team": "Michigan",
+          "wins": 13
+        },
+        {
+          "losses": 2,
+          "rank": 2,
+          "team": "Oregon",
+          "wins": 11
+        },
+        {
+          "losses": 1,
+          "rank": 3,
+          "team": "Ohio State",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 4,
+          "team": "Penn State",
+          "wins": 10
+        },
+        {
+          "losses": 0,
+          "rank": 5,
+          "team": "Florida State",
+          "wins": 13
+        },
+        {
+          "losses": 1,
+          "rank": 6,
+          "team": "Texas",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 7,
+          "team": "Georgia",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 8,
+          "team": "Alabama",
+          "wins": 12
+        },
+        {
+          "losses": 2,
+          "rank": 9,
+          "team": "Oklahoma",
+          "wins": 10
+        },
+        {
+          "losses": 0,
+          "rank": 10,
+          "team": "Washington",
+          "wins": 13
+        },
+        {
+          "losses": 3,
+          "rank": 11,
+          "team": "Notre Dame",
+          "wins": 9
+        },
+        {
+          "losses": 3,
+          "rank": 12,
+          "team": "LSU",
+          "wins": 9
+        },
+        {
+          "losses": 4,
+          "rank": 13,
+          "team": "Kansas State",
+          "wins": 8
+        },
+        {
+          "losses": 2,
+          "rank": 14,
+          "team": "SMU",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 15,
+          "team": "Missouri",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 16,
+          "team": "Ole Miss",
+          "wins": 10
+        },
+        {
+          "losses": 4,
+          "rank": 17,
+          "team": "Oregon State",
+          "wins": 8
+        },
+        {
+          "losses": 1,
+          "rank": 18,
+          "team": "James Madison",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 19,
+          "team": "Arizona",
+          "wins": 9
+        },
+        {
+          "losses": 0,
+          "rank": 20,
+          "team": "Liberty",
+          "wins": 13
+        },
+        {
+          "losses": 3,
+          "rank": 21,
+          "team": "Louisville",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 22,
+          "team": "Troy",
+          "wins": 11
+        },
+        {
+          "losses": 5,
+          "rank": 23,
+          "team": "Texas A&M",
+          "wins": 7
+        },
+        {
+          "losses": 4,
+          "rank": 24,
+          "team": "Tennessee",
+          "wins": 8
+        },
+        {
+          "losses": 4,
+          "rank": 25,
+          "team": "Clemson",
+          "wins": 8
+        }
+      ]
+    },
+    "house": {
+      "changes": {},
+      "config_sha256": "0d44e2be18c10b5198d3d1063ec685c1677db35663f47195bed3a19d1590b8dd",
+      "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
+      "n_games": 1557,
+      "name": "The House Poll",
+      "ordering": "schedule_odds",
+      "top25": [
+        {
+          "losses": 0,
+          "rank": 1,
+          "team": "Washington",
+          "wins": 13
+        },
+        {
+          "losses": 0,
+          "rank": 2,
+          "team": "Michigan",
+          "wins": 13
+        },
+        {
+          "losses": 0,
+          "rank": 3,
+          "team": "Florida State",
+          "wins": 13
+        },
+        {
+          "losses": 1,
+          "rank": 4,
+          "team": "Alabama",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 5,
+          "team": "Texas",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 6,
+          "team": "Ohio State",
+          "wins": 11
+        },
+        {
+          "losses": 1,
+          "rank": 7,
+          "team": "Georgia",
+          "wins": 12
+        },
+        {
+          "losses": 2,
+          "rank": 8,
+          "team": "Ole Miss",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 9,
+          "team": "Oregon",
+          "wins": 11
+        },
+        {
+          "losses": 0,
+          "rank": 10,
+          "team": "Liberty",
+          "wins": 13
+        },
+        {
+          "losses": 2,
+          "rank": 11,
+          "team": "Missouri",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 12,
+          "team": "Oklahoma",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 13,
+          "team": "Penn State",
+          "wins": 10
+        },
+        {
+          "losses": 1,
+          "rank": 14,
+          "team": "James Madison",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 15,
+          "team": "LSU",
+          "wins": 9
+        },
+        {
+          "losses": 2,
+          "rank": 16,
+          "team": "Troy",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 17,
+          "team": "Louisville",
+          "wins": 10
+        },
+        {
+          "losses": 3,
+          "rank": 18,
+          "team": "Iowa",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 19,
+          "team": "Tulane",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 20,
+          "team": "SMU",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 21,
+          "team": "Notre Dame",
+          "wins": 9
+        },
+        {
+          "losses": 4,
+          "rank": 22,
+          "team": "Oklahoma State",
+          "wins": 9
+        },
+        {
+          "losses": 3,
+          "rank": 23,
+          "team": "NC State",
+          "wins": 9
+        },
+        {
+          "losses": 3,
+          "rank": 24,
+          "team": "Arizona",
+          "wins": 9
+        },
+        {
+          "losses": 4,
+          "rank": 25,
+          "team": "Utah",
+          "wins": 8
+        }
+      ]
+    },
+    "just-win": {
+      "changes": {
+        "margin.beta_w": 7.0,
+        "margin.c": 1.0,
+        "publication.headline_ordering": "L4_resume"
+      },
+      "config_sha256": "45ab528ce006fe9e3441dc393f59887bbff8727f71be0b74ea6fe7ea78d5f2fe",
+      "fit_window_sha256": "04f4396de59b8fe0224fbef01ccdc306cc99ff8852f768eae0f491936ae8111b",
+      "n_games": 1557,
+      "name": "Just Win",
+      "ordering": "L4_resume",
+      "top25": [
+        {
+          "losses": 0,
+          "rank": 1,
+          "team": "Florida State",
+          "wins": 13
+        },
+        {
+          "losses": 0,
+          "rank": 2,
+          "team": "Liberty",
+          "wins": 13
+        },
+        {
+          "losses": 0,
+          "rank": 3,
+          "team": "Michigan",
+          "wins": 13
+        },
+        {
+          "losses": 0,
+          "rank": 4,
+          "team": "Washington",
+          "wins": 13
+        },
+        {
+          "losses": 1,
+          "rank": 5,
+          "team": "Ohio State",
+          "wins": 11
+        },
+        {
+          "losses": 1,
+          "rank": 6,
+          "team": "Alabama",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 7,
+          "team": "Texas",
+          "wins": 12
+        },
+        {
+          "losses": 1,
+          "rank": 8,
+          "team": "Georgia",
+          "wins": 12
+        },
+        {
+          "losses": 2,
+          "rank": 9,
+          "team": "Ole Miss",
+          "wins": 10
+        },
+        {
+          "losses": 1,
+          "rank": 10,
+          "team": "James Madison",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 11,
+          "team": "Penn State",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 12,
+          "team": "Oregon",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 13,
+          "team": "Missouri",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 14,
+          "team": "Oklahoma",
+          "wins": 10
+        },
+        {
+          "losses": 3,
+          "rank": 15,
+          "team": "LSU",
+          "wins": 9
+        },
+        {
+          "losses": 2,
+          "rank": 16,
+          "team": "Troy",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 17,
+          "team": "SMU",
+          "wins": 11
+        },
+        {
+          "losses": 2,
+          "rank": 18,
+          "team": "Tulane",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 19,
+          "team": "Notre Dame",
+          "wins": 9
+        },
+        {
+          "losses": 3,
+          "rank": 20,
+          "team": "Louisville",
+          "wins": 10
+        },
+        {
+          "losses": 3,
+          "rank": 21,
+          "team": "Iowa",
+          "wins": 10
+        },
+        {
+          "losses": 2,
+          "rank": 22,
+          "team": "Miami (OH)",
+          "wins": 11
+        },
+        {
+          "losses": 3,
+          "rank": 23,
+          "team": "NC State",
+          "wins": 9
+        },
+        {
+          "losses": 4,
+          "rank": 24,
+          "team": "Oklahoma State",
+          "wins": 9
+        },
+        {
+          "losses": 3,
+          "rank": 25,
+          "team": "Arizona",
+          "wins": 9
+        }
+      ]
+    }
+  },
+  "season": 2023,
+  "week": 15
+}

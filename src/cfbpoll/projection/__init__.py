@@ -51,4 +51,26 @@ __all__ = ["PROJECTION_VERSION"]
 #: stamps its own. A projection published under one recipe must never be
 #: mistakable for one published under another - the grading loop is season-over-
 #: season and a silent recipe change would make the whole record meaningless.
-PROJECTION_VERSION = "projection-1.0.0"
+#:
+#: 2.0.0 (ADR 0013) is a MAJOR bump and it is loud on purpose. Two measurement
+#: defects were repaired and both moved every published number:
+#:
+#:   the Power definition   1.0.0 fitted and predicted `l4_resume.power_source`
+#:                          over a whole season at once and graded against
+#:                          `retro.season_power[final]`, the walk-forward surface
+#:                          the poll publishes. Two scales, one arrow. 2.0.0 uses
+#:                          the published one on all three sides.
+#:   the coaching term      1.0.0 read `/coaches?year=Y` after season Y and
+#:                          picked the school's coach by games played, so a
+#:                          mid-season interim who worked more games than the man
+#:                          he replaced turned an October firing into an August
+#:                          coaching change. 2.0.0 decides the August head coach
+#:                          from prior-season continuity, which is knowable in
+#:                          August, and `validate/leakage.py` now has a TEMPORAL
+#:                          guard that fails the build on a repeat.
+#:
+#: The coefficients moved, so every artifact under 1.0.0 is superseded rather
+#: than corrected in place. `demo/2025-projection-grading.md` under 1.0.0 said
+#: last season's rating was weighted TOO STRONG; on the corrected surfaces all
+#: four terms come back priced about right.
+PROJECTION_VERSION = "projection-2.0.0"

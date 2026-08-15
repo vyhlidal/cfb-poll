@@ -170,6 +170,42 @@ def test_the_system_roster_is_the_one_the_artifacts_report() -> None:
     )
 
 
+# ---------------------------------------------------------------- one Power, ADR 0013
+
+
+def test_the_projection_predicts_the_power_the_grading_page_scores_against() -> None:
+    """THE DEFECT ADR 0013 REPAIRS, asserted where it cannot be argued about.
+
+    `projection-1.0.0` fitted and predicted `l4_resume.power_source` over a whole
+    season at once, and graded against `retro.season_power[final]`, the
+    walk-forward surface the poll publishes. The two are related by
+    `graded = -3.65 + 0.70 * response`, so every team looked seven points
+    over-projected and the league attribution read that scale change as a
+    coefficient error. This test is the reason that cannot come back: the
+    recipe's response and the grading page's answer key have to be the same
+    numbers, team by team, to floating point.
+    """
+    from cfbpoll.config import load_config
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.plays import load_plays
+    from cfbpoll.ingest.sportsdataverse import load_games
+    from cfbpoll.model import retro
+    from cfbpoll.projection import seasons
+
+    config = load_config()
+    games = load_games([2024])
+    plays = load_plays([2024])
+    season_games = games.filter(pl.col("season") == 2024)
+
+    published = retro.season_power(season_games, 2024, config, plays=plays)
+    final_order = windows.season_buckets(season_games, 2024)[-1].order
+    ours = seasons.final_power(games, 2024, plays, config)
+
+    assert ours.source == "L3"
+    assert ours.ratings == published[final_order].ratings
+    assert "walk-forward" in seasons.POWER_DEFINITION.lower()
+
+
 # --------------------------------------------------------- the future-schedule reader
 
 

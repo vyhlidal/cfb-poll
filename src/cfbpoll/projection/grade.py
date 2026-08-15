@@ -19,6 +19,17 @@ WHAT IT COMPARES. Three rankings, per evaluation week N of the target season:
 Both poll surfaces come out of `model/retro.py` untouched. The Projection reads
 them; it never writes to them, and no number it produces can reach them.
 
+`projected_power` AND `actual_power` ARE THE SAME QUANTITY, which is a sentence
+this module could not honestly write until `projection-2.0.0`. `actual_power` has
+always been the walk-forward Power at the graded bucket; `projected_power` is now
+predicted on that same surface, because `seasons.final_power` is the recipe's
+input, the recipe's response and this page's answer key, and it returns one
+object. Under `projection-1.0.0` the response was a full-season refit related to
+this surface by `graded = -3.65 + 0.70 * response`, so `power_error` carried a
+uniform seven-point offset and the league attribution below read that offset as a
+coefficient error. ADR 0013 records the defect, the fix and what the corrected
+attribution says.
+
 THE TWO DELTAS SAY DIFFERENT THINGS AND KEEPING THEM APART IS THE POINT.
 `projection_vs_live` is "how wrong were we about what would happen so far".
 `projection_vs_hindsight` is "how wrong were we about what these teams turned out
@@ -332,7 +343,13 @@ def grade_season(
     cfg = config if config is not None else load_config()
     season_games = games.filter(pl.col("season") == int(season))
     buckets = windows.season_buckets(season_games, int(season))
-    powers = retro.season_power(season_games, int(season), cfg, plays=plays, buckets=buckets)
+    # THE SAME OBJECT THE RECIPE'S RESPONSE COMES FROM, read out of the same
+    # memo. Under `projection-1.0.0` this walk was the grading surface while the
+    # recipe was fitted on a full-season refit, and the two scales differed by a
+    # factor of 0.70 (ADR 0013). Routing both through `seasons.season_power_walk`
+    # is what makes "projected" and "actual" the same quantity by construction
+    # rather than by anybody remembering.
+    powers = seasons.season_power_walk(games, int(season), plays, cfg)
     live = retro.live_surface(
         season_games, int(season), cfg, buckets=buckets, plays=plays, powers=powers
     )
@@ -356,6 +373,10 @@ def grade_season(
         "season": int(season),
         "projection_version": PROJECTION_VERSION,
         "settled_definition": seasons.SETTLED_DEFINITION,
+        # `projected_power` and `actual_power` are on THIS scale, both of them,
+        # and the field exists because the version that did not carry it shipped
+        # a page where they were on two (ADR 0013).
+        "power_definition": seasons.POWER_DEFINITION,
         "headline_week": headline.label,
         "headline_eval_order": headline.order,
         "weeks": [

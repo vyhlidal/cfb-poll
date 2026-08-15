@@ -103,12 +103,7 @@ def build() -> dict[str, Any]:
     projection = recipe.project(fitted, design, teams_2026)
 
     future = forward.schedule(TARGET_SEASON)
-    season_sigma = float(source.sigma or CFG["resume"]["sigma"])
-    sigma_source = (
-        source.sigma_source
-        if source.sigma
-        else "[resume].sigma, the documented fallback and floor"
-    )
+    season_sigma, sigma_source = forward.season_sigma_for(source, CFG)
     wins = forward.expected_wins(
         projection,
         future,
@@ -203,6 +198,9 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
             "page in public."
         ),
         "recipe": fitted.as_dict(),
+        # Which Power this page's ratings are. Stamped because the version before
+        # it published a number on one scale and graded it on another (ADR 0013).
+        "power_definition": seasons.POWER_DEFINITION,
         "win_model": wins.as_dict(),
         "provenance": provenance,
         "coverage": coverage,
@@ -210,6 +208,7 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
             "passed": audit.passed,
             "violations": audit.violations,
             "projection_audited": audit.context["projection_audited"],
+            "temporal_guard": audit.context["temporal_guard"],
             "layers": [
                 {"layer": r.layer, "kind": r.kind, "ok": r.ok, "identical": r.identical}
                 for r in audit.layers
@@ -640,14 +639,39 @@ def _verdict(summary: dict[str, Any], early: dict[str, Any]) -> list[str]:
             f"{ap['mae_rank_top25_censored']:.2f}."
         )
 
+    # THE FLOOR SENTENCE HAS TO SURVIVE THE OFFSEASON TERMS BUYING NOTHING, and
+    # under `projection-2.0.0` on top-25 hits they buy exactly nothing. A template
+    # whose only ending is "that is a small edge and it is a real one" would have
+    # printed it over a difference of 0.0, which is the shape of claim this whole
+    # project exists to refuse.
+    hits_gap = float(proj["top25_overlap"]) - float(naive["top25_overlap"])
+    mae_gap = float(naive["mae_rank_top25_censored"]) - float(
+        proj["mae_rank_top25_censored"]
+    )
+    if hits_gap > 0.05:
+        headline = "**We beat the naive floor.**"
+        tail = "That is a small edge and it is a real one."
+    elif mae_gap > 0.005:
+        headline = "**We match the naive floor on hits and beat it on rank error.**"
+        tail = (
+            "The offseason terms did not put a single extra team in the top 25 "
+            "over these three seasons. They moved teams closer to where the "
+            "season put them, which is a smaller claim, and it is the one the "
+            "numbers support."
+        )
+    else:
+        headline = "**We do not beat the naive floor.**"
+        tail = (
+            "Over these three seasons the offseason terms bought nothing "
+            "measurable, and that is the result, reported by the party it is "
+            "worst for."
+        )
     out.append(
-        "**We beat the naive floor.** Carrying last season's final rating forward "
+        f"{headline} Carrying last season's final rating forward "
         f"unchanged hits {naive['top25_overlap']:.1f} of the final top 25; the "
         f"recipe hits {proj['top25_overlap']:.1f}. The offseason terms are worth "
-        f"about {proj['top25_overlap'] - naive['top25_overlap']:.1f} teams a "
-        "season, and about "
-        f"{naive['mae_rank_top25_censored'] - proj['mae_rank_top25_censored']:.2f} "
-        "places of censored rank error. That is a small edge and it is a real one."
+        f"about {hits_gap:.1f} teams a season, and about {mae_gap:.2f} "
+        f"places of censored rank error. {tail}"
     )
 
     if abs(regress["top25_overlap"] - naive["top25_overlap"]) < 1e-9:
@@ -674,7 +698,9 @@ def _verdict(summary: dict[str, Any], early: dict[str, Any]) -> list[str]:
     )
     out.append(
         "**Three transitions is not many.** Every number here rests on three "
-        "season pairs, and the honest reading of a 0.3-team difference in top-25 "
+        "season pairs, and the honest reading of a "
+        f"{abs(float(proj['top25_overlap']) - float(ap['top25_overlap'])):.1f}"
+        "-team difference in top-25 "
         "hits over three seasons is that it is inside the noise. The grading loop "
         "exists because this table only becomes an argument after several more "
         "seasons have been added to it, in public, without the recipe being "

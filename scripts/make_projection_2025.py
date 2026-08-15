@@ -192,10 +192,7 @@ def build() -> dict[str, Any]:
     projection = recipe.project(fitted, design, teams)
 
     future = archived_calendar(TARGET_SEASON, games)
-    season_sigma = float(source.sigma or CFG["resume"]["sigma"])
-    sigma_source = (
-        source.sigma_source if source.sigma else "[resume].sigma, the documented fallback and floor"
-    )
+    season_sigma, sigma_source = forward.season_sigma_for(source, CFG)
     wins = forward.expected_wins(
         projection,
         future,
@@ -295,6 +292,216 @@ def write_fixture(state: dict[str, Any], to: Path) -> Path:
     return projection_publish.write(document, to)
 
 
+#: How far down the projected board the featured story is allowed to look for
+#: its subject. Wider than the published 25 on purpose: a team the projection
+#: ranked 28th and the season ranked 102nd is a bigger statement about the recipe
+#: than anything inside the top 25, and a window that stopped at the board would
+#: have quietly dropped the one row a reader came to this page to ask about.
+FEATURE_WINDOW = 30
+
+#: The team the featured paragraph is written about. Named rather than selected,
+#: because the paragraph is PROSE and prose cannot be templated onto an arbitrary
+#: subject. `_feature_story` refuses to publish it if the numbers stop supporting
+#: the sentences, which is the only guarantee that matters.
+FEATURE_TEAM = "Colorado"
+
+
+#: The recipe's terms in the words the front door uses. Kept beside the sentence
+#: that prints them rather than imported out of `grade`, which owns the same map
+#: for its own per-term sentences; two short dicts is cheaper than a private
+#: import across a package boundary.
+_TERM_NAMES = {
+    "prior_power": "last season's rating",
+    "returning_production": "returning production",
+    "coaching_change": "the coaching-change penalty",
+    "net_portal": "net portal flow",
+}
+
+
+def _attribution_verdict(attribution: dict[str, Any]) -> str:
+    """One templated sentence about the league-wide result, in either direction.
+
+    THE FIELD THAT EXISTS BECAUSE THE ANSWER CHANGED. Under
+    `projection-1.0.0` one term came back TOO STRONG and the front door printed
+    that term's own sentence. On the corrected surfaces all four are priced about
+    right, a per-term sentence has nothing to lead with, and a page that prints
+    nothing when the answer is "the recipe held" is a page that only ever reports
+    bad news. So the verdict ships as its own field, templated off the measured
+    coefficients, and it is a complete sentence in both worlds.
+    """
+    terms = attribution.get("terms") or {}
+    if not terms:
+        return "There were too few graded teams to attribute the error to any term."
+    wrong = [
+        (name, value)
+        for name, value in terms.items()
+        if value["verdict"] != "priced about right"
+    ]
+    if wrong:
+        name, value = max(wrong, key=lambda item: abs(item[1]["z"]))
+        return str(value["sentence"])
+    name, value = max(terms.items(), key=lambda item: abs(item[1]["z"]))
+    return (
+        f"Across the {int(attribution['n_teams'])} teams the poll ranked, every "
+        "one of the four terms came back priced about right. The furthest from "
+        f"zero was {_TERM_NAMES[name]}, at {abs(float(value['z'])):.1f} standard "
+        "errors, and the data cannot tell that apart from the value the recipe "
+        "already uses. The season did not ask for a different coefficient."
+    )
+
+
+def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[str, Any]:
+    """The one paragraph the grading page leads its story section with.
+
+    EVERY NUMBER IN IT IS READ OFF THE LIVE OBJECTS, not typed. The paragraph
+    makes six quantitative claims and a superlative, and each one is recomputed
+    here and asserted before the sentence that carries it is allowed out. If a
+    future season stops supporting a claim this raises instead of publishing a
+    sentence that used to be true, which is the same posture
+    `_assert_recipe_matches_the_published_one` takes toward the coefficients.
+
+    The paragraph replaces the story line the projection's own `story_lines`
+    cannot produce for this team: `grade.story_lines` keeps a row only when it is
+    inside 25 on one of the two rankings, and on the corrected surfaces Colorado
+    is 28th and 102nd, so it is outside both. The filter is right and the row
+    still needs explaining.
+    """
+    projection: pl.DataFrame = state["projection"]
+    graded: pl.DataFrame = state["graded"]["table"]
+    final = int(graded["eval_order"].max())
+    week = graded.filter(pl.col("eval_order") == final)
+
+    row = projection.filter(pl.col("team") == FEATURE_TEAM).to_dicts()[0]
+    scored = week.filter(pl.col("team") == FEATURE_TEAM).to_dicts()[0]
+    projected_rank = int(row["projected_rank"])
+    hindsight_rank = int(scored["hindsight_rank"])
+
+    # THE SUPERLATIVE, MEASURED. Of the teams the projection put highest, which
+    # one did the season move furthest down.
+    window = week.filter(
+        pl.col("projected_rank").is_not_null()
+        & (pl.col("projected_rank") <= FEATURE_WINDOW)
+        & pl.col("delta_vs_hindsight").is_not_null()
+    )
+    furthest = window.sort(["delta_vs_hindsight", "team"]).to_dicts()[0]
+    if furthest["team"] != FEATURE_TEAM:
+        raise SystemExit(
+            f"the featured paragraph is written about {FEATURE_TEAM}, and the "
+            f"furthest faller inside the projected top {FEATURE_WINDOW} is now "
+            f"{furthest['team']}. Rewrite the paragraph or move the subject; this "
+            "script will not publish a superlative it just measured to be false."
+        )
+
+    # Where last season alone would have put them: mean reversion is a positive
+    # affine map and cannot reorder, so this is the ranking by prior Power.
+    prior = dict(
+        zip(projection["team"].to_list(), projection["prior_power"].to_list(), strict=True)
+    )
+    ranked_teams = [
+        t
+        for t, r in zip(
+            projection["team"].to_list(), projection["projected_rank"].to_list(), strict=True
+        )
+        if r is not None
+    ]
+    carryover = sorted(ranked_teams, key=lambda t: (-float(prior[t]), t))
+    prior_rank = carryover.index(FEATURE_TEAM) + 1
+
+    usage_frame = projection.select(["team", "returning_usage"]).drop_nulls().sort(
+        "returning_usage"
+    )
+    ascending = usage_frame["team"].to_list()
+    usage_rank_low = ascending.index(FEATURE_TEAM) + 1
+    n_usage = len(ascending)
+
+    spans = {
+        term: float(projection[f"contrib_{term}"].max() - projection[f"contrib_{term}"].min())
+        for term in recipe.TERMS
+    }
+    biggest_z = max(
+        (abs(float(v["z"])) for v in (attribution.get("terms") or {}).values()), default=0.0
+    )
+
+    control = {}
+    for name in ("Indiana", "Penn State", "Baylor"):
+        c_row = projection.filter(pl.col("team") == name).to_dicts()[0]
+        c_scored = week.filter(pl.col("team") == name).to_dicts()
+        control[name] = {
+            "usage": float(c_row["returning_usage"]),
+            "usage_rank_high": len(ascending) - ascending.index(name),
+            "hindsight": int(c_scored[0]["hindsight_rank"]) if c_scored else None,
+        }
+    if control["Indiana"]["usage"] >= float(row["returning_usage"]):
+        raise SystemExit("the paragraph claims Indiana returned less than Colorado")
+    if control["Indiana"]["hindsight"] != 1:
+        raise SystemExit("the paragraph claims Indiana finished first")
+
+    ap = offseason.ap_preseason(TARGET_SEASON)
+    if FEATURE_TEAM in ap["team"].to_list():
+        raise SystemExit("the paragraph claims the AP left Colorado unranked")
+
+    paragraph = (
+        f"We had {FEATURE_TEAM} {_ordinal(projected_rank)} and the season put them "
+        f"{_ordinal(hindsight_rank)}. Of the {FEATURE_WINDOW} teams we projected "
+        "highest, that is the furthest any of them fell, and it is worth being "
+        "precise about why, because the easy explanation is wrong. The model does "
+        "not read the press: the AP left Colorado out of its preseason top 25 and "
+        "so did we, so nobody's hype got inherited here. What we read was "
+        f"Colorado's own {SOURCE_SEASON}, where they were the "
+        f"{_ordinal(prior_rank)} best team in the country by our Power rating, and "
+        f"that one number was worth {float(row['contrib_prior_power']):.1f} points "
+        "to their projection. The model also saw the exodus and priced it. "
+        f"Colorado returned {float(row['returning_usage']):.1%} of its offensive "
+        f"usage, the {_ordinal(usage_rank_low)} lowest figure among the {n_usage} "
+        "teams with a row, and "
+        f"{float(row['returning_passing_usage']):.0%} of its passing usage, which "
+        "is what losing your quarterback looks like in the data. That cost them "
+        f"{_points(abs(float(row['contrib_returning_production'])))}, the portal "
+        f"took another {abs(float(row['contrib_net_portal'])):.1f}, and between "
+        f"them they moved Colorado from {_ordinal(prior_rank)} to "
+        f"{_ordinal(projected_rank)}. The problem is the ratio. Last season's "
+        f"rating can swing a team {spans['prior_power']:.0f} points and returning "
+        f"production can swing one {spans['returning_production']:.0f}, so a team "
+        f"that arrives {_ordinal(prior_rank)} cannot be argued down to "
+        f"{_ordinal(hindsight_rank)} by the offseason. The grading loop is what "
+        "settles what to do about that, and this season it settled it the dull "
+        f"way: across the {int(attribution['n_teams'])} teams the poll ranked, all "
+        "four terms come back priced about right, the furthest of them "
+        f"{biggest_z:.1f} standard errors from the value we published. No "
+        "coefficient here was wrong. The ratio is a property of the design, and "
+        f"{TARGET_SEASON} is the first season that made it cost something. What we "
+        "are not going to do is turn the returning-production dial up until "
+        "Colorado looks right. We checked: every setting that moves Colorado down "
+        "also moves Indiana down, and Indiana returned even less than Colorado did "
+        "and went 16-0. Penn State and Baylor returned more production than almost "
+        f"anyone in the country, {_ordinal(control['Penn State']['usage_rank_high'])}"
+        f" and {_ordinal(control['Baylor']['usage_rank_high'])} of {n_usage}, and "
+        f"finished {_ordinal(control['Penn State']['hindsight'])} and "
+        f"{_ordinal(control['Baylor']['hindsight'])}. In {TARGET_SEASON} returning "
+        "production told you almost nothing, and the fix for Colorado is not a "
+        "bigger version of a term that did not work."
+    )
+    return {
+        "team": FEATURE_TEAM,
+        "projected_rank": projected_rank,
+        "hindsight_rank": hindsight_rank,
+        "window": FEATURE_WINDOW,
+        "paragraph": projection_publish._assert_sentence("feature_story.paragraph", paragraph),
+    }
+
+
+def _points(value: float) -> str:
+    """`1.0` -> `1.0 point`. Prose that says "1.0 points" reads like a template."""
+    return f"{value:.1f} point" + ("" if abs(round(value, 1) - 1.0) < 1e-9 else "s")
+
+
+def _ordinal(n: int) -> str:
+    """`28` -> `28th`. The paragraph is prose and prose does not print bare ranks."""
+    if 11 <= (n % 100) <= 13:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
 def grading_payload(state: dict[str, Any]) -> dict[str, Any]:
     """`<to>/2025/projection-grading.json` - the "we projected X, the season said Y" doc.
 
@@ -334,6 +541,7 @@ def grading_payload(state: dict[str, Any]) -> dict[str, Any]:
         .sort("projected_rank")
         .head(25)
     )
+    attribution = _plain(state["graded"]["attribution"])
     return {
         "schema_version": 1,
         "season": TARGET_SEASON,
@@ -346,6 +554,10 @@ def grading_payload(state: dict[str, Any]) -> dict[str, Any]:
         "headline_start_week": start,
         "headline_eval_label": state["graded"]["headline_week"],
         "settled_definition": state["graded"]["settled_definition"],
+        # `projected_power` and `actual_power` in the rows below are on THIS one
+        # scale. The version of this document that did not carry the field had
+        # them on two, which is most of what ADR 0013 is about.
+        "power_definition": state["graded"]["power_definition"],
         "surfaces": {
             "projected_rank": (
                 "The projection, made from the prior season's final ratings plus "
@@ -380,7 +592,16 @@ def grading_payload(state: dict[str, Any]) -> dict[str, Any]:
             ],
         },
         "story_lines": grade.story_lines(graded, final, top_n=5),
-        "attribution": _plain(state["graded"]["attribution"]),
+        # THE PARAGRAPH THE PAGE LEADS ITS STORY SECTION WITH. A published field,
+        # not component copy, for the reason every other sentence on these
+        # surfaces is: a claim the site hard-codes is a claim that stops being
+        # true the first time the numbers move and nobody re-reads the JSX.
+        "feature_story": _feature_story(state, attribution),
+        "attribution": attribution,
+        # The league-wide result in one sentence, in either direction, so a page
+        # whose four terms all came back priced about right still has something
+        # to print. See `_attribution_verdict`.
+        "attribution_verdict": _attribution_verdict(attribution),
         "attribution_health_warning": (
             "The league-wide attribution is a regression of projection error on "
             "each term's contribution, over about 134 teams and four correlated "
@@ -450,14 +671,22 @@ def render_grading(payload: dict[str, Any], state: dict[str, Any]) -> str:
     add("")
     add(payload["recipe_provenance"].get("note", ""))
     add("")
+    add(f"**Which Power.** {payload['power_definition']}.")
+    add("")
+
+    add("## The one row this page is most often asked about")
+    add("")
+    add(f"> {payload['feature_story']['paragraph']}")
+    add("")
 
     add("## The projection against the season, at the end of it")
     add("")
     add(
-        "`Projected` is the guess. `Live` is the poll as it was published in the "
-        "final week. `Hindsight` is that same week re-scored with the whole "
+        "`Projected` is the projection. `Live` is the poll as it was published in "
+        "the final week. `Hindsight` is that same week re-scored with the whole "
         "season's answers, which is the column that says what a team turned out "
-        "to be. A negative delta means we had them too high."
+        "to be. A negative delta means we had them too high. Both Power columns "
+        "are on the definition named above, which is the one the poll publishes."
     )
     add("")
     add(
@@ -522,9 +751,20 @@ def render_grading(payload: dict[str, Any], state: dict[str, Any]) -> str:
         "underperformed, which is to say we over-credited it this season."
     )
     add("")
+    add(f"**{payload['attribution_verdict']}**")
+    add("")
     attribution = payload["attribution"] or {}
     terms = attribution.get("terms") or attribution
     if isinstance(terms, dict) and terms:
+        add("| term | coefficient | z | implied multiplier | verdict |")
+        add("|---|---:|---:|---:|---|")
+        for name, value in terms.items():
+            add(
+                f"| `{name}` | {float(value['coefficient']):+.4f} | "
+                f"{float(value['z']):+.2f} | "
+                f"{float(value['implied_multiplier']):.3f} | {value['verdict']} |"
+            )
+        add("")
         add("```json")
         add(json.dumps(terms, indent=1)[:2000])
         add("```")

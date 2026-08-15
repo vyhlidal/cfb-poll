@@ -414,6 +414,9 @@ def run(
     return {
         "projection_version": PROJECTION_VERSION,
         "settled_definition": seasons.SETTLED_DEFINITION,
+        # Which Power. Every response, every prior and every graded value in this
+        # report is on this one surface (ADR 0013).
+        "power_definition": seasons.POWER_DEFINITION,
         "transitions": [[t.source_season, t.target_season] for t in data],
         "recipe_pooled": pooled.as_dict(),
         "recipe_regress_only": pooled_regress.as_dict(),

@@ -176,6 +176,23 @@ FONT_STACK = FONT_UI
 
 #: Where the shipped families live. Kept as a module constant so the renderer,
 #: the test and the packaging step cannot disagree about the path.
+#:
+#: DEJAVU CONTRIBUTES ZERO BYTES TO EVERY CARD THIS PROJECT CURRENTLY RENDERS, and
+#: it stays anyway. Measured: rasterising a card with the DejaVu directory removed
+#: produces identical bytes, because Archivo, JetBrains Mono and Source Serif 4
+#: cover every glyph in every team name and every number on the board today. So a
+#: reader auditing `assets/` will find 1.5 MB of apparent dead weight and be
+#: tempted to delete it. Do not.
+#:
+#: It is the MISSING-GLYPH FALLBACK, and the thing it protects against is not
+#: visible until it happens. `skip_system_fonts=True` means there is no host font
+#: to catch a character the three primaries lack: the renderer draws a tofu box,
+#: onto a 1200x628 PNG, which is then hashed, published and shared. School names
+#: travel through these cards and the FBS roster is not a closed set - a promoted
+#: programme, a diacritic, a punctuation mark somebody types into a note field.
+#: The cost of carrying the fallback is 1.5 MB in a repository whose heavy data
+#: already ships as release assets rather than in the tree. The cost of not
+#: carrying it is a published artifact with a box in the middle of a team's name.
 FONT_DIR = Path(__file__).resolve().parents[3] / "assets" / "fonts"
 
 

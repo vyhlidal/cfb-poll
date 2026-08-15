@@ -375,3 +375,32 @@ def test_the_render_does_not_depend_on_the_host(request: pytest.FixtureRequest) 
 
 def test_rendering_is_stable_across_calls() -> None:
     assert cards.render_png(_FONT_PROBE) == cards.render_png(_FONT_PROBE)
+
+
+def test_the_dejavu_fallback_actually_covers_what_the_primaries_miss() -> None:
+    """Why 1.5 MB of fonts that change no current card are not dead weight.
+
+    Every card this project renders today is byte-identical with DejaVu removed:
+    the three primaries cover the whole board. That makes the fallback look
+    deletable, so this pins what it is FOR. With `skip_system_fonts=True` there is
+    no host font to catch a character the primaries lack, and the renderer draws a
+    tofu box onto an artifact that then gets hashed and published.
+
+    The probe is a character outside the primaries' coverage. If DejaVu ever stops
+    supplying it, the fallback has stopped working and the next unusual team name
+    is a box on a published PNG.
+    """
+    probe = "Ā Ə ŋ ʻ"
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80">'
+        f'<text x="10" y="50" font-size="28" font-family="{cards.FONT_UI}">{probe}</text></svg>'
+    )
+    primaries = [
+        str(cards.FONT_DIR / name) for name in ("archivo", "jetbrains-mono", "source-serif-4")
+    ]
+    with_fallback = _render(svg, skip_system_fonts=True, font_dirs=[str(cards.FONT_DIR)])
+    without = _render(svg, skip_system_fonts=True, font_dirs=primaries)
+    assert with_fallback != without, (
+        "DejaVu changed nothing on a string the primaries do not cover, which means "
+        "the missing-glyph fallback is not reaching the renderer"
+    )

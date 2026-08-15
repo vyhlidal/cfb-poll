@@ -36,6 +36,7 @@ import pytest
 
 from cfbpoll import recipes
 from cfbpoll.config import load_config
+from cfbpoll.ingest.sportsdataverse import DEFAULT_ARCHIVE as SDV_ARCHIVE
 from cfbpoll.publish import variants
 from cfbpoll.publish.serving import Bundle
 
@@ -482,3 +483,53 @@ def test_a_variant_cannot_be_published_without_the_house_week_to_compare_against
 def test_the_variant_subtree_is_a_sibling_of_recipes_and_moves_nothing(tmp_path: Path) -> None:
     got = variants.variant_dir(tmp_path, 2025, "margin-c-1")
     assert got == tmp_path / "2025" / "variants" / "margin-c-1"
+
+
+# ------------------------------------------------- the evidence, actually measured
+
+needs_archive = pytest.mark.skipif(
+    not (SDV_ARCHIVE / "schedules").exists(), reason="local archive not materialised"
+)
+
+_SEASON, _WEEK = 2023, 10
+
+
+@needs_archive
+def test_no_variant_changes_one_ingested_byte(tmp_path: Path) -> None:
+    """THE CLAIM, MEASURED, and the reason the tau beside it means anything.
+
+    A variant document publishes a Kendall's tau against the house board and calls
+    the knob a dial or a convention on the strength of it. That comparison is only
+    a comparison if both boards were read off the same games: two orderings fitted
+    on different evidence differ for reasons no threshold can attribute to the
+    knob, and the verdict would be noise wearing a word.
+
+    Deliberately measured DOWNSTREAM of the loader rather than by inspecting the
+    generated overlays, exactly as `test_recipes.py` does it - digesting the frame
+    each variant would actually fit on catches a leak through some path nobody
+    thought to lock, which inspecting the files cannot.
+    """
+    from cfbpoll.ingest import windows
+    from cfbpoll.ingest.sportsdataverse import load_games
+    from cfbpoll.validate import leakage
+
+    overlays = tmp_path / "overlays"
+    variants.write_overlays(overlays)
+
+    digests, counts = set(), set()
+    for variant in (None, *variants.VARIANTS):
+        if variant is None:
+            config, _ = recipes.resolve(recipes.HOUSE)
+        else:
+            config, _ = recipes.resolve(variant.id, directory=overlays)
+        games = load_games([_SEASON], universe=str(config["model"]["fit_universe"]))
+        window = windows.games_through(
+            games, season=_SEASON, week=_WEEK, season_type="regular"
+        )
+        digests.add(leakage.digest(window))
+        counts.add(window.height)
+
+    # ONE digest across the house poll and all eight variants, or the playground is
+    # comparing boards built from different football.
+    assert len(digests) == 1, "a variant fits on different games from the house poll"
+    assert len(counts) == 1

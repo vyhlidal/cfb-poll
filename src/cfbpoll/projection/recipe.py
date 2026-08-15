@@ -292,7 +292,12 @@ def term_contributions(recipe: Recipe, design: pl.DataFrame) -> pl.DataFrame:
         if term not in recipe.terms:
             out = out.with_columns(**{f"contrib_{term}": pl.lit(0.0)})
             continue
-        contribution = float(recipe.coefficients[term]) * _col(design, column)
+        # `+ 0.0` normalises IEEE negative zero, which a negative coefficient
+        # times an exact zero produces on every row where a term does not apply.
+        # It is arithmetically identical and it is the difference between a
+        # published table reading "-0.00" for 105 teams that did not change coach
+        # and reading "0.00", which is what actually happened to them.
+        contribution = float(recipe.coefficients[term]) * _col(design, column) + 0.0
         total = total + contribution
         out = out.with_columns(**{f"contrib_{term}": pl.Series(contribution)})
     return out.with_columns(projected_power=pl.Series(total))

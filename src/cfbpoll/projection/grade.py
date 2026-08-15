@@ -236,18 +236,31 @@ def attribution(graded: pl.DataFrame) -> dict[str, Any]:
         value = float(coef[i + 1])
         error = float(stderr[i + 1])
         z = value / error if error > 0 else 0.0
+        contributions = usable[f"contrib_{term}"].to_numpy().astype(np.float64)
+        n_moved = int(np.count_nonzero(np.abs(contributions) > 1e-9))
+        # THE SIGN OF gamma IS THE WHOLE VERDICT, and it reads the same way for a
+        # term that hands out credits and one that hands out debits, because the
+        # statement is PER UNIT OF CONTRIBUTION and therefore symmetric. gamma < 0
+        # means teams the term pushed up finished below AND teams it pushed down
+        # finished above - in both cases the term moved them too far. gamma > 0 is
+        # the same sentence with "not far enough". Nothing here needs to know
+        # whether the coefficient itself is positive.
         if abs(z) < 2.0:
             verdict = "priced about right"
-        elif value < 0:
-            verdict = "OVER-credited"
         else:
-            verdict = "UNDER-credited"
+            verdict = "TOO STRONG" if value < 0 else "TOO WEAK"
         terms[term] = {
             "coefficient": value,
             "standard_error": error,
             "z": z,
+            "n_teams_moved": n_moved,
+            # The coefficient the season wanted, as a multiple of the one used.
+            # `1 + gamma` falls straight out of regressing (y - X*beta) back on
+            # X*beta, and it is the number the next version of the recipe should
+            # be argued about in.
+            "implied_multiplier": 1.0 + value,
             "verdict": verdict,
-            "sentence": _attribution_sentence(term, value, z, verdict),
+            "sentence": _attribution_sentence(term, value, z, verdict, n_moved),
         }
     return {
         "n_teams": int(usable.height),
@@ -270,18 +283,33 @@ _TERM_NAMES = {
 }
 
 
-def _attribution_sentence(term: str, value: float, z: float, verdict: str) -> str:
+def _attribution_sentence(term: str, value: float, z: float, verdict: str, n_moved: int) -> str:
+    """One sentence about the TERM, phrased per unit of contribution so it cannot flip.
+
+    "For every point this term moved a team, the team finished N points the other
+    way" is true in the same words whether the term handed that team a credit or
+    a debit, which is what makes it safe to publish next to a coaching penalty
+    and a returning-production bonus in the same table.
+    """
     name = _TERM_NAMES.get(term, term)
     if verdict == "priced about right":
         return (
-            f"We priced {name} about right: teams it credited came in within "
-            f"{abs(z):.1f} standard errors of their projection."
+            f"We priced {name} about right: over the {n_moved} teams it moved, the "
+            f"data cannot tell its effect from zero ({abs(z):.1f} standard errors)."
         )
-    direction = "below" if value < 0 else "above"
+    if value < 0:
+        return (
+            f"{name.capitalize()} was TOO STRONG. For every point of Power it "
+            f"moved a team's projection, that team finished {abs(value):.2f} "
+            f"points the other way ({abs(z):.1f} standard errors over {n_moved} "
+            f"teams). This season wanted about {1.0 + value:.2f}x the coefficient "
+            "we used."
+        )
     return (
-        f"We {verdict.lower()} {name}: every point of Power this term handed a "
-        f"team, that team finished {abs(value):.2f} points {direction} its "
-        f"projection ({abs(z):.1f} standard errors)."
+        f"{name.capitalize()} was TOO WEAK. For every point of Power it moved a "
+        f"team's projection, that team finished {value:.2f} points further in the "
+        f"same direction ({abs(z):.1f} standard errors over {n_moved} teams). "
+        f"This season wanted about {1.0 + value:.2f}x the coefficient we used."
     )
 
 

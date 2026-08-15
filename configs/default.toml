@@ -924,3 +924,82 @@ fail_build_on_banned_feature = true
 allow_prior_season_data = false             # constraint 2 — report 02 §4, §7.2
 allow_conference_as_feature = false         # a reputation prior in disguise
 allow_third_party_ratings_as_features = false  # SP+/FPI/Elo/EPA are BENCHMARKS ONLY
+
+####################################################################################
+# THE PROJECTION — a SECOND PRODUCT. Not the poll, and never the poll.
+# src/cfbpoll/projection/, docs/adr/0010-projection-and-poll.md
+#
+# EVERY KEY IN THIS SECTION IS BANNED FROM EVERY POLL LAYER. That is not a
+# convention: `PROJECTION_INPUT_PATTERNS` in src/cfbpoll/validate/leakage.py makes
+# a projection input's mere PRESENCE in a poll frame a build failure, and
+# tests/unit/test_projection_separation.py plants one in a poll design matrix and
+# asserts the audit names it. Nothing above this line may read anything below it.
+#
+# The Projection ranks what we GUESS a team will do, from last season's fitted
+# ratings plus the offseason. The Poll ranks what a team HAS DONE, from on-field
+# results only. The Projection reads the Poll; the Poll may never read the
+# Projection. ADR 0010 is the whole argument.
+####################################################################################
+[projection]
+enabled = true
+
+# WHERE THE RECIPE IS DESIGNED. Three transitions, each (source season -> target
+# season): the recipe predicts the target season's final Power from the source
+# season's final Power plus the target season's offseason data.
+#
+# NO TARGET SEASON HERE IS A HOLDOUT SEASON, and that is enforced rather than
+# noticed: `projection/holdout.assert_no_target_is_locked` raises the backtest's
+# own `HoldoutLocked` if one ever is. The 2024->2025 transition is DELIBERATELY
+# ABSENT even though the data for it exists, because its target is 2025 and
+# fitting a coefficient against 2025's outcomes is the exact tuning act the
+# holdout exists to prevent.
+design_transitions = [[2021, 2022], [2022, 2023], [2023, 2024]]
+
+# THE ONE NAMED PATH THAT READS A LOCKED SEASON. The 2026 projection has to
+# regress toward SOMETHING, and the only prior season is 2025 - which is the
+# sealed holdout. Reading 2025's FITTED RATINGS as an input and SCORING metrics
+# on 2025 are different acts; the holdout protects the second, `walkforward`
+# still refuses it, and only the first happens here. ADR 0010 §3.
+projection_source_season = 2025
+target_season = 2026
+
+# Which season the published grading-loop demo is worked on. NOT the holdout:
+# grading is scoring, and scoring 2025 is what would burn the single shot. 2024
+# is also genuinely out of sample for the demo, because the demo refits the
+# recipe on the transitions that exclude it.
+grading_demo_season = 2024
+
+# The AP preseason poll is a BASELINE and never an input. It is banned from the
+# projection's own design matrix by `PROJECTION_BANNED_PATTERNS`, alongside SP+,
+# FPI, Elo, CFBD's CORE and CFBD's PPA - a projection resting on somebody else's
+# fitted model is not our projection, and a baseline that is also an input
+# measures nothing at all.
+ap_poll_name = "AP Top 25"
+
+# The recipe's terms, in the order they are published. Changing this list changes
+# the product and must bump `PROJECTION_VERSION`: the grading loop is
+# season-over-season and a silent recipe change makes the whole record
+# meaningless.
+terms = ["prior_power", "returning_production", "coaching_change", "net_portal"]
+
+# RETURNING PRODUCTION IS OFFENCE ONLY, and this key is where that is admitted in
+# machine-readable form. CFBD serves no defensive returning production of any
+# kind, so the offence/defence split the design called for is half built. The
+# value names the CFBD field the recipe reads: `usage` is a counting-stat share
+# (snaps, carries, targets). `percentPPA` is CFBD's own fitted model and is
+# archived, published as a diagnostic, and MECHANICALLY unreachable by the recipe.
+returning_production_field = "usage"
+returning_production_covers = "offense_only"
+
+# Net portal flow is standardised WITHIN each season. Forced, not chosen: CFBD's
+# `destination` field is populated on 60% of 2022 rows and 78% of 2026 rows, so a
+# raw count pooled across cycles would fit a coefficient to that data-quality
+# drift. `origin` is complete, so departures are measured well and arrivals are
+# not, and every artifact says so.
+portal_standardise_within_season = true
+portal_weight_by_stars = false              # a recruiting composite. Available, refused.
+
+# The backtest's fair-comparison constant. Every system's rank is censored here
+# before the rank-error comparison, so a 134-team rating and a 25-team human poll
+# are answering the same question. See demo/projection-backtest.md.
+rank_censor_at = 26

@@ -3,10 +3,17 @@
 **What this is.** The poll publishes on Sunday morning. This is how, what to
 touch when it does not, and the exact order to switch it on.
 
-**Status as of 2026-08-17: BUILT, WIRED, AND ARMED NOWHERE.** Every trigger in
-[`ops/arming.toml`](../../ops/arming.toml) is `false`, the n8n workflows are JSON
-files that have not been imported, and the systemd units are text files that have
-not been installed. Nothing in this repository can publish on its own today.
+**Status as of 2026-08-17: BUILT, WIRED, AND ARMED NOWHERE.** Every trigger and
+every step in [`ops/arming.toml`](../../ops/arming.toml) is `false`, the n8n
+workflows are JSON files that have not been imported, and the systemd units are
+text files that have not been installed. Nothing in this repository can publish on
+its own today, and nothing can write to the website at all.
+
+**The delivery route is decided.** John ruled on 2026-08-17 that GitHub's robot
+holds the key: the workflow pushes the published tree into the site repository
+itself. That repository auto-deploys, so **arming delivery is arming a live
+website**. See [Delivery](#delivery-how-a-poll-reaches-the-website) before you
+flip that line, and note it needs the second of the two PATs below.
 
 Design: [ADR 0002](../adr/0002-scheduling.md). Storage:
 [ADR 0003](../adr/0003-storage.md) as amended by
@@ -58,11 +65,29 @@ uv run cfbpoll guard --trigger schedule --fixtures ../sandbox/cfb-poll-data
 
 ---
 
-## John's part: the PAT, once
+## John's part: two PATs, one paste each
 
-n8n needs to be able to press the button on this one workflow and nothing else.
-That is a **fine-grained personal access token**, and it is the only credential
-this whole design needs from you.
+This design needs exactly two credentials from you, and they do different jobs
+in different places. Make them separately, and do not reuse one for both — the
+whole reason each is safe is that it can only do its own job.
+
+| | **PAT 1 — the clock** | **PAT 2 — the delivery** |
+|---|---|---|
+| what it does | lets n8n press "Run workflow" | lets the workflow push the poll to the site |
+| repository | `cfb-poll` | `sandbox` |
+| permission | Actions: Read and write | Contents: Read and write |
+| lives in | an **n8n credential** on the VPS | a **GitHub Actions secret** |
+| name | `GitHub PAT - cfb-poll Actions` | `SANDBOX_CONTENTS_PAT` |
+| if it leaks | somebody can start a poll run | **somebody can change the website** |
+
+That last row is why they are separate. PAT 1's worst case is a wasted Actions
+run. PAT 2 writes to the repository that auto-deploys thepoll.ai.
+
+---
+
+### PAT 1 — the clock. n8n presses the button.
+
+n8n needs to press the button on this one workflow and nothing else.
 
 **Click by click.**
 
@@ -95,6 +120,67 @@ dispatch is working, that date is the most recent Sunday.
 new one. It can do exactly one thing — start a workflow run in `cfb-poll` — which
 is why it is scoped this way, but there is no reason to leave a doubtful token
 alive.
+
+---
+
+### PAT 2 — the delivery. The workflow writes the site.
+
+John ruled the delivery gap on 2026-08-17: **GitHub's robot holds the key.** After
+a publishing run passes its gate, the workflow pushes the fixture tree into
+`vyhlidal/sandbox` under `cfb-poll-data/`.
+
+> **PUSHING THERE DEPLOYS THE PUBLIC SITE.** That repository auto-deploys from
+> `main`, so a successful delivery is thepoll.ai changing a minute or so later.
+> There is no staging environment and no review step between this token and the
+> internet. It is the most consequential credential in the project.
+
+**Click by click.**
+
+1. Go to <https://github.com/settings/personal-access-tokens/new> again. This is a
+   **second, separate token**. Do not edit PAT 1 to add the site repo — a token
+   that can both start runs and rewrite the website is two blast radii in one
+   string.
+2. **Token name:** `cfb-poll delivery to sandbox`
+3. **Description:** `Weekly poll publication into cfb-poll-data/. Contents only.`
+4. **Resource owner:** `vyhlidal`
+5. **Expiration:** **Custom → one year from today.** Same calendar reminder as
+   PAT 1, and set it for the same day so there is one renewal errand a year
+   rather than two.
+6. **Repository access:** **Only select repositories** → pick **`sandbox`**.
+   Only that one. Not `cfb-poll`, not "All repositories".
+7. **Permissions → Repository permissions**, set exactly one:
+   - **Contents: Read and write**
+   - Everything else stays **No access**. It does not need Actions, it does not
+     need Pull requests, and it must not have them: this token's entire job is to
+     add a commit to one directory.
+8. **Generate token**, copy it.
+9. Paste it into GitHub Actions, once:
+   <https://github.com/vyhlidal/cfb-poll/settings/secrets/actions> →
+   **New repository secret** →
+   - **Name:** `SANDBOX_CONTENTS_PAT` (exactly this; the workflow looks it up by
+     name)
+   - **Secret:** the token
+   - **Add secret**. Then close the tab. Do not put it in a file, a note, a
+     message, or this repository.
+
+**Why an Actions secret and not an n8n credential.** n8n starts the run; it does
+not do the work. The push happens on the runner, at the end of a job that has
+already passed its data-quality gate, so the credential belongs where the push
+is.
+
+**How narrow it actually is inside the workflow.** The secret is on two steps —
+`Delivery - clone the site repo` and `Delivery - push to the site repo` — and on
+no others. It is deliberately *not* job-wide and *not* on the step that runs the
+model, the archive sync and every third-party wheel in `uv.lock`. A test enforces
+that (`test_the_site_pat_is_scoped_to_the_delivery_steps_only`).
+
+**How to check it later.** The token page's "Last used" should be the most recent
+Sunday, and `vyhlidal/sandbox`'s history should show a `Poll <season> week <NN>`
+commit from `cfb-poll robot` for that week.
+
+**If it leaks:** revoke it immediately, and check `sandbox`'s commit history for
+anything not authored by `cfb-poll robot <noreply@thepoll.ai>`. Unlike PAT 1,
+this one's worst case is visible to the public.
 
 ---
 
@@ -165,20 +251,46 @@ is that when something misbehaves you know which thing it was.
    the private CFBD archive or a previous run, so strict-by-default would fail
    every season opener and every fork for reasons that are not data-quality
    problems. Turn it on once the season is running on a machine with the key.
-2. **Rehearse by hand.** A manual dispatch with `publish` unchecked. It fits and
-   writes `out/` and publishes nothing.
-3. **Rehearse a publication by hand**, with `publish` checked, on a week you are
-   watching.
-4. **Arm the primary alone.** Set `n8n = true` in `ops/arming.toml`, commit, push
-   to `main`, then activate the n8n dispatch workflow. Leave the other two
-   `false`. Watch one Sunday.
-5. **Arm the dead-man's switch.** Activate that n8n workflow. Watch one Sunday
+2. **Make both PATs** (above) and put each in its one place: PAT 1 in the n8n
+   credential, PAT 2 in the `SANDBOX_CONTENTS_PAT` Actions secret.
+3. **Rehearse by hand.** A manual dispatch with `publish` unchecked. It fits and
+   writes `out/` and publishes nothing, and delivery never runs because delivery
+   only runs on a publishing run.
+4. **Rehearse a publication by hand, with delivery still disarmed**, `publish`
+   checked, on a week you are watching. This proves the whole pipeline including
+   the release bundle **without touching the website**. Do not skip it: it is the
+   last point at which a mistake is private.
+5. **Arm delivery, and watch that one dispatch closely.** Set
+   `[steps] delivery = true`, commit, push to `main`, then run one manual
+   dispatch with `publish` checked.
+
+   **This is the step where the public site changes for the first time.** Have
+   thepoll.ai open. When the run finishes, check three things in this order: the
+   `Delivery - push` step's log says PUSHED; `vyhlidal/sandbox` has a
+   `Poll <season> week <NN>` commit from `cfb-poll robot`; the site shows the new
+   week a minute or two later. If any of the three is wrong, set `delivery` back
+   to `false` and push before doing anything else.
+
+   Then **run the same dispatch a second time** and confirm the delivery step
+   reports "nothing to push". That is the idempotency guarantee proven on the
+   real repository, and it costs one run.
+6. **Arm the primary clock alone.** Set `n8n = true` in `ops/arming.toml`, commit,
+   push to `main`, then activate the n8n dispatch workflow. Leave the other two
+   `false`. Watch one Sunday, end to end, all the way to the site.
+7. **Arm the dead-man's switch.** Activate that n8n workflow. Watch one Sunday
    and confirm it stays quiet.
-6. **Install and arm the VPS fallback.** Follow
+8. **Install and arm the VPS fallback.** Follow
    [the install runbook](vps-fallback-install.md), then set `vps_timer = true`.
    Watch one Sunday: it should exit 0 in about forty seconds because the 06:00
    run already published.
-7. **Arm the third string last.** Set `schedule = true`. This is the one that can
+
+   Decide before you arm it whether the VPS should deliver too. It can — nothing
+   stops `weekly.sh` doing delivery there — but it needs its own copy of PAT 2 in
+   `/etc/cfb-poll/weekly.env`, which is a second place a website-writing token
+   lives. The conservative choice is to leave the VPS's `SANDBOX_CONTENTS_PAT`
+   unset, so the fallback produces the board and a human delivers it on the rare
+   Sunday the primary died.
+9. **Arm the third string last.** Set `schedule = true`. This is the one that can
    fire hours from where you expect it, so it goes on when the two reliable paths
    are known good and the guard has been proven idempotent three Sundays running.
 
@@ -186,33 +298,103 @@ Reverse in the same order to switch anything off. Flipping a line in
 `ops/arming.toml` is a reviewed commit with an author and a date, which is the
 point of the file existing rather than a checkbox somewhere.
 
+**The fastest way to stop the site changing** is `delivery = false` pushed to
+`main`. That leaves the poll still running and still producing boards, and only
+the publication to the website stops — which is usually what you actually want,
+rather than killing the clock.
+
 ---
 
-## The delivery gap — READ THIS, IT IS NOT DECIDED
+## Delivery: how a poll reaches the website
 
-`cfbpoll publish fixtures` writes the JSON tree the site reads. **The site's tree
-lives in a different repository** (`vyhlidal/sandbox`, under `cfb-poll-data/`),
-and the GitHub Actions runner has a checkout of `cfb-poll` and nothing else.
+**Decided by John, 2026-08-17: GitHub's robot holds the key.** The workflow
+pushes the published tree into `vyhlidal/sandbox` under `cfb-poll-data/` using
+PAT 2, at the end of a run that has already passed its gate.
 
-So on CI the workflow publishes into `out/data` and uploads it as a build
-artifact. **Nothing carries those files to the site.** That is a real gap, it is
-on the critical path for week 1, and it needs a decision rather than an
-improvisation. The candidates:
+> **THE SITE AUTO-DEPLOYS FROM THAT PUSH.** `vyhlidal/sandbox` deploys `main`
+> automatically, so a successful delivery is a live change to thepoll.ai a minute
+> or so later. There is no staging step, no preview, and no human between the
+> push and the public. Everything below is shaped by that.
 
-- **A cross-repo push.** A second fine-grained PAT with `contents: write` on
-  `vyhlidal/sandbox`, and a commit-and-push step in `weekly.yml`. Simple, and it
-  puts a token that can write the website into the poll's CI.
-- **The release asset.** `cfbpoll publish release` writes the week to a
-  `poll-{season}-w{NN}` tag and the site's build pulls from it. This is what ADR
-  0003 designed, and the runner already attaches the fixture tree and the share
-  cards to the bundle (`--fixtures`, `--cards`), so the asset is the whole week
-  rather than a fragment. That makes this the cheapest of the three to finish.
-- **Let the VPS do it.** The systemd fallback already has a real `FIXTURES` path
-  on a machine that can serve or sync it, so the VPS becomes the publisher and
-  GitHub Actions becomes the compute. Inverts ADR 0002's primary/fallback roles.
+### What actually happens, in order
 
-Until this is settled, **the VPS path is the only one that lands a file anywhere
-a reader can see it**, which is worth knowing before you arm the primary.
+1. **Clone first, publish second.** `ops/bin/deliver-fixtures.sh prepare` clones
+   the site repo, and the job publishes the week *straight into that clone*.
+
+   This ordering is not an optimisation, it is a correctness requirement, and it
+   is the one thing here most likely to be "simplified" by someone later.
+   `publish fixtures` rebuilds `index.json` from whatever is on disk at its
+   destination. A runner starts empty, so publishing into a scratch directory
+   produces an index naming exactly one week and one season — and copying that
+   over the site's `index.json` would erase 2023 and 2025 from the season strip
+   while every week document sat there untouched. A silent, total loss of the
+   navigation, caused by a step that looked like it only added a file.
+
+2. **Nothing is pushed until the end.** Cloning and writing are local. The site
+   repository does not change until `deliver-fixtures.sh push`, which runs after
+   the leakage audit, the data-quality gate and the release bundle have all
+   passed. **A failed gate leaves the site repo untouched**, and the only
+   casualty is a temporary directory.
+
+3. **The commit is the provenance chain.** Each delivery lands as:
+
+   ```
+   Poll 2026 week 07 (regular)
+
+     season:     2026
+     week:       7 (regular)
+     model sha:  <the cfb-poll commit that produced it>
+     run:        https://github.com/vyhlidal/cfb-poll/actions/runs/<id>
+     files:      5 changed under cfb-poll-data/
+   ```
+
+   Authored by `cfb-poll robot <noreply@thepoll.ai>`. That message is the only
+   link between a file on thepoll.ai and the run that made it, so it is written
+   even on a dull week.
+
+4. **Re-running a week is free.** The fixture documents are a deterministic
+   function of the run directory — `published_at` comes from the run record, not
+   the wall clock — so an unchanged week stages no diff, makes no commit and
+   pushes nothing. The site's history never accumulates empty markers.
+
+### Three switches, all of which must be on
+
+Delivery is off unless *all* of these are true, and any one of them off makes it
+skip with a notice rather than fail:
+
+- `[steps] delivery = true` in [`ops/arming.toml`](../../ops/arming.toml) —
+  committed `false`. Note there is **no human exemption** here, unlike
+  `[triggers]`: a manual dispatch does not deploy the site. Rehearsing the whole
+  job without touching the website is the point.
+- The `SANDBOX_CONTENTS_PAT` Actions secret exists (PAT 2 above).
+- `SKIP_DELIVERY` is not `true`.
+
+### Rehearsing it without a website
+
+`ops/bin/deliver-fixtures.sh` takes `SANDBOX_REMOTE`, so a local path stands in
+for GitHub, and `ARMING_FILE` points at a scratch switch so nothing armed gets
+committed. `DRY_RUN=true` makes the commit and stops before the push:
+
+```bash
+git init --bare /tmp/stand-in.git         # ... seeded with a cfb-poll-data/ tree
+printf '[steps]\ndelivery = true\n' > /tmp/armed.toml
+
+export ARMING_FILE=/tmp/armed.toml SANDBOX_REMOTE=/tmp/stand-in.git \
+       SANDBOX_CONTENTS_PAT=unused DELIVERY_CLONE=/tmp/site-clone \
+       SEASON=2023 WEEK=12 SEASON_TYPE=regular
+FIXTURES="$(ops/bin/deliver-fixtures.sh prepare)"
+uv run cfbpoll publish fixtures --from out --out "$FIXTURES"
+DRY_RUN=true ops/bin/deliver-fixtures.sh push
+```
+
+### The token never reaches disk or a log
+
+It is handed to git through `GIT_ASKPASS`, so it is not written into
+`.git/config` the way a tokenised remote URL would be, not visible in `ps`, and
+not in the workflow transcript. `GIT_TERMINAL_PROMPT=0` means a bad credential
+fails instead of hanging. The staging is `git add -- cfb-poll-data`, never
+`git add -A`: that repository is somebody else's working tree, and a sweep there
+would publish whatever a human left lying around under a poll commit.
 
 ---
 
@@ -237,6 +419,29 @@ not read the index at all. In order:
 the log. `armed=false` means `ops/arming.toml`; `already_published=true` means it
 was already done and this is correct behaviour; `week_source=unresolved` means the
 CFBD key is missing or `/calendar` failed, and the job refused to guess a week.
+
+**"The run went green but the site did not change."** Open the two `Delivery`
+steps. `DELIVERY SKIPPED` there names its own reason, and there are only three:
+`[steps] delivery` is `false`, `SANDBOX_CONTENTS_PAT` is unset, or nothing
+changed because the site already had that week. All three are exit 0 on purpose —
+a disarmed delivery is not a failure — so a green run that delivered nothing is
+expected while delivery is off, and the step log is where you find out which.
+
+**"Delivery failed with a 403."** PAT 2 expired, was revoked, or is scoped wrong.
+Check it has **Contents: Read and write** on `sandbox` and that `sandbox` is in
+its repository list. A 404 on the clone usually means the same thing: a
+fine-grained token with no access reads as "no such repository".
+
+**"The site's index lost a season."** That is the failure the clone-before-publish
+ordering exists to prevent, so something reordered it. Confirm `Delivery - clone
+the site repo` ran *before* `Run the weekly job`, and that the job's `FIXTURES`
+points inside the clone rather than at `out/data`. Recover by re-publishing the
+missing weeks into a clone and delivering once; the week documents themselves are
+untouched by this failure, only `index.json` is.
+
+**"I need to stop the site changing but keep the poll running."** Set
+`[steps] delivery = false` and push to `main`. Boards keep being produced;
+nothing reaches the website.
 
 **"It published the wrong week."** `week_source` says where the week came from. If
 it says `calendar`, the CFBD calendar's `firstGameStart` disagreed with what you

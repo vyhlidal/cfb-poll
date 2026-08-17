@@ -43,3 +43,29 @@ vps_timer = false
 # a clock and is never refused; `ops.guard.Arming.allows` special-cases it. A
 # switch that could lock a human out of their own repository would be a worse
 # failure than the one it prevents.
+
+
+# Steps inside the job that write somewhere OUTSIDE this repository. They are a
+# separate table from [triggers] because they answer a different question:
+# [triggers] is "who may start the job", [steps] is "what may the job reach".
+#
+# AND THE HUMAN EXEMPTION DOES NOT APPLY HERE. `manual` waves a person past
+# [triggers], because somebody clicking Run is not a clock. Nothing waves anybody
+# past [steps]. Starting a run is not the same act as deploying a public
+# website, and being able to rehearse the whole job WITHOUT touching the site is
+# the reason to keep them apart.
+[steps]
+
+# Push the published fixture tree into the site repository
+# (github.com/vyhlidal/sandbox, path cfb-poll-data/) after a successful
+# publishing run. John ruled on 2026-08-17 that GitHub's robot holds the key.
+#
+# ARMING THIS DEPLOYS THE PUBLIC SITE. The sandbox repo auto-deploys from `main`
+# on push, so a successful delivery is a live change to thepoll.ai a minute or so
+# later. There is no staging step between this line and the public internet, and
+# that is the single most consequential `true` in this file.
+#
+# It also needs the SANDBOX_CONTENTS_PAT Actions secret to exist. With the switch
+# on and the secret missing, the step skips and says so rather than failing the
+# run - the same degradation every other secret-dependent step here uses.
+delivery = false

@@ -74,6 +74,66 @@ def test_the_committed_arming_file_parses_and_names_only_known_triggers():
     armed = guard.load_arming(guard.ARMING_PATH)
     assert armed.present, f"{guard.ARMING_PATH} must exist: it is the safety catch"
     assert set(armed.triggers) <= set(guard.TRIGGERS)
+    assert set(armed.steps) <= set(guard.STEPS)
+
+
+# --------------------------------------------------------------- the steps table
+
+
+def test_a_missing_arming_file_arms_no_step_either(tmp_path):
+    armed = guard.load_arming(tmp_path / "nope.toml")
+    assert armed.allows_step("delivery") is False
+    assert "does not exist" in armed.step_reason("delivery")
+
+
+def test_there_is_no_human_exemption_for_a_step(tmp_path):
+    """`allows` waves a human through; `allows_step` waves nobody through.
+
+    Starting a run is not the same act as deploying a public website, and being
+    able to rehearse the whole job without touching the site depends on the two
+    staying separate.
+    """
+    path = tmp_path / "arming.toml"
+    path.write_text("[triggers]\nn8n = true\n\n[steps]\ndelivery = false\n")
+    armed = guard.load_arming(path)
+    assert armed.allows("manual") is True
+    assert armed.allows_step("delivery") is False
+
+
+def test_an_absent_step_line_is_a_disarmed_step(tmp_path):
+    path = tmp_path / "arming.toml"
+    path.write_text("[triggers]\nn8n = true\n")
+    armed = guard.load_arming(path)
+    assert armed.allows_step("delivery") is False
+    assert "no `delivery` line" in armed.step_reason("delivery")
+
+
+def test_a_misspelled_step_is_refused_loudly(tmp_path):
+    path = tmp_path / "arming.toml"
+    path.write_text("[steps]\ndelivry = true\n")
+    with pytest.raises(guard.GuardError, match="unknown step"):
+        guard.load_arming(path)
+
+
+def test_asking_about_an_unknown_step_raises(tmp_path):
+    armed = guard.load_arming(tmp_path / "nope.toml")
+    with pytest.raises(guard.GuardError, match="unknown step"):
+        armed.allows_step("deploy-everything")
+
+
+def test_an_armed_step_reads_as_armed(tmp_path):
+    path = tmp_path / "arming.toml"
+    path.write_text("[steps]\ndelivery = true\n")
+    armed = guard.load_arming(path)
+    assert armed.allows_step("delivery") is True
+    assert "armed" in armed.step_reason("delivery")
+
+
+def test_a_step_name_is_not_a_valid_trigger():
+    """`--trigger delivery` would be nonsense; the namespaces stay separate."""
+    assert not set(guard.STEPS) & set(guard.TRIGGERS)
+    with pytest.raises(guard.GuardError, match="unknown trigger"):
+        guard.decide(trigger="delivery", season=2026, week=1, resolve_week=False)
 
 
 # ---------------------------------------------------------------- already published

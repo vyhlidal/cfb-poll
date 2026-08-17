@@ -99,10 +99,9 @@ jobs:
       SEASON: ${{ inputs.season }}
       WEEK: ${{ inputs.week }}
       PUBLISH: ${{ inputs.publish || false }}
-      # The runner has the code but not the published tree: the site's fixture
-      # directory lives in a different repository. So CI publishes into the
-      # workspace and uploads it. WHO COPIES out/data INTO THE SITE IS AN OPEN
-      # DECISION - see docs/runbooks/sunday-automation.md, "The delivery gap".
+      # The fallback destination, used when delivery is disarmed. When delivery
+      # IS armed the job publishes straight into a clone of the site repo
+      # instead, and the `Delivery - prepare` step below supplies that path.
       FIXTURES: out/data
       OUT: out
     steps:
@@ -143,10 +142,38 @@ jobs:
           path: archive/sportsdataverse
           key: sdv-${{ hashFiles('data/manifests/sportsdataverse.lock.json') }}
 
+      # DELIVERY, PART ONE. Clone the site repo so the week is published STRAIGHT
+      # INTO the real tree. `publish fixtures` rebuilds index.json from whatever
+      # is on disk at its destination, and a runner starts empty - so publishing
+      # into a scratch directory and copying the result over the site would erase
+      # every other season from the index while the week documents sat there
+      # untouched.
+      #
+      # NOTHING IS PUSHED HERE. This clones and writes locally; the site
+      # repository does not change until the last step. That is what lets the
+      # clone happen early, as it must, without breaking the rule that a failed
+      # gate leaves the site alone.
+      - name: Delivery - clone the site repo (nothing is pushed here)
+        id: delivery_prepare
+        if: steps.guard.outputs.should_run == 'true' && env.PUBLISH == 'true'
+        env:
+          SANDBOX_CONTENTS_PAT: ${{ secrets.SANDBOX_CONTENTS_PAT }}
+        run: |
+          target="$(ops/bin/deliver-fixtures.sh prepare)"
+          echo "fixtures=$target" >> "$GITHUB_OUTPUT"
+
       # ONE STEP, because ops/bin/weekly.sh IS the job and the VPS fallback runs
       # this exact file. The guard runs a second time inside it; it is read-only,
       # costs at most one CFBD call, and running it in the script is what keeps
       # the script usable on its own on the VPS.
+      #
+      # SKIP_DELIVERY=true, and this is the whole point of splitting the delivery
+      # into its own steps: THE SITE PAT IS NOT IN THIS STEP'S ENVIRONMENT. The
+      # compute step is the long one, the one that runs the model, the archive
+      # sync and every third-party wheel in uv.lock, and it has no business
+      # holding a credential that can write to the website. On the VPS there are
+      # no steps to scope, so weekly.sh can still do delivery itself; here it
+      # must not.
       #
       # Secrets are absent in a fork by construction (GitHub does not pass them
       # to a workflow triggered from a fork), and every secret-dependent step in
@@ -161,7 +188,27 @@ jobs:
           SEASON: ${{ steps.guard.outputs.season }}
           WEEK: ${{ steps.guard.outputs.week }}
           SKIP_SYNC: "true"
+          SKIP_DELIVERY: "true"
+          FIXTURES: ${{ steps.delivery_prepare.outputs.fixtures || 'out/data' }}
         run: ops/bin/weekly.sh
+
+      # DELIVERY, PART TWO. THIS DEPLOYS THE PUBLIC SITE: vyhlidal/sandbox
+      # auto-deploys from `main`, so a successful push here is thepoll.ai
+      # changing a minute later.
+      #
+      # `success()` is written out rather than left implicit, because this is the
+      # step where implicit would be a bad bet. Everything that can say no has
+      # already run: the guard, the leakage audit, the data-quality gate and the
+      # release bundle. If any of them failed, the previous step exited non-zero,
+      # this does not run, and the site repository is untouched.
+      - name: Delivery - push to the site repo (THIS DEPLOYS THE SITE)
+        if: success() && steps.guard.outputs.should_run == 'true' && env.PUBLISH == 'true'
+        env:
+          SANDBOX_CONTENTS_PAT: ${{ secrets.SANDBOX_CONTENTS_PAT }}
+          SEASON: ${{ steps.guard.outputs.season }}
+          WEEK: ${{ steps.guard.outputs.week }}
+          SEASON_TYPE: ${{ steps.guard.outputs.season_type }}
+        run: ops/bin/deliver-fixtures.sh push
 
       - uses: actions/upload-artifact@v4
         if: always() && steps.guard.outputs.should_run == 'true'

@@ -33,6 +33,14 @@
 #   STRICT_PREFLIGHT=true                   refuse to start a publication with stub verbs
 #   STRICT_VALIDATE=false                   treat a SKIPPED data-quality check as failure
 #   SKIP_SYNC=false                         true = trust the existing .venv
+#   SKIP_DELIVERY=false                     true = never touch the site repo at all
+#
+# DELIVERY. After a successful publishing run this pushes the fixture tree into
+# the site repository, WHICH AUTO-DEPLOYS thepoll.ai. It is gated three ways: the
+# `[steps] delivery` line in ops/arming.toml (committed false), the presence of
+# SANDBOX_CONTENTS_PAT, and SKIP_DELIVERY here. See ops/bin/deliver-fixtures.sh
+# for the rest of its environment, and note that when delivery is on, FIXTURES
+# below is REPLACED by a path inside the site clone.
 #
 # WHY STRICT_VALIDATE DEFAULTS TO FALSE. `cfbpoll validate --strict` turns a
 # SKIPPED check into a failure, and four of its eight checks read the private
@@ -261,6 +269,35 @@ if [ "$PUBLISH" != "true" ]; then
   exit 0
 fi
 
+# DELIVERY, PART ONE OF TWO: clone the site repo and publish straight into it.
+#
+# This has to happen BEFORE `publish fixtures`, and the reason is not obvious
+# enough to leave implicit. `publish fixtures` rebuilds index.json from whatever
+# is on disk at its destination. A GitHub runner starts empty, so publishing one
+# week into a fresh directory yields an index naming one week and one season -
+# and copying that onto the site would erase 2023 and 2025 from the season strip
+# while every week document sat there untouched. Publishing into the real tree
+# is what makes the index right.
+#
+# THE REMOTE IS NOT TOUCHED HERE. This clones and writes locally. Nothing
+# reaches the site repository until `deliver-fixtures.sh push` below, which runs
+# only after the gate and the release have both passed.
+if [ "${SKIP_DELIVERY:-false}" != "true" ]; then
+  say "Delivery: clone the site repo so the index is rebuilt against the real tree"
+  # No `|| true`. An empty result means "delivery is disarmed or unconfigured",
+  # which deliver-fixtures.sh reports by exiting 0 with no stdout. A non-zero
+  # exit means the clone actually failed, and that must stop the job: a run that
+  # quietly falls back to the local tree would report success while the site
+  # never moved, which is the silent failure this whole design exists to refuse.
+  DELIVERY_FIXTURES="$(ops/bin/deliver-fixtures.sh prepare)"
+  if [ -n "$DELIVERY_FIXTURES" ]; then
+    FIXTURES="$DELIVERY_FIXTURES"
+    note "publishing into the site clone: $FIXTURES"
+  else
+    note "not delivering; publishing to the local tree: $FIXTURES"
+  fi
+fi
+
 say "Publish the JSON fixture tree the site reads"
 step "publish fixtures" $UV run cfbpoll publish fixtures --from "$OUT" --out "$FIXTURES"
 
@@ -282,6 +319,19 @@ say "Publish the immutable release asset (the canonical copy of this week)"
 step "publish release" $UV run cfbpoll publish release \
   --from "$OUT" --out "$RELEASE_STAGE" \
   --fixtures "$FIXTURES/$SEASON" --cards "$OUT/share"
+
+# DELIVERY, PART TWO OF TWO: commit and push. THE SITE DEPLOYS FROM THIS.
+#
+# ITS POSITION IN THE FILE IS THE REQUIREMENT. Everything that can say "no" has
+# already run: the guard, the leakage audit, the data-quality gate and the
+# release bundle. `set -e` means any one of them failing ends the script here,
+# with the site repository untouched, because up to this line delivery has only
+# ever written to a scratch clone.
+if [ "${SKIP_DELIVERY:-false}" != "true" ]; then
+  say "Delivery: push the published tree to the site repo (THIS DEPLOYS THE SITE)"
+  SEASON="$SEASON" WEEK="$WEEK" SEASON_TYPE="$SEASON_TYPE" \
+    ops/bin/deliver-fixtures.sh push
+fi
 
 say "Load the serving tables (skips cleanly with no DATABASE_URL)"
 step "publish postgres" $UV run cfbpoll publish postgres --from "$OUT"

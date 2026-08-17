@@ -525,6 +525,23 @@ computed against a 0.985 tau line. `make variants` regenerates them.
 This is the rung that answers "does this constant even matter?" before anyone
 spends real time on it. Often the answer is no, and that is worth knowing early.
 
+**When they want to move more than one knob at a time, the answer is already
+computed.** `make lever-grid` publishes every combination of `margin.c` at six
+detents, `margin.beta_w` at four and `headline_ordering` at all three of its legal
+values: seventy-two boards, one of which is the published poll and eleven of which
+are boards this project already ships under another name. Eleven anchors is the
+point, because it is how anybody checks that the grid is this pipeline rather than
+a second one. **It costs about an hour per week of the season**, so it is a
+background job and not something to start while somebody is waiting. The contract
+is [`docs/fixture-contract-levers.md`](docs/fixture-contract-levers.md) and
+`scripts/check_lever_grid.py` validates a published grid against it in a second,
+fitting nothing.
+
+Reach for the grid when the conviction is a *combination* ("compress margin hard
+AND sort by the résumé"), and for a variant when it is one constant. Neither is a
+substitute for rung 2: a recipe states a case and carries its costs, and a grid
+cell deliberately states nothing at all.
+
 ### Rung 4: a challenger
 
 This is a new rating method, and it is the contribution the project most wants.
@@ -847,6 +864,7 @@ make fixtures     # rank a whole season -> the published JSON tree
 make demos        # regenerate the committed demo/ boards from the archive
 make cards        # the share cards, SVG and PNG
 make variants     # the one-knob playground variants
+make lever-grid   # 72 precomputed boards, one per lever combination. AN HOUR
 make test         # pytest
 make lint         # ruff
 
@@ -891,6 +909,8 @@ the most common way a first command fails.
 | `fixtures` | `FIXTURES` | `../sandbox/cfb-poll-data` **(outside your fork; always override)** |
 | `fixtures` | `FIXTURE_SEASON` | `2023` |
 | `variants` | `VARIANT_SEASON` | `2025` |
+| `lever-grid` | `LEVER_SEASON` | `2025` |
+| `lever-grid` | `LEVER_WEEKS` | `16` |
 
 **Two of these defaults are traps in a fork**, and they are the ones to say out
 loud: `FIXTURES` points somewhere that does not exist, and every seasoned default

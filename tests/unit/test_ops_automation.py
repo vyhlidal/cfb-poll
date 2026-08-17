@@ -16,10 +16,15 @@ These are cheap and they guard three claims that are easy to break silently:
 from __future__ import annotations
 
 import json
+import os
+import shlex
+import subprocess
 from pathlib import Path
 
 import pytest
+import typer
 
+from cfbpoll.cli import app
 from cfbpoll.config import REPO_ROOT
 from cfbpoll.ops import preflight
 
@@ -103,6 +108,101 @@ def test_no_r2_credential_survives_johns_ruling():
         text = path.read_text(encoding="utf-8").upper()
         for needle in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"):
             assert needle not in text, f"{path.name} still references {needle}"
+
+
+def _dry_run_commands(tmp_path: Path) -> list[list[str]]:
+    """Every `cfbpoll` command the runner WOULD issue, taken from a real dry run.
+
+    Parsing the shell script with a regex would test an approximation of the
+    script. Running it in DRY_RUN mode and reading the lines it prints tests the
+    thing itself, including the flags assembled at runtime into arrays.
+    """
+    env = {
+        **os.environ,
+        "DRY_RUN": "true",
+        "SKIP_SYNC": "true",
+        "STRICT_PREFLIGHT": "false",
+        "PUBLISH": "true",
+        "TRIGGER": "manual",
+        "SEASON": "2026",
+        "WEEK": "7",  # explicit, so the guard never calls CFBD /calendar
+        "FIXTURES": str(tmp_path / "data"),
+        "OUT": str(tmp_path / "out"),
+        "RELEASE_STAGE": str(tmp_path / "release"),
+    }
+    proc = subprocess.run(
+        ["bash", str(RUNNER)], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    commands = []
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("[dry-run] "):
+            continue
+        parts = shlex.split(line[len("[dry-run] ") :])
+        if "cfbpoll" in parts:
+            commands.append(parts[parts.index("cfbpoll") + 1 :])
+    assert commands, "a dry run printed no cfbpoll commands at all"
+    return commands
+
+
+def test_every_flag_the_runner_passes_exists_on_the_verb_it_calls(tmp_path):
+    """THE DEFECT THIS EXISTS TO CATCH is a flag that looks right and is not.
+
+    `publish release --out out/` read as "publish the run in out/" and actually
+    meant "stage the bundle into out/", where `publish fixtures --from out`
+    would then read the staged bundle's poll.json as an extra run and publish a
+    week nobody ranked. Nothing about that is visible until a phantom week shows
+    up in the index, so it is exactly the kind of error that has to be caught
+    mechanically rather than by reading.
+
+    A verb that is still a stub is skipped rather than checked: its flags target
+    the signature the built verb will have, and the runner does not invoke it
+    while it is a stub. This test starts checking it on the day it is built,
+    which is the day the flags first matter.
+    """
+    root = typer.main.get_command(app)
+    for parts in _dry_run_commands(tmp_path):
+        words = [p for p in parts if not p.startswith("-")]
+        flags = {p.split("=")[0] for p in parts if p.startswith("--")}
+
+        command, verb = root, []
+        for word in words:
+            sub = getattr(command, "commands", {}).get(word)
+            if sub is None:
+                break
+            command, _ = sub, verb.append(word)
+        assert verb, f"the runner calls `cfbpoll {' '.join(parts[:2])}`, which is not a verb"
+
+        known = {opt for p in command.params for opt in p.opts if opt.startswith("--")}
+        # Boolean typer options also accept their --no- form.
+        known |= {opt.replace("--", "--no-", 1) for opt in known}
+        unknown = flags - known
+        assert not unknown, (
+            f"`cfbpoll {' '.join(verb)}` does not accept {sorted(unknown)}. "
+            f"It accepts: {sorted(known)}"
+        )
+
+
+def test_the_runner_never_stages_a_release_bundle_inside_the_run_directory(tmp_path):
+    """The staged bundle carries a poll.json. Inside OUT, `publish fixtures`
+    reads it as a run. The runner refuses rather than publishing a phantom week."""
+    env = {
+        **os.environ,
+        "DRY_RUN": "true",
+        "SKIP_SYNC": "true",
+        "TRIGGER": "manual",
+        "SEASON": "2026",
+        "WEEK": "7",
+        "OUT": str(tmp_path / "out"),
+        "RELEASE_STAGE": str(tmp_path / "out" / "release"),
+    }
+    (tmp_path / "out").mkdir()
+    proc = subprocess.run(
+        ["bash", str(RUNNER)], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert proc.returncode == 2
+    assert "is inside OUT" in proc.stderr
 
 
 def test_the_runner_sets_single_threaded_blas_itself():

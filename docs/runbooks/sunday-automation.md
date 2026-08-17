@@ -152,10 +152,19 @@ is that when something misbehaves you know which thing it was.
    uv run cfbpoll preflight
    ```
 
-   Today it reports `validate` and `publish release` as stubs. **Until both are
-   real, `PUBLISH=true` refuses to start** — deliberately, in seconds, before the
-   0.55 GB download — so arming a clock before this is done just produces a
-   faster failure, not a poll.
+   That command is the authority on what is missing, not this page: it reads
+   each verb's body rather than a list somebody has to remember to update.
+   **While it names anything, `PUBLISH=true` refuses to start** — deliberately,
+   in seconds, before the 0.55 GB download — so arming a clock before this is
+   clean produces a faster failure, not a poll.
+
+   Note the ordering the built `validate` forces: it takes `--from <run dir>`,
+   because the bounded week-over-week movement check needs this week's board and
+   last week's. So the gate runs *after* the fit and *before* anything
+   publishes. `STRICT_VALIDATE` is off by default — four of its eight checks read
+   the private CFBD archive or a previous run, so strict-by-default would fail
+   every season opener and every fork for reasons that are not data-quality
+   problems. Turn it on once the season is running on a machine with the key.
 2. **Rehearse by hand.** A manual dispatch with `publish` unchecked. It fits and
    writes `out/` and publishes nothing.
 3. **Rehearse a publication by hand**, with `publish` checked, on a week you are
@@ -193,9 +202,11 @@ improvisation. The candidates:
 - **A cross-repo push.** A second fine-grained PAT with `contents: write` on
   `vyhlidal/sandbox`, and a commit-and-push step in `weekly.yml`. Simple, and it
   puts a token that can write the website into the poll's CI.
-- **The release asset.** `cfbpoll publish release` (still a stub) writes the week
-  to a `poll-{season}-w{NN}` tag, and the site's build pulls from it. This is what
-  ADR 0003 designed and it needs `publish release` to exist.
+- **The release asset.** `cfbpoll publish release` writes the week to a
+  `poll-{season}-w{NN}` tag and the site's build pulls from it. This is what ADR
+  0003 designed, and the runner already attaches the fixture tree and the share
+  cards to the bundle (`--fixtures`, `--cards`), so the asset is the whole week
+  rather than a fragment. That makes this the cheapest of the three to finish.
 - **Let the VPS do it.** The systemd fallback already has a real `FIXTURES` path
   on a machine that can serve or sync it, so the VPS becomes the publisher and
   GitHub Actions becomes the compute. Inverts ADR 0002's primary/fallback roles.

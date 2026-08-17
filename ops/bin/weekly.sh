@@ -26,10 +26,21 @@
 #   DRY_RUN=false                           true  = print every command, run none
 #   FIXTURES=../sandbox/cfb-poll-data       the published JSON tree
 #   OUT=out                                 the run directory
+#   RELEASE_STAGE=.cache/release            where the release bundle is staged.
+#                                           MUST NOT be inside OUT; see below.
 #   PUBLISHED_URL=                          base URL of the published tree, if served
 #   SEED=20260812  DRAWS=1000               bootstrap determinism
 #   STRICT_PREFLIGHT=true                   refuse to start a publication with stub verbs
+#   STRICT_VALIDATE=false                   treat a SKIPPED data-quality check as failure
 #   SKIP_SYNC=false                         true = trust the existing .venv
+#
+# WHY STRICT_VALIDATE DEFAULTS TO FALSE. `cfbpoll validate --strict` turns a
+# SKIPPED check into a failure, and four of its eight checks read the private
+# CFBD archive or last week's run directory. On week 1 there is no last week,
+# and in a fork there is no CFBD archive at all, so strict-by-default would fail
+# every season opener and every fork for reasons that are not data-quality
+# problems. Turn it on once the season is running on a machine that has the key
+# and a previous week; the runbook says so too.
 #
 # THE ONE SECRET. CFBD_API_KEY, and only for two things: resolving the live week
 # (`/calendar`) and pulling the week's raw results. Absent, this degrades to the
@@ -50,6 +61,8 @@ PUBLISHED_URL="${PUBLISHED_URL:-}"
 SEED="${SEED:-20260812}"
 DRAWS="${DRAWS:-1000}"
 STRICT_PREFLIGHT="${STRICT_PREFLIGHT:-true}"
+STRICT_VALIDATE="${STRICT_VALIDATE:-false}"
+RELEASE_STAGE="${RELEASE_STAGE:-.cache/release}"
 SKIP_SYNC="${SKIP_SYNC:-false}"
 UV="${UV:-uv}"
 
@@ -103,10 +116,34 @@ step() {
   run "$@"
 }
 
+# A staged release bundle carries a poll.json, and `publish fixtures --from OUT`
+# reads any subdirectory holding one as a run. Staging inside OUT therefore
+# invents a week. Refuse it here rather than discovering it in the published
+# index, which is where it would otherwise surface and where it would look like
+# anything except a staging-path bug.
+#
+# The comparison is LEXICAL and never touches the filesystem, deliberately.
+# Resolving with `cd` fails on a directory that does not exist yet, and OUT
+# normally does not exist this early in the run - which would collapse the
+# prefix to the empty string and make this refuse every path there is. A safety
+# check whose failure mode is "always fires" gets deleted by the next person.
+_abspath() { case "$1" in /*) printf '%s' "$1" ;; *) printf '%s' "$PWD/$1" ;; esac; }
+_out_abs="$(_abspath "$OUT")";           _out_abs="${_out_abs%/}"
+_release_abs="$(_abspath "$RELEASE_STAGE")"; _release_abs="${_release_abs%/}"
+case "$_release_abs/" in
+  "$_out_abs"/*)
+    echo "RELEASE_STAGE ($RELEASE_STAGE) is inside OUT ($OUT)." >&2
+    echo "A staged bundle carries a poll.json and 'publish fixtures --from $OUT'" >&2
+    echo "would read it as an extra run. Stage it somewhere else." >&2
+    exit 2
+    ;;
+esac
+
 say "cfb-poll weekly | trigger=$TRIGGER publish=$PUBLISH dry_run=$DRY_RUN"
 note "repo:     $REPO_ROOT"
 note "out:      $OUT"
 note "fixtures: $FIXTURES"
+note "release:  $RELEASE_STAGE (staged outside $OUT on purpose)"
 note "stubs:    ${MISSING:-none}"
 
 if [ "$SKIP_SYNC" != "true" ]; then
@@ -145,6 +182,7 @@ read_guard() { grep -m1 "^$1=" "$GUARD_FILE" | cut -d= -f2- || true; }
 SHOULD_RUN="$(read_guard should_run)"
 SEASON="$(read_guard season)"
 WEEK="$(read_guard week)"
+SEASON_TYPE="$(read_guard season_type)"
 
 if [ "$SHOULD_RUN" != "true" ]; then
   say "Nothing to do. Exiting 0."
@@ -153,7 +191,19 @@ if [ "$SHOULD_RUN" != "true" ]; then
   exit 0
 fi
 
-say "Season $SEASON, week $WEEK"
+say "Season $SEASON, week $WEEK ($SEASON_TYPE)"
+
+# A KNOWN LIMIT, NAMED RATHER THAN PAPERED OVER. The guard resolves the season
+# TYPE from /calendar and `cfbpoll validate` takes it, but `cfbpoll rank` has no
+# --season-type option: it takes --through-week and nothing else. So a
+# postseason Sunday ranks through regular week N, which is the behaviour the
+# rank verb has always had. If the postseason needs its own board, that is a
+# change to `rank`, not something this runner can paper over with a flag that
+# does not exist.
+if [ "$SEASON_TYPE" != "regular" ]; then
+  printf '::warning title=season type::guard resolved season_type=%s; `cfbpoll rank` has no --season-type and will rank through regular week %s\n' \
+    "$SEASON_TYPE" "$WEEK"
+fi
 
 say "Archive: the MIT SportsDataverse leg, sha256-verified (no key needed)"
 step "archive sync" $UV run cfbpoll archive sync --source sportsdataverse --verify
@@ -172,18 +222,38 @@ fi
 # and is pulled to the Mac by ops/bin/pull-cfbd-archive.sh. There is deliberately
 # no `cfbpoll archive push` call in this job any more.
 
-say "Data-quality gate: halt and publish nothing on failure"
-step "validate" $UV run cfbpoll validate --season "$SEASON" --week "$WEEK"
-
 say "Leakage audit: prove no banned input reached a design matrix"
-step "audit-features" $UV run cfbpoll audit-features --season "$SEASON" --fail-on-banned
+# --through-week, not the bare season: the job ranks through $WEEK, so auditing
+# any other window audits a set of matrices this run never builds.
+step "audit-features" $UV run cfbpoll audit-features \
+  --season "$SEASON" --through-week "$WEEK" --fail-on-banned
 
 say "Fit L1-L4 and rank"
 step "rank" $UV run cfbpoll rank --config configs/default.toml \
   --season "$SEASON" --through-week "$WEEK" --seed "$SEED" --draws "$DRAWS" --out "$OUT"
 
+# THE GATE RUNS AFTER THE FIT AND BEFORE ANY PUBLICATION, and that ordering is
+# forced rather than chosen: `cfbpoll validate --from` wants THIS WEEK'S RUN
+# DIRECTORY, because the bounded week-over-week movement check compares this
+# board against last week's. There is no run directory before `rank` writes one.
+#
+# "Halt and publish nothing on failure" is unchanged by the move. Everything
+# that publishes is below this line, and `set -e` means a non-zero verdict stops
+# the script before any of it. What the fit costs when the gate fails is a few
+# minutes of CPU, which is the right price for a check that can see the board.
+say "Data-quality gate: halt and publish nothing on failure"
+VALIDATE_ARGS=(--season "$SEASON" --week "$WEEK" --season-type "$SEASON_TYPE" --from "$OUT")
+if [ "$STRICT_VALIDATE" = "true" ]; then
+  VALIDATE_ARGS+=(--strict)
+fi
+step "validate" $UV run cfbpoll validate "${VALIDATE_ARGS[@]}"
+
 say "Bootstrap the 90% rank intervals"
-step "bootstrap" $UV run cfbpoll bootstrap --season "$SEASON" \
+# --through-week is NOT optional here even though the flag is. Blank means
+# "latest completed week", which is not necessarily the week just ranked, and an
+# interval computed over a different window than the board it decorates is a
+# published number that describes nothing.
+step "bootstrap" $UV run cfbpoll bootstrap --season "$SEASON" --through-week "$WEEK" \
   --draws "$DRAWS" --jobs 4 --seed "$SEED" --out "$OUT"
 
 if [ "$PUBLISH" != "true" ]; then
@@ -198,7 +268,20 @@ say "Publish the share cards"
 step "publish cards" $UV run cfbpoll publish cards --from "$OUT" --out "$OUT/share"
 
 say "Publish the immutable release asset (the canonical copy of this week)"
-step "publish release" $UV run cfbpoll publish release --out "$OUT"
+# --from is the RUN DIRECTORY; --out is where the bundle is STAGED. Getting
+# these the wrong way round is not a cosmetic error: the verb's own default
+# stages into `<--from>/release`, and a staged bundle carries a poll.json, so
+# leaving it inside out/ hands `publish fixtures --from out` a directory it will
+# read as an extra run. That misfire is invisible until a week appears in the
+# published index that nobody ranked. RELEASE_STAGE therefore lives outside
+# out/, under the already-gitignored .cache/.
+#
+# The fixture tree and the cards are attached so the release asset is genuinely
+# the canonical copy of the week rather than a partial one, which is what ADR
+# 0003 meant by it and what makes it a live candidate for the delivery gap.
+step "publish release" $UV run cfbpoll publish release \
+  --from "$OUT" --out "$RELEASE_STAGE" \
+  --fixtures "$FIXTURES/$SEASON" --cards "$OUT/share"
 
 say "Load the serving tables (skips cleanly with no DATABASE_URL)"
 step "publish postgres" $UV run cfbpoll publish postgres --from "$OUT"

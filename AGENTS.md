@@ -360,6 +360,9 @@ src/cfbpoll/
   validate/
     leakage.py        rebuilds every design matrix and proves no banned input got in
     data_quality.py   the gate that halts publication
+  ops/
+    guard.py          may this clock run, and is this week already published
+    preflight.py      which verbs the Sunday job calls are still stubs
   projection/         THE PROJECTION: a labelled preseason prediction, never the
                       poll. Kept separate on purpose (ADR 0010)
 
@@ -367,10 +370,18 @@ configs/
   default.toml        EVERY model constant, with citations. The methodology
   recipes/            the three published value systems
   challengers/        outside entries. This is where a new idea goes
+ops/                  THE SUNDAY AUTOMATION, delivered and armed nowhere
+  arming.toml         the safety catch. Three triggers, all committed `false`
+  bin/weekly.sh       THE job. GitHub Actions and the VPS timer both run this file
+  bin/pull-cfbd-archive.sh  the Mac's copy of the private archive (ADR 0015)
+  n8n/                the clock and the dead-man's switch, ready to import
+  systemd/            the VPS fallback unit and timer, ready to install
 docs/
   constraints.md      the five rules, with the banned-input table
   methodology.md      the math
-  adr/                thirteen decision records. Read these before arguing with one
+  adr/                fifteen decision records. Read these before arguing with one
+  runbooks/           procedures a human runs: the Sunday automation, the VPS
+                      install, the archive sync
   analysis/           the studies, including the independent review that took an
                       earlier version of the README apart
 demo/                 committed real output. Boards, backtests, scorecards
@@ -838,7 +849,23 @@ make cards        # the share cards, SVG and PNG
 make variants     # the one-knob playground variants
 make test         # pytest
 make lint         # ruff
+
+# The Sunday automation (ADR 0002). NOTHING HERE FIRES ON ITS OWN: every
+# trigger in ops/arming.toml is committed `false` and the guard refuses them.
+make guard          # would the Sunday job run right now, and why not
+make preflight      # which verbs the Sunday job needs are still stubs
+make weekly-dry-run # the whole job, printed, executing nothing
 ```
+
+**If somebody asks "does the poll publish itself yet?", the answer is no and
+`make guard` proves it.** The clock, the fallback and the dead-man's switch are
+all built and none is armed: the n8n workflows in `ops/n8n/` are not imported,
+the systemd units in `ops/systemd/` are not installed, and
+[`ops/arming.toml`](ops/arming.toml) says `false` three times. `make preflight`
+names the two verbs (`validate`, `publish release`) that still have to be real
+before a publication can complete at all. The whole procedure, including the
+one credential a human has to create, is
+[`docs/runbooks/sunday-automation.md`](docs/runbooks/sunday-automation.md).
 
 Run the CLI through `uv run cfbpoll ...`. That is what the make targets do and it
 works without activating anything.

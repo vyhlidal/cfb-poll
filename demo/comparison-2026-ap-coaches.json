@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "slug": "ap-coaches",
+  "season": 2026,
+  "mode": "board",
+  "slice": [1, 25],
+  "unranked_at": 26,
+  "eyebrow": "2026 preseason · three boards",
+  "label": "THEIR PRESEASON POLL. OUR PRESEASON PROJECTION.",
+  "headline": "The AP and Coaches boards are ballots cast in August. This column is a model that read five seasons of results and no ballots at all.",
+  "ours": {
+    "name": "The Poll",
+    "kind": "projection"
+  },
+  "footer_lines": [
+    "recipe projection-3.0.0 · the poll grades this from week 5",
+    "AP and Coaches preseason polls as published 2026-08-17 · read from espn.com"
+  ],
+  "verification": {
+    "checked_on": "2026-08-17",
+    "note": "apnews.com refused the request and collegepollarchive.com had not posted the 2026 preseason polls yet, so the ranks below were read off ESPN's poll feed and cross-checked against CBS Sports, SI, Fox Sports, Yahoo and FBSchedules. Six sources agree on the order of both boards. The AP tie at 14 is confirmed by three sources carrying vote points: BYU and USC each drew 839, and the AP publishes no 15.",
+    "cross_checked": [
+      "https://www.espn.com/college-football/rankings",
+      "https://www.cbssports.com/college-football/news/ap-top-25-preseason-2026-ohio-state-oregon-college-football-rankings/",
+      "https://www.si.com/fannation/college/cfb-hq/rankings/college-football-rankings-ap-top-25-preseason-poll-2026",
+      "https://fbschedules.com/college-football-rankings-2026-preseason-coaches-poll-released/"
+    ]
+  },
+  "boards": [
+    {
+      "name": "AP",
+      "kind": "poll",
+      "released": "2026-08-17",
+      "source": "https://www.espn.com/college-football/rankings",
+      "note": "BYU and USC are tied at 14 on 839 points each. The AP publishes no 15; Michigan is 16.",
+      "ranks": {
+        "Ohio State": 1,
+        "Oregon": 2,
+        "Georgia": 3,
+        "Notre Dame": 4,
+        "Texas": 5,
+        "Indiana": 6,
+        "Miami": 7,
+        "Texas A&M": 8,
+        "Ole Miss": 9,
+        "Oklahoma": 10,
+        "LSU": 11,
+        "Texas Tech": 12,
+        "Alabama": 13,
+        "BYU": 14,
+        "USC": 14,
+        "Michigan": 16,
+        "Washington": 17,
+        "Penn State": 18,
+        "SMU": 19,
+        "Tennessee": 20,
+        "Utah": 21,
+        "Iowa": 22,
+        "Houston": 23,
+        "Louisville": 24,
+        "Missouri": 25
+      }
+    },
+    {
+      "name": "Coaches",
+      "kind": "poll",
+      "released": "2026-08-17",
+      "source": "https://www.espn.com/college-football/story/_/id/49530063/ohio-state-oregon-atop-college-football-preseason-coaches-poll",
+      "note": "No ties and no skipped ranks.",
+      "ranks": {
+        "Ohio State": 1,
+        "Oregon": 2,
+        "Georgia": 3,
+        "Texas": 4,
+        "Notre Dame": 5,
+        "Indiana": 6,
+        "Miami": 7,
+        "Texas A&M": 8,
+        "Oklahoma": 9,
+        "Ole Miss": 10,
+        "Alabama": 11,
+        "Texas Tech": 12,
+        "LSU": 13,
+        "USC": 14,
+        "BYU": 15,
+        "Michigan": 16,
+        "Penn State": 17,
+        "Tennessee": 18,
+        "Washington": 19,
+        "SMU": 20,
+        "Utah": 21,
+        "Iowa": 22,
+        "Clemson": 23,
+        "Houston": 24,
+        "Missouri": 25
+      }
+    }
+  ]
+}

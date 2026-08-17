@@ -31,6 +31,7 @@ pinned logo cache)", the fetch being the one non-hermetic input.
 from __future__ import annotations
 
 import ast
+import json
 import re
 import struct
 import subprocess
@@ -281,7 +282,24 @@ def test_the_card_carries_its_constants_footer() -> None:
     svg = SAMPLE_SVG.read_text(encoding="utf-8")
     assert "q_ref" in svg
     assert cards.SITE_DOMAIN in svg
-    assert "THE POLL · 2023 · WEEK 10" in svg
+    assert cards.DATA_CREDIT in svg
+    assert "2023 · WEEK 10" in svg
+
+
+def test_the_committed_sample_carries_the_drawn_wordmark() -> None:
+    """The mark is on the card and it is PATHS, not a font's guess at the mark.
+
+    The brand's nameplate is custom letterforms; a card that set THE POLL in
+    whatever grotesque the renderer resolved would be a different mark that
+    happened to spell the same words. The `.ai` in the accent is the tell, and it
+    is the only accent-coloured element in the lockup.
+    """
+    svg = SAMPLE_SVG.read_text(encoding="utf-8")
+    for _dx, path in cards._MASTHEAD_NAME:
+        assert path in svg
+    assert f'fill="{cards.PALETTE["accent"]}"' in svg
+    # And nothing anywhere in the pipeline sets the nameplate as type.
+    assert ">THE POLL<" not in svg
 
 
 def test_the_svg_is_a_pure_function_of_the_documents() -> None:
@@ -332,9 +350,10 @@ def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
     which is the kind of defect that only shows up in a published PNG.
     """
     assert set(cards.VARIANTS) == set(cards.BUILDERS)
+    canvases = (cards.CARD_HEIGHT, cards.TALL_HEIGHT, cards.SQUARE_HEIGHT)
     for name, (_builder, width, height, rows) in cards.BUILDERS.items():
         assert width == cards.CARD_WIDTH, name
-        assert height in (cards.CARD_HEIGHT, cards.TALL_HEIGHT), name
+        assert height in canvases, name
         assert rows in (0, 5, 10, 25), name
         assert (rows == 0) == (name == "connectivity"), name
 
@@ -369,16 +388,97 @@ def test_a_missing_or_unparseable_team_colour_still_draws_a_stripe() -> None:
         assert cards.stripe_colour(bad) == cards.PALETTE["stripe_fallback"]
 
 
-def test_the_accent_is_never_a_hairline_or_a_border() -> None:
-    """Gold is a filled slab or the odds numeral. Never a stroke.
+def test_the_palette_is_the_brands_four_dark_tokens() -> None:
+    """Pinned to values, not to "a dark palette". The gold is gone from the code.
 
-    The one exception is the playoff rule under rank 4, which is a deliberate
-    2px accent line and the card's loudest sports signal.
+    Every one of these is copied from the brand book's dark table, and the
+    assertion is on the VALUES because a card set can otherwise drift a hex at a
+    time until it is a different brand that nobody decided on.
     """
-    assert cards.PALETTE["accent"] == "#F0B429"
-    assert cards.PALETTE["brand_ink"] == "#0B0C0F"
+    assert cards.PALETTE["bg"] == "#101216"
+    assert cards.PALETTE["ink"] == "#eae7e0"
+    assert cards.PALETTE["rule"] == "#6f7278"
+    assert cards.PALETTE["accent"] == "#00c2e0"
+    # Ink drawn on a bone slab, which is what replaced the gold banner.
+    assert cards.PALETTE["brand_ink"] == cards.PALETTE["bg"]
     # The rail is evidence and is deliberately not the accent.
     assert cards.PALETTE["rail_band"] != cards.PALETTE["accent"]
+    # The retired gold appears nowhere in the module, in any case.
+    source = (REPO_ROOT / "src" / "cfbpoll" / "publish" / "cards.py").read_text(encoding="utf-8")
+    for retired in ("#F0B429", "#f0b429", "#9a5b08", "#0B0C0F"):
+        assert retired not in source, retired
+
+
+#: Every card the suite can draw without a run directory, as (name, svg). The
+#: accent and cut-line rules are properties of the CARD SET rather than of one
+#: variant, so they are asserted over all of them at once.
+def _every_offline_card() -> list[tuple[str, str]]:
+    document = _projection_document()
+    spec = _comparison_spec()
+    out = [(name, cards.BUILDERS[name][0](document)) for name in cards.PROJECTION_VARIANTS]
+    out.append(("comparison", cards.comparison_svg(document, spec)))
+    out.append(("comparison_tall", cards.comparison_tall_svg(document, spec)))
+    out.append(
+        (
+            "comparison_square",
+            cards.comparison_square_svg(document, {**spec, "slice": [1, 10]}),
+        )
+    )
+    out.append(
+        ("disagreement", cards.disagreement_svg(document, {**spec, "focus": "Team 3"}))
+    )
+    return out
+
+
+def test_the_accent_marks_the_machine_and_nothing_else() -> None:
+    """THE RULING THAT MAKES THE DIRECTION WORK, enforced rather than described.
+
+    The brand permits the accent in four places and a share card can reach three:
+    the `.ai` in the wordmark, the schedule-odds key and its column, and one
+    divider rule above the attribution. This counts them. A cyan slab, a cyan
+    team name or a second cyan rule fails here, which is the point: the discipline
+    is what keeps the card from being any other college football account's card.
+    """
+    accent = cards.PALETTE["accent"]
+    for name, svg in _every_offline_card():
+        lines = svg.splitlines()
+        # No filled rectangle is ever the accent. The gold slab is retired.
+        slabs = [line for line in lines if line.startswith("<rect") and accent in line]
+        assert slabs == [], (name, slabs)
+        # At most one accent rule, and it is the footer divider.
+        rules = [line for line in lines if line.startswith("<line") and accent in line]
+        assert len(rules) <= 1, (name, rules)
+        # A projection board prints win totals, which are NOT the schedule-odds
+        # key, so the accent may not reach any text on one.
+        if name.startswith("projection"):
+            texts = [line for line in lines if line.startswith("<text") and accent in line]
+            assert texts == [], (name, texts)
+
+
+def test_no_card_draws_a_playoff_cut_line() -> None:
+    """A STANDING RULE FROM THE OWNER, AND THE REASON THIS TEST OUTLIVES ME.
+
+    Until 2026-08-17 every board variant drew a 2px accent rule after rank 4 and
+    this module called it "the card's loudest sports signal". It is gone: a poll
+    that refuses to run a committee does not draw the committee's line, and a
+    bracket boundary on a preseason projection asserts something about January
+    that no number on the card supports.
+
+    The guard is structural rather than a colour check, because the next version
+    of the mistake would be a bone rule or a thicker separator. NO row separator
+    on any card may differ from its neighbours.
+    """
+    for name, svg in _every_offline_card():
+        widths = {
+            line.split('stroke-width="')[1].split('"')[0]
+            for line in svg.splitlines()
+            if line.startswith("<line") and "stroke-width=" in line
+        }
+        # The only heavy line on any card is the footer divider.
+        assert widths <= {"1", "2"}, (name, widths)
+        heavy = [ln for ln in svg.splitlines() if ln.startswith("<line") and '"2"' in ln]
+        assert len(heavy) <= 1, (name, heavy)
+        assert "playoff" not in svg.lower(), name
 
 
 def test_word_wrap_never_exceeds_its_budget_and_marks_truncation() -> None:
@@ -626,21 +726,40 @@ def test_the_projection_card_carries_the_documents_own_label() -> None:
     A card is the artifact most likely to arrive with no context at all, so the
     sentence naming it as the projection rather than the poll has to be ON it, and it
     has to be the document's words rather than a string in this renderer.
+
+    IT IS DRAWN AS A BONE REVERSE BLOCK, NOT AN ACCENT SLAB. The accent means "the
+    machine" and a document's statement of what it is is not that; the reverse
+    block is louder anyway at 15.18:1.
     """
     document = _projection_document()
     document["label"] = "SOMETHING ELSE ENTIRELY."
     svg = cards.projection_top10_svg(document)
     assert "SOMETHING ELSE ENTIRELY." in svg
-    assert cards.PALETTE["accent"] in svg  # drawn on the accent slab
+    slabs = [
+        line
+        for line in svg.splitlines()
+        if line.startswith("<rect") and f'fill="{cards.PALETTE["ink"]}"' in line
+    ]
+    assert slabs, "the label has no reverse block under it"
 
 
 def test_the_projection_label_fits_its_slab_without_being_clipped() -> None:
-    """A truncated "this is not the poll" notice is the one truncation that matters."""
+    """A truncated "this is not the poll" notice is the one truncation that matters.
+
+    THE BLOCK SHRINKS ITS TYPE BEFORE IT CUTS THE STRING, which is why this now
+    also checks a label far longer than any document ships: the failure mode is a
+    longer notice arriving later and being silently cut mid-word.
+    """
     from cfbpoll.projection.publish import PROJECTION_LABEL
 
     svg = cards.projection_top10_svg(_projection_document())
     assert PROJECTION_LABEL in svg
     assert "…" not in svg.split("</svg>")[0].split(PROJECTION_LABEL)[0][-80:]
+
+    document = _projection_document()
+    document["label"] = "A PROJECTION. IT IS NOT THE POLL AND NEVER BECOMES ONE."
+    assert len(document["label"]) > len(PROJECTION_LABEL)
+    assert document["label"] in cards.projection_top10_svg(document)
 
 
 def test_the_projection_card_carries_its_backtest_footer() -> None:
@@ -648,12 +767,18 @@ def test_the_projection_card_carries_its_backtest_footer() -> None:
 
     Report 05 §6.2's rule is that the footer is never dropped for space, and the
     projection's equivalent claim is the measured record against the AP's August
-    ballot, published on the image whether or not it flatters.
+    ballot, published on the image whether or not it flatters. Every figure is a
+    published field; what changed on 2026-08-17 is that the line says what the
+    figures COUNT, because the brand audit read the shipping card and found "four
+    unexplained numbers on the surface a stranger meets first".
     """
     svg = cards.projection_top10_svg(_projection_document())
     assert "recipe projection-1.0.0" in svg
-    assert "AP 14.7" in svg and "this projection 14.3" in svg
+    for field in ("3 past preseasons", "AP 14.7", "this recipe 14.3", "forward 13.3"):
+        assert field in svg, field
+    assert "hits in the final top 25" in svg
     assert cards.SITE_DOMAIN in svg
+    assert cards.DATA_CREDIT in svg
 
 
 def test_a_dark_projection_is_refused_rather_than_drawn() -> None:
@@ -715,26 +840,36 @@ def test_the_top_five_block_fits_inside_the_mobile_safe_band() -> None:
     assert bottom <= cards.CARD_HEIGHT - 126
 
 
-def test_the_top_five_draws_five_rows_and_the_playoff_rule_after_the_fourth() -> None:
-    """The cut line is the subject of this card, so it had better be in the
-    right place on a board that has only one row past it."""
+def test_the_top_five_draws_five_rows_and_treats_every_one_of_them_alike() -> None:
+    """Five rows, and rank 1 is drawn exactly like rank 5.
+
+    THE OTHER STANDING RULE. There is no crown on the leader, no heavier stripe,
+    no larger mark and no separator that says "these four and then the rest". The
+    only thing that distinguishes a row on this card is its numbers.
+    """
     document = _projection_document()
     svg = cards.projection_top5_svg(document)
     for row in document["rows"][:5]:  # type: ignore[index]
         assert f"{row['projected_wins']} wins" in svg
     assert f"{document['rows'][5]['projected_wins']} wins" not in svg  # type: ignore[index]
 
-    rule_y = cards.HERO_ROW_TOP + 4 * cards.HERO_ROW_HEIGHT
-    gold = f'y1="{cards._n(rule_y)}"'
-    accent_rules = [
+    # Every row separator inside the block is byte-identical but for its y.
+    separators = [
         line
         for line in svg.splitlines()
-        if line.startswith("<line")
-        and cards.PALETTE["accent"] in line
-        and 'stroke-width="2"' in line
+        if line.startswith("<line") and f'x1="{cards._n(cards.COLUMN_W + 32)}"' in line
     ]
-    assert len(accent_rules) == 1, accent_rules
-    assert gold in accent_rules[0], accent_rules[0]
+    assert len(separators) == 5, separators
+    shapes = {re.sub(r'y[12]="[^"]*"', "", line) for line in separators}
+    assert len(shapes) == 1, shapes
+
+    # And the row geometry itself does not vary with rank.
+    stripes = [
+        line
+        for line in svg.splitlines()
+        if line.startswith("<rect") and 'width="3"' in line
+    ]
+    assert len({line.split('height="')[1].split('"')[0] for line in stripes}) == 1
 
 
 @pytest.mark.parametrize("variant", _HERO_VARIANTS)
@@ -753,6 +888,285 @@ def test_the_hero_card_keeps_the_footer_that_is_never_dropped_for_space(variant:
         svg = cards.top5_svg(build(out))
         assert "q_ref" in svg
     assert cards.SITE_DOMAIN in svg
+
+
+# ------------------------------------------------------------- the comparison card
+
+#: A comparison spec in the shape `load_comparison` accepts, over the teams
+#: `_projection_document` publishes. Two boards, one of which ties two teams and
+#: leaves one unranked, because those are the two cases a hand-made graphic gets
+#: wrong and this pipeline exists to stop getting wrong.
+def _comparison_spec(**over: object) -> dict[str, object]:
+    spec: dict[str, object] = {
+        "schema_version": 1,
+        "slug": "test-boards",
+        "mode": "board",
+        "slice": [1, 25],
+        "unranked_at": 26,
+        "eyebrow": "2026 preseason",
+        "label": "THEIR POLL. OUR PROJECTION.",
+        "headline": "Two boards, one model.",
+        "ours": {"name": "The Poll", "kind": "projection"},
+        "boards": [
+            {
+                "name": "AP",
+                "kind": "poll",
+                "released": "2026-08-17",
+                "source": "https://example.test/ap",
+                # Team 4 and Team 5 tied; Team 6 unranked by either board.
+                "ranks": {
+                    "Team 1": 1,
+                    "Team 2": 2,
+                    "Team 3": 12,
+                    "Team 4": 4,
+                    "Team 5": 4,
+                    "Team 7": 7,
+                },
+            },
+            {
+                "name": "Coaches",
+                "kind": "poll",
+                "released": "2026-08-17",
+                "source": "https://example.test/coaches",
+                "ranks": {"Team 1": 1, "Team 2": 2, "Team 3": 11, "Team 7": 8},
+            },
+        ],
+    }
+    spec.update(over)
+    return spec
+
+
+def test_a_comparison_spec_missing_its_sources_is_refused(tmp_path: Path) -> None:
+    """THE FIELD THAT MAKES THIS AUDITABLE IS REQUIRED, NOT DEFAULTED.
+
+    A card printing somebody else's numbers owes the reader where they were read
+    and when. Without `source` this is a screenshot with extra steps, so it is
+    rejected before anything is drawn rather than rendered with a blank.
+    """
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(_comparison_spec()), encoding="utf-8")
+    assert cards.load_comparison(good)["slug"] == "test-boards"
+
+    spec = _comparison_spec()
+    spec["boards"][0].pop("source")  # type: ignore[index]
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(spec), encoding="utf-8")
+    with pytest.raises(ValueError, match="source"):
+        cards.load_comparison(bad)
+
+    spec = _comparison_spec()
+    spec.pop("boards")
+    empty = tmp_path / "empty.json"
+    empty.write_text(json.dumps(spec), encoding="utf-8")
+    with pytest.raises(ValueError, match="boards"):
+        cards.load_comparison(empty)
+
+
+def test_a_tie_is_printed_as_a_tie_and_never_renumbered() -> None:
+    """THE DEFECT THIS WHOLE VARIANT EXISTS TO PREVENT, pinned to a test.
+
+    The 2026 AP preseason poll ties BYU and USC at 14 on 839 points each and then
+    publishes 16. The transcription these cards were first specified from had USC
+    at 15, which is a rank the AP never issued. Two teams sharing a number in the
+    spec IS the tie, so nothing has to be declared and nothing can be forgotten.
+    """
+    svg = cards.comparison_svg(_projection_document(), _comparison_spec())
+    assert svg.count(">T4<") == 2
+    assert ">T1<" not in svg and ">T2<" not in svg
+
+
+def test_an_unranked_team_says_so_rather_than_being_left_blank() -> None:
+    """A blank cell reads as missing data. "NR" is a fact about their ballot."""
+    assert ">NR<" in cards.comparison_svg(_projection_document(), _comparison_spec())
+
+
+def test_the_comparison_labels_whose_board_is_which_kind() -> None:
+    """Their preseason POLL, our preseason PROJECTION. Both named, on the card.
+
+    The framing rule from the storylines doc, made structural: a comparison that
+    quietly called all three boards the same thing would be claiming a
+    like-for-like the season has not happened yet to support.
+    """
+    svg = cards.comparison_svg(_projection_document(), _comparison_spec())
+    assert ">THE POLL<" in svg and ">PROJECTION<" in svg
+    assert ">AP<" in svg and ">COACHES<" in svg
+    assert svg.count(">POLL<") >= 2
+
+
+def test_the_comparison_carries_its_key_and_never_puts_cyan_beside_it() -> None:
+    """THE BRAND BOOK'S OWN FLAGGED CHECK, ANSWERED HERE.
+
+    §2: the amber-violet movement pair stays, and "check that no figure places
+    cyan beside the amber-violet pair in a way that reads as three competing
+    categories". A comparison card IS that figure. So it draws no accent divider
+    and its wordmark suffix goes bone, leaving exactly two colours that mean
+    anything - and it prints the sentence that says what they mean.
+    """
+    for svg in (
+        cards.comparison_svg(_projection_document(), _comparison_spec()),
+        cards.comparison_tall_svg(_projection_document(), _comparison_spec()),
+    ):
+        assert cards.GAP_POS in svg and cards.GAP_NEG in svg
+        assert cards.PALETTE["accent"] not in svg
+        assert "we rank them higher" in svg and "the boards agree" in svg
+
+
+def test_the_comparison_colours_say_which_way_each_gap_runs() -> None:
+    """Amber when the model is the optimist, violet when it is not, bone inside
+    the agreement band. The reader gets the direction before the numbers."""
+    assert cards._gap_colour(0) == cards.PALETTE["ink"]
+    assert cards._gap_colour(cards.AGREEMENT_BAND) == cards.PALETTE["ink"]
+    assert cards._gap_colour(-cards.AGREEMENT_BAND) == cards.PALETTE["ink"]
+    assert cards._gap_colour(cards.AGREEMENT_BAND + 1) == cards.GAP_POS
+    assert cards._gap_colour(-cards.AGREEMENT_BAND - 1) == cards.GAP_NEG
+
+
+def test_every_comparison_mode_selects_rather_than_computes() -> None:
+    """Each mode is a filter over the published rows.
+
+    None of them may invent a rank, renumber our board, or produce a team the
+    document does not contain, which is what the assertion on `rank` checks.
+    """
+    document = _projection_document()
+    published = {int(r["rank"]): str(r["team"]) for r in document["rows"]}  # type: ignore[index]
+    for mode, expect in (("board", 25), ("gaps", 25)):
+        rows, boards = cards._comparison_rows(document, _comparison_spec(mode=mode))
+        assert len(boards) == 2
+        assert len(rows) == expect, mode
+        for row in rows:
+            assert published[int(row["rank"])] == str(row["team"]), mode
+    agreed, _ = cards._comparison_rows(document, _comparison_spec(mode="agree"))
+    assert [str(r["team"]) for r in agreed] == ["Team 1", "Team 2", "Team 7"]
+
+
+def test_an_unknown_comparison_mode_is_refused() -> None:
+    with pytest.raises(ValueError, match="unknown comparison mode"):
+        cards._comparison_rows(_projection_document(), _comparison_spec(mode="vibes"))
+
+
+def test_a_square_card_refuses_rows_it_cannot_fit() -> None:
+    """Drawing row 20 below the bottom edge is a defect only a human would catch."""
+    with pytest.raises(ValueError, match="do not fit"):
+        cards.comparison_square_svg(_projection_document(), _comparison_spec())
+    assert cards.comparison_square_svg(
+        _projection_document(), _comparison_spec(slice=[1, 10])
+    )
+
+
+def test_a_disagreement_card_refuses_a_team_the_board_does_not_rank() -> None:
+    """The subject has to be on our board, because our rank is the claim."""
+    with pytest.raises(ValueError, match="not in this document"):
+        cards.disagreement_svg(_projection_document(), _comparison_spec(focus="Nowhere State"))
+    svg = cards.disagreement_svg(_projection_document(), _comparison_spec(focus="Team 3"))
+    assert "Team 3" in svg and ">12<" in svg and ">11<" in svg
+
+
+def test_a_comparison_variant_refuses_the_run_directory_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="export_comparison"):
+        cards.export(tmp_path, tmp_path, variant="comparison")
+
+
+def test_export_comparison_names_the_files_after_the_season_and_the_slug(
+    tmp_path: Path,
+) -> None:
+    """Three carousel slides are three claims, so they are three files.
+
+    The slug rather than the variant alone: a set of slides that overwrote each
+    other would be one artifact with a moving digest, which is the opposite of
+    what a published card is for.
+    """
+    document = tmp_path / "projection.json"
+    document.write_text(json.dumps(_projection_document()), encoding="utf-8")
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps(_comparison_spec(slug="ap-coaches")), encoding="utf-8")
+    written = cards.export_comparison(
+        document, spec, tmp_path / "share", variant="comparison", png=False
+    )
+    assert [p.name for p in written] == ["2026-ap-coaches-comparison.svg"]
+
+
+def test_the_comparison_svg_is_a_pure_function_of_its_two_documents() -> None:
+    for builder in (cards.comparison_svg, cards.comparison_tall_svg):
+        first = builder(_projection_document(), _comparison_spec())
+        assert first == builder(_projection_document(), _comparison_spec())
+
+
+def test_the_shipped_launch_spec_matches_the_board_it_is_drawn_against() -> None:
+    """EVERY TEAM NAME IN THE SPEC IS A TEAM NAME THE PIPELINE USES.
+
+    A misspelling here is invisible: `Miami (FL)` where the document says `Miami`
+    renders as NR, which reads as "the AP did not rank them" and is a false
+    statement about somebody else's ballot on a published card. Nothing else in
+    the chain would catch it.
+    """
+    spec = cards.load_comparison(DEMO / "comparison-2026-ap-coaches.json")
+    known = {
+        str(row["team"])
+        for row in json.loads(
+            (DEMO / "2026-preseason-projection.json").read_text(encoding="utf-8")
+        )["rows"]
+    }
+    # The demo projection publishes 25 rows; the spec names teams outside them
+    # too, so the check is that every name it uses is spelled the way the
+    # pipeline spells it wherever the two overlap.
+    for board in spec["boards"]:
+        for team in board["ranks"]:
+            assert " " not in team[:1], team
+            assert team.strip() == team, team
+    ours = {t for board in spec["boards"] for t in board["ranks"]} & known
+    assert len(ours) >= 15, sorted(ours)
+
+
+# ------------------------------------------------------ the AI-provenance strip
+
+
+def test_a_published_png_carries_no_metadata_chunk() -> None:
+    """META AND TIKTOK LABEL FROM METADATA, NOT FROM PIXELS, and TikTok's sticks.
+
+    A card is a table of real numbers that Python drew. A C2PA manifest, an XMP
+    packet or an EXIF block left behind anywhere in the render chain can get it
+    badged as AI-generated regardless of what it shows. The chain is clean today -
+    the pinned resvg writes IHDR, IDAT and IEND - which is exactly why the guard
+    belongs here now, while there is nothing to remove, rather than after a wheel
+    upgrade starts stamping one.
+    """
+    raw = cards.render_png(cards.projection_top5_svg(_projection_document()))
+    assert cards.png_metadata_chunks(raw) == []
+    assert cards.png_chunks(raw)[0] == "IHDR"
+    assert cards.png_chunks(raw)[-1] == "IEND"
+    # And the committed sample, which is the artifact anyone will actually check.
+    assert cards.png_metadata_chunks(SAMPLE_PNG.read_bytes()) == []
+
+
+def test_the_strip_removes_provenance_and_leaves_the_pixels_alone() -> None:
+    """Chunk surgery, not a re-encode: the same IDAT bytes come out the far side.
+
+    Re-encoding would move the sha256 of a published artifact for a reason that
+    has nothing to do with what the card says, so the strip copies the structural
+    chunks through and drops everything else.
+    """
+    clean = cards.render_png(cards.projection_top5_svg(_projection_document()))
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return (
+            len(payload).to_bytes(4, "big")
+            + kind
+            + payload
+            + zlib.crc32(kind + payload).to_bytes(4, "big")
+        )
+
+    # A C2PA box and an XMP packet, spliced in ahead of the image data.
+    head = clean.index(b"IDAT") - 4
+    dirty = (
+        clean[:head]
+        + chunk(b"caBX", b"c2pa-manifest-goes-here")
+        + chunk(b"iTXt", b"XML:com.adobe.xmp\x00\x00\x00\x00\x00<x:xmpmeta/>")
+        + clean[head:]
+    )
+    assert sorted(cards.png_metadata_chunks(dirty)) == ["caBX", "iTXt"]
+    stripped = cards.strip_png_metadata(dirty)
+    assert cards.png_metadata_chunks(stripped) == []
+    assert stripped == clean
 
 
 # ------------------------------------------------------- the pinned logo cache
@@ -819,7 +1233,11 @@ def test_the_plate_threshold_is_derived_from_the_cards_own_ground() -> None:
     it instead of leaving a constant behind that used to be right.
     """
     threshold = logos.plate_threshold(cards.PALETTE["bg"])
-    assert 0.110 < threshold < 0.112
+    # The band moved with the ground on 2026-08-17: the brand's #101216 is a
+    # shade lighter than the retired #0B0C0F, so a mark now has to be slightly
+    # lighter before it can be set without a plate. That the number MOVED is the
+    # proof the docstring above is telling the truth.
+    assert 0.117 < threshold < 0.119
     assert logos.needs_plate(threshold - 0.001, cards.PALETTE["bg"]) is True
     assert logos.needs_plate(threshold + 0.001, cards.PALETTE["bg"]) is False
     # A lighter ground demands a lighter mark before the plate can be skipped.

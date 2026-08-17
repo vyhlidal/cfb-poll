@@ -1608,14 +1608,22 @@ def publish_cards(
         str,
         typer.Option(
             help="Card variant: connectivity, top5, top10, top25_x, top25_instagram, "
-            "projection_top5, projection_top10, projection_top25."
+            "projection_top5, projection_top10, projection_top25, comparison, "
+            "comparison_tall, comparison_square, disagreement."
         ),
     ] = "connectivity",
     projection: Annotated[
         Path | None,
         typer.Option(
-            help="The published projection.json a projection_* variant draws. "
-            "Required for those, ignored by the rest."
+            help="The published projection.json a projection_* variant draws, and "
+            "the board a comparison card puts its own column from. Ignored by the rest."
+        ),
+    ] = None,
+    compare: Annotated[
+        Path | None,
+        typer.Option(
+            help="A comparison spec: the external boards, their ranks and the URL "
+            "each was read from. Required by the comparison and disagreement variants."
         ),
     ] = None,
     backtest: Annotated[
@@ -1653,7 +1661,17 @@ def publish_cards(
     """
     from cfbpoll.publish import cards
 
-    if variant in cards.PROJECTION_VARIANTS:
+    if variant in cards.COMPARISON_VARIANTS:
+        if projection is None or compare is None:
+            raise typer.BadParameter(
+                f"{variant} draws a published board beside external ones. Pass both "
+                "--projection <data root>/<season>/projection.json and --compare "
+                "<spec>.json."
+            )
+        written = cards.export_comparison(
+            projection, compare, out, variant=variant, png=png, fetch_logos=fetch_logos
+        )
+    elif variant in cards.PROJECTION_VARIANTS:
         if projection is None:
             raise typer.BadParameter(
                 f"{variant} draws the published projection document. Pass "

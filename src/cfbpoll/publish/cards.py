@@ -142,6 +142,7 @@ __all__ = [
     "png_metadata_chunks",
     "projection_top5_svg",
     "projection_top10_svg",
+    "grid_svg",
     "projection_top25_svg",
     "render_png",
     "stripe_colour",
@@ -213,6 +214,10 @@ PROJECTION_VARIANTS: tuple[str, ...] = (
     "projection_top5",
     "projection_top10",
     "projection_top25",
+    # The all-teams grid. Same input as the three above and the same refusal on a
+    # dark document, so it belongs in the same family; what it needs that they do
+    # not is a document published with more than 25 rows.
+    "projection_grid",
 )
 
 #: The variants that draw OUR BOARD BESIDE SOMEBODY ELSE'S. They take two inputs -
@@ -1847,6 +1852,100 @@ def strip_png_metadata(raw: bytes) -> bytes:
     return bytes(out)
 
 
+# --------------------------------------------------------------------- the grid
+
+#: How many teams sit across the all-teams grid. Seven, because 1200px of width
+#: at seven columns leaves 160 per cell, which holds a two-digit rank, a mark big
+#: enough to identify a school and a four-character abbreviation without any of
+#: the three touching. Six columns wastes the width and eight puts the mark and
+#: the letters in the same 20 pixels.
+GRID_COLUMNS = 7
+
+
+def grid_svg(document: dict[str, Any]) -> str:
+    """Every ranked team on one card. The format this brand had to survive.
+
+    THE ONE DECISION THAT GOVERNS THIS CARD, and it is the brand book's: **we
+    never flood a cell with a school's colour.** The graphics this format is
+    borrowed from fill every tile with team colours, and the result belongs to the
+    schools rather than to the poll that made it - 138 colour schemes fighting,
+    and a card that could be any conference's promo. Ours keeps our own ground,
+    sets the rank numeral in the board face, draws the school's mark small for
+    identification, and gives the school's colour exactly the 3px stripe every
+    other board on this card set already gives it.
+
+    That is what keeps the card ours, and it is the same independence promise the
+    site prints above the board: a poll with no favourites does not wear
+    anybody's palette, not even 138 of them at once.
+
+    ORDERED BY RANK, ACROSS THE ROWS. A reader looking for one team scans for a
+    mark, and a reader looking at the shape of the board reads it like a page. An
+    alphabetical grid would serve the first better and the second not at all, and
+    the second is what a ranking card is for.
+    """
+    rows = _projection_rows(document, 138)
+    season = int(document["season"])
+
+    parts = _card_open(CARD_WIDTH, TALL_HEIGHT, f"All {len(rows)} teams, {season} preseason")
+    parts.extend(
+        _top_banner(
+            CARD_WIDTH,
+            300.0,
+            eyebrow=PROJECTION_EYEBROW.format(season=season),
+            label=str(document.get("label") or "") or None,
+            thesis=f"Every one of the {len(rows)} teams the model rates, in order.",
+            thesis_size=26,
+            accent=PALETTE["accent"],
+        )
+    )
+
+    x, top = 40.0, 336.0
+    width = CARD_WIDTH - 80
+    cell_w = width / GRID_COLUMNS
+    lines = (len(rows) + GRID_COLUMNS - 1) // GRID_COLUMNS
+    cell_h = min(56.0, (TALL_HEIGHT - FOOTER_HEIGHT - 20 - top) / lines)
+
+    for index, row in enumerate(rows):
+        column, line = index % GRID_COLUMNS, index // GRID_COLUMNS
+        cx, cy = x + column * cell_w, top + line * cell_h
+        mid = cy + cell_h / 2
+        parts.append(_slab(cx, cy + 3, 3, cell_h - 6, stripe_colour(row.get("mark_bg"))))
+        # THE LANE IS SIZED FOR THREE DIGITS BECAUSE THIS CARD HAS THREE-DIGIT
+        # RANKS. Every other board on this card set tops out at 25 and a 1.32
+        # lane is right for it; here the lane has to hold 138, and the first
+        # version of this grid ran the numeral into the school's mark from rank
+        # 100 down.
+        rank_size = cell_h * 0.42
+        rank_lane = rank_size * 1.95
+        parts.append(
+            _num(cx + 10 + rank_lane, mid + rank_size * 0.34, str(int(row["rank"])),
+                 size=rank_size, fill=PALETTE["ink"])
+        )
+        mark_r = cell_h * 0.27
+        mark_cx = cx + 16 + rank_lane + mark_r
+        parts.append(_mark(mark_cx, mid, mark_r, row))
+        name_size = cell_h * 0.30
+        parts.append(
+            _text(mark_cx + mark_r + 7, mid + name_size * 0.34,
+                  _clip(str(row.get("abbreviation") or row.get("team") or ""), 5),
+                  size=name_size, fill=PALETTE["ink"], weight="600", family=FONT_DISPLAY)
+        )
+        if column < GRID_COLUMNS - 1:
+            parts.append(
+                f'<line x1="{_n(cx + cell_w)}" y1="{_n(cy + 4)}" x2="{_n(cx + cell_w)}" '
+                f'y2="{_n(cy + cell_h - 4)}" stroke="{PALETTE["rule"]}" stroke-width="1" '
+                f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
+            )
+        if column == 0 and line:
+            parts.append(
+                _rule(x, cy, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)
+            )
+
+    parts.extend(_projection_footer(document, CARD_WIDTH, TALL_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 # --------------------------------------------------------------- the comparison
 #
 # THE DISAGREEMENT CARD IS A PIPELINE PRODUCT, WHICH IS THE WHOLE POINT OF THIS
@@ -2459,11 +2558,15 @@ def disagreement_svg(document: dict[str, Any], spec: dict[str, Any]) -> str:
                 f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
             )
 
-    parts.append(_rule(COLUMN_X, 420, CARD_WIDTH - COLUMN_X * 2, stroke=PALETTE["rule"]))
-    y = 452.0
+    parts.append(_rule(COLUMN_X, 414, CARD_WIDTH - COLUMN_X * 2, stroke=PALETTE["rule"]))
+    # THE SENTENCE ENDS INSIDE THE MOBILE SAFE BAND. Three lines from 444 at
+    # 26px leading finish at 496, six pixels above the crop X takes on a phone.
+    # A one-football-sentence card whose last line is cropped off is a card
+    # with no sentence on it.
+    y = 444.0
     for line in _wrap(str(spec.get("sentence") or ""), 92, 3):
         parts.append(_text(COLUMN_X, y, line, size=22, fill=PALETTE["ink"], family=FONT_DISPLAY))
-        y += 28
+        y += 26
 
     parts.extend(
         _footer(_comparison_footer_lines(document, spec), CARD_WIDTH, CARD_HEIGHT,
@@ -2559,6 +2662,13 @@ BUILDERS: dict[str, Any] = {
     "projection_top5": (lambda d: projection_top5_svg(d), CARD_WIDTH, CARD_HEIGHT, 5),
     "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
     "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT, 25),
+    # 138, AND THE COST IS ACCEPTED RATHER THAN AVOIDED. The row count is what
+    # the export path warms the cache from, and a grid warmed to 25 draws the top
+    # of the board with real marks and the rest with generated discs - which reads
+    # as a card that failed to load rather than as a design. The owner's rule is
+    # real school logos everywhere, so this variant pays for a hundred-odd extra
+    # fetches, once, into a cache every later card reuses.
+    "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, TALL_HEIGHT, 138),
     # The comparison variants take TWO documents. Same table anyway, and their
     # row count is 25 because that is the most rows any of them can draw and the
     # count is what the export path warms the logo cache from - warming fewer than

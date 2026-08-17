@@ -5,11 +5,47 @@
   "alpha_floor": 32,
   "logos": [
     {
+      "team_id": 2,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2.png&w=128&h=128",
+      "sha256": "4772c0f842c1e23caeac179f611686da0ee988df13d88cb7ed0bfa837274b2fd",
+      "length": 5459,
+      "background": "#101216",
+      "luminance": 0.513025,
+      "plate": false
+    },
+    {
+      "team_id": 5,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/5.png&w=128&h=128",
+      "sha256": "2f3f311bab5a2f3c66994b19fc015aca3d4a644f8e304de131deae08885bdbbb",
+      "length": 11688,
+      "background": "#101216",
+      "luminance": 0.196169,
+      "plate": false
+    },
+    {
+      "team_id": 6,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/6.png&w=128&h=128",
+      "sha256": "dbf15c03cfafc691474d2b855eba2bda8573318d7ba4a9a718f332da5bc70cde",
+      "length": 11241,
+      "background": "#101216",
+      "luminance": 0.714579,
+      "plate": false
+    },
+    {
+      "team_id": 8,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/8.png&w=128&h=128",
+      "sha256": "10b1ac49bb2ca84ed2d1c820eadcfee4bc42cacffeac17559ff2467c8bc31ba8",
+      "length": 5751,
+      "background": "#101216",
+      "luminance": 0.064233,
+      "plate": true
+    },
+    {
       "team_id": 9,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/9.png&w=128&h=128",
       "sha256": "b629c3a2f2d70d4a9c6d513cf937be25eb0ca746e2960502961372b0305d0db6",
       "length": 8677,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.409118,
       "plate": false
     },
@@ -23,12 +59,57 @@
       "plate": false
     },
     {
+      "team_id": 16,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/16.png&w=128&h=128",
+      "sha256": "5252a6779a96125d72ef3343a96d2be803bcc9357b255f68849516d49f41fa15",
+      "length": 7929,
+      "background": "#101216",
+      "luminance": 0.539404,
+      "plate": false
+    },
+    {
       "team_id": 21,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/21.png&w=128&h=128",
       "sha256": "c47067a770f39ee6f7b01e3ac4b52fd24c8255e0a88dbfe47409c76ddb0ce37a",
       "length": 6125,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.291918,
+      "plate": false
+    },
+    {
+      "team_id": 23,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/23.png&w=128&h=128",
+      "sha256": "fe17cf279c46640138e05595b2d5aa51f9b3e0f3695bd760a4847467965b5542",
+      "length": 12535,
+      "background": "#101216",
+      "luminance": 0.521355,
+      "plate": false
+    },
+    {
+      "team_id": 24,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/24.png&w=128&h=128",
+      "sha256": "397371bc31c3d977d61ce21ed3118688b7f5c9f39de793f19d6029fc9e4c0ca2",
+      "length": 6202,
+      "background": "#101216",
+      "luminance": 0.377789,
+      "plate": false
+    },
+    {
+      "team_id": 25,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/25.png&w=128&h=128",
+      "sha256": "7d51e2e781f9cc9dd8f0340b34ee092193432a8faad6bb6c24312fb36bb5d71b",
+      "length": 6531,
+      "background": "#101216",
+      "luminance": 0.623125,
+      "plate": false
+    },
+    {
+      "team_id": 26,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/26.png&w=128&h=128",
+      "sha256": "07ec00fccee111b24be6457bd5b622f4fd9857d839af08c1af6b86e7d12fe3ee",
+      "length": 7794,
+      "background": "#101216",
+      "luminance": 0.264074,
       "plate": false
     },
     {
@@ -41,6 +122,42 @@
       "plate": false
     },
     {
+      "team_id": 36,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/36.png&w=128&h=128",
+      "sha256": "15e19e96a255d6891f77b38a4642f1f4ff9ca96153b3942a9af93558c39e325a",
+      "length": 13647,
+      "background": "#101216",
+      "luminance": 0.43254,
+      "plate": false
+    },
+    {
+      "team_id": 38,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/38.png&w=128&h=128",
+      "sha256": "180bb346e815555cee1f675ba97daf7c127ba50df0e2acd0994e7dc4605dd538",
+      "length": 6987,
+      "background": "#101216",
+      "luminance": 0.208566,
+      "plate": false
+    },
+    {
+      "team_id": 41,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/41.png&w=128&h=128",
+      "sha256": "44dbeeed72a3662ebddbd28f6fa5d3c2e936833a14998a9d2a97ddf9c37e95af",
+      "length": 10876,
+      "background": "#101216",
+      "luminance": 0.378086,
+      "plate": false
+    },
+    {
+      "team_id": 48,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/48.png&w=128&h=128",
+      "sha256": "f7e8b6efa21225da27fda9d03ccc21aeaca338afde51f79603580eb6a00c1d92",
+      "length": 11485,
+      "background": "#101216",
+      "luminance": 0.331864,
+      "plate": false
+    },
+    {
       "team_id": 52,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/52.png&w=128&h=128",
       "sha256": "1b2945fbe79f8b20b1e5a57c3a8e7df8e0820beeb56638fde195d7bd1f6e35ca",
@@ -50,12 +167,39 @@
       "plate": false
     },
     {
+      "team_id": 55,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/55.png&w=128&h=128",
+      "sha256": "f105811e474b762bbddebc4015d1f46c5877d824c1ad1fd4d20bd23724c7a458",
+      "length": 9430,
+      "background": "#101216",
+      "luminance": 0.130349,
+      "plate": false
+    },
+    {
+      "team_id": 57,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/57.png&w=128&h=128",
+      "sha256": "ffa5a6f3eecda0c48f5005ae3920659385d63c4c4f16d36832c97813d70ebde7",
+      "length": 13642,
+      "background": "#101216",
+      "luminance": 0.249386,
+      "plate": false
+    },
+    {
       "team_id": 58,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/58.png&w=128&h=128",
       "sha256": "bfde6b8f7fb7d0a247c6c7f9e76756ae54166e6f864c6629e3c8c8089651abdd",
       "length": 9078,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.379884,
+      "plate": false
+    },
+    {
+      "team_id": 59,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/59.png&w=128&h=128",
+      "sha256": "3586fb6eac7fdd0e4e4076428a592fda96e2c33b03363ff1c5665b345363d4e8",
+      "length": 4499,
+      "background": "#101216",
+      "luminance": 0.579305,
       "plate": false
     },
     {
@@ -68,12 +212,39 @@
       "plate": false
     },
     {
+      "team_id": 62,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/62.png&w=128&h=128",
+      "sha256": "35d28163af42152a0b68da4b7910a0a269c4f8835d922adc9367d87b8724bf3a",
+      "length": 9343,
+      "background": "#101216",
+      "luminance": 0.270624,
+      "plate": false
+    },
+    {
+      "team_id": 66,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/66.png&w=128&h=128",
+      "sha256": "268a8a6c0ab2f440da314c883825ccf578ab6e149d8fc143ecbab5fdae983d24",
+      "length": 9928,
+      "background": "#101216",
+      "luminance": 0.327048,
+      "plate": false
+    },
+    {
       "team_id": 68,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/68.png&w=128&h=128",
       "sha256": "6ec23a0f3ad1038c3af1ae4b6e17d2c5c86dfba624fd79456502bf2fb8912a16",
       "length": 11493,
       "background": "#101216",
       "luminance": 0.195788,
+      "plate": false
+    },
+    {
+      "team_id": 77,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/77.png&w=128&h=128",
+      "sha256": "271c27204a841f603bfa195c01d450c473a1c896b9f78f794223fff9fd44d604",
+      "length": 3747,
+      "background": "#101216",
+      "luminance": 0.282509,
       "plate": false
     },
     {
@@ -95,12 +266,30 @@
       "plate": false
     },
     {
+      "team_id": 96,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/96.png&w=128&h=128",
+      "sha256": "860cfc8f00cc886e075df7708b42d564296b8cdeb39861083a9ef3aabf28339f",
+      "length": 3686,
+      "background": "#101216",
+      "luminance": 0.794084,
+      "plate": false
+    },
+    {
       "team_id": 97,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/97.png&w=128&h=128",
       "sha256": "181bd49c46311ee635ca84fc41f0554944df9a28d68327222ff991aba3fe8c63",
       "length": 8528,
       "background": "#101216",
       "luminance": 0.221661,
+      "plate": false
+    },
+    {
+      "team_id": 98,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/98.png&w=128&h=128",
+      "sha256": "7896e76c8a5b958a1799a0318e0ddc770bfdd7655c32016523be3b162d62482b",
+      "length": 10197,
+      "background": "#101216",
+      "luminance": 0.25907,
       "plate": false
     },
     {
@@ -113,12 +302,57 @@
       "plate": false
     },
     {
+      "team_id": 103,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/103.png&w=128&h=128",
+      "sha256": "c73937015e31a5313e16f069cf0d6fb9242cd371dacf9a577a4f9ea8d8fc9633",
+      "length": 12476,
+      "background": "#101216",
+      "luminance": 0.300683,
+      "plate": false
+    },
+    {
+      "team_id": 113,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/113.png&w=128&h=128",
+      "sha256": "ab172821fce6cadc05149c7c6cbb75e5dd3662d48610b2c442c81a49728748a5",
+      "length": 9194,
+      "background": "#101216",
+      "luminance": 0.457264,
+      "plate": false
+    },
+    {
+      "team_id": 120,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/120.png&w=128&h=128",
+      "sha256": "241161f951308a79722e6286817364b43cc4f19f7fdf9c0da0e42e1b5df2b141",
+      "length": 6923,
+      "background": "#101216",
+      "luminance": 0.25038,
+      "plate": false
+    },
+    {
+      "team_id": 127,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/127.png&w=128&h=128",
+      "sha256": "977aa6e736031a95349c7a8717c7b75cbbab2c1efe4435438409d25f3745d8f1",
+      "length": 5880,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
       "team_id": 130,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/130.png&w=128&h=128",
       "sha256": "69d9db3cb2cd52bf2aaa5dc9097bde5ce1361bb9f567df6742268a56f3b53db6",
       "length": 2230,
       "background": "#101216",
       "luminance": 0.642533,
+      "plate": false
+    },
+    {
+      "team_id": 135,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/135.png&w=128&h=128",
+      "sha256": "a9040ef2bd36fdb3905dfb230d608a175c99db691975de9939de9b6e32394fad",
+      "length": 5238,
+      "background": "#101216",
+      "luminance": 0.144528,
       "plate": false
     },
     {
@@ -140,12 +374,129 @@
       "plate": false
     },
     {
+      "team_id": 150,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/150.png&w=128&h=128",
+      "sha256": "412d7232ac8e1dcd249450e2eeb52b546997947e4803d4ec3147b9875aac9d15",
+      "length": 2227,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
+      "team_id": 151,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/151.png&w=128&h=128",
+      "sha256": "224d1d2f0191d01fb838aaa6d7cfe580c0da903d9f515bbf0658f29c5f78df3a",
+      "length": 15442,
+      "background": "#101216",
+      "luminance": 0.368062,
+      "plate": false
+    },
+    {
+      "team_id": 152,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/152.png&w=128&h=128",
+      "sha256": "f957fdb6fceb1b5371797e886d79f7d5f2ae6461c5b632bae2a03eaa33f7cc07",
+      "length": 10770,
+      "background": "#101216",
+      "luminance": 0.353897,
+      "plate": false
+    },
+    {
+      "team_id": 153,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/153.png&w=128&h=128",
+      "sha256": "2ab3d13173841aa9abb6ec0cdd4c018586910dfb84f557dd3fe54fc0cc8ce49d",
+      "length": 7339,
+      "background": "#101216",
+      "luminance": 0.792476,
+      "plate": false
+    },
+    {
+      "team_id": 154,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/154.png&w=128&h=128",
+      "sha256": "06dc0b6bb971562a9489b7c925102fe8b8a3a0ecc601d91965fbee98502026db",
+      "length": 4181,
+      "background": "#101216",
+      "luminance": 0.494866,
+      "plate": false
+    },
+    {
+      "team_id": 158,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/158.png&w=128&h=128",
+      "sha256": "be6bf63641a6bb156d33ebd751140a0321a2aca0f0d519b930207284b8907d4d",
+      "length": 3844,
+      "background": "#101216",
+      "luminance": 0.269758,
+      "plate": false
+    },
+    {
+      "team_id": 164,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/164.png&w=128&h=128",
+      "sha256": "9a65d97ed06e83c720e33a5cd4c55ede64402d1230c97b50bd56ffdacf8c6396",
+      "length": 4272,
+      "background": "#101216",
+      "luminance": 0.30916,
+      "plate": false
+    },
+    {
+      "team_id": 166,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/166.png&w=128&h=128",
+      "sha256": "26424ec76e6b715ae94a7c2a50527083a81e55d5bb00f9ea5655a35e32845336",
+      "length": 9925,
+      "background": "#101216",
+      "luminance": 0.434886,
+      "plate": false
+    },
+    {
+      "team_id": 167,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/167.png&w=128&h=128",
+      "sha256": "52a0eaafbf0d0fdc7c204b9f6f73860e066f13d01a0d6be841c043cf45bca2b0",
+      "length": 13355,
+      "background": "#101216",
+      "luminance": 0.250142,
+      "plate": false
+    },
+    {
+      "team_id": 183,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/183.png&w=128&h=128",
+      "sha256": "cbd332661d3d45e72c8c8ad6a4131425f67c30e98ffc0fb31df76335bf15aaed",
+      "length": 2842,
+      "background": "#101216",
+      "luminance": 0.392439,
+      "plate": false
+    },
+    {
+      "team_id": 189,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/189.png&w=128&h=128",
+      "sha256": "20a53803821e66ed5bbb3d2e3c085f3303e56e835c72ddf58d83fc35f7631172",
+      "length": 8705,
+      "background": "#101216",
+      "luminance": 0.440155,
+      "plate": false
+    },
+    {
+      "team_id": 193,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/193.png&w=128&h=128",
+      "sha256": "b54521b34966479c52a51989f4ac0f3508e2d5367e078fdd91dadf96dd4adeac",
+      "length": 5516,
+      "background": "#101216",
+      "luminance": 0.26914,
+      "plate": false
+    },
+    {
       "team_id": 194,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/194.png&w=128&h=128",
       "sha256": "d6fa14e92ef815cd8c44129bb1d259e1960ecf935d181eaebca3047c956373a9",
       "length": 8118,
       "background": "#101216",
       "luminance": 0.571666,
+      "plate": false
+    },
+    {
+      "team_id": 195,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/195.png&w=128&h=128",
+      "sha256": "632a7122e9a32825632b3f802301830e5bd578cfd76a69d20e241a591300d920",
+      "length": 3387,
+      "background": "#101216",
+      "luminance": 0.383312,
       "plate": false
     },
     {
@@ -167,6 +518,15 @@
       "plate": false
     },
     {
+      "team_id": 202,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/202.png&w=128&h=128",
+      "sha256": "2e357be3fbcf0f99e7472a77c84f5c1d1fb11973fc5c56d1c4703db5aae5a87f",
+      "length": 3739,
+      "background": "#101216",
+      "luminance": 0.492267,
+      "plate": false
+    },
+    {
       "team_id": 204,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/204.png&w=128&h=128",
       "sha256": "e3c09ce932f8c6b5919b915600f2da554813983639ab97eee7a149133c124cf2",
@@ -185,11 +545,20 @@
       "plate": false
     },
     {
+      "team_id": 218,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/218.png&w=128&h=128",
+      "sha256": "b8f00426ae146d6549fb78988dc039ed9f4403849f26eb1f15b02e3b9bae3758",
+      "length": 2107,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
       "team_id": 221,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/221.png&w=128&h=128",
       "sha256": "6d86ec6c5e35b68167180dea5a4fcc9fb83ba292f04db512d90d4c648379e69a",
       "length": 6546,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.687844,
       "plate": false
     },
@@ -203,12 +572,39 @@
       "plate": false
     },
     {
+      "team_id": 235,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/235.png&w=128&h=128",
+      "sha256": "f0820400368c4bb0f0628001a07e9216a8266e63e56ab6480fdc578877bc4606",
+      "length": 12424,
+      "background": "#101216",
+      "luminance": 0.337318,
+      "plate": false
+    },
+    {
       "team_id": 238,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/238.png&w=128&h=128",
       "sha256": "7118f4e6d91250feb6884f3393d18b980597e0a4993eaced3e746d8c2ab8266c",
       "length": 5346,
       "background": "#101216",
       "luminance": 0.778721,
+      "plate": false
+    },
+    {
+      "team_id": 239,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/239.png&w=128&h=128",
+      "sha256": "6de53850e7e6eedf2d79c5103e6505adad4d5c1abf2702e6d3edd196a5d83a04",
+      "length": 2850,
+      "background": "#101216",
+      "luminance": 0.557023,
+      "plate": false
+    },
+    {
+      "team_id": 242,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/242.png&w=128&h=128",
+      "sha256": "c8888541b2d2bb75fc0f01afe8a2be8fd7d711a3f8b0c01abea65b6347d613b9",
+      "length": 5548,
+      "background": "#101216",
+      "luminance": 1.0,
       "plate": false
     },
     {
@@ -234,7 +630,7 @@
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/249.png&w=128&h=128",
       "sha256": "b95e932148b497131897524574e8f8258e3cdf7309707ae3b758c11b3603f53d",
       "length": 7057,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 1.0,
       "plate": false
     },
@@ -279,8 +675,17 @@
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/258.png&w=128&h=128",
       "sha256": "553c4f7f2ceae76d3a8f25217591c2f6f41e068b8c98bbe59016a3e762c225cc",
       "length": 9097,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.425738,
+      "plate": false
+    },
+    {
+      "team_id": 259,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/259.png&w=128&h=128",
+      "sha256": "111fcb5d96b7bcfbf1a16f1463ab3f9edf4f4eacfd5af4801d41ce3fc16a6392",
+      "length": 4841,
+      "background": "#101216",
+      "luminance": 0.683886,
       "plate": false
     },
     {
@@ -293,12 +698,102 @@
       "plate": false
     },
     {
+      "team_id": 265,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/265.png&w=128&h=128",
+      "sha256": "d567f825e43af6c47c6d30fde770d1f04fb43c41bfd61407ff6006f1668f883f",
+      "length": 10473,
+      "background": "#101216",
+      "luminance": 0.383954,
+      "plate": false
+    },
+    {
+      "team_id": 275,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/275.png&w=128&h=128",
+      "sha256": "89eed654a09aad66e485b9ecd80370af05e192c57026771a8b7f121660c6483f",
+      "length": 7794,
+      "background": "#101216",
+      "luminance": 0.324987,
+      "plate": false
+    },
+    {
+      "team_id": 276,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/276.png&w=128&h=128",
+      "sha256": "bb68ac4e70bd1d3034b51b8aead7e809903d8ffbfc1b66575b90fa5c8fb56dc5",
+      "length": 5759,
+      "background": "#101216",
+      "luminance": 0.369937,
+      "plate": false
+    },
+    {
+      "team_id": 277,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/277.png&w=128&h=128",
+      "sha256": "fdbc5fcd11bf495ef5b20b49fcac99531372e5db3334bc5adcf3a4bd8cb36744",
+      "length": 4429,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
       "team_id": 278,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/278.png&w=128&h=128",
       "sha256": "71c1d29a80ee54183a5a9ddf9e78e9382c3572663ef21d24af6eea45dbbd99f5",
       "length": 13685,
       "background": "#101216",
       "luminance": 0.531314,
+      "plate": false
+    },
+    {
+      "team_id": 290,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/290.png&w=128&h=128",
+      "sha256": "eaf3e5464d63b15fdf7abd958c2657fa1cdd13712f0c0c3c2a0ae724e32b1c72",
+      "length": 11122,
+      "background": "#101216",
+      "luminance": 0.367304,
+      "plate": false
+    },
+    {
+      "team_id": 295,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/295.png&w=128&h=128",
+      "sha256": "9ab0d398e9de4e29aa342ec16d93de11d6f42c81842645fa9e4b8203b0fef84b",
+      "length": 13110,
+      "background": "#101216",
+      "luminance": 0.339707,
+      "plate": false
+    },
+    {
+      "team_id": 309,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/309.png&w=128&h=128",
+      "sha256": "7239ee98d8c8e0782098757154b53c791362f9cfd0993e8493f50d3c2f18532a",
+      "length": 7982,
+      "background": "#101216",
+      "luminance": 0.426016,
+      "plate": false
+    },
+    {
+      "team_id": 324,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/324.png&w=128&h=128",
+      "sha256": "db94ad39a0cce8f6c7fd4adcb9d4fa604225d4b4d7ebe8451d96775f5529e38b",
+      "length": 12081,
+      "background": "#101216",
+      "luminance": 0.169951,
+      "plate": false
+    },
+    {
+      "team_id": 326,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/326.png&w=128&h=128",
+      "sha256": "a6bdfe63226c980acc3f2459ba2b501bee3b069d82d7b87b4aa794232197065b",
+      "length": 7028,
+      "background": "#101216",
+      "luminance": 0.047861,
+      "plate": true
+    },
+    {
+      "team_id": 328,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/328.png&w=128&h=128",
+      "sha256": "90fbdcb93039a831c7010bbd540b15e78f14f39fcdc4678dec84e73be210df27",
+      "length": 4600,
+      "background": "#101216",
+      "luminance": 1.0,
       "plate": false
     },
     {
@@ -311,12 +806,156 @@
       "plate": false
     },
     {
+      "team_id": 338,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/338.png&w=128&h=128",
+      "sha256": "ee55dd7c5b680b28aad6b7e2620012c8c674bde31a2fcbff2fa594bd86018628",
+      "length": 8580,
+      "background": "#101216",
+      "luminance": 0.322303,
+      "plate": false
+    },
+    {
+      "team_id": 344,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/344.png&w=128&h=128",
+      "sha256": "ec95262145dcf6b4b57c51dfa97facb841b83ef356de1ae002bbf9113a8e2448",
+      "length": 7610,
+      "background": "#101216",
+      "luminance": 0.326228,
+      "plate": false
+    },
+    {
+      "team_id": 349,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/349.png&w=128&h=128",
+      "sha256": "9589817a1e8026ef45ae3f9807500c458df4c3879eebf7a9f50ef70bbc8cd4e7",
+      "length": 9014,
+      "background": "#101216",
+      "luminance": 0.243064,
+      "plate": false
+    },
+    {
       "team_id": 356,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/356.png&w=128&h=128",
       "sha256": "1b67e02314c2f43a9b58f565b23728ef2596ad038c78a5f6e0fc5e2e1fdf8454",
       "length": 1265,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.481313,
+      "plate": false
+    },
+    {
+      "team_id": 2005,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2005.png&w=128&h=128",
+      "sha256": "3fa5da1187544e03427b9bf2218824199673446d417cc0a341eb5c9d38d11831",
+      "length": 3238,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
+      "team_id": 2006,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2006.png&w=128&h=128",
+      "sha256": "334759e7a43fe1ce1fe570c9757442056ad836d226263d3ea1ba52f3d6c9183e",
+      "length": 4404,
+      "background": "#101216",
+      "luminance": 0.697847,
+      "plate": false
+    },
+    {
+      "team_id": 2026,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2026.png&w=128&h=128",
+      "sha256": "625d8159b33ff82bf871fb38678e78b699fd8f91f1f2a53f2d65d8cb7c86d1a4",
+      "length": 6776,
+      "background": "#101216",
+      "luminance": 0.355076,
+      "plate": false
+    },
+    {
+      "team_id": 2032,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2032.png&w=128&h=128",
+      "sha256": "a2d1bbbaeda469b7379ff2a09b62f3f1e92fefd4bef39e937374814485ac06e5",
+      "length": 14671,
+      "background": "#101216",
+      "luminance": 0.172622,
+      "plate": false
+    },
+    {
+      "team_id": 2050,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2050.png&w=128&h=128",
+      "sha256": "b1e64a30015132215af4fbb6bd5e5a3103e0b88da6d2a5be3d477cd19e2acf46",
+      "length": 9021,
+      "background": "#101216",
+      "luminance": 0.284454,
+      "plate": false
+    },
+    {
+      "team_id": 2084,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2084.png&w=128&h=128",
+      "sha256": "d9bc50da48eb143fe11ad0a0bc88d1a54c7403f202b6810bb2d83a2c7b1798f8",
+      "length": 5945,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
+      "team_id": 2116,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2116.png&w=128&h=128",
+      "sha256": "137826f701f10c83d27b411ddc7295d719ebf58147f4e40ead4214cbb568daca",
+      "length": 7854,
+      "background": "#101216",
+      "luminance": 0.380641,
+      "plate": false
+    },
+    {
+      "team_id": 2117,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2117.png&w=128&h=128",
+      "sha256": "aa39e670953a7aeebfb0e9eb7399f8d244a6d705622e98ea5c99d578cda29a2c",
+      "length": 5360,
+      "background": "#101216",
+      "luminance": 0.589635,
+      "plate": false
+    },
+    {
+      "team_id": 2132,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2132.png&w=128&h=128",
+      "sha256": "ff7f55160ff23fd34d8e898563dae0c30c1e105d0d4f4ebe117a24b1956a0d3a",
+      "length": 4759,
+      "background": "#101216",
+      "luminance": 0.830779,
+      "plate": false
+    },
+    {
+      "team_id": 2199,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2199.png&w=128&h=128",
+      "sha256": "3ea73b3d1b58e66cc785449f0ea0a2dde167acfe59a23ac505e377a8610fb476",
+      "length": 1358,
+      "background": "#101216",
+      "luminance": 0.290292,
+      "plate": false
+    },
+    {
+      "team_id": 2226,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2226.png&w=128&h=128",
+      "sha256": "afb70e64816e2db7eb4818c918fc262ff0dc173585fde8c3a7d320c4f05b77cd",
+      "length": 8535,
+      "background": "#101216",
+      "luminance": 0.231434,
+      "plate": false
+    },
+    {
+      "team_id": 2229,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2229.png&w=128&h=128",
+      "sha256": "e9e3b7689e37cf774b7909516feddb78e76eafbd166570b762f9bf3e3e6905c9",
+      "length": 12511,
+      "background": "#101216",
+      "luminance": 0.310447,
+      "plate": false
+    },
+    {
+      "team_id": 2247,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2247.png&w=128&h=128",
+      "sha256": "a6129d5369498aff0a82a99921b45370d6cb83bdfc7e3dda6111598332b17cce",
+      "length": 9878,
+      "background": "#101216",
+      "luminance": 0.374422,
       "plate": false
     },
     {
@@ -347,12 +986,30 @@
       "plate": false
     },
     {
+      "team_id": 2309,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2309.png&w=128&h=128",
+      "sha256": "6898ddb9020ee42f749ef5d22a38576dcd20e2f69a641acaf0cb90450aa5e860",
+      "length": 12421,
+      "background": "#101216",
+      "luminance": 0.357707,
+      "plate": false
+    },
+    {
       "team_id": 2335,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2335.png&w=128&h=128",
       "sha256": "5cebcdd97c3e313c8a95f685c0d1f1a3e28ccec3abbd7530afc903c1d2fece98",
       "length": 12008,
       "background": "#101216",
       "luminance": 0.369177,
+      "plate": false
+    },
+    {
+      "team_id": 2348,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2348.png&w=128&h=128",
+      "sha256": "24da9b6f81da2c91544d12e25c122b5fdef8e48c6094d3e17a804fbc1e3912bd",
+      "length": 5328,
+      "background": "#101216",
+      "luminance": 0.312192,
       "plate": false
     },
     {
@@ -365,12 +1022,57 @@
       "plate": false
     },
     {
+      "team_id": 2393,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2393.png&w=128&h=128",
+      "sha256": "998d59850dd2c0504313910d1c1d39874094d8f3c0778c20d889aa1bfc1d056c",
+      "length": 8140,
+      "background": "#101216",
+      "luminance": 0.306175,
+      "plate": false
+    },
+    {
       "team_id": 2426,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2426.png&w=128&h=128",
       "sha256": "129c3b647c2d4d3b33c750130546f028befdc706b5edad49c05ba773592042f8",
       "length": 5196,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.552189,
+      "plate": false
+    },
+    {
+      "team_id": 2429,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2429.png&w=128&h=128",
+      "sha256": "eafe6c4a2850a73206550ebc58d11e5a8748ec9abe8fde7f2b825fe12d0a0ace",
+      "length": 3824,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
+      "team_id": 2433,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2433.png&w=128&h=128",
+      "sha256": "a0600e1b26589c269df69aff73d0421c421bfa7fb2e924f1d90b893ed3e08728",
+      "length": 8540,
+      "background": "#101216",
+      "luminance": 0.234565,
+      "plate": false
+    },
+    {
+      "team_id": 2439,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2439.png&w=128&h=128",
+      "sha256": "f38b45539822ca2417f16a4c888c09eb8110f78d638cd32947f5f8511f55dc31",
+      "length": 8618,
+      "background": "#101216",
+      "luminance": 0.578004,
+      "plate": false
+    },
+    {
+      "team_id": 2440,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2440.png&w=128&h=128",
+      "sha256": "89a1c0ce46b0bbdcb209612e4c7df7e1e4d80e1ae2123122a28e3f87b253761e",
+      "length": 5855,
+      "background": "#101216",
+      "luminance": 1.0,
       "plate": false
     },
     {
@@ -378,8 +1080,17 @@
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2449.png&w=128&h=128",
       "sha256": "141731317609580108900f3911645528b112d15e1c6a0ecd12c5b0e197ed4d23",
       "length": 6716,
-      "background": "#0B0C0F",
+      "background": "#101216",
       "luminance": 0.240974,
+      "plate": false
+    },
+    {
+      "team_id": 2459,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2459.png&w=128&h=128",
+      "sha256": "acb66310cfe7972d799d9f843236f4a9210662a538f58bee4fbe72f7fb611fce",
+      "length": 9289,
+      "background": "#101216",
+      "luminance": 0.282501,
       "plate": false
     },
     {
@@ -392,12 +1103,66 @@
       "plate": false
     },
     {
+      "team_id": 2509,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2509.png&w=128&h=128",
+      "sha256": "b040d548dad75065a8e7e4926e38fb9c9ac5ee34454e523ee54d834a2c08d901",
+      "length": 3712,
+      "background": "#101216",
+      "luminance": 0.300483,
+      "plate": false
+    },
+    {
+      "team_id": 2534,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2534.png&w=128&h=128",
+      "sha256": "b31ae03dc90e00231af9a721d778b8bb83b7ec73b7773824ba903cebae4aaafa",
+      "length": 3253,
+      "background": "#101216",
+      "luminance": 1.0,
+      "plate": false
+    },
+    {
       "team_id": 2567,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2567.png&w=128&h=128",
       "sha256": "3106dd815b64cf2e9549aa8527161baf4bd85194da0ad7e762e9f5fea5932610",
       "length": 5509,
       "background": "#101216",
       "luminance": 0.371925,
+      "plate": false
+    },
+    {
+      "team_id": 2572,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2572.png&w=128&h=128",
+      "sha256": "90ca37783eefdb47b7900988cbf6309c4ca92fbbe59c31fbbaebfdec8307c1b5",
+      "length": 6744,
+      "background": "#101216",
+      "luminance": 0.270156,
+      "plate": false
+    },
+    {
+      "team_id": 2579,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2579.png&w=128&h=128",
+      "sha256": "0cf11824ed5351ce2b618c58f743000b8ac7cc3c3dc52672250ff8e37fdf6c13",
+      "length": 11984,
+      "background": "#101216",
+      "luminance": 0.293663,
+      "plate": false
+    },
+    {
+      "team_id": 2623,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2623.png&w=128&h=128",
+      "sha256": "bed27924a63684c03599cbb9a838cd8fc9d5e49d526672a1e4cee9b405becf6b",
+      "length": 12023,
+      "background": "#101216",
+      "luminance": 0.251517,
+      "plate": false
+    },
+    {
+      "team_id": 2628,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2628.png&w=128&h=128",
+      "sha256": "b226b49d20048118fe8731e69afe8aba53683b7d89340645ecb4a4d118d5984c",
+      "length": 4916,
+      "background": "#101216",
+      "luminance": 0.331466,
       "plate": false
     },
     {
@@ -410,12 +1175,39 @@
       "plate": false
     },
     {
+      "team_id": 2636,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2636.png&w=128&h=128",
+      "sha256": "ef571025667cb745657adebdec186240b335878f4d8fa5350677acbf17cbb9fd",
+      "length": 6632,
+      "background": "#101216",
+      "luminance": 0.337322,
+      "plate": false
+    },
+    {
+      "team_id": 2638,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2638.png&w=128&h=128",
+      "sha256": "69c5f61da44749bda85276d19cc4fd22b8ebae178a8138a5890211b26ad147f8",
+      "length": 5334,
+      "background": "#101216",
+      "luminance": 0.372916,
+      "plate": false
+    },
+    {
       "team_id": 2641,
       "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2641.png&w=128&h=128",
       "sha256": "c6b3d76b022bba45eaf5a4d5cb4b32d7c91a962bfe27f398047ebdb8ce52fc7e",
       "length": 2065,
       "background": "#101216",
       "luminance": 0.3885,
+      "plate": false
+    },
+    {
+      "team_id": 2649,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2649.png&w=128&h=128",
+      "sha256": "dc95f1a664cd73682c9ebc699528a4efceba358df23f17ac53e793edda80bfa5",
+      "length": 6337,
+      "background": "#101216",
+      "luminance": 0.921217,
       "plate": false
     },
     {
@@ -434,6 +1226,24 @@
       "length": 12223,
       "background": "#101216",
       "luminance": 0.223117,
+      "plate": false
+    },
+    {
+      "team_id": 2711,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2711.png&w=128&h=128",
+      "sha256": "5e8a7431e13961241ffbbf5901d41b5326ffd2936d55da0d4aba6f64b95849ee",
+      "length": 8385,
+      "background": "#101216",
+      "luminance": 0.470502,
+      "plate": false
+    },
+    {
+      "team_id": 2751,
+      "url": "https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500-dark/2751.png&w=128&h=128",
+      "sha256": "64b30a7d47c8fa9e1718ce72f67078f934af87de90e4d02da9df4b3465b3b943",
+      "length": 7814,
+      "background": "#101216",
+      "luminance": 0.167126,
       "plate": false
     }
   ]

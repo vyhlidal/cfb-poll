@@ -1608,7 +1608,8 @@ def publish_cards(
         str,
         typer.Option(
             help="Card variant: connectivity, top5, top10, top25_x, top25_instagram, "
-            "projection_top5, projection_top10, projection_top25, comparison, "
+            "projection_top5, projection_top10, projection_top25, projection_grid, "
+            "comparison, "
             "comparison_tall, comparison_square, disagreement."
         ),
     ] = "connectivity",

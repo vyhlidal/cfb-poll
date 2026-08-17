@@ -354,7 +354,7 @@ def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
     for name, (_builder, width, height, rows) in cards.BUILDERS.items():
         assert width == cards.CARD_WIDTH, name
         assert height in canvases, name
-        assert rows in (0, 5, 10, 25), name
+        assert rows in (0, 5, 10, 25, 138), name
         assert (rows == 0) == (name == "connectivity"), name
 
 
@@ -697,10 +697,20 @@ def test_a_row_with_no_published_logo_falls_back_to_the_generated_mark(variant: 
 
 
 @pytest.mark.parametrize("variant", cards.PROJECTION_VARIANTS)
-def test_the_projection_card_declares_the_summary_large_image_canvas(variant: str) -> None:
-    svg = cards.BUILDERS[variant][0](_projection_document())
-    assert 'width="1200"' in svg and 'height="628"' in svg
-    assert 'viewBox="0 0 1200 628"' in svg
+def test_the_projection_card_declares_the_canvas_its_builder_table_promises(
+    variant: str,
+) -> None:
+    """The table and the SVG cannot disagree about the size of the artifact.
+
+    Three of these are the `summary_large_image` ratio and the grid is the tall
+    one, because 138 teams do not go on a 628px card at any type size a person
+    can read. The check is against `BUILDERS` rather than a literal so adding a
+    canvas is a one-line change in one place.
+    """
+    height = cards.BUILDERS[variant][2]
+    svg = cards.BUILDERS[variant][0](_projection_document(rows=138))
+    assert 'width="1200"' in svg and f'height="{height}"' in svg
+    assert f'viewBox="0 0 1200 {height}"' in svg
     assert 'role="img"' in svg and "aria-label=" in svg
 
 

@@ -31,10 +31,22 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:  # pragma: no cover - typing only, keeps import cost off the CLI path
     import polars as pl
 
-TeamId = int
-Ratings = dict[TeamId, float]
+#: THE KEY IS THE TEAM NAME, A STRING, and this annotation used to say otherwise.
+#: It declared `TeamId = int` while every rater in the package returned
+#: `{"Georgia": 18.4, ...}` off the canonical frame's `String` team columns, so
+#: the one file the documentation calls authoritative was the one file a
+#: challenger could not follow. AGENTS.md carried a paragraph telling readers to
+#: disbelieve it, which is the sign that the fix belonged here rather than in
+#: another warning. `game_id` really is an `Int64`; it is the team columns that
+#: are strings, and nothing in this package is keyed on a team id.
+#:
+#: `TeamId` is gone rather than aliased to `str`, because a name that says "id"
+#: over a value that is a school's name is the same wrong claim in a quieter
+#: voice.
+TeamName = str
+Ratings = dict[TeamName, float]
 
-__all__ = ["Rater", "Ratings", "TeamId"]
+__all__ = ["Rater", "Ratings", "TeamName"]
 
 
 @runtime_checkable
@@ -49,20 +61,37 @@ class Rater(Protocol):
     the MIT archive needs none - the license split is load-bearing architecture,
     not paperwork.
 
+    THE SIGNATURE HERE IS THE ONE THE HARNESS CALLS, and getting that wrong is
+    not a documentation defect, it is a `TypeError` on the first week. The call
+    is `rate(games, plays, through_week, state=..., config=...)`
+    (`backtest/walkforward.py`), so the three data arguments are positional and
+    everything after them arrives by keyword. A three-argument `rate` raises.
+
+    Write it exactly as the shipped example does, and default the keyword
+    arguments so a rater that needs neither can ignore both:
+
+        def rate(games, plays, through_week, config=None, state=None) -> dict[str, float]:
+
     Args:
         games: one row per game through `through_week`. Never contains a column
             banned by report 02 §3.10 - `cfbpoll audit-features` enforces this.
+            `home_team` and `away_team` are `String`.
         plays: one row per play, or None for a scores-only rater such as L2. A
             play-level rater handed None returns an empty mapping, which the
             harness reads as league average for everyone.
         through_week: the data window K. A rater must never look past it; that is
             the entire walk-forward protocol (report 02 §5.1).
+        config: the harness's own config, and it is passed on every call. A rater
+            that falls back to `load_config()` when it is None scores the DEFAULT
+            constants while claiming to have varied them, which is how a
+            sensitivity sweep publishes a number about a model nobody ran.
         state: an optional per-season cache and out-of-sample accumulator
             (model/l3_power.py). Passing None is always correct and only slower;
             a rater that does not need it must accept and ignore it.
 
     Returns:
-        A rating per team on the points scale, higher is better.
+        A rating per team NAME on the points scale, higher is better. A team you
+        omit is treated as league average, which is also what `{}` means.
     """
 
     def __call__(
@@ -70,5 +99,6 @@ class Rater(Protocol):
         games: pl.DataFrame,
         plays: pl.DataFrame | None,
         through_week: int,
+        config: dict[str, object] | None = None,
         state: object = None,
     ) -> Ratings: ...

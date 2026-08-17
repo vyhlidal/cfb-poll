@@ -32,6 +32,20 @@ and *only* the keys you want to change from `configs/default.toml`. Worked
 example: [`beta-w-4.toml`](beta-w-4.toml), which argues the 7.0-point win premium
 is too high.
 
+Start it by copying the worked example, and **not** by copying the default
+config:
+
+```bash
+cp configs/challengers/beta-w-4.toml configs/challengers/<yourname>.toml
+make challenge CHALLENGE_ENTRY=configs/challengers/<yourname>.toml
+```
+
+A copy of `configs/default.toml` is refused twice over — it carries no
+`[challenger]` block, and it overrides nothing — and the loader says so before it
+fits anything. The whole valid file is thirty lines. Note also that the verb is
+`challenge`: `cfbpoll backtest --config <a challenger entry>` is the wrong
+command and now fails with a sentence saying which one is right.
+
 A parameter variant is a claim about a constant, so the harness runs twice over
 the same seasons and the same systems — once under the default config for the
 incumbent and every baseline, once under the merged config for your row. Every

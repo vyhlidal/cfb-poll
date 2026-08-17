@@ -156,6 +156,55 @@ def test_a_module_with_no_rate_function_is_refused(tmp_path: Path) -> None:
         challenge.load_challenger(path)
 
 
+def test_the_refusals_name_the_next_step_rather_than_only_the_fault(
+    tmp_path: Path,
+) -> None:
+    """EVERY ONE OF THESE WAS A COMMAND SOMEBODY WAS TOLD TO RUN.
+
+    The published challenge page said to start an entry with
+    `cp configs/default.toml configs/challengers/<yours>.toml`, which the loader
+    refuses twice over, and a stranger following it failed on step two. A refusal
+    that only names the fault leaves them there; these name the file to copy and
+    the protocol to write."""
+    no_block = write(tmp_path, "a.toml", "[margin]\nbeta_w = 4.0\n")
+    with pytest.raises(ValueError, match="beta-w-4.toml"):
+        challenge.load_challenger(no_block)
+
+    empty = write(tmp_path, "b.toml", '[challenger]\nname = "x"\nkind = "parameter"\n')
+    with pytest.raises(ValueError, match="beta-w-4.toml"):
+        challenge.load_challenger(empty)
+
+    no_rate = write(
+        tmp_path, "c.py", 'CHALLENGER = {"name": "x", "kind": "structural"}\n'
+    )
+    with pytest.raises(ValueError, match="iterative_margin.py"):
+        challenge.load_challenger(no_rate)
+
+
+def test_the_rate_signature_the_refusal_prints_is_the_one_the_harness_calls(
+    tmp_path: Path,
+) -> None:
+    """FOUR PLACES IN THIS REPOSITORY GAVE FOUR DIFFERENT `rate` SIGNATURES and the
+    website copied the stale one, so it published a line that raises `TypeError`
+    on the first week. The error message is one of the four, so it is pinned to
+    the call `walkforward._ratings` actually makes."""
+    path = write(tmp_path, "x.py", 'CHALLENGER = {"name": "x", "kind": "structural"}\n')
+    with pytest.raises(ValueError) as excinfo:
+        challenge.load_challenger(path)
+    message = str(excinfo.value)
+    assert "rate(games, plays, through_week, config=None, state=None)" in message
+    assert "dict[str, float]" in message
+
+
+def test_pointing_the_backtest_at_a_challenger_entry_says_which_verb_to_use() -> None:
+    """It used to die on `cfg["backtest"]` with a bare `KeyError: 'backtest'`, and
+    it is the most likely wrong command anybody types: a challenger entry looks
+    like a config, so pointing the backtest at one is the obvious guess."""
+    entry = {"challenger": {"name": "x", "kind": "parameter"}, "margin": {"beta_w": 4.0}}
+    with pytest.raises(ValueError, match="make challenge CHALLENGE_ENTRY"):
+        walkforward.run_backtest(seasons=[2023], systems=["l2"], config=entry)
+
+
 def test_the_kind_must_match_the_file_extension(tmp_path: Path) -> None:
     toml = write(tmp_path, "x.toml", '[challenger]\nname = "x"\nkind = "structural"\n')
     with pytest.raises(ValueError, match="parameter variant"):

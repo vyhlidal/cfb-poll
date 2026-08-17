@@ -55,8 +55,15 @@ Short version — a challenger is either a parameter override TOML, or a module
 implementing:
 
 ```python
-def rate(games, plays, through_week) -> dict[int, float]: ...
+def rate(games, plays, through_week, config=None, state=None) -> dict[str, float]: ...
 ```
+
+Copy that line. The harness calls `rate(games, plays, through_week, state=...,
+config=...)`, so a three-argument version raises `TypeError` on the first week,
+and the keys are team NAMES (`"Georgia"`), not id numbers. The protocol in
+[`src/cfbpoll/model/__init__.py`](src/cfbpoll/model/__init__.py) says the same
+thing, and [`configs/challengers/README.md`](configs/challengers/README.md) has
+the full contract.
 
 Run it yourself first — it needs nothing but the clone:
 

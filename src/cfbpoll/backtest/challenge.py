@@ -23,7 +23,8 @@ TWO KINDS OF CHALLENGER (report 03 §7.3), and the difference is real:
      are byte-identical between them.
 
   2. STRUCTURAL VARIANT - a module exposing
-     `rate(games, plays, through_week) -> {team: rating}`. This is a claim about
+     `rate(games, plays, through_week, config=None, state=None) -> {team_name: rating}`.
+     This is a claim about
      a different model, so it is registered as one more system in a SINGLE run
      alongside the incumbent and every baseline. One walk, one set of frames, no
      merge, nothing to argue about.
@@ -122,7 +123,11 @@ def _meta(payload: dict[str, Any], entry: Path) -> dict[str, Any]:
         raise ValueError(
             f"{entry}: the [challenger] block is missing {missing}. Every entry "
             "must name itself and declare its kind, so a scorecard can say what "
-            "it scored without the reader opening the file."
+            "it scored without the reader opening the file.\n"
+            "A COPY OF configs/default.toml IS NOT AN ENTRY: it has no "
+            "[challenger] block and it overrides nothing. Start from "
+            "configs/challengers/beta-w-4.toml instead, which is thirty lines and "
+            "says so in its own header."
         )
     if block["kind"] not in ("parameter", "structural"):
         raise ValueError(
@@ -153,7 +158,9 @@ def load_challenger(entry: str | Path, config_path: str | Path | None = None) ->
             raise ValueError(
                 f"{path}: overrides nothing. A parameter variant that changes no "
                 "constant is the incumbent, and scoring it would report a tie as a "
-                "finding."
+                "finding. Keep ONLY the keys you want to change from "
+                "configs/default.toml, the way configs/challengers/beta-w-4.toml "
+                "does."
             )
         # Merge now, so an unknown key raises before any fitting happens.
         base = load_config(config_path or DEFAULT_CONFIG_PATH)
@@ -180,9 +187,15 @@ def load_challenger(entry: str | Path, config_path: str | Path | None = None) ->
         rate = getattr(module, "rate", None)
         if not callable(rate):
             raise ValueError(
-                f"{path}: no `rate` function. The protocol is "
-                "`rate(games, plays, through_week) -> dict[team, float]`, fixed in "
-                "src/cfbpoll/model/__init__.py as `Rater`."
+                f"{path}: no `rate` function. The protocol is\n"
+                "    def rate(games, plays, through_week, config=None, state=None)"
+                " -> dict[str, float]\n"
+                "fixed in src/cfbpoll/model/__init__.py as `Rater`. The harness "
+                "passes `config` and `state` by keyword on every call, so a "
+                "three-argument `rate` raises TypeError on the first week, and the "
+                "keys are team NAMES rather than ids. Copy "
+                "configs/challengers/iterative_margin.py, which is about forty "
+                "lines and is scored by this same command."
             )
         return Challenger(
             name=str(block["name"]),

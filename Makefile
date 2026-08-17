@@ -404,8 +404,19 @@ projection-chain: .venv
 # The site's 2026 card. This had no target at all until 2026-08-17 and had to be
 # remembered by hand, which is how a published board goes stale while the demo
 # beside it is current.
+#
+# IT PINS BLAS BECAUSE IT FITS, and it did not until 2026-08-17. `projection
+# fixture` runs the whole recipe: an OLS solve over the design transitions on top
+# of the walk-forward L3 power the carried ratings come off. That is a fitting
+# target under rule 3, and a multi-threaded reduction summing in a different order
+# would move a PUBLISHED rating by a digit nobody could explain. The omission was
+# silent, which is the only kind of determinism bug this project ever gets.
+#
+# It publishes the WHOLE BOARD, ~138 rows. The site renders 25; the rest exist so
+# that a claim about a row below the fold is a claim a reader can go and check.
 projection-fixture: .venv
-	$(UV) run cfbpoll projection fixture --to $(FIXTURES)
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run cfbpoll projection fixture --to $(FIXTURES)
 
 # And its share cards, which had the same problem.
 projection-cards: .venv

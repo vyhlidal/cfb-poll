@@ -36,9 +36,23 @@ Two corollaries the pipeline enforces rather than remembers:
   companion rule against "X, not Y" constructions cannot be linted and is a
   matter of writing the sentence affirmatively.
 
-`schema_version` is **1**. Everything in §4 was added additively, so a consumer
-written against the original field set stays valid: new keys appeared, none
-changed meaning, none were removed.
+`schema_version` is **1**. Everything in §4 and §7 was added additively, so a
+consumer written against the original field set stays valid: new keys appeared,
+none changed meaning, none were removed.
+
+**The 2026-08-17 change is the row count, and it is not a schema change.** This
+document shipped 25 rows and now ships the whole ranked board, about 138 rows.
+Nothing about a row changed; there are simply more of them, and every consumer
+already slices: `ProjectionBoard` and `ProjectionFigureTable` take `limit={25}`,
+and every share-card variant takes its own count from `BUILDERS`. A consumer that
+renders `rows` unsliced was already relying on the producer to do its limiting,
+which is not something this contract ever promised.
+
+Why it changed: the front door tells a reader that the promotion ceiling holds
+North Dakota State at 33rd, and a reader who went to check found a board that
+stopped eight rows short. Copy that invites checking has to be followed by a
+document the check can be done in. It also makes the `projection_grid` card
+buildable, which needs a board wider than 25 by definition.
 
 ---
 
@@ -57,8 +71,9 @@ changed meaning, none were removed.
 | `note` | str \| null | optional second sentence |
 | `backtest` | object \| null | §3 |
 | `schedule` | object \| null | §4 |
-| `rows` | array | the ranked teams |
+| `rows` | array | **every ranked team**, about 138 of them. The site renders 25 |
 | `projection_version` | str | the recipe that produced this. Not rendered |
+| `provenance` | object | §7. **Never null** |
 
 `projection_version` exists because the grading loop is season-over-season: a
 published projection that cannot say which recipe made it cannot be graded
@@ -135,6 +150,7 @@ a deliberate ordering from a broken one, and they are right not to.
 | `note` | str \| null | the gloss line |
 | `uncertainty_note` | str \| null | the sigma caveat, §5 |
 | `promotion_note` | str \| null | the FCS-promotion caveat, §5 |
+| `promoted_teams` | str \| null | who was promoted, already joined for printing. §5 |
 | `contrast` | object \| null | the gloss pair, below |
 
 `contrast` carries `higher_team`, `higher_rank`, `higher_wins`,
@@ -208,8 +224,25 @@ move and nobody re-reads the JSX.
   will by December. That is the correct statement of how little is known in
   August, not a defect being confessed.
 - **`promotion_note`** — teams promoted from FCS carry a prior rating earned
-  against FCS opposition, so the bottom of the schedule ranking is softer than
-  the numbers look. `null` in a season with no promotions.
+  against FCS opposition, and this note says what the model does about it:
+  the crossover games price the move, the games promoted programs have actually
+  played give part of it back, and a ceiling stops the correction extrapolating
+  past the best first FBS season on record. Every figure is templated from the
+  live `DivisionCalibration`, so the sentence cannot outlive the constants.
+  `null` in a season with no promotions. **`promoted_teams`** carries the names
+  beside it, joined and ready to print, so no renderer has to hard-code two
+  schools that change the season a third program comes up.
+
+  **This note was rewritten on 2026-08-17 and the old one is worth naming.** It
+  said any schedule containing a promoted team "is measured against a softer
+  standard than the one they are about to be held to, and the bottom of the
+  schedule ranking is correspondingly less firm than the numbers make it look".
+  That was true until [ADR 0014](adr/0014-the-liberation.md) measured the
+  boundary. Afterwards it described an unfixed softness that had been fixed,
+  which undersells the work and is false, and false is the half that matters.
+  A calibration that could not be measured, in a fork whose archive holds too few
+  crossover games, carries the ratings across unchanged, and there the old
+  sentence is true again and is the one that ships.
 - **`schedule_is_mixed`** — above, per row.
 
 ---
@@ -239,7 +272,46 @@ whichever the reader trusts less.
 
 ---
 
-## 7. Where this contract is weak
+## 7. `provenance` — the Projection's own receipt
+
+Added 2026-08-17, additively, and **never null**. `schedule` and `backtest` are
+absent when nobody measured the thing they describe, which is the right answer for
+an unmeasured claim. Something produced this file either way, so provenance always
+has an answer; fields the producer could not supply are null individually.
+
+| field | type | meaning |
+|---|---|---|
+| `projection_version` | str | the recipe that produced this board |
+| `source_season` | int \| null | the season whose final ratings every team starts from |
+| `fitted_on_transitions` | array of [int, int] \| null | the fit window, pair by pair |
+| `fit_window` | str \| null | the same window in one line, e.g. `2021 to 2022 through 2024 to 2025` |
+| `fit_rule` | str \| null | ADR 0014's discipline, stated about this season. A complete sentence |
+| `generated_at` | str \| null | ISO 8601. Defaults to `published_at` |
+| `git_sha` | str \| null | the commit, from the same helper the poll's `_run.json` uses |
+| `config_hash` | str \| null | sha256 of `configs/default.toml` |
+| `rebuild` | str | `publish.REBUILD_COMMAND`, the command that rebuilds THIS document |
+
+**The failure this block exists for is on the published site.** The front door
+prints one provenance footer on every route, and in August the board above it is
+the Projection while the footer is the Poll's: the poll's hashes, and "the one
+command that rebuilds it" naming a `cfbpoll rank` of a different season by a
+different machine. Every word of it is true about a document the reader is not
+looking at. The renderer was not wrong to print what it had; it had nothing else.
+
+`rebuild` names the **make target**, not the bare verb, because this document
+fits: an OLS solve over the design transitions on top of the walk-forward L3 that
+the carried ratings come off. `make projection-fixture` carries the
+single-threaded BLAS pin; `uv run cfbpoll projection fixture` does not.
+
+`fit_rule` is templated rather than written, because the sentence it replaces
+went stale. "Nothing in this model has ever been tuned after 2023" stopped being
+true when `design_transitions` gained 2024 to 2025, and the rule ADR 0014 states
+instead is both true and stronger: a recipe projecting season Y may fit on
+transitions whose target season finished before Y, and on nothing else.
+
+---
+
+## 8. Where this contract is weak
 
 - **`schedule_strength` is a mean, so it hides shape.** Two teams with the same
   figure can face very different distributions: one with twelve average opponents

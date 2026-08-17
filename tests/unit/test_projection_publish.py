@@ -215,6 +215,98 @@ def test_top_n_is_respected(projection: pl.DataFrame) -> None:
     assert [row["rank"] for row in document["rows"]] == [1, 2]
 
 
+def test_the_default_is_the_whole_board(projection: pl.DataFrame) -> None:
+    """THE DEFAULT WAS 25 AND THAT MADE A PUBLISHED CLAIM UNCHECKABLE.
+
+    The front door says the promotion ceiling holds North Dakota State at 33rd.
+    A reader who went to look found a board that stopped at 25, so the one
+    sentence on the page that invited checking was the one sentence that could
+    not be checked. Copy that says "go and look" has to be followed by a document
+    with the row in it."""
+    document = publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)
+    assert [row["rank"] for row in document["rows"]] == [1, 2, 3, 4]
+
+
+def test_an_unranked_team_is_still_left_off(projection: pl.DataFrame) -> None:
+    """Publishing the whole board means every RANKED team, not every row. A team
+    below the game floor has no rank and cannot be placed on a ranking."""
+    frame = projection.with_columns(
+        pl.Series("projected_rank", [1, 2, 3, None], dtype=pl.Int32)
+    )
+    document = publish.build(frame, 2026, CONFIG, HEADLINE, BASIS)
+    assert [row["rank"] for row in document["rows"]] == [1, 2, 3]
+
+
+# ------------------------------------------------------- the projection's receipt
+
+
+def _recipe():
+    from cfbpoll.projection import recipe as recipe_mod
+
+    return recipe_mod.Recipe(
+        intercept=6.58,
+        coefficients=dict.fromkeys(recipe_mod.TERMS, 0.5),
+        se=dict.fromkeys(recipe_mod.TERMS, 1.0),
+        intercept_se=1.0,
+        transitions=((2021, 2022), (2022, 2023), (2023, 2024), (2024, 2025)),
+        n_teams=500,
+        r_squared=0.5,
+        residual_sd=9.0,
+    )
+
+
+def test_the_projection_carries_its_own_receipt(projection: pl.DataFrame) -> None:
+    """THE FRONT DOOR PRINTED THE POLL'S RUN RECEIPT UNDER THIS BOARD, including
+    a "one command that rebuilds it" naming a `cfbpoll rank` of another season by
+    another machine. The renderer had nothing else to print, because this artifact
+    carried no receipt of its own. Now it does."""
+    block = publish.build(
+        projection,
+        2026,
+        CONFIG,
+        HEADLINE,
+        BASIS,
+        recipe=_recipe(),
+        source_season=2025,
+        generated_at="2026-08-17T18:00:00+00:00",
+        git_sha="abc123",
+        config_hash="def456",
+    )["provenance"]
+
+    assert block["projection_version"].startswith("projection-")
+    assert block["source_season"] == 2025
+    assert block["fitted_on_transitions"][-1] == [2024, 2025]
+    assert block["fit_window"] == "2021 to 2022 through 2024 to 2025"
+    assert block["generated_at"] == "2026-08-17T18:00:00+00:00"
+    assert block["git_sha"] == "abc123"
+    assert block["config_hash"] == "def456"
+    assert block["rebuild"] == publish.REBUILD_COMMAND
+    assert "rank" not in block["rebuild"], "the poll's verb has no business here"
+
+
+def test_the_fit_rule_is_stated_about_this_season(projection: pl.DataFrame) -> None:
+    """ADR 0014 replaced the freeze ("nothing was tuned after 2023") with a
+    narrower rule, and a page still printing the freeze tells a reader the
+    opposite of what the pipeline does. Templated, so it cannot go stale the way
+    the sentence it replaces did."""
+    rule = publish.build(
+        projection, 2026, CONFIG, HEADLINE, BASIS, recipe=_recipe()
+    )["provenance"]["fit_rule"]
+    assert "2026" in rule and rule.endswith(".")
+    assert "before 2026" in rule
+
+
+def test_the_receipt_is_never_null(projection: pl.DataFrame) -> None:
+    """Unlike `schedule` and `backtest`. Those are absent when nobody measured the
+    thing they describe; something produced this file either way, and a null block
+    puts the renderer straight back to borrowing the poll's."""
+    block = publish.build(projection, 2026, CONFIG, HEADLINE, BASIS)["provenance"]
+    assert block is not None
+    assert block["rebuild"] == publish.REBUILD_COMMAND
+    assert block["fitted_on_transitions"] is None
+    assert block["fit_rule"] is None
+
+
 # --------------------------------------------------- the honest result, as a field
 
 
@@ -354,6 +446,78 @@ def test_the_schedule_block_carries_all_three_caveats(
     assert block["field_size"] == strength.field_size
     for field in ("note", "uncertainty_note", "promotion_note"):
         assert block[field].endswith(".")
+
+
+def _calibration():
+    from cfbpoll.projection.crossdivision import DivisionCalibration
+
+    return DivisionCalibration(
+        cross_division_gap=-13.4,
+        cross_division_gap_se=0.6,
+        promotion_bump=9.8,
+        promotion_bump_se=1.9,
+        dispersion=0.77,
+        raw_bridge_miss=17.3,
+        n_bridge_games=602,
+        n_promotion_games=68,
+        n_promoted_teams=6,
+        through_season=2025,
+        promotion_ceiling_rel=5.75,
+        promotion_ceiling_team="James Madison",
+        promotion_ceiling_season=2022,
+        promotion_support_max_rel=5.75,
+    )
+
+
+def test_the_promotion_note_describes_the_correction_rather_than_the_softness(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """THE SENTENCE THIS REPLACES WENT STALE ON 2026-08-17.
+
+    It told a reader the bottom of the board was "less firm than the numbers make
+    it look", which was true while a promoted team carried its FCS-earned rating
+    at face value. ADR 0014 measured the division boundary, gave part of it back
+    on the evidence of the programs that made the jump, and capped the result. A
+    caveat about an unfixed softness that has been measured and corrected is worse
+    than vagueness: it undersells the work and it is false."""
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    block = publish.build(
+        projected, 2026, CONFIG, HEADLINE, BASIS,
+        strength=strength, contrast=contrast, sigma=sigma,
+        calibration=_calibration(),
+    )["schedule"]
+
+    note = block["promotion_note"]
+    assert "less firm than the numbers make it look" not in note
+    # Every figure is templated off the calibration, never typed.
+    assert "602 games" in note and "13.4 points" in note
+    assert "68 games" in note and "9.8 of it back" in note
+    assert "James Madison" in note and "2022" in note
+    # The caveat that is actually true now, and it is the last thing said.
+    assert note.endswith("rests on 6 programs, which is the part of it to hold lightly.")
+    # And the names ship as a field, so no component has to hard-code two schools.
+    assert block["promoted_teams"] == "Nowhere State"
+
+
+def test_an_unmeasured_calibration_keeps_the_softness_caveat(
+    projection: pl.DataFrame, strength_and_contrast
+) -> None:
+    """A fork whose archive holds too few crossover games carries the ratings
+    across unchanged, and in that world the retired sentence is true again. The
+    note follows the model rather than the calendar."""
+    from dataclasses import replace
+
+    strength, contrast, sigma = strength_and_contrast
+    projected = projection.join(strength.table, on="team", how="left")
+    for calibration in (None, replace(_calibration(), measured=False)):
+        note = publish.build(
+            projected, 2026, CONFIG, HEADLINE, BASIS,
+            strength=strength, contrast=contrast, sigma=sigma,
+            calibration=calibration,
+        )["schedule"]["promotion_note"]
+        assert "less firm than the numbers make it look" in note
+        assert "602" not in note
 
 
 def test_the_promotion_note_is_absent_when_nobody_was_promoted(

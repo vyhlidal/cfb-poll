@@ -431,6 +431,21 @@ def run_backtest(
     PRODUCED rather than reconstructing them in a script that would drift from it.
     """
     cfg = config if config is not None else load_config()
+    # A CHALLENGER TOML HANDED TO `backtest --config` USED TO DIE ON THIS LINE
+    # with a bare `KeyError: 'backtest'`, and it is the single most likely wrong
+    # command anybody types: a challenger entry looks like a config, so pointing
+    # the backtest at one is the obvious guess. It is the wrong verb, and the
+    # error now says which verb is right rather than naming a missing dict key.
+    if "backtest" not in cfg:
+        raise ValueError(
+            "this config has no [backtest] table, so it is not a full config. If it "
+            "is a challenger entry from configs/challengers/, scoring it is a "
+            "different verb:\n"
+            "    make challenge CHALLENGE_ENTRY=<your entry>.toml\n"
+            "`backtest --config` expects a COMPLETE config, i.e. configs/default.toml "
+            "or a copy of it; on `challenge run`, `--config` names the INCUMBENT's "
+            "config and `--entry` names yours."
+        )
     bt = cfg["backtest"]
     sigma_fallback = float(cfg["resume"]["sigma"])
 

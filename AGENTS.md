@@ -589,7 +589,7 @@ CHALLENGER = {
     "notes": "...",
 }
 
-def rate(games, plays, through_week, state=None) -> dict[str, float]: ...
+def rate(games, plays, through_week, config=None, state=None) -> dict[str, float]: ...
 ```
 
 **The `rate()` contract, precisely.** Guessing at any of this wastes a run:
@@ -598,15 +598,9 @@ def rate(games, plays, through_week, state=None) -> dict[str, float]: ...
   holding `"Jacksonville State"`, not an id number. Return
   `{"Georgia": 18.4, ...}`.
 
-  **Do not trust the type hint in `src/cfbpoll/model/__init__.py` on this one
-  point.** The `Rater` protocol there declares `TeamId = int` and
-  `Ratings = dict[TeamId, float]`, and the running code disagrees with it: the
-  canonical games frame carries string team names, the harness's internal caches
-  are `dict[str, float]`, and the shipped example
-  [`iterative_margin.py`](configs/challengers/iterative_margin.py) is annotated
-  `-> dict[str, float]`. **Follow the shipped example, not the protocol
-  annotation.** (`game_id` really is an `Int64`. It is the team columns that are
-  strings.)
+  The `Rater` protocol in `src/cfbpoll/model/__init__.py` now says exactly this,
+  so it is safe to read as authoritative. (`game_id` really is an `Int64`. It is
+  the team columns that are strings.)
 
 - **The value is a rating on the points scale, higher is better.** It is not a
   rank, and lower is not better.
@@ -645,6 +639,11 @@ def rate(games, plays, through_week, state=None) -> dict[str, float]: ...
   that is the entire walk-forward protocol. In practice the harness has already
   truncated the frames for you, so the rule reduces to: do not go find data
   yourself.
+
+- **`config`**: the harness's own loaded config, or `None`. **It is passed on
+  every call**, by keyword, and a rater that ignores it is fine. A rater that
+  falls back to `load_config()` instead of using it is not: a sweep that varies a
+  constant would then score the default one while reporting the varied one.
 
 - **`state`**: an `l3_power.SeasonState` or `None`. It is a per-season fit cache
   plus an out-of-sample accumulator whose `add` the harness calls only *after* a

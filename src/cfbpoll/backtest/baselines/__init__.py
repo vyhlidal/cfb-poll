@@ -102,7 +102,9 @@ SYSTEMS = (
     "cfp",
 )
 
-#: system name -> rate(games, plays, through_week) -> {team: rating}
+#: system name -> rate(games, plays, through_week, config=None, state=None)
+#: -> {team_name: rating}. The harness passes the last two by keyword on every
+#: call; the keys are the frame's own `String` team names.
 RATERS: dict[str, Callable[..., dict[str, float]]] = {
     "schedule_odds": schedule_odds.rate,
     "resume": l4_resume.rate,

@@ -39,9 +39,25 @@ from cfbpoll.ingest import cfbd
 from cfbpoll.ingest.teams import PALETTE_MARK, load_colors, mark_for
 from cfbpoll.projection import PROJECTION_VERSION
 
-__all__ = ["PROJECTION_LABEL", "SCHEMA_VERSION", "build", "write"]
+__all__ = ["PROJECTION_LABEL", "REBUILD_COMMAND", "SCHEMA_VERSION", "build", "write"]
 
 SCHEMA_VERSION = 1
+
+#: THE COMMAND THAT REBUILDS THIS DOCUMENT, published on the document.
+#:
+#: The front door used to print the POLL's run receipt under the Projection's
+#: board, including "the one command that rebuilds it" pointing at
+#: `cfbpoll rank --season 2025 --through-week 16`, which rebuilds a different
+#: board, of a different season, by a different machine. A published artifact
+#: that cannot name its own rebuild command borrows somebody else's, and a reader
+#: who runs the borrowed one gets a different answer and concludes the site is
+#: lying rather than confused.
+#:
+#: The make target rather than the bare CLI, because this one FITS: the recipe is
+#: an OLS solve over the design transitions and the carried ratings come off the
+#: walk-forward L3, so it needs the single-threaded BLAS pin the target carries
+#: and the bare verb does not.
+REBUILD_COMMAND = "make projection-fixture FIXTURES=<your data root>"
 
 #: THE MARKER EVERY SURFACE SHOWING THIS DOCUMENT HAS TO CARRY, in the same words
 #: everywhere, exactly as `recipes.ALTERNATE_LABEL` works for a poll produced
@@ -159,22 +175,40 @@ def build(
     note: str | None = None,
     status: str = "published",
     published_at: str | None = None,
-    top_n: int = 25,
+    top_n: int | None = None,
     archive_root: Any = None,
     backtest: dict[str, Any] | None = None,
     strength: Any = None,
     contrast: Any = None,
     sigma: float | None = None,
+    calibration: Any = None,
+    recipe: Any = None,
+    source_season: int | None = None,
+    generated_at: str | None = None,
+    git_sha: str | None = None,
+    config_hash: str | None = None,
 ) -> dict[str, Any]:
-    """The fixture document. Every displayed number is a string or a plain scalar."""
+    """The fixture document. Every displayed number is a string or a plain scalar.
+
+    `top_n` IS None BY DEFAULT, WHICH MEANS THE WHOLE BOARD. It shipped 25 rows
+    until 2026-08-17 and that made a published claim uncheckable: the front door
+    says North Dakota State is held at 33rd by the promotion ceiling, and a reader
+    who went to look found a board that stopped eight rows above it. Copy that
+    invites a reader to check has to be followed by a document they can check it
+    in. The site still renders 25 (`ProjectionBoard` slices, and so does every
+    share-card variant), so this is additive: the rest of the field is there for
+    the reader who looks, and for `projection_grid`, the card that draws all of
+    them and could not be built from a 25-row document at all.
+    """
     if status not in ("coming", "published"):
         raise ValueError(f"status must be 'coming' or 'published', got {status!r}")
 
     colors = load_colors()
     conferences = _conferences(season, archive_root)
-    ranked = projection.filter(
-        pl.col("projected_rank").is_not_null() & (pl.col("projected_rank") <= top_n)
-    ).sort("projected_rank")
+    ranked = projection.filter(pl.col("projected_rank").is_not_null())
+    if top_n is not None:
+        ranked = ranked.filter(pl.col("projected_rank") <= int(top_n))
+    ranked = ranked.sort("projected_rank")
 
     rows: list[dict[str, Any]] = []
     for row in ranked.to_dicts():
@@ -230,11 +264,88 @@ def build(
         "basis": _assert_sentence("basis", basis),
         "note": _assert_sentence("note", note) if note else None,
         "backtest": _backtest_block(backtest),
-        "schedule": _schedule_block(strength, contrast, sigma),
+        "schedule": _schedule_block(strength, contrast, sigma, calibration),
         "rows": rows,
         # Not in the site's interface, and carried anyway: a published projection
         # that cannot say which recipe made it cannot be graded season over season.
         "projection_version": PROJECTION_VERSION,
+        # THE PROJECTION'S OWN RECEIPT. See `_provenance_block`.
+        "provenance": _provenance_block(
+            season=int(season),
+            recipe=recipe,
+            source_season=source_season,
+            generated_at=generated_at or published_at,
+            git_sha=git_sha,
+            config_hash=config_hash,
+        ),
+    }
+
+
+def _provenance_block(
+    *,
+    season: int,
+    recipe: Any,
+    source_season: int | None,
+    generated_at: str | None,
+    git_sha: str | None,
+    config_hash: str | None,
+) -> dict[str, Any]:
+    """What produced this board, in the board's own document.
+
+    THE FAILURE THIS FIXES IS ON THE PUBLISHED SITE. The front door prints one
+    provenance footer on every route, and in August the board above it is the
+    Projection while the footer is the Poll's: the poll's run id, the poll's
+    hashes, and "the one command that rebuilds it" naming a `cfbpoll rank` of a
+    different season. Every word of it is true about a document the reader is not
+    looking at. The renderer was not wrong to print what it had; it had nothing
+    else, because this artifact carried no receipt of its own.
+
+    UNLIKE `schedule` AND `backtest`, THIS BLOCK IS NEVER NULL. Those two are
+    absent when nobody measured the thing they describe, which is the honest
+    answer for an unmeasured claim. Provenance is different: something produced
+    this file, so the question always has an answer, and a null block would put
+    the renderer straight back to borrowing the poll's. Fields the caller could
+    not supply are null individually.
+
+    `fit_rule` is ADR 0014's discipline stated about THIS season rather than in
+    the abstract. The freeze it replaced ("nothing was ever tuned after 2023")
+    stopped being true when `design_transitions` gained 2024 to 2025, and a page
+    still printing the freeze is telling a reader the opposite of what the
+    pipeline does. Templated, so it cannot go stale the way the sentence it
+    replaces did.
+    """
+    transitions = [
+        [int(a), int(b)] for a, b in (getattr(recipe, "transitions", None) or ())
+    ]
+    window = (
+        f"{transitions[0][0]} to {transitions[0][1]} through "
+        f"{transitions[-1][0]} to {transitions[-1][1]}"
+        if len(transitions) > 1
+        else (f"{transitions[0][0]} to {transitions[0][1]}" if transitions else None)
+    )
+    rule = (
+        _assert_sentence(
+            "provenance.fit_rule",
+            f"This recipe projects {season}, so it was fitted on season transitions "
+            f"whose target season finished before {season}, and on nothing else.",
+        )
+        if transitions
+        else None
+    )
+    return {
+        "projection_version": getattr(recipe, "version", None) or PROJECTION_VERSION,
+        # The season whose final ratings every team on this board starts from. It
+        # is the first term of the recipe and the fact the front door's "every
+        # team starts at zero" bullet contradicts, so it is published rather than
+        # implied.
+        "source_season": int(source_season) if source_season is not None else None,
+        "fitted_on_transitions": transitions or None,
+        "fit_window": window,
+        "fit_rule": rule,
+        "generated_at": generated_at,
+        "git_sha": git_sha,
+        "config_hash": config_hash,
+        "rebuild": REBUILD_COMMAND,
     }
 
 
@@ -314,7 +425,9 @@ def _bool(value: Any) -> bool | None:
     return None if value is None else bool(value)
 
 
-def _schedule_block(strength: Any, contrast: Any, sigma: float | None) -> dict[str, Any] | None:
+def _schedule_block(
+    strength: Any, contrast: Any, sigma: float | None, calibration: Any = None
+) -> dict[str, Any] | None:
     """The schedule gloss and its three caveats, every sentence templated.
 
     ALL FOUR CAVEATS SHIP AS FIELDS rather than as component copy, for the reason
@@ -341,6 +454,11 @@ def _schedule_block(strength: Any, contrast: Any, sigma: float | None) -> dict[s
         "note": None,
         "uncertainty_note": None,
         "promotion_note": None,
+        # The names, as a field, because the surface that prints this caveat needs
+        # to say WHO was promoted and the only alternative is hard-coding two
+        # school names into a component that nobody re-reads the season a third
+        # program comes up. Null in a season with no promotions.
+        "promoted_teams": (_join(list(strength.promoted)) if strength.promoted else None),
     }
 
     if sigma is not None:
@@ -353,14 +471,8 @@ def _schedule_block(strength: Any, contrast: Any, sigma: float | None) -> dict[s
         )
 
     if strength.promoted:
-        names = _join(list(strength.promoted))
-        block["promotion_note"] = _assert_sentence(
-            "schedule.promotion_note",
-            f"{names} moved up from FCS this season, so their ratings were earned "
-            "against FCS opposition. Any schedule containing them is measured "
-            "against a softer standard than the one they are about to be held to, "
-            "and the bottom of the schedule ranking is correspondingly less firm "
-            "than the numbers make it look.",
+        block["promotion_note"] = _promotion_note(
+            _join(list(strength.promoted)), calibration
         )
 
     if contrast is not None:
@@ -389,6 +501,69 @@ def _schedule_block(strength: Any, contrast: Any, sigma: float | None) -> dict[s
             f"{strength.field_size} we rank.",
         )
     return block
+
+
+def _promotion_note(names: str, calibration: Any) -> str:
+    """The FCS-promotion caveat, and it had to be rewritten because it went STALE.
+
+    THE SENTENCE THIS REPLACES DESCRIBED A MODEL THAT NO LONGER EXISTS. It said
+    any schedule containing a promoted team "is measured against a softer standard
+    than the one they are about to be held to, and the bottom of the schedule
+    ranking is correspondingly less firm than the numbers make it look". That was
+    true while a promoted team carried its FCS-earned rating at face value. ADR
+    0014 stopped that: the division boundary is priced from the crossover games,
+    a promoted program gets part of it back on the evidence of the programs that
+    have actually made the jump, and a ceiling stops the correction extrapolating
+    past the best first FBS season on record. Telling a reader about an unfixed
+    softness that has been measured and corrected undersells the work AND is
+    false, which is a worse failure than vagueness.
+
+    TEMPLATED FROM THE LIVE CALIBRATION, never typed, for the reason every other
+    caveat here is: the constants are re-measured on every run, and a number typed
+    into a sentence goes stale the first time the archive grows a season.
+
+    The honest caveat is now a different and more interesting one, and it is the
+    last clause: the bump rests on however many programs have made the jump, which
+    is six. `levers.py` puts it best and this note does not try to beat it.
+
+    A calibration that could not be measured (a fork whose archive holds too few
+    crossover games) leaves the ratings carried unchanged, so the softness
+    sentence is true again and is what ships.
+    """
+    opening = (
+        f"{names} moved up from FCS this season, so the ratings they bring with "
+        "them were earned against FCS opposition."
+    )
+    if calibration is None or not bool(getattr(calibration, "measured", False)):
+        return _assert_sentence(
+            "schedule.promotion_note",
+            f"{opening} This archive held too few games between the two divisions "
+            "to price that move, so those ratings are carried across unchanged and "
+            "the bottom of the schedule ranking is less firm than the numbers make "
+            "it look.",
+        )
+
+    gap = abs(float(calibration.cross_division_gap))
+    bump = abs(float(calibration.promotion_bump))
+    text = (
+        f"{opening} The {int(calibration.n_bridge_games)} games between the two "
+        f"divisions in this archive price that rating {gap:.1f} points too high "
+        f"against FBS opposition, and the {int(calibration.n_promotion_games)} games "
+        f"{int(calibration.n_promoted_teams)} promoted programs have played in their "
+        f"first FBS season give {bump:.1f} of it back."
+    )
+    if getattr(calibration, "promotion_ceiling_team", ""):
+        text += (
+            " On top of that a ceiling: no promoted team is projected above "
+            f"{calibration.promotion_ceiling_team}'s first FBS season in "
+            f"{int(calibration.promotion_ceiling_season)}, the best any promoted "
+            "program has had."
+        )
+    text += (
+        f" That correction rests on {int(calibration.n_promoted_teams)} programs, "
+        "which is the part of it to hold lightly."
+    )
+    return _assert_sentence("schedule.promotion_note", text)
 
 
 def _join(names: list[str]) -> str:

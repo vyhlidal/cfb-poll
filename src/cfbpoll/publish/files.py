@@ -45,7 +45,7 @@ import polars as pl
 
 from cfbpoll.config import DEFAULT_CONFIG_PATH, config_hash
 
-__all__ = ["OUTPUT_FILENAMES", "canonicalize", "write_rank_outputs"]
+__all__ = ["OUTPUT_FILENAMES", "canonicalize", "git_sha", "write_rank_outputs"]
 
 OUTPUT_FILENAMES: tuple[str, ...] = (
     "ratings_live.parquet",
@@ -101,7 +101,14 @@ def _json_dump(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _git_sha() -> str:
+def git_sha() -> str:
+    """The commit that produced an artifact, or "unknown" in a tarball checkout.
+
+    PUBLIC because the Projection needs the same answer the Poll gets. Its fixture
+    now carries its own receipt rather than borrowing the poll run's, and two
+    copies of "how do we ask git what commit this is" would be two answers waiting
+    to disagree.
+    """
     try:
         out = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -201,7 +208,7 @@ def write_rank_outputs(
         out / "_run.json",
         {
             **run,
-            "git_sha": _git_sha(),
+            "git_sha": git_sha(),
             "config_hash": config_hash(config_path or DEFAULT_CONFIG_PATH),
             "config_path": str(config_path or DEFAULT_CONFIG_PATH),
             "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -242,7 +249,7 @@ def write_grid_outputs(
         out / "_run.json",
         {
             **run,
-            "git_sha": _git_sha(),
+            "git_sha": git_sha(),
             "config_hash": config_hash(config_path or DEFAULT_CONFIG_PATH),
             "config_path": str(config_path or DEFAULT_CONFIG_PATH),
             "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),

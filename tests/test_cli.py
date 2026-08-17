@@ -305,3 +305,36 @@ def test_publish_fixtures_reports_a_stale_run_directory_clearly(tmp_path) -> Non
     assert result.exit_code != 0
     assert isinstance(result.exception, StaleRunError)
     assert "cfbpoll rank" in str(result.exception)
+
+
+def test_the_projection_verbs_can_import_the_repository_scripts_from_anywhere() -> None:
+    """`make projection-fixture` DID NOT RUN, EVER, from a clean checkout.
+
+    Three verbs here call into `scripts/`, and a bare `from scripts import ...`
+    only resolves when the working directory happens to be on `sys.path`. It is
+    when you run `python scripts/foo.py`; it is NOT when you run the installed
+    console script, where `sys.path[0]` is the venv's `bin` directory. Two of the
+    three targets call the script file directly and worked, `projection-fixture`
+    goes through the CLI verb, and it raised `ModuleNotFoundError: No module named
+    'scripts'` on the day it was written. The one target whose whole purpose is to
+    stop the published board going stale was the one target that could not run.
+
+    The test removes the working directory from `sys.path` the way the console
+    script leaves it, which is the only condition under which the bug appears.
+    """
+    import os
+    import sys
+
+    from cfbpoll.cli import _repo_scripts
+
+    saved = list(sys.path)
+    for entry in ("", ".", os.getcwd()):
+        while entry in sys.path:
+            sys.path.remove(entry)
+    sys.modules.pop("scripts", None)
+    sys.modules.pop("scripts.make_projection", None)
+    try:
+        module = _repo_scripts("make_projection")
+        assert hasattr(module, "build")
+    finally:
+        sys.path[:] = saved

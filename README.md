@@ -254,7 +254,9 @@ itself:
 
 **Beat the model.** Add a parameter variant to
 [`configs/challengers/`](configs/challengers/) or a module implementing
-`rate(games, plays, through_week) -> dict[team_id, float]`, open a PR, and CI runs
+`rate(games, plays, through_week, config=None, state=None) -> dict[str, float]`
+(the keys are team names; the harness passes `config` and `state` by keyword and
+a three-argument version raises), open a PR, and CI runs
 it through the identical walk-forward harness against the identical baselines and
 posts a scorecard. "Did it beat the model" gets a mechanical answer instead of an
 argument. Two worked examples ship with it, and so does the scorecard one of them

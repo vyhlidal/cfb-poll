@@ -36,6 +36,42 @@ __all__ = ["app"]
 
 _EPILOG = "Docs: docs/methodology.md - Constraints: docs/constraints.md - License: MIT"
 
+
+def _repo_scripts(name: str) -> Any:
+    """Import a module from the repository's `scripts/` directory, by name.
+
+    THIS EXISTS BECAUSE `make projection-fixture` DID NOT RUN, EVER, from a clean
+    checkout. Three commands here call into `scripts/`, and a bare
+    `from scripts import make_projection` only resolves when the working directory
+    happens to be on `sys.path`. It is when you run `python scripts/foo.py` or
+    `python -c`; it is NOT when you run the installed console script, because
+    `sys.path[0]` is then the venv's `bin` directory. Two of the three targets
+    call the script file directly and worked, `projection-fixture` goes through
+    the CLI verb, and it raised `ModuleNotFoundError: No module named 'scripts'`
+    on the day it was written. The one target whose whole purpose is to stop the
+    published board going stale was the one target that could not run.
+
+    `REPO_ROOT` is the package's own parent, so this works from a clone however it
+    was invoked and fails honestly from an installed wheel, where `scripts/` is
+    genuinely not shipped.
+    """
+    import importlib
+    import sys
+
+    from cfbpoll.config import REPO_ROOT
+
+    root = str(REPO_ROOT)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        return importlib.import_module(f"scripts.{name}")
+    except ModuleNotFoundError as exc:  # pragma: no cover - installed-wheel path
+        raise ModuleNotFoundError(
+            f"could not import scripts/{name}.py from {root}. This command reads the "
+            "repository's own scripts/ directory, so it needs a clone rather than an "
+            "installed wheel. Run it from the repository root."
+        ) from exc
+
 app = typer.Typer(
     name="cfbpoll",
     help=(
@@ -1262,7 +1298,8 @@ def challenge_run(
     A parameter variant (`.toml`) overrides only the constants it names and is run
     against the default config in the same command, so the comparison is two runs
     of one harness rather than one run against a remembered number. A structural
-    variant (`.py` exposing `rate(games, plays, through_week)`) is registered as
+    variant (`.py` exposing
+    `rate(games, plays, through_week, config=None, state=None)`) is registered as
     one more system in a single run and needs no merge at all.
 
     2025 IS A SEALED HOLDOUT and this command never unlocks it. Tune on 2021-2023,
@@ -2184,7 +2221,14 @@ def projection_fixture(
     status: Annotated[
         str, typer.Option(help="'published' renders the table; 'coming' keeps the card dark.")
     ] = "published",
-    top_n: Annotated[int, typer.Option(help="How many teams to publish.")] = 25,
+    top_n: Annotated[
+        int,
+        typer.Option(
+            help="How many teams to publish. 0 publishes the whole board, which is "
+            "the default: the site renders 25 and the rest are for the reader who "
+            "goes looking for a row the copy named."
+        ),
+    ] = 0,
 ) -> None:
     """Write `<to>/<season>/projection.json` for the site's projection card.
 
@@ -2197,12 +2241,18 @@ def projection_fixture(
     projection card and the poll table share a page and a school whose colours
     changed between them would read as a bug in whichever one the reader trusts
     less.
+
+    IT FITS, so run it through `make projection-fixture` rather than bare: the
+    recipe is an OLS solve and the carried ratings come off the walk-forward L3,
+    and the target carries the single-threaded BLAS pin that keeps a reduction
+    summing in the same order twice.
     """
     from datetime import UTC, datetime
 
-    from cfbpoll.config import load_config
+    from cfbpoll.config import DEFAULT_CONFIG_PATH, config_hash, load_config
     from cfbpoll.projection import publish as projection_publish
-    from scripts import make_projection  # type: ignore[import-not-found]
+    from cfbpoll.publish.files import git_sha
+    make_projection = _repo_scripts("make_projection")
 
     cfg = load_config()
     season = int(cfg["projection"]["target_season"])
@@ -2234,7 +2284,7 @@ def projection_fixture(
         ),
         status=status,
         published_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        top_n=top_n,
+        top_n=(int(top_n) or None),
         # Schedule strength, the median-schedule column and the gloss pair. These
         # are what make the board's ordering checkable rather than assertable: it
         # ranks on projected power and displays wins, and without them a reader
@@ -2247,6 +2297,17 @@ def projection_fixture(
         # did not read out of a file, and "the AP beat us" is exactly the kind of
         # sentence that must not live in a component.
         backtest=state["backtest"]["summary"],
+        # THE PROMOTION CAVEAT IS TEMPLATED FROM THE MEASURED CONSTANTS, not from
+        # a sentence somebody typed. Before ADR 0014 there were no constants to
+        # template it from and the sentence said the bottom of the board was soft;
+        # there are now, and it says what the correction is and what it rests on.
+        calibration=state["cross_division"],
+        # THE PROJECTION'S OWN RECEIPT rather than the poll's, which is what the
+        # front door was printing under this board.
+        recipe=state["recipe"],
+        source_season=int(cfg["projection"]["projection_source_season"]),
+        git_sha=git_sha(),
+        config_hash=config_hash(DEFAULT_CONFIG_PATH),
     )
     path = projection_publish.write(document, to)
     typer.echo(f"wrote {path} ({len(document['rows'])} rows, status={document['status']})")
@@ -2260,7 +2321,7 @@ def projection_build() -> None:
     are produced, so a reader auditing a published number has exactly one file to
     read rather than two implementations to diff.
     """
-    from scripts import make_projection  # type: ignore[import-not-found]
+    make_projection = _repo_scripts("make_projection")
 
     make_projection.main()
 
@@ -2274,7 +2335,7 @@ def projection_chain() -> None:
     right, beside the AP's August ballot and beside doing nothing at all. Writes
     `demo/projection-chain.{md,json}` and `demo/levers.json`.
     """
-    from scripts import make_chain  # type: ignore[import-not-found]
+    make_chain = _repo_scripts("make_chain")
 
     make_chain.main()
 

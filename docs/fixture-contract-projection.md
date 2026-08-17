@@ -119,8 +119,11 @@ fact on the card the last thing to appear.
 ## 4. `schedule` — why the board's order is what it is
 
 The projection **ranks on projected power** and **displays win totals**, and
-those two disagree: on the 2026 projection Ohio State is first on 9.1 projected
-wins while Texas Tech is seventh on 10.0. Without this block a reader cannot tell
+those two disagree: on the 2026 projection Ohio State is first on 8.8 projected
+wins while Texas Tech is fifth on 9.6. (These are the live values under
+`projection-3.0.0`. The block is templated from whatever the run measures, so a
+regeneration that reorders the board rewrites this sentence with it — which is
+the reason it is a block rather than prose.) Without this block a reader cannot tell
 a deliberate ordering from a broken one, and they are right not to.
 
 | field | type | meaning |

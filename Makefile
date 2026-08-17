@@ -19,6 +19,7 @@ JOBS ?= 4
 
 .PHONY: help rankings archive archive-lock backtest cards demos fixtures \
         recipe-fixtures variants projection projection-audit projection-2025 \
+        projection-chain projection-fixture projection-cards projection-all levers \
         holdout-scorecard revision-numbers replay replay-tolerant grid \
         site test lint clean
 
@@ -248,6 +249,7 @@ variants: .venv archive
 # with no network at all; `--no-fetch-logos` forces that and falls back to the
 # generated marks for anything missing.
 PROJECTION_SOURCE ?= 2025
+PROJECTION_TARGET ?= 2026
 CARD_FROM ?= $(OUT)
 cards: .venv
 	$(UV) run cfbpoll publish cards --from $(CARD_FROM) --out $(OUT)/share
@@ -262,6 +264,35 @@ demos: .venv
 projection: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run python scripts/make_projection.py
+
+# THE ACCURACY SCOREBOARD, which replaced the gate (ADR 0014). Chains the seasons,
+# scores every system's August call against what happened, and writes the lever
+# registry beside it.
+projection-chain: .venv
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run python scripts/make_chain.py
+
+# The site's 2026 card. This had no target at all until 2026-08-17 and had to be
+# remembered by hand, which is how a published board goes stale while the demo
+# beside it is current.
+projection-fixture: .venv
+	$(UV) run cfbpoll projection fixture --to $(FIXTURES)
+
+# And its share cards, which had the same problem.
+projection-cards: .venv
+	for v in projection_top5 projection_top10 projection_top25; do \
+	  $(UV) run cfbpoll publish cards --variant $$v \
+	    --projection $(FIXTURES)/$(PROJECTION_TARGET)/projection.json \
+	    --out $(FIXTURES)/$(PROJECTION_TARGET)/share || exit 1; \
+	done
+
+# Everything the board touches, in the order the guards require: the demo build
+# first (it is what `projection-fixture` reads), then the site card, then the 2025
+# grading surface, then the cards, then the scoreboard.
+projection-all: projection projection-fixture projection-2025 projection-cards projection-chain
+
+levers: .venv
+	$(UV) run cfbpoll levers
 
 # The separation proof: both products, both deny-lists, one report. Exits
 # non-zero if a projection input is anywhere near a poll layer.

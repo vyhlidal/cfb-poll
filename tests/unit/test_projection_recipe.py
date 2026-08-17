@@ -213,18 +213,43 @@ def test_the_shipped_design_transitions_never_target_a_no_fit_season() -> None:
     assert all(target not in holdout.no_fit_seasons(CONFIG) for _, target in transitions)
 
 
-def test_the_design_transitions_still_exclude_2025() -> None:
-    """The claim the 2025 Projection rests on, made mechanical.
+def test_the_design_transitions_include_every_completed_season() -> None:
+    """The freeze is gone and this is what replaced it (ADR 0014).
 
-    2024->2025 was absent from `design_transitions` while 2025 was sealed. It has
-    to stay absent now that 2025 is open, or `cfb-poll-data/2025/projection.json`
-    stops being an out-of-sample application of a frozen recipe and becomes a fit
-    describing the season it claims to project. Nothing else in the repository
-    would notice; this does.
+    Until 2026-08-17 this test asserted that 2024->2025 stayed OUT, because the
+    recipe was frozen and one set of coefficients had to serve every season. That
+    bought one sentence and cost a season of data on every future refit. The
+    vintage record buys the same sentence for nothing, so the list now grows as
+    seasons close, and the rule that protects a reader moved from this list to the
+    place it can actually be enforced: `systems.fit_walk_forward` derives each
+    projection's transitions from its own target season.
     """
     targets = {int(b) for _, b in CONFIG["projection"]["design_transitions"]}
-    assert 2025 not in targets
-    assert targets == {2022, 2023, 2024}
+    assert targets == {2022, 2023, 2024, 2025}
+    # And the rule that did not go away: nothing may fit on the season it predicts.
+    assert int(CONFIG["projection"]["target_season"]) not in targets
+
+
+def test_a_projection_never_fits_on_the_season_it_projects() -> None:
+    """The one guarantee the freeze was standing in for, enforced by construction.
+
+    `fit_walk_forward` builds its own transition list from the target season
+    rather than reading one, so no config edit can hand a projection the outcomes
+    it claims to predict. The rating inputs here are synthetic and the games frame
+    is never reached, because the derivation happens before any of it is used:
+    a target with no earlier transition returns `(None, [])` and says why.
+    """
+    from cfbpoll.projection import systems
+
+    power = {season: {"A": 1.0, "B": 0.0} for season in (2021, 2022, 2023, 2024, 2025)}
+    fbs = {season: {"A", "B"} for season in power}
+    home = dict.fromkeys(power, 2.0)
+
+    fitted, transitions = systems.fit_walk_forward(
+        pl.DataFrame(), 2021, power, home, fbs, systems.ProjectionLevers()
+    )
+    assert fitted is None
+    assert transitions == []
 
 
 def test_the_provenance_block_is_never_silent() -> None:

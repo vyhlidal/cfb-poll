@@ -27,7 +27,7 @@ repository. They are not summarised faithfully here; read them.
 | `02-modeling-approaches.md` | The math | Survey of every major system (§2), the four-layer design (§3), the early-season problem (§4), the backtest plan (§5), and the build order (Appendix B) |
 | `03-architecture.md` | Stack, compute, storage, repo | Python + uv (§3), why the clock is not GitHub's `schedule:` (§4), files-are-truth storage (§5), repo layout (§6.2), the challenge harness (§7.3), reproducibility engineering (§9) |
 
-The five hard constraints and the banned-input table are in
+The two untouchables, the lever registry and the banned-input table are in
 [constraints.md](./constraints.md). The decisions already taken are in
 [adr/](./adr/).
 

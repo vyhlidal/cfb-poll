@@ -55,15 +55,16 @@ def test_subcommand_help_runs() -> None:
 def test_stubs_fail_loudly() -> None:
     """A stub must raise, not return quietly. No fabricated capabilities.
 
-    THE CANARY HAS MOVED THREE TIMES, and every time because the thing it was
+    THE CANARY HAS MOVED FOUR TIMES, and every time because the thing it was
     watching got built: first `rank`, then `bootstrap` (the parametric intervals,
-    2026-08-12), then `guard` (the Sunday automation, 2026-08-17). It is now
-    `validate`, the data-quality gate, which is on the weekly job's critical path
-    and genuinely does not exist. When that is built, move it again rather than
+    2026-08-12), then `guard` (the Sunday automation, 2026-08-17), then
+    `validate` (the data-quality gate, built later the same day). It is now
+    `canonicalize`, the hashable-CSV emitter the golden fixtures want, which
+    genuinely does not exist. When that is built, move it again rather than
     deleting the test - the property under test is that this repository never
     pretends, and it needs a live subject. `cfbpoll preflight` lists the
     remaining candidates."""
-    result = runner.invoke(app, ["validate"])
+    result = runner.invoke(app, ["canonicalize", "."])
     assert result.exit_code != 0
     assert isinstance(result.exception, NotImplementedError)
 

@@ -48,7 +48,7 @@ def test_every_preflight_step_names_a_real_cli_function():
 def test_preflight_detects_a_stub_and_an_implementation():
     from cfbpoll import cli
 
-    assert preflight.is_stub(cli.validate) is True, "cfbpoll validate is still a stub today"
+    assert preflight.is_stub(cli.canonicalize) is True, "cfbpoll canonicalize is still a stub today"
     assert preflight.is_stub(cli.rank) is False, "cfbpoll rank is real"
 
 

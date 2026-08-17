@@ -24,6 +24,7 @@ Actions passes an empty string for an omitted workflow input, and blank means
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -1812,6 +1813,63 @@ def projection_build() -> None:
     from scripts import make_projection  # type: ignore[import-not-found]
 
     make_projection.main()
+
+
+@projection_app.command("chain")
+def projection_chain() -> None:
+    """Score every season's August projection against what actually happened. No network.
+
+    The accuracy scoreboard that replaced the gate: fit on history, project the
+    next season, and count how many of its opening games the projection called
+    right, beside the AP's August ballot and beside doing nothing at all. Writes
+    `demo/projection-chain.{md,json}` and `demo/levers.json`.
+    """
+    from scripts import make_chain  # type: ignore[import-not-found]
+
+    make_chain.main()
+
+
+@app.command("levers")
+def levers_command(
+    surface: Annotated[
+        str, typer.Option(help="Filter to one product: poll, projection, both, or all.")
+    ] = "all",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit the registry as JSON.")] = False,
+) -> None:
+    """Print the lever registry: every knob, in football words, with its evidence.
+
+    A choice only the author can make is not transparency, it is an assertion
+    with the source code attached. This prints what a reader is allowed to change,
+    what the shipped value is, and what measured it.
+    """
+    from cfbpoll import levers as registry
+
+    selected = (
+        registry.LEVERS
+        if surface == "all"
+        else registry.for_surface(surface)  # type: ignore[arg-type]
+    )
+    if as_json:
+        document = registry.registry_document()
+        keys = {lever.key for lever in selected}
+        document["levers"] = [row for row in document["levers"] if row["key"] in keys]
+        typer.echo(json.dumps(document, indent=2))
+        return
+
+    for lever in selected:
+        high = "no limit" if lever.high == float("inf") else f"{lever.high:g}"
+        typer.echo(f"{lever.key}  [{lever.surface}]")
+        typer.echo(f"  {lever.label}")
+        typer.echo(f"  range {lever.low:g} to {high}, default {lever.default:g}")
+        typer.echo(f"  {lever.plain}")
+        typer.echo(f"  evidence: {lever.evidence}")
+        if lever.measured_effect:
+            typer.echo(f"  effect:   {lever.measured_effect}")
+        typer.echo("")
+    for item in registry.registry_document()["untouchable"]:
+        typer.echo(f"NOT A LEVER — {item['rule']}")
+        typer.echo(f"  {item['detail']}")
+        typer.echo("")
 
 
 @projection_app.command("audit")

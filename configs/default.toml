@@ -1046,13 +1046,22 @@ enabled = true
 # which is the season this recipe PREDICTS: a recipe fitted on the outcomes it
 # claims to project is not a projection, it is a description.
 #
-# THIS LIST DID NOT MOVE WHEN 2025 OPENED, and that is the load-bearing fact.
-# 2024->2025 was absent while 2025 was sealed and it is still absent now, so the
-# coefficients that produced the 2026 Projection are byte-identical to the ones
-# that existed before anybody read a 2025 metric. That is what makes the 2025
-# Projection published beside this file an out-of-sample application of a frozen
-# recipe rather than a fit dressed up as one.
-design_transitions = [[2021, 2022], [2022, 2023], [2023, 2024]]
+# THIS LIST GREW WHEN 2025 CLOSED, and that is the change ADR 0014 records.
+# 2024->2025 was absent while 2025 was a sealed holdout, and it is present now
+# because 2025 is a played, scored, ordinary season and a model whose one
+# constraint is accuracy does not decline data it is allowed to have. The
+# discipline that replaced the freeze is narrower and stronger: a recipe
+# projecting season Y may fit on transitions whose TARGET season is strictly
+# before Y, and on nothing else. `holdout.assert_no_target_is_locked` still bars
+# 2026, the season this recipe predicts.
+#
+# WHAT THE OLD FREEZE BOUGHT AND WHAT IT COST. It bought one sentence - "the
+# coefficients did not move after we saw 2025" - and it cost a season of data on
+# every future refit. The vintage record replaces it: every projection ever
+# published stays on the site with the coefficients it was published under, so
+# "what did you say in August" is answered by the archive rather than by refusing
+# to learn.
+design_transitions = [[2021, 2022], [2022, 2023], [2023, 2024], [2024, 2025]]
 
 # The 2026 Projection has to regress toward SOMETHING, and the only prior season
 # is 2025. Until 2026-08-15 that was the sealed holdout and ADR 0010 §3 carried a
@@ -1112,3 +1121,37 @@ portal_weight_by_stars = false              # a recruiting composite. Available,
 # before the rank-error comparison, so a 134-team rating and a 25-team human poll
 # are answering the same question. See demo/projection-backtest.md.
 rank_censor_at = 26
+
+####################################################################################
+# THE LEVER REGISTRY — live values.
+#
+# `src/cfbpoll/levers.py` holds the METADATA for every one of these: the plain
+# football name, the published range, what measured the default, and what moving
+# it costs. This block holds the VALUES the shipped board was produced with, so
+# that a lever is a config entry a fork can change rather than a constant someone
+# has to go and find.
+#
+# EVERY DEFAULT HERE WAS MEASURED. `projection.cross_division_gap` and
+# `projection.promotion_credit` come from the 602 crossover games and the 68
+# promotion games in `projection/crossdivision.py`; `long_memory`, `home_field`
+# and the ceiling switch come off the 216-cell walk-forward grid in
+# `demo/projection-chain.md`. None of them was chosen to make a ranking look
+# right.
+####################################################################################
+[levers.projection]
+long_memory = 0.2                   # how much the year before last still counts
+cross_division_gap = 1.0            # how far an FCS rating falls when it meets FBS
+promotion_credit = 1.0              # credit for being the kind of program that moves up
+promotion_ceiling = true            # and the guard that stops that credit being extrapolated
+returning_production = 1.0
+coaching_change = 1.0
+portal = 1.0
+home_field = 1.5                    # multiplier on last season's fitted home field
+
+# OFF, AND IT IS THE ONE THAT STAYS OFF. Nothing in either product knows what a
+# conference is. `cfbpoll audit-features` rebuilds every design matrix without
+# `conference_game` before every fit and requires bit-identical output, so this is
+# a result rather than a setting. It is written down here anyway, because a
+# refusal a reader cannot see the switch for is not a refusal they can check.
+[levers.model]
+conference_identity = 0.0

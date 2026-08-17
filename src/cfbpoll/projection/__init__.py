@@ -73,4 +73,24 @@ __all__ = ["PROJECTION_VERSION"]
 #: than corrected in place. `demo/2025-projection-grading.md` under 1.0.0 said
 #: last season's rating was weighted TOO STRONG; on the corrected surfaces all
 #: four terms come back priced about right.
-PROJECTION_VERSION = "projection-2.0.0"
+PROJECTION_VERSION = "projection-3.0.0"
+
+#: 3.0.0 (ADR 0014, the liberation) is the second MAJOR bump and it moves every
+#: number on the board. Three changes, each measured before it was adopted:
+#:
+#:   the cross-division gap   an FCS-earned rating no longer transplants to FBS at
+#:                            face value. 602 crossover games price the move at
+#:                            13.4 points; 68 games from six promoted programs give
+#:                            9.8 of it back; and no promoted team is projected
+#:                            above the best first FBS season any promoted program
+#:                            has actually had. North Dakota State goes from 9th to
+#:                            33rd. `projection/crossdivision.py`.
+#:   a second season of memory the projection reads the year before last at weight
+#:                            0.2 as well as last season.
+#:   the freeze dies          the recipe refits whenever a season closes, so
+#:                            2024->2025 is now a design transition. The vintage
+#:                            record replaces the freeze: every board ever
+#:                            published stays up with the coefficients it ran under.
+#:
+#: Measured, walk-forward, 2022-2025: week-one accuracy over every game with an FBS
+#: team in it goes from 82.4% to 86.9%, against 82.3% for the AP's August ballot.

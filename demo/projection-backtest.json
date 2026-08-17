@@ -1,5 +1,5 @@
 {
- "projection_version": "projection-2.0.0",
+ "projection_version": "projection-3.0.0",
  "settled_definition": "R(final, final): the last bucket of the season evaluated with the whole season's data, postseason included at the config's game weights",
  "power_definition": "retro.season_power(...)[final]: the WALK-FORWARD Power at the season's last bucket, whose blend weights are estimated out of sample week by week. This is the surface the poll publishes, the surface the gate uses, and the surface the grading page scores against. It is the projection's input, its response and its grading target, and they are the same object",
  "transitions": [
@@ -14,29 +14,33 @@
   [
    2023,
    2024
+  ],
+  [
+   2024,
+   2025
   ]
  ],
  "recipe_pooled": {
-  "version": "projection-2.0.0",
+  "version": "projection-3.0.0",
   "terms": [
    "prior_power",
    "returning_production",
    "coaching_change",
    "net_portal"
   ],
-  "intercept": 6.231766793910834,
-  "intercept_se": 0.380644364871863,
+  "intercept": 6.615005214002942,
+  "intercept_se": 0.34574083200259337,
   "coefficients": {
-   "prior_power": 0.6053424508501754,
-   "returning_production": 5.001594013274762,
-   "coaching_change": -1.3010249375014176,
-   "net_portal": -0.18046435985732978
+   "prior_power": 0.6216506886376543,
+   "returning_production": 4.415747382925526,
+   "coaching_change": -1.659113739415089,
+   "net_portal": -0.2276955782138588
   },
   "standard_errors": {
-   "prior_power": 0.03513585452185198,
-   "returning_production": 1.5507439793636368,
-   "coaching_change": 0.8329375511554995,
-   "net_portal": 0.3399632531242234
+   "prior_power": 0.032836915312529774,
+   "returning_production": 1.406972742776431,
+   "coaching_change": 0.7648781225678863,
+   "net_portal": 0.30524598850955414
   },
   "fitted_on_transitions": [
    [
@@ -50,24 +54,28 @@
    [
     2023,
     2024
+   ],
+   [
+    2024,
+    2025
    ]
   ],
-  "n_team_seasons": 398,
-  "r_squared": 0.4628070567151118,
-  "residual_sd": 6.649221492593261
+  "n_team_seasons": 534,
+  "r_squared": 0.4434342994000452,
+  "residual_sd": 6.964187605668415
  },
  "recipe_regress_only": {
-  "version": "projection-2.0.0",
+  "version": "projection-3.0.0",
   "terms": [
    "prior_power"
   ],
-  "intercept": 5.944583354095052,
-  "intercept_se": 0.3388265828845362,
+  "intercept": 6.247449967857942,
+  "intercept_se": 0.3060527750133797,
   "coefficients": {
-   "prior_power": 0.6175705784276911
+   "prior_power": 0.6422431245432624
   },
   "standard_errors": {
-   "prior_power": 0.034969209547079216
+   "prior_power": 0.032537599260996426
   },
   "fitted_on_transitions": [
    [
@@ -81,34 +89,38 @@
    [
     2023,
     2024
+   ],
+   [
+    2024,
+    2025
    ]
   ],
-  "n_team_seasons": 398,
-  "r_squared": 0.44059111694261155,
-  "residual_sd": 6.75956909877739
+  "n_team_seasons": 534,
+  "r_squared": 0.42274809422682014,
+  "residual_sd": 7.0724021933053605
  },
  "leave_one_out_recipes": {
   "2022": {
-   "version": "projection-2.0.0",
+   "version": "projection-3.0.0",
    "terms": [
     "prior_power",
     "returning_production",
     "coaching_change",
     "net_portal"
    ],
-   "intercept": 6.888429954206009,
-   "intercept_se": 0.46010276316303955,
+   "intercept": 7.16484185994757,
+   "intercept_se": 0.4001262498994991,
    "coefficients": {
-    "prior_power": 0.648286147993271,
-    "returning_production": 5.215032641673485,
-    "coaching_change": -2.828354287731342,
-    "net_portal": -0.24893128841067022
+    "prior_power": 0.6555037971533614,
+    "returning_production": 4.299222823863933,
+    "coaching_change": -2.736487725008541,
+    "net_portal": -0.3095444025664032
    },
    "standard_errors": {
-    "prior_power": 0.04471238797610214,
-    "returning_production": 1.850855972309629,
-    "coaching_change": 1.0135362819463383,
-    "net_portal": 0.4120273182434302
+    "prior_power": 0.03978203015820939,
+    "returning_production": 1.6152745355154032,
+    "coaching_change": 0.8904647995003572,
+    "net_portal": 0.35328005768335086
    },
    "fitted_on_transitions": [
     [
@@ -118,33 +130,37 @@
     [
      2023,
      2024
+    ],
+    [
+     2024,
+     2025
     ]
    ],
-   "n_team_seasons": 267,
-   "r_squared": 0.48733862160379804,
-   "residual_sd": 6.614213373125991
+   "n_team_seasons": 403,
+   "r_squared": 0.4559117203530869,
+   "residual_sd": 7.01852144431389
   },
   "2023": {
-   "version": "projection-2.0.0",
+   "version": "projection-3.0.0",
    "terms": [
     "prior_power",
     "returning_production",
     "coaching_change",
     "net_portal"
    ],
-   "intercept": 5.857062177448543,
-   "intercept_se": 0.46808385898945243,
+   "intercept": 6.531773196850331,
+   "intercept_se": 0.4084516974547265,
    "coefficients": {
-    "prior_power": 0.5471486890881263,
-    "returning_production": 3.333508100459475,
-    "coaching_change": -1.0671549938084985,
-    "net_portal": 0.08622567577242526
+    "prior_power": 0.582341899035772,
+    "returning_production": 3.141584976975935,
+    "coaching_change": -1.7605857788469823,
+    "net_portal": -0.043657934746078195
    },
    "standard_errors": {
-    "prior_power": 0.04072964019957761,
-    "returning_production": 1.8879216740004068,
-    "coaching_change": 0.9906369973963859,
-    "net_portal": 0.4142522702918294
+    "prior_power": 0.0374900139426737,
+    "returning_production": 1.651936297029661,
+    "coaching_change": 0.8863484822133694,
+    "net_portal": 0.3573942795212823
    },
    "fitted_on_transitions": [
     [
@@ -154,33 +170,37 @@
     [
      2023,
      2024
+    ],
+    [
+     2024,
+     2025
     ]
    ],
-   "n_team_seasons": 265,
-   "r_squared": 0.4274077144159565,
-   "residual_sd": 6.603755410244264
+   "n_team_seasons": 401,
+   "r_squared": 0.4112723381330954,
+   "residual_sd": 7.069995373234511
   },
   "2024": {
-   "version": "projection-2.0.0",
+   "version": "projection-3.0.0",
    "terms": [
     "prior_power",
     "returning_production",
     "coaching_change",
     "net_portal"
    ],
-   "intercept": 5.916037429757079,
-   "intercept_se": 0.46577646096857345,
+   "intercept": 6.504774176326054,
+   "intercept_se": 0.40600092794511927,
    "coefficients": {
-    "prior_power": 0.6370152571713213,
-    "returning_production": 6.2420624389588335,
-    "coaching_change": 0.15041693535691558,
-    "net_portal": -0.43386520715812005
+    "prior_power": 0.6533860519060607,
+    "returning_production": 5.105001891083966,
+    "coaching_change": -0.7148091692083048,
+    "net_portal": -0.41081147170009447
    },
    "standard_errors": {
-    "prior_power": 0.04367844485268631,
-    "returning_production": 1.9455974038584225,
-    "coaching_change": 1.0567777432170347,
-    "net_portal": 0.42061073167948915
+    "prior_power": 0.03958669665503476,
+    "returning_production": 1.675076789140765,
+    "coaching_change": 0.9272019998361417,
+    "net_portal": 0.35830548181975097
    },
    "fitted_on_transitions": [
     [
@@ -190,11 +210,55 @@
     [
      2022,
      2023
+    ],
+    [
+     2024,
+     2025
     ]
    ],
-   "n_team_seasons": 264,
-   "r_squared": 0.4906223597178625,
-   "residual_sd": 6.647645700932953
+   "n_team_seasons": 400,
+   "r_squared": 0.45432373150510175,
+   "residual_sd": 7.072235649322467
+  },
+  "2025": {
+   "version": "projection-3.0.0",
+   "terms": [
+    "prior_power",
+    "returning_production",
+    "coaching_change",
+    "net_portal"
+   ],
+   "intercept": 6.231766793910834,
+   "intercept_se": 0.380644364871863,
+   "coefficients": {
+    "prior_power": 0.6053424508501754,
+    "returning_production": 5.001594013274762,
+    "coaching_change": -1.3010249375014176,
+    "net_portal": -0.18046435985732978
+   },
+   "standard_errors": {
+    "prior_power": 0.03513585452185198,
+    "returning_production": 1.5507439793636368,
+    "coaching_change": 0.8329375511554995,
+    "net_portal": 0.3399632531242234
+   },
+   "fitted_on_transitions": [
+    [
+     2021,
+     2022
+    ],
+    [
+     2022,
+     2023
+    ],
+    [
+     2023,
+     2024
+    ]
+   ],
+   "n_team_seasons": 398,
+   "r_squared": 0.4628070567151118,
+   "residual_sd": 6.649221492593261
   }
  },
  "per_season": [
@@ -239,10 +303,10 @@
     "projection": {
      "top25_overlap": 10,
      "top25_overlap_rate": 0.4,
-     "mae_rank_top25_censored": 9.08,
+     "mae_rank_top25_censored": 9.2,
      "n_ranked": 131,
-     "mae_rank_top25_uncensored": 32.96,
-     "spearman_full": 0.5795067527891955,
+     "mae_rank_top25_uncensored": 33.16,
+     "spearman_full": 0.5779907115784979,
      "n_teams_compared": 131
     },
     "regress_only": {
@@ -276,10 +340,10 @@
     "projection": {
      "top25_overlap": 10,
      "top25_overlap_rate": 0.4,
-     "mae_rank_top25_censored": 9.48,
+     "mae_rank_top25_censored": 9.44,
      "n_ranked": 131,
-     "mae_rank_top25_uncensored": 32.2,
-     "spearman_full": 0.5866385522874072,
+     "mae_rank_top25_uncensored": 32.36,
+     "spearman_full": 0.5846153846153846,
      "n_teams_compared": 131
     },
     "regress_only": {
@@ -313,7 +377,7 @@
     "projection": {
      "n_games": 210,
      "su_accuracy": 0.6857142857142857,
-     "mae": 14.873389049467514,
+     "mae": 14.809708646251798,
      "calibration": "in-sample affine map on exactly these games, identical for every system"
     },
     "regress_only": {
@@ -379,10 +443,10 @@
     "projection": {
      "top25_overlap": 14,
      "top25_overlap_rate": 0.56,
-     "mae_rank_top25_censored": 7.48,
+     "mae_rank_top25_censored": 7.56,
      "n_ranked": 133,
-     "mae_rank_top25_uncensored": 16.64,
-     "spearman_full": 0.6612052519358097,
+     "mae_rank_top25_uncensored": 17.36,
+     "spearman_full": 0.6578896358943491,
      "n_teams_compared": 133
     },
     "regress_only": {
@@ -416,10 +480,10 @@
     "projection": {
      "top25_overlap": 14,
      "top25_overlap_rate": 0.56,
-     "mae_rank_top25_censored": 7.24,
+     "mae_rank_top25_censored": 7.36,
      "n_ranked": 133,
-     "mae_rank_top25_uncensored": 17.2,
-     "spearman_full": 0.6652605054019036,
+     "mae_rank_top25_uncensored": 17.24,
+     "spearman_full": 0.6639189561420511,
      "n_teams_compared": 133
     },
     "regress_only": {
@@ -452,8 +516,8 @@
    "early_season": {
     "projection": {
      "n_games": 216,
-     "su_accuracy": 0.7731481481481481,
-     "mae": 12.753611108295573,
+     "su_accuracy": 0.7685185185185185,
+     "mae": 12.722998236041454,
      "calibration": "in-sample affine map on exactly these games, identical for every system"
     },
     "regress_only": {
@@ -517,10 +581,10 @@
     "projection": {
      "top25_overlap": 15,
      "top25_overlap_rate": 0.6,
-     "mae_rank_top25_censored": 8.24,
+     "mae_rank_top25_censored": 8.16,
      "n_ranked": 134,
-     "mae_rank_top25_uncensored": 24.76,
-     "spearman_full": 0.5144877118168556,
+     "mae_rank_top25_uncensored": 24.28,
+     "spearman_full": 0.531400640905747,
      "n_teams_compared": 134
     },
     "regress_only": {
@@ -554,10 +618,10 @@
     "projection": {
      "top25_overlap": 16,
      "top25_overlap_rate": 0.64,
-     "mae_rank_top25_censored": 7.92,
+     "mae_rank_top25_censored": 7.84,
      "n_ranked": 134,
-     "mae_rank_top25_uncensored": 24.36,
-     "spearman_full": 0.5373408645993093,
+     "mae_rank_top25_uncensored": 24.32,
+     "spearman_full": 0.5379244130226063,
      "n_teams_compared": 134
     },
     "regress_only": {
@@ -590,8 +654,8 @@
    "early_season": {
     "projection": {
      "n_games": 194,
-     "su_accuracy": 0.6804123711340206,
-     "mae": 16.185183385878073,
+     "su_accuracy": 0.7010309278350515,
+     "mae": 16.067498994184643,
      "calibration": "in-sample affine map on exactly these games, identical for every system"
     },
     "regress_only": {
@@ -613,99 +677,239 @@
      "calibration": "in-sample affine map on exactly these games, identical for every system"
     }
    }
+  },
+  {
+   "source_season": 2024,
+   "target_season": 2025,
+   "n_teams": 136,
+   "coverage": {
+    "season": 2025,
+    "n_teams": 136,
+    "returning_production": {
+     "covered": 134,
+     "rate": 0.9852941176470589,
+     "missing": [
+      "Delaware",
+      "Missouri State"
+     ],
+     "missing_but_new_to_fbs": [
+      "Delaware",
+      "Missouri State"
+     ],
+     "missing_unexplained": []
+    },
+    "portal": {
+     "covered": 136,
+     "rate": 1.0,
+     "missing": [],
+     "missing_but_new_to_fbs": [],
+     "missing_unexplained": []
+    },
+    "coaching": {
+     "covered": 136,
+     "rate": 1.0,
+     "missing": [],
+     "missing_but_new_to_fbs": [],
+     "missing_unexplained": []
+    },
+    "portal_destination_coverage": 0.8379639919982218,
+    "ap_preseason_available": true,
+    "ap_preseason_n": 25
+   },
+   "settled_definition": "R(final, final): the last bucket of the season evaluated with the whole season's data, postseason included at the config's game weights",
+   "out_of_sample": {
+    "projection": {
+     "top25_overlap": 12,
+     "top25_overlap_rate": 0.48,
+     "mae_rank_top25_censored": 8.08,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 21.24,
+     "spearman_full": 0.607924240255713,
+     "n_teams_compared": 136
+    },
+    "regress_only": {
+     "top25_overlap": 13,
+     "top25_overlap_rate": 0.52,
+     "mae_rank_top25_censored": 7.08,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 22.16,
+     "spearman_full": 0.5960736606077953,
+     "n_teams_compared": 136
+    },
+    "naive_carryover": {
+     "top25_overlap": 13,
+     "top25_overlap_rate": 0.52,
+     "mae_rank_top25_censored": 7.08,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 22.16,
+     "spearman_full": 0.5960736606077953,
+     "n_teams_compared": 136
+    },
+    "ap_preseason": {
+     "top25_overlap": 14,
+     "top25_overlap_rate": 0.56,
+     "mae_rank_top25_censored": 8.32,
+     "n_ranked": 25,
+     "mae_rank_top25_uncensored": null,
+     "spearman_full": null
+    }
+   },
+   "in_sample": {
+    "projection": {
+     "top25_overlap": 12,
+     "top25_overlap_rate": 0.48,
+     "mae_rank_top25_censored": 8.0,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 20.92,
+     "spearman_full": 0.6120795763560898,
+     "n_teams_compared": 136
+    },
+    "regress_only": {
+     "top25_overlap": 13,
+     "top25_overlap_rate": 0.52,
+     "mae_rank_top25_censored": 7.08,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 22.16,
+     "spearman_full": 0.5960736606077953,
+     "n_teams_compared": 136
+    },
+    "naive_carryover": {
+     "top25_overlap": 13,
+     "top25_overlap_rate": 0.52,
+     "mae_rank_top25_censored": 7.08,
+     "n_ranked": 136,
+     "mae_rank_top25_uncensored": 22.16,
+     "spearman_full": 0.5960736606077953,
+     "n_teams_compared": 136
+    },
+    "ap_preseason": {
+     "top25_overlap": 14,
+     "top25_overlap_rate": 0.56,
+     "mae_rank_top25_censored": 8.32,
+     "n_ranked": 25,
+     "mae_rank_top25_uncensored": null,
+     "spearman_full": null
+    }
+   },
+   "early_season": {
+    "projection": {
+     "n_games": 195,
+     "su_accuracy": 0.7076923076923077,
+     "mae": 14.276327830762966,
+     "calibration": "in-sample affine map on exactly these games, identical for every system"
+    },
+    "regress_only": {
+     "n_games": 195,
+     "su_accuracy": 0.7128205128205128,
+     "mae": 14.086178516677094,
+     "calibration": "in-sample affine map on exactly these games, identical for every system"
+    },
+    "naive_carryover": {
+     "n_games": 195,
+     "su_accuracy": 0.7128205128205128,
+     "mae": 14.086178516677093,
+     "calibration": "in-sample affine map on exactly these games, identical for every system"
+    },
+    "ap_preseason": {
+     "n_games": 195,
+     "su_accuracy": 0.6564102564102564,
+     "mae": 16.398204728927528,
+     "calibration": "in-sample affine map on exactly these games, identical for every system"
+    }
+   }
   }
  ],
  "summary": {
   "out_of_sample": {
    "projection": {
-    "mae_rank_top25_censored": 8.266666666666667,
-    "mae_rank_top25_uncensored": 24.786666666666665,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5850665721806202,
-    "top25_overlap": 13.0,
-    "top25_overlap_rate": 0.52
+    "mae_rank_top25_censored": 8.25,
+    "mae_rank_top25_uncensored": 24.009999999999998,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.5938013071585768,
+    "top25_overlap": 12.75,
+    "top25_overlap_rate": 0.51
    },
    "regress_only": {
-    "mae_rank_top25_censored": 8.546666666666665,
-    "mae_rank_top25_uncensored": 24.533333333333335,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5781449588427156,
+    "mae_rank_top25_censored": 8.18,
+    "mae_rank_top25_uncensored": 23.94,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.5826271342839855,
     "top25_overlap": 13.0,
     "top25_overlap_rate": 0.52
    },
    "naive_carryover": {
-    "mae_rank_top25_censored": 8.546666666666665,
-    "mae_rank_top25_uncensored": 24.533333333333335,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5781449588427156,
+    "mae_rank_top25_censored": 8.18,
+    "mae_rank_top25_uncensored": 23.94,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.5826271342839855,
     "top25_overlap": 13.0,
     "top25_overlap_rate": 0.52
    },
    "ap_preseason": {
-    "mae_rank_top25_censored": 8.360000000000001,
+    "mae_rank_top25_censored": 8.350000000000001,
     "n_ranked": 25.0,
-    "top25_overlap": 13.666666666666666,
-    "top25_overlap_rate": 0.5466666666666667
+    "top25_overlap": 13.75,
+    "top25_overlap_rate": 0.55
    }
   },
   "in_sample": {
    "projection": {
-    "mae_rank_top25_censored": 8.213333333333333,
-    "mae_rank_top25_uncensored": 24.58666666666667,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5964133074295401,
-    "top25_overlap": 13.333333333333334,
-    "top25_overlap_rate": 0.5333333333333333
+    "mae_rank_top25_censored": 8.16,
+    "mae_rank_top25_uncensored": 23.709999999999997,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.599634582534033,
+    "top25_overlap": 13.0,
+    "top25_overlap_rate": 0.52
    },
    "regress_only": {
-    "mae_rank_top25_censored": 8.546666666666665,
-    "mae_rank_top25_uncensored": 24.533333333333335,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5781449588427156,
+    "mae_rank_top25_censored": 8.18,
+    "mae_rank_top25_uncensored": 23.94,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.5826271342839855,
     "top25_overlap": 13.0,
     "top25_overlap_rate": 0.52
    },
    "naive_carryover": {
-    "mae_rank_top25_censored": 8.546666666666665,
-    "mae_rank_top25_uncensored": 24.533333333333335,
-    "n_ranked": 132.66666666666666,
-    "n_teams_compared": 132.66666666666666,
-    "spearman_full": 0.5781449588427156,
+    "mae_rank_top25_censored": 8.18,
+    "mae_rank_top25_uncensored": 23.94,
+    "n_ranked": 133.5,
+    "n_teams_compared": 133.5,
+    "spearman_full": 0.5826271342839855,
     "top25_overlap": 13.0,
     "top25_overlap_rate": 0.52
    },
    "ap_preseason": {
-    "mae_rank_top25_censored": 8.360000000000001,
+    "mae_rank_top25_censored": 8.350000000000001,
     "n_ranked": 25.0,
-    "top25_overlap": 13.666666666666666,
-    "top25_overlap_rate": 0.5466666666666667
+    "top25_overlap": 13.75,
+    "top25_overlap_rate": 0.55
    }
   },
   "early_season": {
    "projection": {
-    "mae": 14.604061181213718,
-    "n_games": 206.66666666666666,
-    "su_accuracy": 0.7130916016654849
+    "mae": 14.469133426810215,
+    "n_games": 203.75,
+    "su_accuracy": 0.7157390099400409
    },
    "regress_only": {
-    "mae": 14.575091457286343,
-    "n_games": 206.66666666666666,
-    "su_accuracy": 0.7160789287077947
+    "mae": 14.452863222134031,
+    "n_games": 203.75,
+    "su_accuracy": 0.7152643247359742
    },
    "naive_carryover": {
-    "mae": 14.575091457286343,
-    "n_games": 206.66666666666666,
-    "su_accuracy": 0.7160789287077947
+    "mae": 14.452863222134031,
+    "n_games": 203.75,
+    "su_accuracy": 0.7152643247359742
    },
    "ap_preseason": {
-    "mae": 15.443975397310913,
-    "n_games": 206.66666666666666,
-    "su_accuracy": 0.6899448171784942
+    "mae": 15.682532730215065,
+    "n_games": 203.75,
+    "su_accuracy": 0.6815611769864347
    }
   }
  }

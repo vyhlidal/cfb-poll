@@ -1,123 +1,192 @@
-# The Five Hard Constraints
+# Two untouchables, and a registry of everything else
 
-These are not preferences. They are the reason the project exists, and any change
-to a number in this document is a change to what the project *is*.
+Until 2026-08-17 this page was called *The Five Hard Constraints* and it read as
+five equals. That was wrong in a way that cost accuracy: it put "no human polls",
+which is the reason the product exists, on the same footing as modelling choices
+that were never anything but choices, and it made every one of them equally
+frightening to touch. [ADR 0014](adr/0014-the-liberation.md) separates them. The
+old text is not deleted — it is in the git history and in ADRs 0010 and 0012,
+which say what this project believed and why.
 
-Stated verbatim, from the scope line of research report 02
-(`02-modeling-approaches.md`), which is the canonical wording:
-
-> **the project's five hard constraints (no human polls; no reputation priors;
-> mandatory opponent adjustment; retroactive re-ranking; full transparency)**
+**The base model has one job: predict as well as the data allows.** Two things it
+may never do, and one promise about the record. Everything else is a lever, and
+every lever is on this page with the measurement that set its default.
 
 ---
 
-## 1. No human polls
+## Untouchable 1 — No human polls. Ever.
 
-No AP poll, no Coaches poll, no CFP committee ranking may be an input to anything.
-They are **comparison targets, never fitting targets**.
+No AP poll, no coaches poll, no CFP committee ranking may be an input to
+anything, in either product. They are **comparison targets, never fitting
+targets**.
 
-The subtle version of this violation is the dangerous one: fitting toward
-agreement with the committee would reintroduce human poll bias through the back
-door — "a subtle but complete violation of constraint 1" (report 02 §5.5). We
-report Kendall's tau against the final committee top-25 and then **let the
-disagreements be the product**.
+The subtle version is the dangerous one: fitting toward agreement with the
+committee would reintroduce human poll bias through the back door. We report
+Kendall's tau against the final committee top-25 and then **let the disagreements
+be the product**.
 
-## 2. No reputation priors
+The AP's August ballot is the Projection's headline baseline — the thing it is
+trying to beat, and it does, 86.9% to 82.3% on week-one games over 2022-2025.
+A baseline that is also an input measures nothing. **There is no lever for this
+and there will not be one.**
 
-No recruiting rankings, no talent composites, no returning production, no
-returning starters, no coaching tenure, no conference identity, no prior-season
-ratings. The constraint text bans "last season's reputation in the published
-rankings" (quoted in report 02 §4).
+## Untouchable 2 — No future data. Ever.
 
-This is what disqualifies every commercial system as a template. SP+ uses
-returning production and recruiting rankings. FPI uses prior performance,
-returning starters, recruiting and coaching tenure, and its priors "never
-completely disappear." Pasteur carries the prior season as "two fully-weighted
-games." All three would fail this constraint.
+Every published number for a given week is computable from games played before
+it. This one got *stronger* when the freezes came off, and the reason is worth
+stating: once the objective is predictive accuracy, walk-forward honesty stops
+being an ethic and becomes the definition of the measurement. An accuracy figure
+computed with any knowledge of the games being scored is not a smaller result. It
+is not a result.
 
-**Regularization is not a reputation prior**, and the distinction is the project's
-central public argument (report 02 §4):
+Concretely, in `projection/chain.py`: for target season Y a system may read game
+results from seasons ≤ Y−1, the offseason table for Y and the calendar of Y — all
+three of which exist in August — and nothing else. Every constant is re-measured
+per link from the seasons behind it. A system that cannot be built that way for a
+season is reported **absent** for that season rather than given a shortcut, which
+is why the model has no 2022 row: the archive starts in 2021 and fitting a recipe
+on 2022 in order to score 2022 would be a description wearing a projection's
+clothes.
 
-> Ridge shrinks an unknown team toward *the league average*, which is a statement
-> about our ignorance, not a statement about the team. A recruiting prior shrinks a
-> team toward *what we think of its brand*, which is exactly the bias we are trying
-> to eliminate.
+This is also the one place we corrected ourselves rather than the world.
+`fit.early_season_metrics` fitted its own intercept and home-field term by least
+squares **on the very games it then scored**. Straight-up accuracy is invariant to
+the slope but not to those two, so every early-season accuracy figure this project
+published before 2026-08-17 was flattered by a home-field advantage tuned on the
+answers. The chain takes its home-field constant from the prior season's fit.
 
-Three pieces of evidence make that more than rhetoric:
+## The promise about the record — every vintage is preserved
 
-1. λ in ridge is literally a ratio of variances — noise variance over prior
-   variance. It contains no team-specific information whatsoever, and every team
-   gets the identical penalty.
-2. The most rigorously bias-free method in the BCS used exactly this device.
-   Colley's `+2` **is** a ridge penalty; without it his matrix is singular and the
-   method does not work at all. He marketed the system as "bias free" *with* that
-   term in it.
-3. Bradley-Terry's phantom-player fix is provably a MAP estimate under a prior
-   (Glickman 2026). Pseudo-games, phantom opponents, Laplace's rule of succession
-   and the ridge penalty are the same mathematical object under four names, in
-   four literatures, always solving identifiability on sparse schedules — never
-   encoding an opinion.
+Nothing published is edited in place. Every board stays up with the coefficients
+it ran under, the `git_sha` that produced it and the `config_hash` that
+parameterised it. `projection-3.0.0` **supersedes** `projection-2.0.0`; it does
+not correct it.
 
-The line, stated so it can be audited: **priors may encode ignorance, never
-reputation.** The audit is to inspect the code for team-specific constants, of
-which there are none.
+This is the mechanism that let the freezes go. The freeze bought one sentence —
+*the coefficients did not move after we saw that season* — and cost a season of
+data on every future refit, forever. The vintage record buys the same sentence
+and costs nothing: "what did you say in August" is answered by the archive rather
+than by refusing to learn.
 
-## 3. Mandatory opponent adjustment
+---
 
-Every rating is adjusted for who a team played and where. The adjustment is
-**simultaneous, not iterative** — offense and defense are solved jointly in one
-linear system, which is both more correct and cheaper than iterative averaging,
-and which makes the "10 sacks against an FCS team" problem vanish by construction
-(report 02 §1, commitment 3).
+# The levers
 
-FCS teams get their own coefficients under the same penalty. Pooling them into one
-node is exactly ESPN's pre-2015 FPI failure (report 02 §3.7).
+`src/cfbpoll/levers.py` is the machine-readable half of this page and
+`cfbpoll levers` prints it. Every lever carries a plain-football name, a
+published range, a default, **what measured that default**, and — where it has
+been swept — what moving it costs. No lever ships with blank evidence; a test
+asserts it.
 
-## 4. Retroactive re-ranking
+| lever | what it does | default | what set it |
+|---|---|---:|---|
+| **How far an FCS rating falls when it meets FBS** | a rating earned outside FBS does not carry intact into an FBS game | 1.0 | 13.4 points, se 0.6, from 602 crossover games |
+| **Credit for being the kind of program that moves up** | a promoted program is not a randomly drawn FCS team | 1.0 | 9.8 points, se 1.9, from 68 games by six promoted programs |
+| **Cap a promoted team at the best any promoted team has done** | the guard that stops the credit above being extrapolated | on | James Madison, 2022, 32nd in FBS |
+| **How much the year before last still counts** | programs are not rebuilt every August | 0.2 | a 216-cell walk-forward grid, 2022-2025 |
+| **How much home field is worth in August** | carried ratings are spread wider than this season's truth | 1.5 | the same grid |
+| **Where a blowout stops counting extra** | winning by 60 is barely better than winning by 40 | 32.0 | ADR 0007, a 416-cell factorial |
+| **How much a win is worth on its own** | the discontinuity that makes this football and not scoring margin | 7.0 | ADR 0007 |
+| **Whether September still counts in December** | at 1 the season does not decay | 1.0 | available and off, report 02 §3.1 |
+| **What sorts the table** | schedule odds, or the win-loss résumé | schedule odds | ADR 0005 |
+| **Let the model know which conference a team is in** | **off, and it is the one that stays off** | 0.0 | see below |
 
-Ratings must be re-computable with hindsight: "given what we now know about how
-good those opponents actually were, how good were the first N weeks of results?"
+Also levered, and fitted rather than swept: how much a returning offence is
+worth, the cost of a new head coach, and how much the portal moves a team. Their
+standard errors ship beside them and two of the three have never cleared two of
+their own.
 
-This is why the estimator is a **batch refit and not an Elo**. Every rating is a
-pure function `R(evaluation_week N, data_window K)`:
+## Conference identity, which is out of the base and stays out
 
-- live ranking for week N = `R(N, N)`
-- hindsight ranking for week N = `R(N, final)`
+A conference is a **label, not a measurement**. Conference strength has to emerge
+from results or the poll is a brand ranking with arithmetic on top, and
+*nothing in it knows what a conference is* is the fairness spine of the whole
+product.
 
-Change the set of games, re-solve, done. Elo cannot do this cleanly because it is
-path-dependent: there is no principled "week 5 with hindsight," and its week-5
-rating cannot use week-13 information without breaking its own update recursion
-(report 02 §2.7, §3.6).
+**This is not a claim in this repository. It is a result, recomputed before every
+fit.** `conference_game` is in the schedule frame on every run — the 2021
+structural conference-championship fallback needs it — and `cfbpoll
+audit-features` rebuilds all seven design matrices without it and requires the
+same bytes. It is published on `model_params.json` under `feature_audit`.
 
-**This constraint chose the headline ordering**, and it is worth recording that a
-constraint did real work rather than sitting on a page. The wins-based résumé that
-was the headline until 2026-08-12 satisfied constraint 4 for every team *that had
-lost a game*, and could not satisfy it for any team that had not: an undefeated
-team's résumé saturates at the published bracket `[−60, +60]`, +60 is not a
-function of the schedule, therefore it is not a function of `K`, therefore
-substituting end-of-season opponent quality could not move it at all. Measured:
-from week 11 of 2023 onward, the résumé ordering moved **no unbeaten team by a
-single place** between the live and hindsight surfaces. See
-[ADR 0005](adr/0005-headline-ordering.md).
+It ships as a lever, defaulted to zero, because a refusal a reader cannot see the
+switch for is not a refusal they can check. **The default does not move without a
+measured accuracy number the owner has seen.** No such number is offered here,
+and if conference-as-feature is ever found to help materially, that finding gets
+published before anything is adopted.
 
-## 5. Full transparency
+---
 
-Every equation, every constant, every input published — and every published poll
-reproducible by a stranger with no API key, no account, and no permission from
-anyone.
+# What the Poll additionally promises
 
-Concretely this means: `model_params.json` ships every constant every week;
-`_run.json` ties every poll to the exact `git_sha`, `config_hash` and
-`archive_hash` that produced it; the win premium `β_w` appears in a permanent
-footer rather than a buried methodology page; and a CI job recomputes a historical
-week offline and asserts a byte-match on every push.
+The two untouchables govern both products. The Poll — the thing that ranks what a
+team has *done* — makes three further promises that are properties of what it is
+for rather than constraints on what may be measured.
+
+## It adjusts for who you played, always
+
+Every rating is adjusted for opponent and venue, **simultaneously, not
+iteratively**: offence and defence are solved jointly in one linear system, which
+makes the "10 sacks against an FCS team" problem vanish by construction. FCS
+teams get their own coefficients under the same penalty rather than being pooled
+into one node, which is exactly ESPN's pre-2015 FPI failure.
+
+The all-divisions fit has a known cost, and since 2026-08-17 it has a treatment
+rather than a caveat: ridge under-separates two blocks connected by only ~120
+games a season, and `projection/crossdivision.py` measures the residual gap from
+the crossover games themselves and corrects it. See ADR 0014 §3.1.
+
+## It can be re-run with hindsight
+
+Every rating is a pure function `R(evaluation_week N, data_window K)`: live
+ranking for week N is `R(N, N)`, hindsight ranking is `R(N, final)`. This is why
+the estimator is a batch refit and not an Elo — Elo is path-dependent and has no
+principled "week 5 with hindsight."
+
+This promise **chose the headline ordering**, and it is worth recording that it
+did real work rather than sitting on a page: under the wins-based résumé an
+unbeaten team's rating saturates at the published bracket `+60`, which is not a
+function of the schedule, therefore not a function of `K`. Measured: from week 11
+of 2023 onward, the résumé ordering moved **no unbeaten team by a single place**
+between the live and hindsight surfaces. See [ADR 0005](adr/0005-headline-ordering.md).
+
+## Everything is published, and a stranger can reproduce it
+
+Every equation, every constant, every input — and every published poll
+reproducible by someone with no API key, no account and no permission from
+anyone. `model_params.json` ships every constant every week; `_run.json` ties
+every poll to the exact `git_sha`, `config_hash` and `archive_hash` that produced
+it; a CI job recomputes a historical week offline and asserts a byte-match on
+every push.
+
+Since ADR 0014 this clause carries the lever registry too. Publishing a number is
+not transparency if the reader cannot tell which of the numbers were choices.
+
+## Reputation priors, and where they are now allowed
+
+The old constraint 2 banned recruiting rankings, talent composites, returning
+production, prior-season ratings and coaching tenure outright. That ban **still
+holds for the Poll, mechanically**, and the banned-input table below is
+unchanged. What ADR 0010 established and ADR 0014 keeps is that the ban is on the
+Poll's published rankings, not on this repository: the Projection is a second
+product that uses last season's ratings, returning production and coaching
+changes, and the audit is hostile in one direction only.
+
+**The Projection reads the Poll. The Poll may never read the Projection.**
+
+Recruiting stars remain refused in both, and that refusal is the one place the
+project spends accuracy on principle. They are on the portal feed, they are not
+banned by the audit, a star-weighted net flow would very likely predict better,
+and they are refused anyway — because using one where it is legal would make the
+Poll's refusal look like a technicality. That is a choice, it is not a
+measurement, and it is written here as a choice.
 
 ---
 
 # The headline promise
 
-The five constraints say what the poll may not do. This says what it claims to do,
-in the one sentence a reader is entitled to hold it to:
+Everything above says what the poll may not do, or what a reader may change. This
+says what the poll claims to DO, in the one sentence it can be held to:
 
 > **The harder it was to do what you did, the higher you go — measured, never
 > assumed.**
@@ -149,7 +218,7 @@ independent review said so before anyone outside did
 (`docs/analysis/fresh-eyes-review.md`, S5). The second test exists so that the
 sentence cannot quietly widen again.
 
-**"Measured, never assumed"** is constraint 2 applied to the thing everyone
+**"Measured, never assumed"** is the no-reputation rule applied to the thing everyone
 actually argues about. An unbeaten Group of Five team probably would not survive a
 Big Ten schedule — and a poll may only say so if it *derived* it. Nothing in the
 computation knows what a conference is; opponent quality arrives only as a rating
@@ -170,9 +239,8 @@ of teams with a loss ever ranked above an unbeaten team was **exactly zero**, in
 all eight cells.
 
 It was rejected because **+60 is not a function of the schedule**, and therefore
-not a function of the data window, and therefore constraint 4 — retroactive
-re-ranking, the project's most differentiated product — could not move an unbeaten
-team at all. From week 11 of 2023 onward it moved none of them by a single place.
+not a function of the data window, and therefore retroactive re-ranking — the
+project's most differentiated promise — could not move an unbeaten team at all. From week 11 of 2023 onward it moved none of them by a single place.
 A poll that cannot say "September turned out to be harder than we thought" about
 the teams whose ranking is most argued about is not delivering the feature it
 advertises.
@@ -194,18 +262,19 @@ under it. What changed is which column sorts the table by default.
 
 Reproduced from research report 02 §3.10. `cfbpoll audit-features --fail-on-banned`
 fails the build if any of these reaches a model matrix, and it runs in both the
-weekly workflow and the reproducibility workflow.
+weekly workflow and the reproducibility workflow. Nothing on it moved when the
+freezes came off.
 
 | Banned input | Why |
 |---|---|
-| AP / Coaches / CFP rankings | Constraint 1, directly |
-| Recruiting rankings, talent composites | Constraint 2 — reputation prior |
-| Returning production / returning starters | Constraint 2 |
-| Prior-season ratings of any kind | Constraint 2 |
+| AP / Coaches / CFP rankings | Untouchable 1, directly |
+| Recruiting rankings, talent composites | Reputation prior. Refused in the Projection too, on the record |
+| Returning production / returning starters | Reputation prior in the Poll. The Projection uses it, and the audit is hostile in one direction only |
+| Prior-season ratings of any kind | Reputation prior in the Poll. The Projection is built on them |
 | **SP+ or FPI as features** | **Indirect violation** — both embed recruiting-based priors, so importing them imports the prior |
 | **CORE, or any CFBD-served rating, as a feature** | Third-party fitted models. Banned by the same rule and enforced by the same allow-list rebuild, which fails closed whether or not a rating was ever banned by name. The roster of what we compare against is `cfbpoll benchmarks` and [data-sources.md](./data-sources.md) |
 | **Vegas lines as features** | Market opinion is partly poll-driven; also destroys independence from the baseline we're measuring against |
-| Conference identity as a feature | A reputation prior in disguise. Conference strength must *emerge* from results, never be assumed |
+| Conference identity as a feature | A label, not a measurement. Conference strength must *emerge* from results. Shipped as a lever, defaulted off, and the default does not move without a measured number the owner has seen |
 | Home-team "brand," stadium prestige, TV rating | Obviously |
 
 ## The complete allowed feature list
@@ -294,7 +363,7 @@ Since 2026-08-15 this repository publishes a **second product**: the
 last season's fitted ratings plus returning production, the transfer portal and
 coaching changes — three of the things the table above bans by name.
 
-**Nothing on this page changed.** This document is the *Poll's* charter. It says
+**None of this changed when the Projection arrived.** This document is the *Poll's* charter. It says
 what the Poll may not do, and the Poll does not do any of it: every design matrix
 above is still rebuilt from its allow-list before every fit and still comes out
 bit-identical.

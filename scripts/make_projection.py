@@ -32,6 +32,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import polars as pl
 
 from cfbpoll.config import DEFAULT_CONFIG_PATH, config_hash, load_config
@@ -39,6 +40,7 @@ from cfbpoll.ingest.plays import load_plays
 from cfbpoll.ingest.sportsdataverse import load_games
 from cfbpoll.projection import (
     PROJECTION_VERSION,
+    crossdivision,
     fit,
     forward,
     grade,
@@ -47,6 +49,7 @@ from cfbpoll.projection import (
     recipe,
     schedule,
     seasons,
+    systems,
 )
 from cfbpoll.validate import leakage
 
@@ -63,6 +66,26 @@ TARGET_SEASON = int(PROJ["target_season"])
 GRADING_DEMO_SEASON = int(PROJ["grading_demo_season"])
 
 ALL_SEASONS = sorted({s for pair in TRANSITIONS for s in pair} | {SOURCE_SEASON})
+
+#: Rows the owner asked to see explained on the page rather than in a chat log.
+#: A team lands here when the ranking it gets is the thing people will argue
+#: about, and it leaves the list when nobody argues any more. Promoted teams are
+#: added automatically and do not need to be named.
+CONTESTED_TEAMS: tuple[str, ...] = ("Texas",)
+
+
+def _target_membership() -> list[str]:
+    """Who is in FBS for the target season, from the offseason feeds.
+
+    The schedule frame cannot answer this before the season is played, so the
+    membership comes from the returning-production and coaching files, which is
+    the same rule this script has always used and is now named because
+    `systems.prepare` needs it handed in rather than derived.
+    """
+    return sorted(
+        set(offseason.returning_production(TARGET_SEASON)["team"].to_list())
+        | set(offseason.coaching(TARGET_SEASON)["team"].to_list())
+    )
 
 
 def _git_sha() -> str:
@@ -90,28 +113,45 @@ def build() -> dict[str, Any]:
     plays = load_plays(ALL_SEASONS)
 
     backtest = fit.run(games, TRANSITIONS, plays=plays, config=CFG)
-    fitted = recipe.fit_recipe(
-        *_pooled(games, plays), TRANSITIONS
+
+    # THE LIBERATION PATH (ADR 0014). The prior a team carries into August is no
+    # longer "last season's rating, whoever you played". It is last season blended
+    # with the one before it, and then - if the rating was earned outside FBS -
+    # moved onto the FBS scale by the constants the crossover games measured. Every
+    # step is levered and every lever's value is on the artifact.
+    levers = systems.ProjectionLevers.from_config(CFG)
+    inputs = systems.prepare(games, ALL_SEASONS, plays, CFG)
+    inputs.fbs[TARGET_SEASON] = set(_target_membership())
+    teams_2026 = sorted(inputs.fbs[TARGET_SEASON])
+
+    fitted, fitted_transitions = systems.fit_walk_forward(
+        games, TARGET_SEASON, inputs.power, inputs.home_field, inputs.fbs, levers
+    )
+    if fitted is None:  # pragma: no cover - impossible with the shipped archive
+        raise RuntimeError("no transition precedes the target season; nothing to fit on")
+
+    carried, calibration, carry_provenance = systems.carried_ratings(
+        games, TARGET_SEASON, inputs.power, inputs.home_field, inputs.fbs, levers
     )
 
     source = seasons.final_power(games, SOURCE_SEASON, plays, CFG)
-    teams_2026 = sorted(
-        set(offseason.returning_production(TARGET_SEASON)["team"].to_list())
-        | set(offseason.coaching(TARGET_SEASON)["team"].to_list())
-    )
-    design = recipe.build_design(source.ratings, TARGET_SEASON, teams_2026)
+    design = recipe.build_design(carried, TARGET_SEASON, teams_2026)
     projection = recipe.project(fitted, design, teams_2026)
 
     future = forward.schedule(TARGET_SEASON)
     season_sigma, sigma_source = forward.season_sigma_for(source, CFG)
+    # The home-field constant the win model uses is season 2025's fitted value
+    # scaled by the published lever, so the number that decides a projected win
+    # total is the same number the accuracy chain was scored on.
+    home_field = float(source.home_field) * float(levers.home_field)
     wins = forward.expected_wins(
         projection,
         future,
         fitted,
-        source.ratings,
+        carried,
         float(design["prior_power_center"][0]),
         season_sigma,
-        float(source.home_field),
+        home_field,
         season_sigma_source=sigma_source,
     )
     projection = projection.join(wins.table, on="team", how="left")
@@ -121,15 +161,15 @@ def build() -> dict[str, Any]:
         projection,
         future,
         fitted,
-        source.ratings,
+        carried,
         center,
         wins.sigma,
-        float(source.home_field),
-        promoted=tuple(t for t in teams_2026 if t not in seasons.fbs_teams(games, SOURCE_SEASON)),
+        home_field,
+        promoted=tuple(t for t in teams_2026 if t not in inputs.fbs[SOURCE_SEASON]),
     )
     projection = projection.join(strength.table, on="team", how="left")
     contrast = schedule.contrast(
-        projection, future, fitted, source.ratings, center, wins.sigma, float(source.home_field)
+        projection, future, fitted, carried, center, wins.sigma, home_field
     )
 
     # The separation proof, run on the frames this very artifact was built from.
@@ -140,11 +180,35 @@ def build() -> dict[str, Any]:
         projection_design=design,
     )
 
-    prior_fbs = seasons.fbs_teams(games, SOURCE_SEASON)
+    prior_fbs = sorted(inputs.fbs[SOURCE_SEASON])
     coverage = offseason.coverage(TARGET_SEASON, teams_2026, prior_teams=prior_fbs)
+    promoted = [t for t in teams_2026 if t not in inputs.fbs[SOURCE_SEASON]]
 
     return {
-        "promoted": [t for t in teams_2026 if t not in prior_fbs],
+        "levers": levers,
+        "cross_division": calibration,
+        "carry_provenance": carry_provenance,
+        "carried": carried,
+        # The season before last, kept so an explanation can name what the second
+        # season of memory actually did to a team rather than assert that it did
+        # something.
+        "older_power": dict(inputs.power.get(SOURCE_SEASON - 1, {})),
+        "fitted_transitions": fitted_transitions,
+        "home_field": home_field,
+        "receipts": {
+            team: crossdivision.receipts(
+                games, team, inputs.power, inputs.home_field, SOURCE_SEASON
+            )
+            for team in promoted
+        },
+        "season_receipts": {
+            team: crossdivision.season_receipts(
+                games, team, SOURCE_SEASON, inputs.power[SOURCE_SEASON],
+                inputs.home_field[SOURCE_SEASON],
+            )
+            for team in CONTESTED_TEAMS
+        },
+        "promoted": promoted,
         "projection": projection,
         "recipe": fitted,
         "backtest": backtest,
@@ -172,6 +236,232 @@ def _pooled(games: pl.DataFrame, plays: pl.DataFrame) -> tuple[list[pl.DataFrame
 
 
 # ------------------------------------------------------------------ the artifacts
+
+
+def explanations(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """The plain-English answer for every row a reader is entitled to argue about.
+
+    TEMPLATED FROM THE NUMBERS, NEVER TYPED. Every sentence is assembled from the
+    team's own row, so a regeneration that moves a team moves its explanation with
+    it and this page cannot end up defending a rank it no longer publishes. Two
+    kinds of row qualify:
+
+      a PROMOTED team, because its rating was earned outside the division it is
+      about to play in, and the correction is the largest single adjustment this
+      model makes to anybody;
+      a CONTESTED team, because the ranking it gets is the thing people will argue
+      about, and an answer that only exists in a chat log is not published.
+
+    Both kinds carry `receipts`: the actual games, with what the model expected of
+    them printed beside what happened. An adjustment estimated over 602 games is a
+    fact about the league; the receipts are the part a reader can check against
+    their own memory of watching the team.
+    """
+    projection: pl.DataFrame = state["projection"]
+    calibration: crossdivision.DivisionCalibration = state["cross_division"]
+    carried: dict[str, float] = state["carried"]
+    provenance: dict[str, str] = state["carry_provenance"]
+    source = state["source"]
+    fbs_source = {t for t, p in provenance.items() if p == "fbs"}
+    source_mean = (
+        float(np.mean([source.ratings[t] for t in fbs_source if t in source.ratings]))
+        if fbs_source
+        else 0.0
+    )
+
+    def rank_in(ratings: dict[str, float], team: str) -> int:
+        return 1 + sum(
+            1 for t in fbs_source if ratings.get(t, 0.0) > ratings.get(team, 0.0)
+        )
+
+    out: list[dict[str, Any]] = []
+    for team in [*state["promoted"], *CONTESTED_TEAMS]:
+        row = projection.filter(pl.col("team") == team)
+        if not row.height:
+            continue
+        record = row.to_dicts()[0]
+        rank = int(record["projected_rank"])
+        power = float(record["projected_power"])
+        how = provenance.get(team, "fbs")
+        ord_rank = f"{rank}{_ordinal_suffix(rank)}"
+        block: dict[str, Any] = {
+            "team": team,
+            "projected_rank": rank,
+            "projected_power": round(power, 2),
+            "carried_rating": round(float(carried.get(team, 0.0)), 2),
+            "prior_rating": round(float(source.ratings.get(team, 0.0)), 2),
+            "carry_treatment": how,
+        }
+
+        if how.startswith("promoted"):
+            block.update(_promoted_explanation(state, team, rank, ord_rank, block, calibration))
+            out.append(block)
+            continue
+
+        block.update(
+            _contested_explanation(state, team, rank, ord_rank, power, record, block, carried,
+                                   source, source_mean, rank_in)
+        )
+        out.append(block)
+    return out
+
+
+def _promoted_explanation(
+    state: dict[str, Any],
+    team: str,
+    rank: int,
+    ord_rank: str,
+    block: dict[str, Any],
+    calibration: crossdivision.DivisionCalibration,
+) -> dict[str, Any]:
+    """Why a team that moved up from FCS lands where it lands."""
+    receipts = state["receipts"].get(team, [])
+    played = len(receipts)
+    won = sum(1 for r in receipts if r["result"] == "won")
+    capped = block["carry_treatment"] == "promoted_at_ceiling"
+
+    detail = (
+        f"Their {SOURCE_SEASON} rating was {block['prior_rating']:+.2f}. The "
+        f"{calibration.n_bridge_games} games between an FBS team and an FCS team in "
+        f"this archive say a rating earned outside FBS is worth "
+        f"{abs(calibration.cross_division_gap):.1f} points less against FBS "
+        f"opposition. The {calibration.n_promotion_games} games "
+        f"{calibration.n_promoted_teams} promoted programs have actually played in "
+        f"their first FBS season give {abs(calibration.promotion_bump):.1f} of that "
+        "back."
+    )
+    if capped:
+        detail += (
+            " That still left them above anything a promoted program has ever done, "
+            "so the ceiling applies: no promoted team is projected above "
+            f"{calibration.promotion_ceiling_team}'s first FBS season in "
+            f"{calibration.promotion_ceiling_season}, which is the best on record. "
+            f"{team} lands {ord_rank}."
+        )
+    else:
+        detail += f" {team} lands {ord_rank}."
+
+    if played:
+        results = "; ".join(
+            (
+                f"{r['season']} lost to {r['opponent']} by {abs(r['margin']):.0f}"
+                if r["result"] == "lost"
+                else f"{r['season']} beat {r['opponent']} by {abs(r['margin']):.0f}"
+            )
+            for r in receipts
+        )
+        receipt_line = (
+            f"{team} has played {played} game{'s' if played != 1 else ''} against an "
+            f"FBS opponent in this archive and won {won}: {results}."
+        )
+    else:
+        receipt_line = (
+            f"{team} has not played an FBS opponent in this archive, so there is no "
+            "direct evidence about this program and the correction it carries is the "
+            "league-wide one."
+        )
+
+    return {
+        "headline": (
+            f"{team} moved up from FCS, so the rating they bring with them was earned "
+            "against teams they will not play any more."
+        ),
+        "detail": detail,
+        "receipts": receipt_line,
+    }
+
+
+def _contested_explanation(
+    state: dict[str, Any],
+    team: str,
+    rank: int,
+    ord_rank: str,
+    power: float,
+    record: dict[str, Any],
+    block: dict[str, Any],
+    carried: dict[str, float],
+    source: Any,
+    source_mean: float,
+    rank_in: Any,
+) -> dict[str, Any]:
+    """Why an FBS team a lot of people have an opinion about lands where it lands."""
+    prior_rel = float(source.ratings.get(team, 0.0)) - source_mean
+    prior_rank = rank_in(source.ratings, team)
+    carried_rank = rank_in(carried, team)
+    older = state["older_power"].get(team)
+    ord_prior = f"{prior_rank}{_ordinal_suffix(prior_rank)}"
+    ord_carried = f"{carried_rank}{_ordinal_suffix(carried_rank)}"
+
+    detail = (
+        f"They finished {SOURCE_SEASON} on {block['prior_rating']:+.2f} Power, "
+        f"{prior_rel:+.2f} against the FBS average, which was {ord_prior} in the "
+        "league. That is the number to argue with, because everything after it is "
+        "arithmetic."
+    )
+    if older is not None:
+        detail += (
+            f" The projection does not use it alone: it blends in {SOURCE_SEASON - 1}, "
+            f"when {team} rated {float(older):+.2f}, at the published weight, and the "
+            f"carried rating that comes out is {block['carried_rating']:+.2f}, which is "
+            f"{ord_carried}."
+        )
+    detail += (
+        f" Returning production then adds "
+        f"{float(record['contrib_returning_production']):+.2f} points and the portal "
+        f"{float(record['contrib_net_portal']):+.2f}, and mean reversion pulls every "
+        f"team toward the middle at once, which is how a carried "
+        f"{block['carried_rating']:+.2f} becomes a projected {power:.2f} and "
+        f"{ord_carried} becomes {ord_rank}."
+    )
+    sos_rank = record.get("schedule_strength_rank")
+    if sos_rank is not None:
+        detail += (
+            f" Their {TARGET_SEASON} schedule is the "
+            f"{int(sos_rank)}{_ordinal_suffix(int(sos_rank))} hardest of "
+            f"{int(record['schedule_field_size'])}, which costs them projected wins and "
+            "costs them nothing in the ranking: this board is sorted by how good the "
+            "model thinks a team is, not by how many games it expects them to win."
+        )
+
+    worst = state["season_receipts"].get(team) or []
+    receipt_line = None
+    if worst:
+        def phrase(r: dict[str, Any]) -> str:
+            verb = "lost to" if r["result"] == "lost" else "beat"
+            had = "win" if r["model_expected_margin"] > 0 else "lose"
+            where = {"home": "at home", "away": "on the road", "neutral": "at a neutral site"}
+            return (
+                f"{verb} {r['opponent']} by {abs(r['margin']):.0f} "
+                f"{where.get(r['at'], r['at'])}, where the model expected them to {had} "
+                f"by {abs(r['model_expected_margin']):.0f}"
+            )
+
+        best = worst[-1]
+        receipt_line = (
+            f"The three {SOURCE_SEASON} games that cost {team} the most, each measured "
+            "against what the model expected of them that day: "
+            + "; ".join(phrase(r) for r in worst[:3])
+            + f". Their best day ran the other way: they {phrase(best)}."
+        )
+
+    out = {
+        "headline": (
+            f"{team} projects {ord_rank}, and the argument is not about this August. "
+            f"It is about last season, which the model scored {ord_prior}."
+        ),
+        "detail": detail,
+        "prior_rank": prior_rank,
+        "carried_rank": carried_rank,
+    }
+    if receipt_line:
+        out["receipts"] = receipt_line
+    return out
+
+
+def _ordinal_suffix(n: int) -> str:
+    if 11 <= (n % 100) <= 13:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 
 
 def write_projection(state: dict[str, Any]) -> dict[str, Any]:
@@ -203,6 +493,13 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
         "power_definition": seasons.POWER_DEFINITION,
         "win_model": wins.as_dict(),
         "provenance": provenance,
+        # THE LIBERATION BLOCK (ADR 0014). What the model was allowed to do, what
+        # it measured, and the rows it owes a reader an argument about.
+        "levers": state["levers"].as_dict(),
+        "cross_division": state["cross_division"].as_dict(),
+        "fitted_on_transitions": [list(t) for t in state["fitted_transitions"]],
+        "home_field_points": round(float(state["home_field"]), 4),
+        "explanations": explanations(state),
         "coverage": coverage,
         "separation_audit": {
             "passed": audit.passed,
@@ -335,6 +632,22 @@ def write_projection(state: dict[str, Any]) -> dict[str, Any]:
     add("")
     add(f"Projected records use {wins.sigma_note}")
     add("")
+    add("## How a rating crosses divisions")
+    add("")
+    for line in _crossdivision_lines(state):
+        add(line)
+    add("")
+    add("## The rows people will argue about")
+    add("")
+    for block in explanations(state):
+        add(f"**{block['team']}, projected #{block['projected_rank']}.** "
+            f"{block['headline']}")
+        add("")
+        add(block["detail"])
+        if block.get("receipts"):
+            add("")
+            add(f"*{block['receipts']}*")
+        add("")
     add("## What this projection does not know")
     add("")
     for line in _caveats(
@@ -425,6 +738,59 @@ def _significance_paragraph(fitted: recipe.Recipe) -> str:
     return "".join(parts)
 
 
+def _crossdivision_lines(state: dict[str, Any]) -> list[str]:
+    """The cross-division treatment, with every constant and its sample size."""
+    c: crossdivision.DivisionCalibration = state["cross_division"]
+    if not c.measured:
+        return [
+            "The archive did not hold enough games between divisions to measure a "
+            "correction, so ratings are carried across the boundary unchanged and this "
+            "page says so rather than implying a treatment it did not apply."
+        ]
+    return [
+        "A team that earned its rating against FCS opponents does not carry it intact "
+        "into an FBS game, and until this version that is exactly what happened. The "
+        "size of the mistake is measurable, because the archive holds every game where "
+        "the two divisions met.",
+        "",
+        f"Run the model's own prediction over those **{c.n_bridge_games} crossover "
+        f"games** and the FBS side beats it by **{c.raw_bridge_miss:+.1f} points** on "
+        "average. Most of that is not about divisions: this model under-predicts every "
+        f"mismatch, and the same regression says a game it calls by 10 points is "
+        f"actually won by about {10 * c.dispersion:.0f}. Carrying the predicted margin "
+        "as a regressor and asking what is left for the division boundary gives the "
+        "number this page uses:",
+        "",
+        "| what | value | standard error | measured on |",
+        "|---|---:|---:|---|",
+        f"| an FCS rating, against FBS opposition | **{c.cross_division_gap:+.1f}** | "
+        f"{c.cross_division_gap_se:.2f} | {c.n_bridge_games} crossover games |",
+        f"| credit for being a program that got promoted | **{c.promotion_bump:+.1f}** | "
+        f"{c.promotion_bump_se:.2f} | {c.n_promotion_games} games, "
+        f"{c.n_promoted_teams} programs |",
+        f"| net, for a team moving up | **{c.promoted_net:+.1f}** | | both |",
+        "",
+        "**The two numbers are not in conflict and they are not the same question.** "
+        "The first is what an FCS roster is worth on a Saturday against FBS opposition. "
+        "The second is what a program gains by being the kind of program that gets "
+        "promoted at all, which is a program that spent years buying its way to FBS "
+        "rosters and FBS staff. A promoted team carries both.",
+        "",
+        f"**And then the guard, which is the part that decides the top of this board.** "
+        f"The promotion credit is fitted on {c.n_promoted_teams} programs whose ratings "
+        f"topped out at {c.promotion_support_max_rel:+.1f} against the FBS average. Any "
+        "team rated well above that is outside the evidence, so the rule is a maximum "
+        "rather than an extrapolation: **no promoted team is projected above the best "
+        "first FBS season a promoted program has actually had.** That is "
+        f"{c.promotion_ceiling_team} in {c.promotion_ceiling_season}, at "
+        f"{c.promotion_ceiling_rel:+.1f} against the FBS average.",
+        "",
+        "Every one of these is a lever with a published range. Turn the first to zero "
+        "and you get the board this project published in August 2026, with North Dakota "
+        "State tenth.",
+    ]
+
+
 def _caveats(
     coverage: dict[str, Any],
     wins: forward.WinProjection,
@@ -471,29 +837,16 @@ def _caveats(
         "Schedules change; the projection does not get re-run when they do.",
     ]
     if promoted:
-        placed = projection.filter(
-            pl.col("team").is_in(promoted) & (pl.col("projected_rank") <= 25)
-        ).sort("projected_rank")
         names = ", ".join(promoted)
-        sentence = (
-            f"**{names} moved up from FCS for {TARGET_SEASON}, and their "
-            "prior-season rating was earned against FCS opposition.** The Power "
-            "fit is all-divisions, so they carry a real rating. Ridge still "
-            "shrinks thin schedules toward the mean of a universe that includes "
-            "every FCS team, which is a softer standard than the one they are "
-            "about to be held to, and the recipe has no term for promotion."
+        out.append(
+            f"**{names} moved up from FCS for {TARGET_SEASON}.** Their rating was "
+            "earned against opponents they will not play any more, and this version "
+            "corrects for that from the crossover games rather than warning about it "
+            "in a footnote. The correction and the evidence behind it are in "
+            "**How a rating crosses divisions** above. What is still thin: the "
+            "promotion half of it rests on six programs, and the ceiling that stops it "
+            "being extrapolated is a maximum over those same six."
         )
-        if placed.height:
-            worked = "; ".join(
-                f"{row['team']} lands #{int(row['projected_rank'])}"
-                for row in placed.to_dicts()
-            )
-            sentence += (
-                f" It is not hypothetical here: {worked}. Treat that as the "
-                "single least trustworthy row on this page, and watch what the "
-                "grading loop does to it."
-            )
-        out.append(sentence)
     if not coverage["ap_preseason_available"]:
         out.append(
             "**No AP preseason poll for 2026 was in the archive when this ran**, so "

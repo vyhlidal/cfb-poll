@@ -56,7 +56,6 @@ from cfbpoll.ingest.plays import load_plays
 from cfbpoll.ingest.sportsdataverse import load_games
 from cfbpoll.projection import (
     PROJECTION_VERSION,
-    fit,
     forward,
     grade,
     holdout,
@@ -64,6 +63,7 @@ from cfbpoll.projection import (
     recipe,
     schedule,
     seasons,
+    systems,
 )
 from cfbpoll.projection import publish as projection_publish
 from cfbpoll.validate import leakage
@@ -130,41 +130,44 @@ def archived_calendar(season: int, games: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _assert_recipe_matches_the_published_one(fitted: recipe.Recipe) -> dict[str, Any]:
-    """The claim this whole artifact rests on, checked instead of asserted in prose.
+def _assert_walk_forward(transitions: list[tuple[int, int]]) -> dict[str, Any]:
+    """The claim this artifact rests on, checked instead of asserted in prose.
 
-    If the coefficients here differ from the ones on the published 2026 card, then
-    something moved between the two runs and "the shipped recipe, applied one
-    season back" is no longer a true sentence. Refusing to write is the correct
-    response: a projection that quietly used different numbers from the ones it
-    claims to use is worse than no projection.
+    IT IS A DIFFERENT CLAIM SINCE ADR 0014, AND A STRONGER ONE. Until 2026-08-17
+    this function compared the coefficients fitted here against the ones on the
+    published 2026 card and refused to write unless they matched to 1e-9, because
+    the recipe was frozen and one set of numbers was supposed to serve every
+    season. The freeze is gone: each season's projection is now fitted on its own
+    history, so the 2025 recipe and the 2026 recipe are SUPPOSED to differ - the
+    2026 one has a season more to learn from.
+
+    What replaces it is the rule that actually protects the reader, enforced on
+    the list rather than on the output: a projection for season Y may fit on
+    transitions whose TARGET season is strictly before Y. Under the old check a
+    config edit that added 2024->2025 here would have produced a recipe fitted on
+    the very season this page grades, and the coefficient comparison would have
+    caught it only by accident. This catches it by construction.
     """
-    if not PUBLISHED_RECIPE.exists():
-        return {"checked": False, "why": f"{PUBLISHED_RECIPE.name} is not on disk"}
-    published = json.loads(PUBLISHED_RECIPE.read_text(encoding="utf-8"))["recipe"]
-    mismatches: list[str] = []
-    if not math.isclose(float(published["intercept"]), fitted.intercept, rel_tol=0, abs_tol=1e-9):
-        mismatches.append(f"intercept {published['intercept']} != {fitted.intercept}")
-    for term, value in published["coefficients"].items():
-        got = fitted.coefficients.get(term)
-        if got is None or not math.isclose(float(value), got, rel_tol=0, abs_tol=1e-9):
-            mismatches.append(f"{term} {value} != {got}")
-    if mismatches:
+    illegal = [f"{a}->{b}" for a, b in transitions if int(b) >= TARGET_SEASON]
+    if illegal:
         raise SystemExit(
-            "the recipe fitted here is not the recipe published for 2026: "
-            + "; ".join(mismatches)
-            + ". Either `design_transitions` moved or the fit changed. This script "
-            "claims to apply the SHIPPED recipe one season back and will not write "
-            "an artifact that makes that claim falsely."
+            f"this page grades {TARGET_SEASON} and the recipe would have been fitted "
+            f"on {', '.join(illegal)}. A recipe fitted on the season it grades is not "
+            "being graded, it is describing itself. Refusing to write."
         )
     return {
         "checked": True,
-        "against": f"demo/{PUBLISHED_RECIPE.name}",
-        "identical": True,
+        "rule": (
+            f"every design transition's target season is strictly before {TARGET_SEASON}"
+        ),
+        "fitted_on": [f"{a}->{b}" for a, b in transitions],
         "note": (
-            "The coefficients below are the ones on the published 2026 card, to "
-            "1e-9. Nothing was refitted, dropped or excluded to make 2025 out of "
-            "sample: 2024->2025 was never in design_transitions."
+            f"The coefficients below were fitted without {TARGET_SEASON} in any "
+            "response, so this projection is an out-of-sample application of the "
+            "model to a season it never saw. They are NOT the coefficients on the "
+            "2026 card: that recipe has one more completed season to learn from, "
+            "which is the point of dropping the freeze, and each vintage keeps the "
+            "numbers it ran under."
         ),
     }
 
@@ -176,31 +179,46 @@ def build() -> dict[str, Any]:
     games = load_games(ALL_SEASONS)
     plays = load_plays(ALL_SEASONS)
 
-    # The same guard the 2026 build runs, on the same list. It now protects 2026
-    # rather than 2025 (ADR 0012) and this call is what proves the list is clean.
+    # The same guard the 2026 build runs. It protects 2026 there and it protects
+    # nothing here, because the list this page fits on is derived rather than read.
     holdout.assert_no_target_is_locked(TRANSITIONS, CFG)
-    data = [fit.gather(games, a, b, plays, CFG) for a, b in TRANSITIONS]
-    fitted = recipe.fit_recipe([d.design for d in data], [d.response for d in data], TRANSITIONS)
-    provenance = _assert_recipe_matches_the_published_one(fitted)
 
-    source = seasons.final_power(games, SOURCE_SEASON, plays, CFG)
+    levers = systems.ProjectionLevers.from_config(CFG)
+    inputs = systems.prepare(games, ALL_SEASONS, plays, CFG)
     teams = sorted(
         set(offseason.returning_production(TARGET_SEASON)["team"].to_list())
         | set(offseason.coaching(TARGET_SEASON)["team"].to_list())
     )
-    design = recipe.build_design(source.ratings, TARGET_SEASON, teams)
+    inputs.fbs[TARGET_SEASON] = set(teams)
+
+    # DERIVED, NOT READ. `fit_walk_forward` takes every transition whose target
+    # season precedes 2025 and no others, so this page cannot be made to fit on
+    # the season it grades by editing a config list.
+    fitted, transitions = systems.fit_walk_forward(
+        games, TARGET_SEASON, inputs.power, inputs.home_field, inputs.fbs, levers
+    )
+    if fitted is None:  # pragma: no cover - impossible with the shipped archive
+        raise SystemExit(f"no transition precedes {TARGET_SEASON}; nothing to fit on")
+    provenance = _assert_walk_forward(transitions)
+
+    carried, calibration, _carry = systems.carried_ratings(
+        games, TARGET_SEASON, inputs.power, inputs.home_field, inputs.fbs, levers
+    )
+    source = seasons.final_power(games, SOURCE_SEASON, plays, CFG)
+    design = recipe.build_design(carried, TARGET_SEASON, teams)
     projection = recipe.project(fitted, design, teams)
 
     future = archived_calendar(TARGET_SEASON, games)
     season_sigma, sigma_source = forward.season_sigma_for(source, CFG)
+    home_field = float(source.home_field) * float(levers.home_field)
     wins = forward.expected_wins(
         projection,
         future,
         fitted,
-        source.ratings,
+        carried,
         float(design["prior_power_center"][0]),
         season_sigma,
-        float(source.home_field),
+        home_field,
         season_sigma_source=sigma_source,
     )
     projection = projection.join(wins.table, on="team", how="left")
@@ -211,15 +229,15 @@ def build() -> dict[str, Any]:
         projection,
         future,
         fitted,
-        source.ratings,
+        carried,
         center,
         wins.sigma,
-        float(source.home_field),
+        home_field,
         promoted=tuple(t for t in teams if t not in prior_fbs),
     )
     projection = projection.join(strength.table, on="team", how="left")
     contrast = schedule.contrast(
-        projection, future, fitted, source.ratings, center, wins.sigma, float(source.home_field)
+        projection, future, fitted, carried, center, wins.sigma, home_field
     )
 
     audit = leakage.audit(
@@ -228,6 +246,9 @@ def build() -> dict[str, Any]:
     graded = grade.grade_season(projection, games, TARGET_SEASON, plays=plays, config=CFG)
 
     return {
+        "levers": levers,
+        "cross_division": calibration,
+        "fitted_transitions": transitions,
         "projection": projection,
         "recipe": fitted,
         "recipe_provenance": provenance,
@@ -299,11 +320,20 @@ def write_fixture(state: dict[str, Any], to: Path) -> Path:
 #: have quietly dropped the one row a reader came to this page to ask about.
 FEATURE_WINDOW = 30
 
-#: The team the featured paragraph is written about. Named rather than selected,
-#: because the paragraph is PROSE and prose cannot be templated onto an arbitrary
-#: subject. `_feature_story` refuses to publish it if the numbers stop supporting
-#: the sentences, which is the only guarantee that matters.
-FEATURE_TEAM = "Colorado"
+#: The team the featured paragraph is written about is DERIVED, not named: it is
+#: whichever of the teams we projected highest the season moved furthest down.
+#:
+#: It used to be the literal string "Colorado", with a guard that refused to
+#: publish if the measured furthest faller stopped being them. The guard fired the
+#: first time the model changed, which is exactly what it was for - and the fix it
+#: was asking for is this one. A page whose job is to say "we were wrong about
+#: this team" cannot have the team hard-coded, because the whole point is that
+#: which team it is keeps changing. Every sentence below is templated on the row's
+#: own numbers, and the two claims that cannot be templated - whether the AP had
+#: them, and how the control teams behaved - are branched on rather than assumed.
+FEATURE_TEAM_WINDOW_NOTE = (
+    "whichever of the teams we projected highest the season moved furthest down"
+)
 
 
 #: The recipe's terms in the words the front door uses. Kept beside the sentence
@@ -362,35 +392,31 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
 
     The paragraph replaces the story line the projection's own `story_lines`
     cannot produce for this team: `grade.story_lines` keeps a row only when it is
-    inside 25 on one of the two rankings, and on the corrected surfaces Colorado
-    is 28th and 102nd, so it is outside both. The filter is right and the row
-    still needs explaining.
+    inside 25 on one of the two rankings, and the team the season embarrassed most
+    is routinely outside both. The filter is right and the row still needs
+    explaining.
     """
     projection: pl.DataFrame = state["projection"]
     graded: pl.DataFrame = state["graded"]["table"]
     final = int(graded["eval_order"].max())
     week = graded.filter(pl.col("eval_order") == final)
 
-    row = projection.filter(pl.col("team") == FEATURE_TEAM).to_dicts()[0]
-    scored = week.filter(pl.col("team") == FEATURE_TEAM).to_dicts()[0]
-    projected_rank = int(row["projected_rank"])
-    hindsight_rank = int(scored["hindsight_rank"])
-
-    # THE SUPERLATIVE, MEASURED. Of the teams the projection put highest, which
-    # one did the season move furthest down.
+    # THE SUBJECT, MEASURED. Of the teams the projection put highest, the one the
+    # season moved furthest down. Derived before anything is written about it.
     window = week.filter(
         pl.col("projected_rank").is_not_null()
         & (pl.col("projected_rank") <= FEATURE_WINDOW)
         & pl.col("delta_vs_hindsight").is_not_null()
     )
-    furthest = window.sort(["delta_vs_hindsight", "team"]).to_dicts()[0]
-    if furthest["team"] != FEATURE_TEAM:
-        raise SystemExit(
-            f"the featured paragraph is written about {FEATURE_TEAM}, and the "
-            f"furthest faller inside the projected top {FEATURE_WINDOW} is now "
-            f"{furthest['team']}. Rewrite the paragraph or move the subject; this "
-            "script will not publish a superlative it just measured to be false."
-        )
+    if window.is_empty():
+        raise SystemExit("no graded team inside the projected window; nothing to feature")
+    feature_team = str(window.sort(["delta_vs_hindsight", "team"]).to_dicts()[0]["team"])
+
+    row = projection.filter(pl.col("team") == feature_team).to_dicts()[0]
+    scored = week.filter(pl.col("team") == feature_team).to_dicts()[0]
+    projected_rank = int(row["projected_rank"])
+    hindsight_rank = int(scored["hindsight_rank"])
+
 
     # Where last season alone would have put them: mean reversion is a positive
     # affine map and cannot reorder, so this is the ranking by prior Power.
@@ -405,13 +431,13 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
         if r is not None
     ]
     carryover = sorted(ranked_teams, key=lambda t: (-float(prior[t]), t))
-    prior_rank = carryover.index(FEATURE_TEAM) + 1
+    prior_rank = carryover.index(feature_team) + 1
 
     usage_frame = projection.select(["team", "returning_usage"]).drop_nulls().sort(
         "returning_usage"
     )
     ascending = usage_frame["team"].to_list()
-    usage_rank_low = ascending.index(FEATURE_TEAM) + 1
+    usage_rank_low = ascending.index(feature_team) + 1
     n_usage = len(ascending)
 
     spans = {
@@ -431,34 +457,56 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
             "usage_rank_high": len(ascending) - ascending.index(name),
             "hindsight": int(c_scored[0]["hindsight_rank"]) if c_scored else None,
         }
-    if control["Indiana"]["usage"] >= float(row["returning_usage"]):
-        raise SystemExit("the paragraph claims Indiana returned less than Colorado")
     if control["Indiana"]["hindsight"] != 1:
-        raise SystemExit("the paragraph claims Indiana finished first")
+        raise SystemExit("the paragraph claims Indiana finished first and it did not")
 
+    # THE TWO CLAIMS THAT CANNOT BE TEMPLATED ARE BRANCHED ON INSTEAD OF ASSUMED.
+    # Whether the writers had this team, and whether the control team really did
+    # return less, are facts about whoever the season picked out - and the season
+    # picks a different team every time the model changes.
     ap = offseason.ap_preseason(TARGET_SEASON)
-    if FEATURE_TEAM in ap["team"].to_list():
-        raise SystemExit("the paragraph claims the AP left Colorado unranked")
+    ap_ranks = dict(zip(ap["team"].to_list(), ap["ap_rank"].to_list(), strict=True))
+    if feature_team in ap_ranks:
+        press = (
+            "The model does not read the press, and here that cuts against the easy "
+            f"story rather than for it: the AP had {feature_team} "
+            f"{_ordinal(int(ap_ranks[feature_team]))} in its own preseason top 25, so "
+            "the writers made the same mistake from a completely different direction."
+        )
+    else:
+        press = (
+            f"The model does not read the press: the AP left {feature_team} out of its "
+            "preseason top 25 and so did we, so nobody's hype got inherited here."
+        )
+    if control["Indiana"]["usage"] < float(row["returning_usage"]):
+        control_clause = (
+            f"every setting that moves {feature_team} down also moves Indiana down, "
+            f"and Indiana returned even less than {feature_team} did and went 16-0"
+        )
+    else:
+        control_clause = (
+            "the term is not doing the work anyone thinks it is, and the two clearest "
+            "counter-examples are the next sentence"
+        )
 
     paragraph = (
-        f"We had {FEATURE_TEAM} {_ordinal(projected_rank)} and the season put them "
+        f"We had {feature_team} {_ordinal(projected_rank)} and the season put them "
         f"{_ordinal(hindsight_rank)}. Of the {FEATURE_WINDOW} teams we projected "
         "highest, that is the furthest any of them fell, and it is worth being "
-        "precise about why, because the easy explanation is wrong. The model does "
-        "not read the press: the AP left Colorado out of its preseason top 25 and "
-        "so did we, so nobody's hype got inherited here. What we read was "
-        f"Colorado's own {SOURCE_SEASON}, where they were the "
+        f"precise about why, because the easy explanation is wrong. {press} What we "
+        f"read was {feature_team}'s own {SOURCE_SEASON}, where they were the "
         f"{_ordinal(prior_rank)} best team in the country by our Power rating, and "
         f"that one number was worth {float(row['contrib_prior_power']):.1f} points "
-        "to their projection. The model also saw the exodus and priced it. "
-        f"Colorado returned {float(row['returning_usage']):.1%} of its offensive "
+        "to their projection. The model also saw what left and priced it. "
+        f"{feature_team} returned {float(row['returning_usage']):.1%} of its offensive "
         f"usage, the {_ordinal(usage_rank_low)} lowest figure among the {n_usage} "
         "teams with a row, and "
         f"{float(row['returning_passing_usage']):.0%} of its passing usage, which "
-        "is what losing your quarterback looks like in the data. That cost them "
+        "is what a quarterback room turning over looks like in the data. That cost "
+        "them "
         f"{_points(abs(float(row['contrib_returning_production'])))}, the portal "
         f"took another {abs(float(row['contrib_net_portal'])):.1f}, and between "
-        f"them they moved Colorado from {_ordinal(prior_rank)} to "
+        f"them they moved {feature_team} from {_ordinal(prior_rank)} to "
         f"{_ordinal(projected_rank)}. The problem is the ratio. Last season's "
         f"rating can swing a team {spans['prior_power']:.0f} points and returning "
         f"production can swing one {spans['returning_production']:.0f}, so a team "
@@ -471,18 +519,17 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
         "coefficient here was wrong. The ratio is a property of the design, and "
         f"{TARGET_SEASON} is the first season that made it cost something. What we "
         "are not going to do is turn the returning-production dial up until "
-        "Colorado looks right. We checked: every setting that moves Colorado down "
-        "also moves Indiana down, and Indiana returned even less than Colorado did "
-        "and went 16-0. Penn State and Baylor returned more production than almost "
+        f"{feature_team} looks right. We checked: {control_clause}. Penn State and "
+        "Baylor returned more production than almost "
         f"anyone in the country, {_ordinal(control['Penn State']['usage_rank_high'])}"
         f" and {_ordinal(control['Baylor']['usage_rank_high'])} of {n_usage}, and "
         f"finished {_ordinal(control['Penn State']['hindsight'])} and "
         f"{_ordinal(control['Baylor']['hindsight'])}. In {TARGET_SEASON} returning "
-        "production told you almost nothing, and the fix for Colorado is not a "
-        "bigger version of a term that did not work."
+        f"production told you almost nothing, and the fix for {feature_team} is not "
+        "a bigger version of a term that did not work."
     )
     return {
-        "team": FEATURE_TEAM,
+        "team": feature_team,
         "projected_rank": projected_rank,
         "hindsight_rank": hindsight_rank,
         "window": FEATURE_WINDOW,
@@ -814,8 +861,9 @@ def main() -> None:
 
     fitted: recipe.Recipe = state["recipe"]
     print(
-        f"{TARGET_SEASON} projection: recipe {fitted.version}, identical to the "
-        f"published 2026 card = {state['recipe_provenance'].get('identical')}"
+        f"{TARGET_SEASON} projection: recipe {fitted.version}, fitted on "
+        + ", ".join(f"{a}->{b}" for a, b in state["fitted_transitions"])
+        + f" (every target before {TARGET_SEASON})"
     )
     print(f"  {state['n_future_games']} scheduled games, {len(payload['weeks'])} graded weeks")
     print(f"wrote: {fixture}")

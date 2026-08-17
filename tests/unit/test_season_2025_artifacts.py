@@ -215,7 +215,15 @@ def test_the_graded_season_is_read_from_the_config() -> None:
     assert projection_2025.TARGET_SEASON == 2025
     assert projection_2025.SOURCE_SEASON == 2024
     # The claim the artifact rests on: the recipe never saw the season it grades.
-    assert (2024, 2025) not in projection_2025.TRANSITIONS
+    # Since ADR 0014 the config list DOES contain 2024->2025 (the 2026 board is
+    # entitled to it), so the guarantee moved to where it can be enforced - the
+    # script derives its own transitions from its target season and refuses to
+    # write if any of them reaches 2025.
+    assert (2024, 2025) in projection_2025.TRANSITIONS
+    legal = [(a, b) for a, b in projection_2025.TRANSITIONS if b < projection_2025.TARGET_SEASON]
+    assert projection_2025._assert_walk_forward(legal)["checked"] is True
+    with pytest.raises(SystemExit):
+        projection_2025._assert_walk_forward([*legal, (2024, 2025)])
 
 
 # ------------------------------------------------------------ the holdout record

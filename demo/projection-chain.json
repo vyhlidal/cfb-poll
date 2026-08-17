@@ -1,0 +1,1628 @@
+{
+ "artifact": "THE ACCURACY SCOREBOARD \u2014 walk-forward, every season, every system",
+ "projection_version": "projection-3.0.0",
+ "generated_at": "2026-08-17T08:29:35+00:00",
+ "git_sha": "55c9729da47107a38ec5b4fe5d42e7b3e5aaf187",
+ "config_hash": "37d52aa3d0ccca4a7630995031ccba6b22b8bb224b04f4dc2696c9785bd5c9af",
+ "levers": {
+  "levers": [
+   {
+    "key": "projection.long_memory",
+    "label": "How much the year before last still counts",
+    "surface": "projection",
+    "range": [
+     0.0,
+     0.6
+    ],
+    "unbounded_above": false,
+    "default": 0.2,
+    "plain": "Programs are not rebuilt every August. At 0 the projection only looks at last season. Turn it up and the season before last gets a say too, which steadies a team whose one bad year looks like an accident.",
+    "evidence": "Swept over a 216-cell grid on walk-forward week-1 and weeks-1-to-4 accuracy, 2022-2025. The marginal gain is monotone but small - about 0.5 points of week-1 accuracy from 0 to 0.4 - and it turns the other way on FBS-vs-FBS games over four weeks. 0.2 is where the pooled objective peaks.",
+    "sweep": [
+     0.0,
+     0.1,
+     0.2,
+     0.25,
+     0.3,
+     0.4,
+     0.5
+    ],
+    "measured_effect": "About +0.5 points of week-1 accuracy against a one-season memory. Inside the noise band on this many games, and published as such."
+   },
+   {
+    "key": "projection.cross_division_gap",
+    "label": "How far an FCS rating falls when it meets FBS",
+    "surface": "projection",
+    "range": [
+     0.0,
+     1.5
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "A team that earned its rating against FCS opponents does not carry it intact into an FBS game. At 1 the projection applies the full gap the crossover games measured. At 0 it takes the FCS rating at face value, which is what this poll did until the 2026 board put North Dakota State tenth.",
+    "evidence": "13.4 points, standard error 0.6, from 602 FBS-vs-FCS games 2021-2025, measured net of the model's general under-prediction of mismatches. src/cfbpoll/projection/crossdivision.py",
+    "sweep": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0,
+     1.25
+    ],
+    "measured_effect": "Bridge-game accuracy over weeks 1-4 rises from 87.6% to about 94% when this goes from 0 to 1."
+   },
+   {
+    "key": "projection.promotion_credit",
+    "label": "Credit for being the kind of program that moves up",
+    "surface": "projection",
+    "range": [
+     0.0,
+     1.5
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "A program that is promoted to FBS is not a random FCS team. It spent years buying its way to FBS rosters and staff, and the six programs that have made the jump won back most of the gap in their first season. At 0 a promoted team is treated like any other FCS team.",
+    "evidence": "9.8 points, standard error 1.9, from the 68 games six promoted programs played against FBS opponents in their first FBS season, 2022-2025.",
+    "sweep": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0
+    ],
+    "measured_effect": "THIS ONE IS THIN AND THE THINNESS IS THE POINT. Six programs, none rated within eleven points of North Dakota State, and the accuracy chain cannot arbitrate it either way: moving it from 0 to 1 changes pooled week-one accuracy by less than a tenth of a point, because it touches one or two teams. It is a fairness question wearing a coefficient's clothes, which is exactly why it is a published lever and why the ceiling below exists."
+   },
+   {
+    "key": "projection.promotion_ceiling",
+    "label": "Cap a promoted team at the best any promoted team has done",
+    "surface": "projection",
+    "range": [
+     0.0,
+     1.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "On, no promoted team is projected above the best first FBS season a promoted program has actually had. Off, a program rated far above every previous promotion gets the full credit anyway.",
+    "evidence": "James Madison in 2022 holds the ceiling at +5.75 against the FBS mean, which was 32nd in FBS. The credit it guards is fitted on programs whose FCS-year ratings topped out at +6.0, and North Dakota State sits at +17.4.",
+    "sweep": [
+     0.0,
+     1.0
+    ],
+    "measured_effect": "On, North Dakota State projects 33rd for 2026. Off, 16th. This one switch is the difference between the two defensible answers, and it is an extrapolation guard rather than an opinion about North Dakota State."
+   },
+   {
+    "key": "projection.returning_production",
+    "label": "How much a returning offence is worth",
+    "surface": "projection",
+    "range": [
+     0.0,
+     2.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "The share of last season's offensive snaps, carries and targets that is back on the roster. It is offence only, because nobody publishes the defensive half.",
+    "evidence": "Fitted every run by ordinary least squares; the standard error ships beside it.",
+    "sweep": [
+     0.0,
+     0.5,
+     1.0,
+     1.5,
+     2.0
+    ],
+    "measured_effect": ""
+   },
+   {
+    "key": "projection.coaching_change",
+    "label": "The cost of a new head coach",
+    "surface": "projection",
+    "range": [
+     0.0,
+     2.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "One number for every school that changed head coach. It does not know whether the new man is any good, and there is no term for how long anyone has been in the job.",
+    "evidence": "Fitted every run; on the published fits it has never cleared two standard errors.",
+    "sweep": [
+     0.0,
+     0.5,
+     1.0,
+     1.5,
+     2.0
+    ],
+    "measured_effect": ""
+   },
+   {
+    "key": "projection.portal",
+    "label": "How much the transfer portal moves a team",
+    "surface": "projection",
+    "range": [
+     0.0,
+     2.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "Bodies out minus bodies in, counted rather than rated. Departures are recorded well and arrivals are not, so this term is the weakest thing on the board.",
+    "evidence": "Fitted every run; not distinguishable from zero on any fit yet published.",
+    "sweep": [
+     0.0,
+     0.5,
+     1.0,
+     1.5,
+     2.0
+    ],
+    "measured_effect": ""
+   },
+   {
+    "key": "projection.home_field",
+    "label": "How much home field is worth in August",
+    "surface": "projection",
+    "range": [
+     0.0,
+     2.0
+    ],
+    "unbounded_above": false,
+    "default": 1.5,
+    "plain": "A multiplier on the home-field advantage the projection uses to turn ratings into game calls. At 1 it believes last season's fitted value exactly. Above 1 it leans on home field harder, which is the right direction when the ratings themselves are carried over from a season that is finished and are therefore spread wider than this season's truth.",
+    "evidence": "Swept 0.75 / 1.0 / 1.5 / 2.0 over the same 216-cell grid. Accuracy rises to 1.5 on three of the four published metrics and falls again at 2.0 on the largest of them.",
+    "sweep": [
+     0.0,
+     0.5,
+     0.75,
+     1.0,
+     1.5,
+     2.0
+    ],
+    "measured_effect": "About +0.7 points from 1.0 to 1.5, which is inside the noise band on 1,251 games and is reported as a peak rather than a discovery."
+   },
+   {
+    "key": "margin.c",
+    "label": "Where a blowout stops counting extra",
+    "surface": "poll",
+    "range": [
+     18.0,
+     null
+    ],
+    "unbounded_above": true,
+    "default": 32.0,
+    "plain": "Winning by 40 is better than winning by 20. Winning by 60 is barely better than winning by 40. This is where the curve flattens; set it as high as you like and margin counts all the way up.",
+    "evidence": "Fitted 2026-08-12 over a 416-cell factorial on the tune seasons. ADR 0007.",
+    "sweep": [
+     18.0,
+     24.0,
+     32.0,
+     48.0,
+     null
+    ],
+    "measured_effect": "The whole published grid is worth 0.135 points of margin error, best cell to worst."
+   },
+   {
+    "key": "margin.beta_w",
+    "label": "How much a win is worth on its own",
+    "surface": "poll",
+    "range": [
+     0.0,
+     12.0
+    ],
+    "unbounded_above": false,
+    "default": 7.0,
+    "plain": "Points added to the winner for the simple fact of winning, before any margin counts. At 0 this is a scoring-margin ranking. Turn it up and a one-point win starts to look like a comfortable one.",
+    "evidence": "Fitted 2026-08-12 on the same factorial. ADR 0007.",
+    "sweep": [
+     0.0,
+     3.0,
+     7.0,
+     12.0
+    ],
+    "measured_effect": "Doubling it moved Kendall's tau against the incumbent no lower than 0.994."
+   },
+   {
+    "key": "weights.recency_gamma",
+    "label": "Whether September still counts in December",
+    "surface": "poll",
+    "range": [
+     0.5,
+     1.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "At 1 every game counts the same all season, which is what a poll about what you earned should do. Below 1 the season decays and recent form takes over.",
+    "evidence": "Available and off. Report 02 section 3.1.",
+    "sweep": [
+     0.7,
+     0.8,
+     0.9,
+     0.95,
+     1.0
+    ],
+    "measured_effect": ""
+   },
+   {
+    "key": "publication.headline_ordering",
+    "label": "What sorts the table",
+    "surface": "poll",
+    "range": [
+     0.0,
+     1.0
+    ],
+    "unbounded_above": false,
+    "default": 1.0,
+    "plain": "At 1 the table is sorted by how hard the schedule was to survive. At 0 it is sorted by the win-loss resume, which puts every unbeaten team above every team with a loss.",
+    "evidence": "ADR 0005 and docs/analysis/headline-ordering-study.md.",
+    "sweep": [
+     0.0,
+     1.0
+    ],
+    "measured_effect": "Under the resume ordering, retroactive re-ranking moved no unbeaten team a single place from week 11 of 2023 onward."
+   },
+   {
+    "key": "model.conference_identity",
+    "label": "Let the model know which conference a team is in",
+    "surface": "both",
+    "range": [
+     0.0,
+     1.0
+    ],
+    "unbounded_above": false,
+    "default": 0.0,
+    "plain": "Off. Nothing in the base model knows what a conference is, and that is the point: conference strength has to be earned on the field and read off the results, never assumed from the letters on the jersey. The switch is published so the refusal is checkable rather than claimed.",
+    "evidence": "`cfbpoll audit-features` rebuilds all seven design matrices without `conference_game` before every fit and requires bit-identical output. The refusal is a result, recomputed, not a promise.",
+    "sweep": [
+     0.0
+    ],
+    "measured_effect": "Not adopted. Any accuracy it might buy has to be measured and shown to the owner before this default may move off zero."
+   }
+  ],
+  "untouchable": [
+   {
+    "rule": "No human polls, ever.",
+    "detail": "No AP, coaches or committee ranking may reach any design matrix of either product. They are comparison targets and never fitting targets. There is no lever for this and there will not be one."
+   },
+   {
+    "rule": "No future data, ever.",
+    "detail": "Every published number for a given week is computable from games played before it. Walk-forward honesty is not a ceremony here, it is what makes an accuracy figure mean anything."
+   }
+  ],
+  "note": "Defaults are measured, not chosen. Every lever carries what measured it and, where it has been swept, what moving it costs."
+ },
+ "live_lever_values": {
+  "projection.long_memory": 0.2,
+  "projection.cross_division_gap": 1.0,
+  "projection.promotion_credit": 1.0,
+  "projection.returning_production": 1.0,
+  "projection.coaching_change": 1.0,
+  "projection.portal": 1.0,
+  "projection.home_field": 1.5,
+  "projection.promotion_ceiling": 1.0
+ },
+ "protocol": "Walk-forward. For target season Y every system reads results from seasons <= Y-1, the offseason table for Y and the calendar of Y, and nothing from Y itself. Straight-up accuracy, with the home-field constant taken from season Y-1's fitted L3 home field rather than fitted on the games being scored. Ties count as misses.",
+ "windows": {
+  "week_1": [
+   1,
+   1
+  ],
+  "weeks_1_4": [
+   1,
+   4
+  ]
+ },
+ "systems": [
+  "carryover",
+  "projection_v2",
+  "projection_v3",
+  "ap_preseason"
+ ],
+ "links": [
+  {
+   "target_season": 2022,
+   "home_field": 2.1527,
+   "home_field_source": "season 2021 fitted L3 home field",
+   "scores": {
+    "carryover": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 53,
+       "su_accuracy": 0.7169811320754716,
+       "n_correct": 38,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.16064463783395
+      },
+      "weeks_1_4": {
+       "n_games": 210,
+       "su_accuracy": 0.6857142857142857,
+       "n_correct": 144,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.805533472563603
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.7659574468085106,
+       "n_correct": 72,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 17.38741506590122
+      },
+      "weeks_1_4": {
+       "n_games": 314,
+       "su_accuracy": 0.7452229299363057,
+       "n_correct": 234,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.363783758664905
+      }
+     }
+    },
+    "ap_preseason": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 53,
+       "su_accuracy": 0.6981132075471698,
+       "n_correct": 37,
+       "n_ties": 0,
+       "n_unrated_sides": 86,
+       "mean_abs_error": 18.473549023543978
+      },
+      "weeks_1_4": {
+       "n_games": 210,
+       "su_accuracy": 0.7095238095238096,
+       "n_correct": 149,
+       "n_ties": 0,
+       "n_unrated_sides": 337,
+       "mean_abs_error": 16.220778173531716
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.8085106382978723,
+       "n_correct": 76,
+       "n_ties": 0,
+       "n_unrated_sides": 163,
+       "mean_abs_error": 21.82715414635099
+      },
+      "weeks_1_4": {
+       "n_games": 314,
+       "su_accuracy": 0.7770700636942676,
+       "n_correct": 244,
+       "n_ties": 0,
+       "n_unrated_sides": 529,
+       "mean_abs_error": 19.9735244832319
+      }
+     }
+    }
+   },
+   "provenance": {
+    "carryover": {
+     "description": "season Y-1 final Power, carried unchanged"
+    },
+    "ap_preseason": {
+     "description": "26 - AP rank for the 25 ranked teams, 0 for everyone else",
+     "n_ranked": 25
+    }
+   },
+   "absent": {
+    "projection_v2": "no transition whose target season precedes 2022; a recipe would have to be fitted on the season it is projecting",
+    "projection_v3": "no transition whose target season precedes 2022; a recipe would have to be fitted on the season it is projecting"
+   }
+  },
+  {
+   "target_season": 2023,
+   "home_field": 2.1575,
+   "home_field_source": "season 2022 fitted L3 home field",
+   "scores": {
+    "carryover": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 52,
+       "su_accuracy": 0.7884615384615384,
+       "n_correct": 41,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.623265344974499
+      },
+      "weeks_1_4": {
+       "n_games": 216,
+       "su_accuracy": 0.7453703703703703,
+       "n_correct": 161,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 13.094020638299757
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.851063829787234,
+       "n_correct": 80,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.917989359148308
+      },
+      "weeks_1_4": {
+       "n_games": 321,
+       "su_accuracy": 0.7975077881619937,
+       "n_correct": 256,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.52916700176929
+      }
+     }
+    },
+    "projection_v2": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 52,
+       "su_accuracy": 0.7884615384615384,
+       "n_correct": 41,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.043381853605275
+      },
+      "weeks_1_4": {
+       "n_games": 216,
+       "su_accuracy": 0.7546296296296297,
+       "n_correct": 163,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 13.942044596360226
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.8617021276595744,
+       "n_correct": 81,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 19.104716047053795
+      },
+      "weeks_1_4": {
+       "n_games": 321,
+       "su_accuracy": 0.8006230529595015,
+       "n_correct": 257,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 17.169256178879753
+      }
+     }
+    },
+    "projection_v3": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 52,
+       "su_accuracy": 0.8076923076923077,
+       "n_correct": 42,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.671277385318708
+      },
+      "weeks_1_4": {
+       "n_games": 216,
+       "su_accuracy": 0.7407407407407407,
+       "n_correct": 160,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 13.943793349256676
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.8936170212765957,
+       "n_correct": 84,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.077450637345567
+      },
+      "weeks_1_4": {
+       "n_games": 321,
+       "su_accuracy": 0.8130841121495327,
+       "n_correct": 261,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.192604364815548
+      }
+     }
+    },
+    "ap_preseason": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 52,
+       "su_accuracy": 0.7692307692307693,
+       "n_correct": 40,
+       "n_ties": 0,
+       "n_unrated_sides": 82,
+       "mean_abs_error": 15.551760582282897
+      },
+      "weeks_1_4": {
+       "n_games": 216,
+       "su_accuracy": 0.6759259259259259,
+       "n_correct": 146,
+       "n_ties": 0,
+       "n_unrated_sides": 345,
+       "mean_abs_error": 14.011032872951024
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 94,
+       "su_accuracy": 0.8617021276595744,
+       "n_correct": 81,
+       "n_ties": 0,
+       "n_unrated_sides": 161,
+       "mean_abs_error": 20.505822196921294
+      },
+      "weeks_1_4": {
+       "n_games": 321,
+       "su_accuracy": 0.7663551401869159,
+       "n_correct": 246,
+       "n_ties": 0,
+       "n_unrated_sides": 541,
+       "mean_abs_error": 18.32052629244136
+      }
+     }
+    }
+   },
+   "provenance": {
+    "carryover": {
+     "description": "season Y-1 final Power, carried unchanged"
+    },
+    "projection_v2": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 4.910231869358158,
+      "intercept_se": 0.6624226549233814,
+      "coefficients": {
+       "prior_power": 0.5522677178818679,
+       "returning_production": 4.322323612306763,
+       "coaching_change": 1.5371500192060954,
+       "net_portal": -0.27916071071861287
+      },
+      "standard_errors": {
+       "prior_power": 0.056012445877515034,
+       "returning_production": 2.7769715020951145,
+       "coaching_change": 1.449514355756485,
+       "net_portal": 0.5922189646655162
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ]
+      ],
+      "n_team_seasons": 131,
+      "r_squared": 0.4547768083981675,
+      "residual_sd": 6.544110426499828
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.0,
+      "projection.cross_division_gap": 0.0,
+      "projection.promotion_credit": 0.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.0,
+      "projection.promotion_ceiling": 0.0
+     },
+     "home_field_scale": 1.0,
+     "cross_division": {
+      "cross_division_gap": -12.4951,
+      "cross_division_gap_se": 0.9867,
+      "promotion_bump": 15.0866,
+      "promotion_bump_se": 7.0006,
+      "promoted_net": 2.5915,
+      "dispersion": 1.3113,
+      "raw_bridge_miss": 16.4547,
+      "n_bridge_games": 237,
+      "n_promotion_games": 10,
+      "n_promoted_teams": 1,
+      "through_season": 2022,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Jacksonville State",
+      "Sam Houston"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "projection_v3": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 4.918578884096319,
+      "intercept_se": 0.6658438922674641,
+      "coefficients": {
+       "prior_power": 0.5503141664120994,
+       "returning_production": 4.331276917005828,
+       "coaching_change": 1.500979622007394,
+       "net_portal": -0.21025066690347366
+      },
+      "standard_errors": {
+       "prior_power": 0.05649083467293357,
+       "returning_production": 2.7917003697364406,
+       "coaching_change": 1.4567448616215934,
+       "net_portal": 0.5967475625453741
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ]
+      ],
+      "n_team_seasons": 131,
+      "r_squared": 0.44906418601920195,
+      "residual_sd": 6.578304329400955
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.2,
+      "projection.cross_division_gap": 1.0,
+      "projection.promotion_credit": 1.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.5,
+      "projection.promotion_ceiling": 1.0
+     },
+     "home_field_scale": 1.5,
+     "cross_division": {
+      "cross_division_gap": -12.4951,
+      "cross_division_gap_se": 0.9867,
+      "promotion_bump": 15.0866,
+      "promotion_bump_se": 7.0006,
+      "promoted_net": 2.5915,
+      "dispersion": 1.3113,
+      "raw_bridge_miss": 16.4547,
+      "n_bridge_games": 237,
+      "n_promotion_games": 10,
+      "n_promoted_teams": 1,
+      "through_season": 2022,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Jacksonville State",
+      "Sam Houston"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "ap_preseason": {
+     "description": "26 - AP rank for the 25 ranked teams, 0 for everyone else",
+     "n_ranked": 25
+    }
+   },
+   "absent": {}
+  },
+  {
+   "target_season": 2024,
+   "home_field": 2.3709,
+   "home_field_source": "season 2023 fitted L3 home field",
+   "scores": {
+    "carryover": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 39,
+       "su_accuracy": 0.717948717948718,
+       "n_correct": 28,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.049585833609765
+      },
+      "weeks_1_4": {
+       "n_games": 194,
+       "su_accuracy": 0.7010309278350515,
+       "n_correct": 136,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.215409533694586
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 100,
+       "su_accuracy": 0.81,
+       "n_correct": 81,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 19.226830153120144
+      },
+      "weeks_1_4": {
+       "n_games": 305,
+       "su_accuracy": 0.7540983606557377,
+       "n_correct": 230,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 18.115635224085143
+      }
+     }
+    },
+    "projection_v2": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 39,
+       "su_accuracy": 0.6666666666666666,
+       "n_correct": 26,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.38698882437816
+      },
+      "weeks_1_4": {
+       "n_games": 194,
+       "su_accuracy": 0.6804123711340206,
+       "n_correct": 132,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.3861225744178
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 100,
+       "su_accuracy": 0.8,
+       "n_correct": 80,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 20.793031304774868
+      },
+      "weeks_1_4": {
+       "n_games": 305,
+       "su_accuracy": 0.740983606557377,
+       "n_correct": 226,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 18.994959055845758
+      }
+     }
+    },
+    "projection_v3": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 39,
+       "su_accuracy": 0.6666666666666666,
+       "n_correct": 26,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.31281775052836
+      },
+      "weeks_1_4": {
+       "n_games": 194,
+       "su_accuracy": 0.711340206185567,
+       "n_correct": 138,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.26553284707881
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 100,
+       "su_accuracy": 0.87,
+       "n_correct": 87,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.757294844287586
+      },
+      "weeks_1_4": {
+       "n_games": 305,
+       "su_accuracy": 0.8032786885245902,
+       "n_correct": 245,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.642877378241682
+      }
+     }
+    },
+    "ap_preseason": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 39,
+       "su_accuracy": 0.5897435897435898,
+       "n_correct": 23,
+       "n_ties": 0,
+       "n_unrated_sides": 62,
+       "mean_abs_error": 17.696037899880412
+      },
+      "weeks_1_4": {
+       "n_games": 194,
+       "su_accuracy": 0.654639175257732,
+       "n_correct": 127,
+       "n_ties": 0,
+       "n_unrated_sides": 311,
+       "mean_abs_error": 17.114489731960877
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 100,
+       "su_accuracy": 0.82,
+       "n_correct": 82,
+       "n_ties": 0,
+       "n_unrated_sides": 174,
+       "mean_abs_error": 24.454875459058968
+      },
+      "weeks_1_4": {
+       "n_games": 305,
+       "su_accuracy": 0.7573770491803279,
+       "n_correct": 231,
+       "n_ties": 0,
+       "n_unrated_sides": 518,
+       "mean_abs_error": 21.10726852647101
+      }
+     }
+    }
+   },
+   "provenance": {
+    "carryover": {
+     "description": "season Y-1 final Power, carried unchanged"
+    },
+    "projection_v2": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 5.916037429757079,
+      "intercept_se": 0.46577646096857345,
+      "coefficients": {
+       "prior_power": 0.6370152571713213,
+       "returning_production": 6.2420624389588335,
+       "coaching_change": 0.15041693535691558,
+       "net_portal": -0.43386520715812005
+      },
+      "standard_errors": {
+       "prior_power": 0.04367844485268631,
+       "returning_production": 1.9455974038584225,
+       "coaching_change": 1.0567777432170347,
+       "net_portal": 0.42061073167948915
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ],
+       [
+        2022,
+        2023
+       ]
+      ],
+      "n_team_seasons": 264,
+      "r_squared": 0.4906223597178625,
+      "residual_sd": 6.647645700932953
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ],
+      [
+       2022,
+       2023
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.0,
+      "projection.cross_division_gap": 0.0,
+      "projection.promotion_credit": 0.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.0,
+      "projection.promotion_ceiling": 0.0
+     },
+     "home_field_scale": 1.0,
+     "cross_division": {
+      "cross_division_gap": -12.5413,
+      "cross_division_gap_se": 0.8084,
+      "promotion_bump": 12.6753,
+      "promotion_bump_se": 2.8055,
+      "promoted_net": 0.134,
+      "dispersion": 1.278,
+      "raw_bridge_miss": 16.4149,
+      "n_bridge_games": 355,
+      "n_promotion_games": 33,
+      "n_promoted_teams": 3,
+      "through_season": 2023,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Kennesaw State"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "projection_v3": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 5.931408698001633,
+      "intercept_se": 0.4680479701235438,
+      "coefficients": {
+       "prior_power": 0.6394536662763622,
+       "returning_production": 7.1751382362646146,
+       "coaching_change": 0.07744739495268815,
+       "net_portal": -0.3600186955165368
+      },
+      "standard_errors": {
+       "prior_power": 0.044338736283562157,
+       "returning_production": 1.9568086154906768,
+       "coaching_change": 1.0614042396760577,
+       "net_portal": 0.4236359627290744
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ],
+       [
+        2022,
+        2023
+       ]
+      ],
+      "n_team_seasons": 264,
+      "r_squared": 0.4854907897010522,
+      "residual_sd": 6.6810466316191395
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ],
+      [
+       2022,
+       2023
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.2,
+      "projection.cross_division_gap": 1.0,
+      "projection.promotion_credit": 1.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.5,
+      "projection.promotion_ceiling": 1.0
+     },
+     "home_field_scale": 1.5,
+     "cross_division": {
+      "cross_division_gap": -12.5413,
+      "cross_division_gap_se": 0.8084,
+      "promotion_bump": 12.6753,
+      "promotion_bump_se": 2.8055,
+      "promoted_net": 0.134,
+      "dispersion": 1.278,
+      "raw_bridge_miss": 16.4149,
+      "n_bridge_games": 355,
+      "n_promotion_games": 33,
+      "n_promoted_teams": 3,
+      "through_season": 2023,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Kennesaw State"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "ap_preseason": {
+     "description": "26 - AP rank for the 25 ranked teams, 0 for everyone else",
+     "n_ranked": 25
+    }
+   },
+   "absent": {}
+  },
+  {
+   "target_season": 2025,
+   "home_field": 3.6501,
+   "home_field_source": "season 2024 fitted L3 home field",
+   "scores": {
+    "carryover": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 48,
+       "su_accuracy": 0.7291666666666666,
+       "n_correct": 35,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.83188782671759
+      },
+      "weeks_1_4": {
+       "n_games": 195,
+       "su_accuracy": 0.717948717948718,
+       "n_correct": 140,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.387907803124303
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 96,
+       "su_accuracy": 0.8125,
+       "n_correct": 78,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 18.037222933685985
+      },
+      "weeks_1_4": {
+       "n_games": 311,
+       "su_accuracy": 0.7813504823151125,
+       "n_correct": 243,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 17.34211409254908
+      }
+     }
+    },
+    "projection_v2": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 48,
+       "su_accuracy": 0.7291666666666666,
+       "n_correct": 35,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.400548207318808
+      },
+      "weeks_1_4": {
+       "n_games": 195,
+       "su_accuracy": 0.7128205128205128,
+       "n_correct": 139,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.162079642355947
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 96,
+       "su_accuracy": 0.8125,
+       "n_correct": 78,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 19.491293806102068
+      },
+      "weeks_1_4": {
+       "n_games": 311,
+       "su_accuracy": 0.7781350482315113,
+       "n_correct": 242,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 18.931842896790254
+      }
+     }
+    },
+    "projection_v3": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 48,
+       "su_accuracy": 0.7291666666666666,
+       "n_correct": 35,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.703184608660905
+      },
+      "weeks_1_4": {
+       "n_games": 195,
+       "su_accuracy": 0.6923076923076923,
+       "n_correct": 135,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 14.87170373719355
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 96,
+       "su_accuracy": 0.84375,
+       "n_correct": 81,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 15.709060042102218
+      },
+      "weeks_1_4": {
+       "n_games": 311,
+       "su_accuracy": 0.7942122186495176,
+       "n_correct": 247,
+       "n_ties": 0,
+       "n_unrated_sides": 0,
+       "mean_abs_error": 16.003323785965062
+      }
+     }
+    },
+    "ap_preseason": {
+     "fbs_vs_fbs": {
+      "week_1": {
+       "n_games": 48,
+       "su_accuracy": 0.6458333333333334,
+       "n_correct": 31,
+       "n_ties": 0,
+       "n_unrated_sides": 78,
+       "mean_abs_error": 16.247874369481398
+      },
+      "weeks_1_4": {
+       "n_games": 195,
+       "su_accuracy": 0.6512820512820513,
+       "n_correct": 127,
+       "n_ties": 0,
+       "n_unrated_sides": 315,
+       "mean_abs_error": 16.868176868107717
+      }
+     },
+     "all_fbs": {
+      "week_1": {
+       "n_games": 96,
+       "su_accuracy": 0.8020833333333334,
+       "n_correct": 77,
+       "n_ties": 0,
+       "n_unrated_sides": 165,
+       "mean_abs_error": 21.418671448084506
+      },
+      "weeks_1_4": {
+       "n_games": 311,
+       "su_accuracy": 0.7684887459807074,
+       "n_correct": 239,
+       "n_ties": 0,
+       "n_unrated_sides": 529,
+       "mean_abs_error": 21.14752594040063
+      }
+     }
+    }
+   },
+   "provenance": {
+    "carryover": {
+     "description": "season Y-1 final Power, carried unchanged"
+    },
+    "projection_v2": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 6.231766793910834,
+      "intercept_se": 0.380644364871863,
+      "coefficients": {
+       "prior_power": 0.6053424508501754,
+       "returning_production": 5.001594013274762,
+       "coaching_change": -1.3010249375014176,
+       "net_portal": -0.18046435985732978
+      },
+      "standard_errors": {
+       "prior_power": 0.03513585452185198,
+       "returning_production": 1.5507439793636368,
+       "coaching_change": 0.8329375511554995,
+       "net_portal": 0.3399632531242234
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ],
+       [
+        2022,
+        2023
+       ],
+       [
+        2023,
+        2024
+       ]
+      ],
+      "n_team_seasons": 398,
+      "r_squared": 0.4628070567151118,
+      "residual_sd": 6.649221492593261
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ],
+      [
+       2022,
+       2023
+      ],
+      [
+       2023,
+       2024
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.0,
+      "projection.cross_division_gap": 0.0,
+      "projection.promotion_credit": 0.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.0,
+      "projection.promotion_ceiling": 0.0
+     },
+     "home_field_scale": 1.0,
+     "cross_division": {
+      "cross_division_gap": -13.0349,
+      "cross_division_gap_se": 0.6961,
+      "promotion_bump": 11.8141,
+      "promotion_bump_se": 2.4256,
+      "promoted_net": -1.2208,
+      "dispersion": 1.3033,
+      "raw_bridge_miss": 16.9758,
+      "n_bridge_games": 476,
+      "n_promotion_games": 44,
+      "n_promoted_teams": 4,
+      "through_season": 2024,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Delaware",
+      "Missouri State"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "projection_v3": {
+     "recipe": {
+      "version": "projection-3.0.0",
+      "terms": [
+       "prior_power",
+       "returning_production",
+       "coaching_change",
+       "net_portal"
+      ],
+      "intercept": 6.2145030028602335,
+      "intercept_se": 0.38021726123493127,
+      "coefficients": {
+       "prior_power": 0.6247584915703421,
+       "returning_production": 5.852109336794158,
+       "coaching_change": -1.2228149171497746,
+       "net_portal": -0.1026088468044596
+      },
+      "standard_errors": {
+       "prior_power": 0.036157303797593576,
+       "returning_production": 1.5498392621857808,
+       "coaching_change": 0.8323671375445788,
+       "net_portal": 0.3403214624141626
+      },
+      "fitted_on_transitions": [
+       [
+        2021,
+        2022
+       ],
+       [
+        2022,
+        2023
+       ],
+       [
+        2023,
+        2024
+       ]
+      ],
+      "n_team_seasons": 398,
+      "r_squared": 0.46415472139271585,
+      "residual_sd": 6.6408757499565105
+     },
+     "fitted_on_transitions": [
+      [
+       2021,
+       2022
+      ],
+      [
+       2022,
+       2023
+      ],
+      [
+       2023,
+       2024
+      ]
+     ],
+     "levers": {
+      "projection.long_memory": 0.2,
+      "projection.cross_division_gap": 1.0,
+      "projection.promotion_credit": 1.0,
+      "projection.returning_production": 1.0,
+      "projection.coaching_change": 1.0,
+      "projection.portal": 1.0,
+      "projection.home_field": 1.5,
+      "projection.promotion_ceiling": 1.0
+     },
+     "home_field_scale": 1.5,
+     "cross_division": {
+      "cross_division_gap": -13.0349,
+      "cross_division_gap_se": 0.6961,
+      "promotion_bump": 11.8141,
+      "promotion_bump_se": 2.4256,
+      "promoted_net": -1.2208,
+      "dispersion": 1.3033,
+      "raw_bridge_miss": 16.9758,
+      "n_bridge_games": 476,
+      "n_promotion_games": 44,
+      "n_promoted_teams": 4,
+      "through_season": 2024,
+      "measured": true,
+      "promotion_ceiling_rel": 5.7458,
+      "promotion_ceiling_team": "James Madison",
+      "promotion_ceiling_season": 2022,
+      "promotion_support_max_rel": 6.0437,
+      "promotion_ceiling_rule": "No promoted team is projected above the best first FBS season any promoted program has actually had. That ceiling is held by James Madison in 2022.",
+      "definition": "cross_division_gap is the coefficient on a bridge indicator in actual_margin ~ predicted_margin + bridge, over every game in the fit universe. It is the part of the FBS-over-FCS miss that belongs to the division boundary rather than to this model's general under-prediction of mismatches, which `dispersion` carries. promotion_bump is what promoted programs won back in their own first FBS seasons."
+     },
+     "promoted_teams": [
+      "Delaware",
+      "Missouri State"
+     ],
+     "promoted_teams_at_ceiling": []
+    },
+    "ap_preseason": {
+     "description": "26 - AP rank for the 25 ranked teams, 0 for everyone else",
+     "n_ranked": 25
+    }
+   },
+   "absent": {}
+  }
+ ],
+ "summary": {
+  "fbs_vs_fbs": {
+   "carryover": {
+    "week_1": {
+     "su_accuracy": 0.7395833333333334,
+     "n_correct": 142,
+     "n_games": 192,
+     "mean_abs_error": 15.389523056964054,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.7128834355828221,
+     "n_correct": 581,
+     "n_games": 815,
+     "mean_abs_error": 14.587609764732631,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "projection_v2": {
+    "week_1": {
+     "su_accuracy": 0.7338129496402878,
+     "n_correct": 102,
+     "n_games": 139,
+     "mean_abs_error": 15.917803845248384,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.7173553719008264,
+     "n_correct": 434,
+     "n_games": 605,
+     "mean_abs_error": 15.118999904975656,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "projection_v3": {
+    "week_1": {
+     "su_accuracy": 0.7410071942446043,
+     "n_correct": 103,
+     "n_games": 139,
+     "mean_abs_error": 15.516972500164766,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.715702479338843,
+     "n_correct": 433,
+     "n_games": 605,
+     "mean_abs_error": 14.987363577728056,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "ap_preseason": {
+    "week_1": {
+     "su_accuracy": 0.6822916666666666,
+     "n_correct": 131,
+     "n_games": 192,
+     "mean_abs_error": 16.967880710192627,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.6736196319018405,
+     "n_correct": 549,
+     "n_games": 815,
+     "mean_abs_error": 16.00276320770613,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    }
+   }
+  },
+  "all_fbs": {
+   "carryover": {
+    "week_1": {
+     "su_accuracy": 0.8098958333333334,
+     "n_correct": 311,
+     "n_games": 384,
+     "mean_abs_error": 17.913969877345114,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.7697841726618705,
+     "n_correct": 963,
+     "n_games": 1251,
+     "mean_abs_error": 16.81994958746399,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "projection_v2": {
+    "week_1": {
+     "su_accuracy": 0.8241379310344827,
+     "n_correct": 239,
+     "n_games": 290,
+     "mean_abs_error": 19.814864290642557,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.7737459978655283,
+     "n_correct": 725,
+     "n_games": 937,
+     "mean_abs_error": 18.34855590859672,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "projection_v3": {
+    "week_1": {
+     "su_accuracy": 0.8689655172413793,
+     "n_correct": 252,
+     "n_games": 290,
+     "mean_abs_error": 16.189929684072602,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.8036286019210246,
+     "n_correct": 753,
+     "n_games": 937,
+     "mean_abs_error": 15.933764459876882,
+     "seasons_covered": [
+      2023,
+      2024,
+      2025
+     ]
+    }
+   },
+   "ap_preseason": {
+    "week_1": {
+     "su_accuracy": 0.8229166666666666,
+     "n_correct": 316,
+     "n_games": 384,
+     "mean_abs_error": 22.08588484684793,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    },
+    "weeks_1_4": {
+     "su_accuracy": 0.7673860911270983,
+     "n_correct": 960,
+     "n_games": 1251,
+     "mean_abs_error": 20.117644361028574,
+     "seasons_covered": [
+      2022,
+      2023,
+      2024,
+      2025
+     ]
+    }
+   }
+  }
+ }
+}

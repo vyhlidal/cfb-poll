@@ -46,6 +46,23 @@ help:
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
 	@echo "  make site             build the static site into site/_build      [stub]"
 	@echo "  make test / make lint pytest / ruff"
+	@echo
+	@echo "VARIABLES, with their defaults. A default you did not know about is the"
+	@echo "most common way a first command surprises you, so they are printed here."
+	@echo
+	@echo "  OUT=$(OUT)   CONFIG=$(CONFIG)"
+	@echo "  archive:   SEASONS=$(SEASONS)<all>  ONLY=$(ONLY)<everything, incl. play-by-play>"
+	@echo "  rankings:  RANK_SEASON=$(RANK_SEASON)  RANK_WEEK=$(RANK_WEEK)  RANK_RECIPE=$(RANK_RECIPE)"
+	@echo "  backtest:  BACKTEST_SEASONS=$(BACKTEST_SEASONS)"
+	@echo "             SYSTEMS=$(SYSTEMS)"
+	@echo "             (SYSTEMS=schedule_odds,resume settles an ORDERING argument;"
+	@echo "              read retrodictive_violation_rate, not MAE)"
+	@echo "  challenge: CHALLENGE_ENTRY=$(CHALLENGE_ENTRY)"
+	@echo "             CHALLENGE_SEASONS=$(CHALLENGE_SEASONS)"
+	@echo "  grid:      GRID_SEASON=$(GRID_SEASON)"
+	@echo "  fixtures:  FIXTURES=$(FIXTURES)   <- OUTSIDE this repo; always override"
+	@echo "             FIXTURE_SEASON=$(FIXTURE_SEASON)"
+	@echo "  variants:  VARIANT_SEASON=$(VARIANT_SEASON)"
 
 # The only target that works today. `uv sync --locked` errors instead of
 # updating if uv.lock is stale, which is exactly what CI and a stranger both want.
@@ -93,9 +110,21 @@ rankings: .venv archive
 # committed lockfile before any consumer reads it. Add SEASONS=2023 to pull one
 # season, or ONLY=schedules,crosswalk for a scores-only run that skips the 0.52 GB
 # of play-by-play.
+#
+# SEASONS AND ONLY ARE WIRED IN RATHER THAN DOCUMENTED, WHICH THEY WERE NOT.
+# The comment above has promised `SEASONS=2023` since this target was written and
+# the variable was never passed to the command, so `make archive SEASONS=2023`
+# silently pulled all 0.55 GB. That is the worst possible place for a silent
+# no-op: it is the narrowing flag, on the slowest target, and it is the first
+# thing anybody trying to iterate quickly reaches for. Empty stays empty, so the
+# default behaviour is unchanged.
 ARCHIVE_ARGS ?=
+SEASONS      ?=
+ONLY         ?=
 archive: .venv
-	$(UV) run cfbpoll archive sync --source sportsdataverse --verify $(ARCHIVE_ARGS)
+	$(UV) run cfbpoll archive sync --source sportsdataverse --verify \
+	  $(if $(SEASONS),--seasons $(SEASONS)) $(if $(ONLY),--only $(ONLY)) \
+	  $(ARCHIVE_ARGS)
 
 # Regenerate data/manifests/sportsdataverse.lock.json from a completed backfill.
 # Only needed after a backfill or a new release tag; the lockfile is committed.
@@ -106,11 +135,26 @@ archive-lock: .venv
 # nondeterministic order and the replay job asserts byte-equality (report 03 §9.3).
 # With L1 and L3 in the systems list this reads the play archive (~0.3 GB for the
 # tune seasons) and takes about a minute; scores-only runs never touch it.
+#
+# SYSTEMS AND BACKTEST_SEASONS ARE OVERRIDABLE, AND SYSTEMS IS THE ONLY WAY TO
+# SETTLE AN ORDERING ARGUMENT. `challenge run` scores a rating METHOD; it cannot
+# score a headline ordering, because a parameter entry is always filed under the
+# `schedule_odds` row. Comparing orderings means naming them here:
+#
+#     make backtest SYSTEMS=schedule_odds,resume
+#
+# and reading `retrodictive_violation_rate`, which is the metric those two rows
+# exist for. Without this variable that comparison had no BLAS-safe path at all.
+# Valid names: schedule_odds, resume, l3, l2, l1, home_team, winpct, colley, srs,
+# elo, random_walker (alias `walker`), closing_line, cfp. Comma-separated, no
+# spaces. The home-team floor is always included whether or not it is named.
+SYSTEMS          ?= schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct
+BACKTEST_SEASONS ?= 2021-2023
 backtest: .venv
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 	  $(UV) run cfbpoll backtest --config $(CONFIG) \
-	    --systems schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct \
-	    --seasons 2021-2023 --out $(OUT)
+	    --systems $(SYSTEMS) \
+	    --seasons $(BACKTEST_SEASONS) --out $(OUT)
 	@echo
 	@echo "2024 (validate) and 2025 (holdout) are NOT scored here. 2025 is a"
 	@echo "single-shot test and the harness refuses it without --unlock-holdout."

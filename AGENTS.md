@@ -26,18 +26,22 @@ this block is the long version.
 2. **`make archive` is a large download** (see [the targets](#the-targets) for the
    current size). Say so before you start it. `make archive SEASONS=2023` while
    iterating.
-3. **Use the `make` targets, not the bare CLI.** Every target that fits a model
-   pins single-threaded BLAS. A bare `uv run cfbpoll rank` does not, and
-   multi-threaded reductions sum in a nondeterministic order.
+3. **Prefer the `make` targets over the bare CLI.** Targets that fit a model pin
+   single-threaded BLAS; the bare CLI does not, and multi-threaded reductions sum
+   in a nondeterministic order. `recipes` and `publish` fit nothing and are safe
+   bare.
 4. **Give every run its own `OUT`.** `out/` is the default and output files are
    overwritten in place with no prompt. `OUT=out/<slug>` keeps two boards apart.
-5. **`ONLY=schedules,crosswalk` silently changes the model.** No plays means L1
-   cannot fit and the blend degrades to L2. It does not error. Check
-   `power_source` in `model_params.json` before comparing anything.
+5. **`ONLY=schedules,crosswalk` changes the model.** No plays means L1 cannot fit
+   and the blend degrades to L2. **A normal rank does this silently, with no
+   error**, so check `power_source` in `model_params.json` before comparing
+   anything. (A play-level *challenger* is the exception: it raises
+   `FileNotFoundError` instead.)
 6. **`make fixtures` defaults to a path outside the repo** that does not exist in
    your fork. Always pass `FIXTURES=out/data` or it breaks.
-7. **Uncapped margin is spelled `c = inf`.** Any other spelling of "no
-   compression" either fails or produces `nan` quietly.
+7. **Uncapped margin is spelled `c = inf`**, a bare TOML float. It is the one
+   value with a required spelling; a misspelled key is refused loudly, but do not
+   improvise here.
 8. **2025 is a sealed holdout.** Single shot. Do not tune against it.
 9. **Numbers: quote the ones pinned in `configs/default.toml` or in source;
    regenerate anything a run produced.** Details under
@@ -102,14 +106,20 @@ Say which seasons a score covers when you report it. A number from one season is
 not the same claim as a number from three.
 
 **The number is reproducible. It is not the last word, so do not call it
-"mechanical" and walk away.** Two seams decide how much it is worth, and you
-should say both out loud:
+"mechanical" and walk away.** Three seams decide how much it is worth, and you
+should say all three out loud:
 
-- **A recipe is not directly scorable.** The harness scores *rating methods and
-  orderings*. Scoring a recipe means transcribing its constants into a challenger
-  TOML, and part of a recipe does not survive that trip. See
-  [Recipe to challenger](#recipe-to-challenger-the-transcription-that-matters),
-  which is the exact procedure and the exact thing that gets lost.
+- **`make challenge` cannot score an ordering.** It scores rating *methods* and
+  constants. A parameter entry is filed under the `schedule_odds` row whatever its
+  config says the headline should be, so if their conviction is about **what sorts
+  the board**, this command will hand back a number that did not test it. That has
+  its own command and its own metric:
+  [Scoring an ordering conviction](#scoring-an-ordering-conviction). Route them
+  there instead of reporting a score that answers a different question.
+- **A recipe is not directly scorable.** Scoring one means transcribing its
+  constants into a challenger TOML, and part of a recipe does not survive that
+  trip. See
+  [Recipe to challenger](#recipe-to-challenger-the-transcription-that-matters).
 - **The scorecard measures prediction, not desert.** It asks "does this forecast
   games better", which is a different question from "is this the right way to rank
   a season". Somebody whose conviction is about fairness can lose every metric and
@@ -216,9 +226,9 @@ have opposite rules:
 
 - **Pinned by a file, safe to quote.** Constants and thresholds that live in
   `configs/default.toml` or in source: `c = 32`, `beta_w = 7`, the gate's five
-  criteria, the 0.985 tau line, and the three ordering strings.
-  If one of these ever moves, the file moves with it, so check the config when it
-  matters rather than assuming this page is stale.
+  criteria, the 0.985 tau line, and the three ordering strings. These can still go
+  out of date, since this file is a copy of them rather than the source. If one
+  matters to a decision, open the config and confirm it.
 - **Produced by a run, never quote from here.** Anything about where a team
   landed, what a metric came out at, or how many rows moved. The recipe table's
   Liberty placements are this kind. **Regenerate them or read them out of the run
@@ -289,8 +299,13 @@ statement about our ignorance. A recruiting prior shrinks a team toward *what we
 think of its brand*, which is the bias this project exists to delete.
 
 Full text and the banned-input table: [`docs/constraints.md`](docs/constraints.md).
-`cfbpoll audit-features --fail-on-banned` enforces it mechanically on every run, so
-a violation fails the build rather than shipping quietly.
+
+**The leakage audit is automatic, so you do not have to remember it.**
+`cfbpoll rank` runs it *before* it fits anything, which means no poll is ever
+published from an unaudited fit, and `make rankings` therefore audits every run
+you do. The standalone `cfbpoll audit-features` verb exists to audit a season or
+window **without** ranking, and to get the full report as JSON. You need it for
+inspection, not for safety.
 
 ### Which ADR answers which argument
 
@@ -394,8 +409,15 @@ one flag.
 
 ```bash
 uv run cfbpoll recipes                      # the roster, with costs. Fits nothing
-make rankings RANK_RECIPE=full-merit OUT=out/full-merit
+make rankings RANK_SEASON=2023 RANK_WEEK=15 RANK_RECIPE=full-merit OUT=out/full-merit
 ```
+
+**Name the season and week even though they have defaults.** The defaults are
+`RANK_SEASON=2023 RANK_WEEK=15`, which happen to match the season this doc's
+examples fetch. Spell them out anyway, because the moment somebody's archive holds
+a different season the silent default becomes a missing-data error on their very
+first command, and an explicit flag is the difference between a confusing failure
+and an obvious one.
 
 | recipe | what it believes | 2023: where does 13-0 Liberty land? |
 |---|---|---:|
@@ -403,9 +425,14 @@ make rankings RANK_RECIPE=full-merit OUT=out/full-merit
 | **house** | margin in the engine, out of the headline. **The published poll** | **#10** |
 | **just-win** | winning is what counts, running it up buys nothing | **#2** |
 
+*(That last column is a run-produced number. It is here to show the spread, not to
+be quoted. Regenerate it before you tell anyone where their team lands.)*
+
 If what they told you in step 1 is "running up the score should count for
-nothing", you are done in one command. Show them `just-win` and the 21 rows that
-move ([`demo/2023-recipes.md`](demo/2023-recipes.md)).
+nothing", you are done in one command. Show them `just-win` and the rows that
+move: the side-by-side board is [`demo/2023-recipes.md`](demo/2023-recipes.md),
+and the count of movers is a run-produced number, so read it off that document
+rather than from here.
 
 ### Rung 2: their own recipe
 
@@ -618,7 +645,70 @@ make challenge CHALLENGE_ENTRY=configs/challengers/theirs.toml OUT=out/theirs
 Underneath is `cfbpoll challenge run`; its `--systems` option you simply **omit**
 to get the published comparison set. CI runs the identical harness against the
 identical baselines and posts a scorecard. Two worked examples ship, including one
-that loses on 6 of 7 metrics, which is the more useful example.
+that LOSES, which is the more useful example. Its exact record is on its
+committed scorecard ([`demo/challenge-iterative-margin/scorecard.md`](demo/challenge-iterative-margin/scorecard.md));
+quote it from there, not from here.
+
+### Scoring an ordering conviction
+
+**This is the path `make challenge` cannot take, and it comes up constantly**,
+because "what should sort the board" is the most common strong opinion in the
+sport. Use it whenever the conviction is about the *headline ordering* rather than
+about the constants.
+
+The two published orderings are systems in the backtest harness, so you compare
+them there:
+
+```bash
+make backtest SYSTEMS=schedule_odds,resume
+```
+
+**Read `retrodictive_violation_rate` in `out/backtest_metrics.json`.** That is the
+metric these rows exist for: how often the ordering put a team above another team
+that beat it. Both orderings predict margins through the same Power source, so
+their MAE and Brier columns are identical by construction and tell you nothing
+about the ordering. Comparing them on MAE is the classic misread here.
+
+`SYSTEMS` is comma-separated with no spaces. Valid names: `schedule_odds`,
+`resume`, `l3`, `l2`, `l1`, `home_team`, `winpct`, `colley`, `srs`, `elo`,
+`random_walker` (alias `walker`), `closing_line`, `cfp`. The home-team floor is
+always included whether or not you name it, because a table without its floor is
+not a table.
+
+#### Worked example
+
+> **They say:** "Ranking on odds is backwards. What you *earned* should sort the
+> board, not how unlikely your record was."
+
+That is `L4_resume` versus `schedule_odds`, which is exactly the argument
+[ADR 0005](docs/adr/0005-headline-ordering.md) decided. Do this:
+
+```bash
+# 1. score the two orderings head to head
+make backtest SYSTEMS=schedule_odds,resume
+
+# 2. build their board so they can see it, not just read a metric
+make rankings RANK_SEASON=2023 RANK_WEEK=15 RANK_RECIPE=just-win OUT=out/theirs
+```
+
+`just-win` is the shipped recipe whose `[publication] headline_ordering` is
+`L4_resume`, so it is their ordering with a value system attached. If they want
+that ordering with the *house* constants, write a one-key recipe (rung 2) setting
+only `headline_ordering = "L4_resume"` and rank with it.
+
+Then tell them three things, in this order:
+
+1. **What the violation rate says.** Which ordering more often ranked a team above
+   somebody who beat it, on real seasons.
+2. **What their board actually looks like**, by name, off the run you just did.
+3. **What the decision already cost.** ADR 0005 and
+   [the headline-ordering study](docs/analysis/headline-ordering-study.md) record
+   the axes the rejected orderings *won*, which is the honest half of the answer
+   and the half most people never get told.
+
+The third ordering, `L4_resume_margin` (`full-merit`'s), has no separate backtest
+system row. To compare it, rank under `full-merit` and read the boards side by
+side rather than claiming a scored result you do not have.
 
 ### Recipe to challenger: the transcription that matters
 
@@ -671,12 +761,15 @@ to express what they believe. Before you do:
 - New constants go in `configs/default.toml` with a comment citing why, never
   hard-coded in a module.
 - If a future reader will wonder why, write an ADR in `docs/adr/`.
-- Prove no banned input got in before you believe anything. There is no make
-  target for this one, so carry the prefix:
+- **Check the leakage audit, do not skip re-ranking to run it separately.**
+  `make rankings` runs the audit before it fits, so the run you were going to do
+  anyway is the check. Read its verdict rather than trusting the change. Only
+  reach for the standalone verb when you want the JSON report or want to audit a
+  window without ranking, and then carry the prefix, since it fits models too:
 
   ```bash
   OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-    uv run cfbpoll audit-features --fail-on-banned
+    uv run cfbpoll audit-features --fail-on-banned --out out/audit.json
   ```
 
 Branches, PRs and what CI will do to them are in
@@ -735,14 +828,14 @@ does that.
 ```bash
 make .venv        # uv sync --locked. Installs Python 3.12 and every pinned wheel
 make archive      # fetch the MIT archive (~0.55 GB) and sha256-check every file
-make rankings     # archive -> fit -> the four files in out/ (see --out below)
-make backtest     # walk-forward 2021-2023 against every baseline
+make rankings     # archive -> fit -> the four files in OUT (see --out below)
+make backtest     # walk-forward against every baseline
 make challenge    # score ONE community entry on that same harness
 make grid         # the R(N,K) retroactive triangle for one season
-make fixtures     # rank a whole season -> the published JSON tree (see below)
+make fixtures     # rank a whole season -> the published JSON tree
 make demos        # regenerate the committed demo/ boards from the archive
 make cards        # the share cards, SVG and PNG
-make variants     # the eight one-knob playground variants
+make variants     # the one-knob playground variants
 make test         # pytest
 make lint         # ruff
 ```
@@ -750,9 +843,33 @@ make lint         # ruff
 Run the CLI through `uv run cfbpoll ...`. That is what the make targets do and it
 works without activating anything.
 
-Useful overrides: `make rankings RANK_SEASON=2022 RANK_WEEK=12`,
-`RANK_RECIPE=<slug>`, `OUT=<dir>`, `make grid GRID_SEASON=2021`,
-`make archive SEASONS=2023 ONLY=schedules,crosswalk`.
+**Every variable, with its default.** These are silent unless you set them, which
+is why they are listed rather than described: a default you did not know about is
+the most common way a first command fails.
+
+| target | variable | default |
+|---|---|---|
+| all | `OUT` | `out` |
+| all | `CONFIG` | `configs/default.toml` |
+| `archive` | `SEASONS` | *(all)* |
+| `archive` | `ONLY` | *(everything, including play-by-play)* |
+| `rankings` | `RANK_SEASON` | `2023` |
+| `rankings` | `RANK_WEEK` | `15` |
+| `rankings` | `RANK_RECIPE` | `house` |
+| `backtest` | `SYSTEMS` | `schedule_odds,resume,l3,l2,l1,colley,srs,elo,walker,winpct` |
+| `backtest` | `BACKTEST_SEASONS` | `2021-2023` |
+| `challenge` | `CHALLENGE_ENTRY` | `configs/challengers/iterative_margin.py` |
+| `challenge` | `CHALLENGE_SEASONS` | `2021-2023` |
+| `grid` | `GRID_SEASON` | `2023` |
+| `fixtures` | `FIXTURES` | `../sandbox/cfb-poll-data` **(outside your fork; always override)** |
+| `fixtures` | `FIXTURE_SEASON` | `2023` |
+| `variants` | `VARIANT_SEASON` | `2025` |
+
+**Two of these defaults are traps in a fork**, and they are the ones to say out
+loud: `FIXTURES` points somewhere that does not exist, and every seasoned default
+assumes an archive that holds that season. Name the season explicitly on any
+command you run for somebody, and `make help` prints the current list if you
+suspect this table has drifted.
 
 **`--out` / `OUT`, because two boards side by side is the normal case.** The
 default is `out/`. The directory is created if it does not exist, and the four

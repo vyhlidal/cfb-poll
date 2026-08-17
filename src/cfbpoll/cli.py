@@ -1363,15 +1363,112 @@ def bootstrap(
 def guard(
     season: Annotated[str | None, typer.Option(help="Season; blank = current.")] = None,
     week: Annotated[str | None, typer.Option(help="Week; blank = from /calendar.")] = None,
+    trigger: Annotated[
+        str, typer.Option(help="Which clock is asking: manual, n8n, schedule, vps_timer.")
+    ] = "manual",
+    fixtures: Annotated[
+        Path | None, typer.Option(help="Published fixture tree to check on disk.")
+    ] = None,
+    published_url: Annotated[
+        str | None, typer.Option(help="Base URL of the published tree, e.g. https://.../data.")
+    ] = None,
+    arming: Annotated[
+        Path | None, typer.Option(help="Arming switch. Default: ops/arming.toml.")
+    ] = None,
+    resolve_week: Annotated[
+        bool, typer.Option(help="Resolve the live week from CFBD /calendar. Costs one call.")
+    ] = True,
+    outputs: Annotated[
+        Path | None,
+        typer.Option(help="Append key=value lines here. Default: $GITHUB_OUTPUT when set."),
+    ] = None,
+    json_out: Annotated[bool, typer.Option("--json", help="Print the decision as JSON.")] = False,
 ) -> None:
-    """Idempotency guard: has this week already been published?
+    """Idempotency guard: may this trigger run, and is this week already published?
 
-    WILL DO: query cfb_poll_published, print `already_published=true|false` to
-    $GITHUB_OUTPUT, and exit 0 either way. This is what lets three independent
-    triggers (n8n dispatch, the schedule: fallback, and the VPS systemd timer)
-    share one job without ever double-publishing (report 03 §4.1, §4.3).
+    Prints `already_published=`, `armed=`, `should_run=`, the resolved season and
+    week and where the evidence came from to $GITHUB_OUTPUT when it is set, and
+    to stdout always. **It exits 0 whatever it decides**, because "no, and
+    correctly so" is the expected answer on most Sundays and a guard that paints
+    the build red for it is a guard somebody will mute.
+
+    This is what lets three independent triggers - the n8n dispatch, the
+    `schedule:` third string and the VPS systemd timer - share one job without
+    ever double-publishing (ADR 0002).
+
+    THE ONE STEP THAT NEEDS A SECRET IS HERE. Resolving "the current live week"
+    means GET /calendar, which needs CFBD_API_KEY. Without a key, pass `--week`
+    or accept `week_source=unresolved` and `should_run=false`; the guard says
+    which happened rather than inventing a week number.
     """
-    _stub("guard", "report 03 §4.1")
+    from cfbpoll.ops import guard as guard_ops
+
+    decision = guard_ops.decide(
+        trigger=trigger,
+        season=season,
+        week=week,
+        fixtures=fixtures,
+        published_url=published_url,
+        arming=guard_ops.load_arming(arming),
+        resolve_week=resolve_week,
+    )
+    written = guard_ops.write_github_output(decision, outputs)
+
+    if json_out:
+        typer.echo(guard_ops.as_json(decision))
+    else:
+        for key, value in decision.as_outputs().items():
+            typer.echo(f"{key}={value}")
+        typer.echo("")
+        for note in decision.notes:
+            typer.echo(f"  - {note}")
+        typer.echo("")
+        typer.echo(
+            "SHOULD RUN" if decision.should_run else "NO-OP: the job will do nothing and exit 0"
+        )
+    if written is not None:
+        typer.echo(f"(also appended to {written})")
+
+
+@app.command()
+def preflight(
+    required_only: Annotated[
+        bool, typer.Option(help="Check only the steps the weekly job cannot skip.")
+    ] = True,
+    fail_on_missing: Annotated[
+        bool, typer.Option(help="Exit non-zero if a required verb is still a stub.")
+    ] = False,
+) -> None:
+    """Which verbs the Sunday job calls are still stubs? Read off the source.
+
+    The weekly job runs eleven verbs and this repository is a partial build, so
+    some of them raise NotImplementedError. Discovering that forty minutes and
+    0.55 GB into an unattended run - and reporting it as "step 7 failed" rather
+    than "these three commands do not exist yet" - is the kind of failure report
+    that costs a Sunday. So the job asks first.
+
+    The answer is derived from `cli._stub`'s marker in each command body, never
+    from a hand-kept list, so implementing a verb turns its row green with no
+    second edit anywhere.
+    """
+    from cfbpoll.ops import preflight as pre
+
+    rows = pre.report(required_only=required_only)
+    typer.echo(f"{'verb':<20}{'required':>10}{'built':>8}  note")
+    for row in rows:
+        typer.echo(
+            f"{row['verb']:<20}{'yes' if row['required'] else 'no':>10}"
+            f"{'yes' if row['implemented'] else 'NO':>8}  {row['note']}"
+        )
+    gaps = [row["verb"] for row in rows if not row["implemented"]]
+    typer.echo("")
+    if not gaps:
+        typer.echo("every checked verb is implemented.")
+        return
+    typer.echo(f"{len(gaps)} verb(s) still stubbed: {', '.join(gaps)}")
+    typer.echo("The Sunday job cannot complete a publication until these are real.")
+    if fail_on_missing:
+        raise typer.Exit(code=1)
 
 
 @app.command()

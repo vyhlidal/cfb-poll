@@ -26,6 +26,7 @@ EXPECTED_COMMANDS = {
     "grid",
     "bootstrap",
     "guard",
+    "preflight",
     "canonicalize",
     "publish",
     "site",
@@ -54,15 +55,40 @@ def test_subcommand_help_runs() -> None:
 def test_stubs_fail_loudly() -> None:
     """A stub must raise, not return quietly. No fabricated capabilities.
 
-    THE CANARY HAS MOVED TWICE, and both times because the thing it was watching
-    got built: first `rank`, then `bootstrap` (the parametric intervals, 2026-08
-    -12). It is now `guard`, which belongs to the publication plumbing and
-    genuinely does not exist. When that is built, move it again rather than
+    THE CANARY HAS MOVED THREE TIMES, and every time because the thing it was
+    watching got built: first `rank`, then `bootstrap` (the parametric intervals,
+    2026-08-12), then `guard` (the Sunday automation, 2026-08-17). It is now
+    `validate`, the data-quality gate, which is on the weekly job's critical path
+    and genuinely does not exist. When that is built, move it again rather than
     deleting the test - the property under test is that this repository never
-    pretends, and it needs a live subject."""
-    result = runner.invoke(app, ["guard"])
+    pretends, and it needs a live subject. `cfbpoll preflight` lists the
+    remaining candidates."""
+    result = runner.invoke(app, ["validate"])
     assert result.exit_code != 0
     assert isinstance(result.exception, NotImplementedError)
+
+
+def test_guard_is_no_longer_a_stub() -> None:
+    """It raised NotImplementedError until 2026-08-17, while ADR 0002 rested the
+    entire three-clock design on it: without a guard, an n8n dispatch, a
+    `schedule:` cron and a VPS timer are three ways to publish the same week
+    three times. It now decides, prints its reasons, and EXITS 0 either way -
+    "no, and correctly so" is the normal Sunday outcome for two of the three
+    clocks, and a guard that paints the build red for it is a guard somebody
+    mutes."""
+    assert runner.invoke(app, ["guard", "--help"]).exit_code == 0
+    result = runner.invoke(app, ["guard", "--season", "2026", "--week", "1", "--no-resolve-week"])
+    assert result.exit_code == 0
+    assert "should_run=" in result.output
+
+
+def test_preflight_names_the_verbs_the_sunday_job_still_lacks() -> None:
+    """The weekly job asks this BEFORE it spends 0.55 GB and a fit, so that an
+    incomplete pipeline reports itself as three missing commands rather than as
+    whichever step happened to be next."""
+    result = runner.invoke(app, ["preflight"])
+    assert result.exit_code == 0
+    assert "validate" in result.output
 
 
 def test_bootstrap_is_no_longer_a_stub() -> None:

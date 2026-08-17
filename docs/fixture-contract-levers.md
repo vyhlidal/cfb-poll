@@ -402,6 +402,11 @@ as the poll.
 
 ## 9. How to check this contract against the tree
 
+**This is the merge gate for this feature.** It is committed on the branch that
+introduces the grid and it is meant to be run by whoever merges or deploys, not
+only by whoever generated. It fits nothing, reads no archive and needs no BLAS
+pin, so it costs about a second.
+
 ```bash
 uv run python scripts/check_lever_grid.py --data <dir> --season 2025
 ```
@@ -409,6 +414,12 @@ uv run python scripts/check_lever_grid.py --data <dir> --season 2025
 It opens the manifest and then every file the manifest names, and it fails on any
 of:
 
+- **a file whose bytes are not the bytes `publish lever-grid` writes.** Every
+  document here is written by one function, which emits sorted keys, compact
+  separators and a trailing newline, so the bytes are a pure function of the
+  computation. This runs before every other check, because a document that did not
+  come out of the pipeline can carry any field you like, including a `generator`
+  string that says it did.
 - a cell whose file is missing, unreadable or not the shape above
 - a cell whose `detents` disagree with the id its own slugs compose
 - a cell whose `evidence` block differs from any other cell's or from the house
@@ -422,6 +433,23 @@ of:
 
 The last two are the ones worth understanding: they are what makes "the grid is the
 pipeline" checkable rather than asserted.
+
+### Why the byte check exists
+
+On 2026-08-17, while this grid was being generated, seventy-one cell documents and
+a `manifest.json` were written into the published tree carrying
+`"generator": "cfbpoll publish lever-grid"`, placeholder evidence digests, and
+`n_games_in_fit: 1608`, which is a number that never existed in any run: it was a
+placeholder in the first draft of this document, corrected to the real 1637 before
+any board was published. They were pretty-printed and unsorted, and that is what
+gave them away first.
+
+Two lessons are worth writing down rather than fixing quietly. **A generator field
+is a claim and not a provenance record**, so the check that matters is the one a
+writer cannot assert. And **this contract is readable by anything that can read a
+file**, so its example JSON will occasionally be mistaken for, or dressed up as,
+real output. The example blocks are labelled illustrative for that reason, and the
+byte check is what stops the mistake from reaching a reader.
 
 ---
 

@@ -56,6 +56,43 @@ def _load(path: Path) -> Any:
         raise Failure(f"unreadable JSON: {path}: {error}") from error
 
 
+def _canonical(path: Path) -> str | None:
+    """`None` if the file's bytes are exactly what `publish/variants._dump` writes.
+
+    WHY BYTES AND NOT JUST FIELDS. Every document in this subtree is written by one
+    function, which emits sorted keys, compact separators and a trailing newline, so
+    the bytes are a pure function of the computation. Anything else in this tree was
+    produced by something other than the pipeline: a hand edit, a merge, a
+    pretty-printer, or a mock. The check costs a re-serialisation and it is the
+    cheapest authenticity test there is.
+
+    THIS CHECK EXISTS BECAUSE THE FAILURE HAPPENED. On 2026-08-17 seventy-one cell
+    documents and a manifest were written into a published tree carrying
+    `"generator": "cfbpoll publish lever-grid"` and placeholder digests copied out
+    of this feature's own contract document. Every field-level check below would
+    eventually have caught it, but the serialisation was the tell that caught it
+    FIRST and it catches a class the field checks do not: a fabricated document
+    whose numbers happen to be plausible. A generator string is a claim, and this
+    is the part of the file that cannot be claimed.
+    """
+    raw = path.read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as error:
+        return f"{path}: unreadable JSON: {error}"
+    rewritten = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n"
+    )
+    if raw != rewritten:
+        return (
+            f"{path.name}: bytes are not what `cfbpoll publish lever-grid` writes "
+            f"(sorted keys, compact separators, trailing newline). This file was "
+            f"produced by something other than the pipeline, whatever its "
+            f"`generator` field says."
+        )
+    return None
+
+
 def _rows_by_team(rows: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
     return {int(row["team_id"]): row for row in rows}
 
@@ -97,6 +134,12 @@ def check(data: Path, season: int) -> list[str]:
     problems: list[str] = []
     season_dir = Path(data) / str(season)
     man = _load(grid.manifest_path(data, season))
+
+    # AUTHENTICITY FIRST. If the bytes are not the pipeline's bytes, nothing below
+    # is worth reading: a fabricated document can carry any field you like.
+    problem = _canonical(grid.manifest_path(data, season))
+    if problem:
+        problems.append(problem)
 
     # ---------------------------------------------------- the manifest's own shape
     if man.get("schema_version") != grid.SCHEMA_VERSION:
@@ -148,6 +191,10 @@ def check(data: Path, season: int) -> list[str]:
             except Failure as error:
                 problems.append(str(error))
                 continue
+
+            problem = _canonical(path)
+            if problem:
+                problems.append(problem)
 
             if doc.get("schema_version") != grid.SCHEMA_VERSION:
                 problems.append(f"{rel}: schema_version {doc.get('schema_version')!r}")

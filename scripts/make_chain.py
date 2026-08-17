@@ -223,11 +223,20 @@ def write(result: chain.ChainResult) -> None:
     add("| lever | what it does | range | default |")
     add("|---|---|---|---:|")
     for lever in lever_registry.LEVERS:
-        high = "no limit" if lever.high == float("inf") else f"{lever.high:g}"
-        add(
-            f"| **{lever.label}** | {lever.plain} | {lever.low:g} to {high} | "
-            f"{lever.default:g} |"
-        )
+        # A CATEGORICAL LEVER HAS NO RANGE. `publication.headline_ordering` is
+        # three named orderings rather than a quantity, and printing "0 to 2" over
+        # them would invite a reader to ask for 1.5. This table used to format
+        # every lever with `:g` and raised TypeError the moment one of them stopped
+        # being a number, which is the useful kind of breakage: the renderer that
+        # had a hidden assumption is the renderer that had to be told.
+        if lever.is_categorical:
+            span = ", ".join(f"`{v}`" for v in lever.values)
+            default = f"`{lever.default}`"
+        else:
+            high = "no limit" if lever.high == float("inf") else f"{lever.high:g}"
+            span = f"{lever.low:g} to {high}"
+            default = f"{lever.default:g}"
+        add(f"| **{lever.label}** | {lever.plain} | {span} | {default} |")
     add("")
     for item in lever_registry.registry_document()["untouchable"]:
         add(f"**{item['rule']}** {item['detail']}")

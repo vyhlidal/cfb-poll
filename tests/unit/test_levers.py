@@ -28,11 +28,70 @@ from cfbpoll import levers
 def test_every_default_sits_inside_its_own_published_range() -> None:
     """A default outside its range would make the published slider unable to
     reproduce the published board - the reader's first move would change the
-    answer before they had chosen anything."""
+    answer before they had chosen anything.
+
+    A CATEGORICAL LEVER ANSWERS THE SAME QUESTION WITH MEMBERSHIP. There is no
+    range, so "inside it" means "one of the strings on offer", and the round trip
+    through `clamp` has to hold either way.
+    """
     for lever in levers.LEVERS:
-        assert lever.low <= lever.default <= lever.high, lever.key
-        assert lever.low < lever.high, lever.key
+        if lever.is_categorical:
+            assert lever.low is None and lever.high is None, lever.key
+            assert lever.default in lever.values, lever.key
+            assert len(lever.values) >= 2, lever.key
+            assert len(set(lever.values)) == len(lever.values), lever.key
+        else:
+            assert lever.low is not None and lever.high is not None, lever.key
+            assert lever.low <= lever.default <= lever.high, lever.key
+            assert lever.low < lever.high, lever.key
         assert lever.clamp(lever.default) == lever.default, lever.key
+
+
+def test_the_ordering_lever_offers_all_three_legal_strings_and_nothing_else() -> None:
+    """The ruling of 2026-08-17, as an assertion rather than a comment.
+
+    It was a 0-or-1 float, which could express two of the three orderings and had
+    no way to name `L4_resume_margin` - the one `configs/recipes/full-merit.toml`
+    ships. A registry that cannot name a board the project publishes is not a
+    registry of what a reader may change.
+    """
+    from cfbpoll.publish.poll import ORDERING_LAYER
+
+    lever = levers.get("publication.headline_ordering")
+    assert lever.is_categorical
+    assert set(lever.values) == set(ORDERING_LAYER)
+    assert lever.values == ("schedule_odds", "L4_resume", "L4_resume_margin")
+    assert lever.default == "schedule_odds"
+    assert levers.defaults()["publication.headline_ordering"] == "schedule_odds"
+
+
+def test_the_ordering_lever_refuses_a_string_it_does_not_offer() -> None:
+    """There is no nearest legal ordering, so there is nothing to clamp toward.
+
+    Silently picking one would hand back a board answering a question the reader
+    did not ask, which is the same failure an ignored typo produces one level up.
+    """
+    lever = levers.get("publication.headline_ordering")
+    with pytest.raises(ValueError, match="L4_resume_margin"):
+        lever.clamp("L4_resume_marginal")
+    with pytest.raises(ValueError):
+        levers.validate({"publication.headline_ordering": "colley"})
+
+
+def test_the_margin_c_floor_reaches_the_recipe_this_project_ships() -> None:
+    """The other half of the same ruling.
+
+    `configs/recipes/just-win.toml` is a published recipe at c = 1.0 and the
+    `margin-c-1` playground variant publishes a board at it. A floor of 18
+    excluded a ranking this project already serves.
+    """
+    from cfbpoll import recipes
+
+    lever = levers.get("margin.c")
+    assert lever.low == 1.0
+    shipped, _ = recipes.resolve("just-win")
+    assert shipped["margin"]["c"] == lever.low
+    assert lever.clamp(shipped["margin"]["c"]) == shipped["margin"]["c"]
 
 
 def test_no_lever_ships_without_words_and_a_citation() -> None:
@@ -174,7 +233,7 @@ def test_the_registry_document_is_json_and_keeps_both_untouchables() -> None:
     assert "future" in text
     assert all(entry["rule"].strip() and entry["detail"].strip() for entry in untouchable)
 
-    # Every lever survives the trip with the six fields that make it a product.
+    # Every lever survives the trip with the fields that make it a product.
     for row in restored["levers"]:
         assert set(row) == {
             "key",
@@ -186,9 +245,20 @@ def test_the_registry_document_is_json_and_keeps_both_untouchables() -> None:
             "plain",
             "evidence",
             "sweep",
+            "values",
             "measured_effect",
         }
         low, high = row["range"]
+        # `values` IS ON EVERY ROW, empty for a quantity. A consumer that has to
+        # test for a field's existence to learn a lever's kind will one day forget.
+        assert isinstance(row["values"], list)
+        if row["values"]:
+            # Categorical: no range at all, and the default is one of the strings.
+            assert low is None and high is None
+            assert row["unbounded_above"] is False
+            assert row["default"] in row["values"]
+            assert row["sweep"] == []
+            continue
         # An unbounded top is `null` in the document, never the bare `Infinity`
         # token, because that is not JSON and a browser refuses the whole file.
         assert low is not None
@@ -228,11 +298,12 @@ def test_clamp_holds_at_both_ends_including_the_infinite_ceiling() -> None:
     like and margin counts all the way up" - so the clamp has to survive an
     infinite `high` without turning a legitimate number into one."""
     c = levers.get("margin.c")
-    assert c.low == 18.0
+    assert c.low == 1.0
     assert c.high == float("inf")
 
-    assert c.clamp(0.0) == 18.0  # under the floor, pulled up
-    assert c.clamp(18.0) == 18.0  # exactly the floor, kept
+    assert c.clamp(0.0) == 1.0  # under the floor, pulled up
+    assert c.clamp(1.0) == 1.0  # exactly the floor - `just-win`'s constant - kept
+    assert c.clamp(18.0) == 18.0  # inside the range now, no longer the floor
     assert c.clamp(32.0) == 32.0  # the shipped default, untouched
     assert c.clamp(1e9) == 1e9  # nothing above is out of range
     assert c.clamp(float("inf")) == float("inf")  # margin counts all the way up

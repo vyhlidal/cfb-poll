@@ -74,24 +74,48 @@ campaign 1's floor of 18 with no citation under it, and a reader who moved the
 lever to 8 would get a board no document explains. `24` and `48` are in its place,
 and both have a paper trail.
 
-### Two places where `levers.py` and the shipped artifacts disagree
+### Where `levers.py` disagreed with the shipped artifacts, and how it was settled
 
-Both are real and neither is resolved here. They are written down because a
-contract that hides a contradiction in its own inputs is worth less than one that
-names it.
+This contract originally recorded two contradictions between the lever registry
+and the boards this project ships, and put both to the owner. **Both were ruled on
+2026-08-17 by the orchestrator on John's delegation, and the ruling was: the
+registry moves to match the shipped artifacts.**
 
-1. **`levers.get("margin.c").low` is `18`, and two shipped artifacts sit below
+1. **`levers.get("margin.c").low` was `18`, and two shipped artifacts sat below
    it.** `just-win` is a published recipe at `c = 1.0` and `margin-c-1` is a
-   published playground variant at the same value. Either the registry's floor is
-   wrong or those two artifacts are outside the range the project will stand
-   behind. This grid includes `c = 1` on the strength of the shipped recipe, and
-   **a panel that clamps to the registry range would silently refuse a board this
-   project publishes**. Flagged for the owner; see §10.
-2. **`levers.get("publication.headline_ordering")` is a two-point switch**, `0.0`
-   or `1.0`, which can express `L4_resume` and `schedule_odds` and cannot express
-   `L4_resume_margin` at all. The config accepts three strings, `full-merit` uses
-   the third, and this grid carries all three. **Read the ordering off this
-   manifest, not off the registry sweep.**
+   published playground variant at the same value, so the registry's floor
+   excluded a ranking a reader can already open. **The floor is now `1.0`.** The
+   value is still far outside anything the tuning campaigns searched, and
+   `just-win`'s own tradeoffs say so at length; what changed is the recognition
+   that a published range says what a reader may choose, not what was fitted.
+2. **`levers.get("publication.headline_ordering")` was a two-point float switch**,
+   `0.0` or `1.0`, which could express `schedule_odds` and `L4_resume` and had no
+   way at all to name `L4_resume_margin` - the ordering `full-merit` ships. **The
+   lever is now categorical** and carries all three legal strings, with
+   `default = "schedule_odds"`.
+
+**The consequence for a panel is that there is now one source instead of two.**
+Every value the registry offers has a precomputed board behind it, and every board
+in this grid has a registry entry saying a reader may ask for it:
+
+```python
+tuple(d.value for d in axis.detents) == axis.registry().choices   # all three axes
+```
+
+`Lever.choices` is `values` for a categorical lever and `sweep` for a quantity, and
+`tests/unit/test_lever_grid.py::test_every_axis_is_exactly_the_registrys_own_published_choices`
+asserts the equality. If the two ever diverge, one of them is lying to a panel:
+either a slider position with no file behind it, or a file no reader is allowed to
+reach. `levers.defaults()` also now agrees with `configs/default.toml` field for
+field, which it could not while the ordering was a number the config has never held.
+
+**What the registry gained, in shape.** Every row of `registry_document()` carries
+a `values` array, empty for a quantity and the whole domain for a categorical
+lever, so a consumer never has to test for a field's existence to learn a lever's
+kind. A categorical lever publishes `range: [null, null]`, `unbounded_above: false`
+and `sweep: []`. **An out-of-domain ordering is refused rather than clamped**,
+because the three orderings are three different questions rather than three points
+on a scale and there is no nearest legal value to fall back to.
 
 ---
 
@@ -488,11 +512,14 @@ byte check is what stops the mistake from reaching a reader.
 
 ## 10. Where this contract is weak
 
-- **`levers.py` disagrees with this grid in two places** (§2). The registry's
-  `margin.c` floor of 18 excludes a shipped recipe, and its ordering lever cannot
-  express the third legal value. A panel built off the registry and a panel built
-  off this manifest would offer different sets of boards. The registry is the
-  document that should move, and moving it is the owner's call.
+- **~~`levers.py` disagrees with this grid in two places.~~ Settled 2026-08-17**
+  (§2). The registry moved: `margin.c`'s floor is `1.0` and the ordering lever is
+  categorical over all three legal strings. A panel built off the registry and a
+  panel built off this manifest now offer the same set of boards, and a test
+  asserts it. The residual weakness is that the equality is asserted in this
+  repository only: a fork that edits `levers.py` without regenerating the grid
+  gets a slider position with no file behind it, and nothing in the published tree
+  would show it.
 - **Three levers is not "the levers".** `levers.py` publishes thirteen, eight of
   them on the projection and one, `weights.recency_gamma`, on the poll. Recency is
   a genuine football conviction ("does September still count in December") and it

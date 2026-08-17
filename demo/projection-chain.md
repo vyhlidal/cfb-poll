@@ -2,7 +2,7 @@
 
 > This page replaces the gate. The gate was a pass/fail ceremony against a threshold, and its verdict was a boolean. This is the scoreboard: what the model said in August, what happened, and how often it was right, beside the same figure for the sportswriters and for doing nothing at all.
 
-`projection-3.0.0` · generated 2026-08-17T08:29:35+00:00 · `55c9729da4`
+`projection-3.0.0` · generated 2026-08-17T18:52:49+00:00 · `9f52506cac`
 
 ## The protocol, which is the whole of the honesty
 
@@ -72,10 +72,10 @@ Every number below is a choice the model is genuinely uncertain about, and every
 | **The cost of a new head coach** | One number for every school that changed head coach. It does not know whether the new man is any good, and there is no term for how long anyone has been in the job. | 0 to 2 | 1 |
 | **How much the transfer portal moves a team** | Bodies out minus bodies in, counted rather than rated. Departures are recorded well and arrivals are not, so this term is the weakest thing on the board. | 0 to 2 | 1 |
 | **How much home field is worth in August** | A multiplier on the home-field advantage the projection uses to turn ratings into game calls. At 1 it believes last season's fitted value exactly. Above 1 it leans on home field harder, which is the right direction when the ratings themselves are carried over from a season that is finished and are therefore spread wider than this season's truth. | 0 to 2 | 1.5 |
-| **Where a blowout stops counting extra** | Winning by 40 is better than winning by 20. Winning by 60 is barely better than winning by 40. This is where the curve flattens; set it as high as you like and margin counts all the way up. | 18 to no limit | 32 |
+| **Where a blowout stops counting extra** | Winning by 40 is better than winning by 20. Winning by 60 is barely better than winning by 40. This is where the curve flattens; set it as high as you like and margin counts all the way up, or drop it to 1 and beating somebody by 70 is worth about what beating them by 1 is worth. | 1 to no limit | 32 |
 | **How much a win is worth on its own** | Points added to the winner for the simple fact of winning, before any margin counts. At 0 this is a scoring-margin ranking. Turn it up and a one-point win starts to look like a comfortable one. | 0 to 12 | 7 |
 | **Whether September still counts in December** | At 1 every game counts the same all season, which is what a poll about what you earned should do. Below 1 the season decays and recent form takes over. | 0.5 to 1 | 1 |
-| **What sorts the table** | At 1 the table is sorted by how hard the schedule was to survive. At 0 it is sorted by the win-loss resume, which puts every unbeaten team above every team with a loss. | 0 to 1 | 1 |
+| **What sorts the table** | Three different questions, and you pick which one the table answers. Schedule odds asks how hard that season was to survive, and it is what the published poll sorts on. The wins-based resume asks what your record earned against that schedule, which puts every unbeaten team above every team with a loss. The margin-aware resume asks how good the results say you are, which will rank a good team with losses above an unbeaten one. | `schedule_odds`, `L4_resume`, `L4_resume_margin` | `schedule_odds` |
 | **Let the model know which conference a team is in** | Off. Nothing in the base model knows what a conference is, and that is the point: conference strength has to be earned on the field and read off the results, never assumed from the letters on the jersey. The switch is published so the refusal is checkable rather than claimed. | 0 to 1 | 0 |
 
 **No human polls, ever.** No AP, coaches or committee ranking may reach any design matrix of either product. They are comparison targets and never fitting targets. There is no lever for this and there will not be one.

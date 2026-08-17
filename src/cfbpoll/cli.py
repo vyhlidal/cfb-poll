@@ -2288,10 +2288,17 @@ def levers_command(
         return
 
     for lever in selected:
-        high = "no limit" if lever.high == float("inf") else f"{lever.high:g}"
         typer.echo(f"{lever.key}  [{lever.surface}]")
         typer.echo(f"  {lever.label}")
-        typer.echo(f"  range {lever.low:g} to {high}, default {lever.default:g}")
+        if lever.is_categorical:
+            # A CATEGORICAL LEVER HAS NO RANGE TO PRINT. Printing "range 0 to 2"
+            # over three named orderings would invite the reader to ask for 1.5.
+            typer.echo(
+                f"  one of {', '.join(lever.values)}, default {lever.default}"
+            )
+        else:
+            high = "no limit" if lever.high == float("inf") else f"{lever.high:g}"
+            typer.echo(f"  range {lever.low:g} to {high}, default {lever.default:g}")
         typer.echo(f"  {lever.plain}")
         typer.echo(f"  evidence: {lever.evidence}")
         if lever.measured_effect:

@@ -185,33 +185,63 @@ def test_the_detent_sets_are_the_ones_the_contract_argues_for() -> None:
         "margin.beta_w": [0.0, 3.0, 7.0, 12.0],
         "publication.headline_ordering": ["schedule_odds", "L4_resume", "L4_resume_margin"],
     }
-    # The beta_w axis IS the registry's sweep, exactly.
-    assert tuple(d.value for d in grid.AXES[1].detents) == levers.get("margin.beta_w").sweep
 
 
-def test_the_ordering_axis_carries_all_three_legal_strings() -> None:
-    """One more than the registry's two-point switch can express. Contract §2.
+def test_every_axis_is_exactly_the_registrys_own_published_choices() -> None:
+    """AGREEMENT, ASSERTED. This test used to pin a disagreement.
 
-    `L4_resume_margin` is `full-merit`'s ordering. Dropping it to match the
-    registry sweep would remove the constant that IS that recipe's argument.
+    `Lever.sweep` promises "the values the site may offer without a refit" and
+    `Lever.values` is a categorical lever's whole domain. Since this grid exists,
+    that promise is a claim about files on disk: every value the registry offers
+    has a precomputed board behind it, and every board has a registry entry that
+    says a reader may ask for it. If the two sets ever diverge, one of them is
+    lying to a panel - either a slider position with no file behind it, or a file
+    no reader is allowed to reach.
+
+    Both halves were ruled into agreement by the orchestrator on John's
+    delegation, 2026-08-17: `margin.c`'s floor moved to 1.0 to admit `just-win`,
+    and the ordering lever became all three legal strings to admit `full-merit`.
     """
+    for axis in grid.AXES:
+        assert tuple(d.value for d in axis.detents) == axis.registry().choices, axis.key
+
+
+def test_the_ordering_axis_is_the_registrys_three_strings_and_the_configs(
+) -> None:
+    """One set of three orderings, named identically in three places."""
     from cfbpoll.publish.poll import ORDERING_LAYER
 
+    lever = levers.get("publication.headline_ordering")
+    assert lever.is_categorical
     assert {d.value for d in grid.AXES[2].detents} == set(ORDERING_LAYER)
-    assert len(levers.get("publication.headline_ordering").sweep) == 2
+    assert tuple(d.value for d in grid.AXES[2].detents) == lever.values
+    assert lever.default == grid.AXES[2].house
 
 
-def test_the_c_axis_reaches_below_the_registrys_published_floor_and_that_is_deliberate() -> None:
-    """`just-win` is a published recipe at c = 1.0 and the registry's low is 18.
+def test_the_c_axis_floor_is_the_recipe_this_project_ships() -> None:
+    """`just-win` ships at c = 1.0, the registry's floor is 1.0, and so is the grid's.
 
-    This test exists to make the disagreement fail loudly if either side moves.
-    Contract §2 and §10 put the resolution to the owner; what must not happen is
-    the conflict quietly disappearing because somebody edited one of the two.
+    Before the 2026-08-17 ruling the registry's floor was 18 and this test pinned
+    the disagreement so it could not vanish quietly. It now asserts the agreement,
+    for the same reason: three files have to keep saying the same number.
     """
-    assert levers.get("margin.c").low == 18.0
+    assert levers.get("margin.c").low == 1.0
     assert min(d.value for d in grid.AXES[0].detents) == 1.0
     shipped, _ = recipes.resolve("just-win")
     assert shipped["margin"]["c"] == 1.0
+
+
+def test_every_grid_default_is_the_registrys_shipped_value() -> None:
+    """The house cell must be the board `levers.defaults()` describes.
+
+    This is only checkable now that a categorical lever publishes its string:
+    while the ordering was encoded `1.0`, `defaults()` carried a number the config
+    has never held and there was nothing to compare.
+    """
+    shipped = levers.defaults()
+    for axis in grid.AXES:
+        assert shipped[axis.key] == axis.house, axis.key
+    assert grid.published_cell().settings == {a.key: a.house for a in grid.AXES}
 
 
 # ------------------------------------------------------------------ the overlays

@@ -348,6 +348,63 @@ def archived_teams(
     return list(payload) if isinstance(payload, list) else []
 
 
+def _archived_week_endpoint(
+    endpoint: str,
+    season: int,
+    week: int,
+    season_type: str,
+    archive_root: str | Path | None,
+) -> list[dict[str, Any]]:
+    """The newest archived body of `endpoint` for one WEEK bucket, parsed. Offline.
+
+    The params differ by season type on purpose, because the archive's own
+    layout does: a regular week is its own bucket and must be matched on `week`
+    or two weeks of the same season would be mixed, while the postseason is ONE
+    bucket whose bodies were pulled both with and without a `week` param
+    (`pull_postseason` asks season-wide first). Omitting `week` there matches
+    both and the newest wins, which is what append-only storage means.
+    """
+    params: dict[str, Any] = {
+        "year": season,
+        "seasonType": season_type,
+        "classification": "fbs",
+    }
+    if season_type == "regular":
+        params["week"] = week
+    bodies = archived_bodies(
+        endpoint, _bucket(season, season_type, week), archive_root, params=params
+    )
+    if not bodies:
+        return []
+    payload = json.loads(bodies[-1].read_text(encoding="utf-8"))
+    return list(payload) if isinstance(payload, list) else []
+
+
+def archived_week_games(
+    season: int,
+    week: int,
+    season_type: str = "regular",
+    archive_root: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """The newest archived `/games` body for one week bucket. `[]` when absent.
+
+    What `cfbpoll validate`'s cross-source check diffs against the MIT parquet.
+    A fork has no `archive/cfbd/`, gets `[]`, and the check reports itself
+    SKIPPED rather than passed.
+    """
+    return _archived_week_endpoint("/games", season, week, season_type, archive_root)
+
+
+def archived_box_scores(
+    season: int,
+    week: int,
+    season_type: str = "regular",
+    archive_root: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """The newest archived `/games/teams` body for one week bucket. `[]` when absent."""
+    return _archived_week_endpoint("/games/teams", season, week, season_type, archive_root)
+
+
 # ------------------------------------------------------------------ entry points
 
 

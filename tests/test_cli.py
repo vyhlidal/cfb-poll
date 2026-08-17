@@ -77,6 +77,109 @@ def test_bootstrap_is_no_longer_a_stub() -> None:
     assert runner.invoke(app, ["bootstrap"]).exit_code != 0  # --season is required
 
 
+def test_validate_and_publish_release_are_no_longer_stubs() -> None:
+    """Both were stubs until 2026-08-17 while weekly.yml's critical path called them.
+
+    Nothing could complete an unattended publication: the data-quality gate
+    raised NotImplementedError, and so did the step that would have published
+    the files it was gating.
+    """
+    for argv, phrase in (
+        (["validate", "--help"], "THREE OUTCOMES, NEVER TWO"),
+        (["publish", "release", "--help"], "IMMUTABLE MEANS IMMUTABLE"),
+    ):
+        result = runner.invoke(app, argv)
+        assert result.exit_code == 0, result.output
+        assert phrase in " ".join(result.output.split())
+
+
+def test_validate_needs_a_season_it_can_actually_resolve() -> None:
+    result = runner.invoke(app, ["validate"])
+    assert result.exit_code != 0
+    assert "--season is required" in result.output
+
+
+def test_validate_halts_loudly_and_writes_a_verdict_when_a_check_fails(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """The behaviour the unattended runner depends on: non-zero, and it says why."""
+    import json
+
+    from cfbpoll.validate import data_quality
+
+    def one_failure(season, week, **kwargs):  # type: ignore[no-untyped-def]
+        return data_quality.Report(
+            season=season,
+            week=week,
+            season_type="regular",
+            checks=(
+                data_quality.Check("completed_and_scored", "spec", data_quality.PASS, "fine"),
+                data_quality.Check(
+                    "cross_source_scores", "spec", data_quality.FAIL, "Rice 21 vs Rice 24"
+                ),
+            ),
+        )
+
+    with_patch = data_quality.validate_week
+    try:
+        data_quality.validate_week = one_failure  # type: ignore[assignment]
+        out = tmp_path / "verdict.json"
+        argv = ["validate", "--season", "2023", "--week", "10", "--out", str(out)]
+        result = runner.invoke(app, argv)
+    finally:
+        data_quality.validate_week = with_patch  # type: ignore[assignment]
+
+    assert result.exit_code == 1
+    assert "HALT. Publish nothing." in result.output
+    assert "Rice 21 vs Rice 24" in result.output
+    verdict = json.loads(out.read_text())
+    assert verdict["passed"] is False
+    assert verdict["n_fail"] == 1
+    assert [c["name"] for c in verdict["checks"]] == [
+        "completed_and_scored",
+        "cross_source_scores",
+    ]
+
+
+def test_publish_release_dry_run_runs_end_to_end_through_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """No network, no gh, and the bundle it stages is the bundle it would upload."""
+    import json
+
+    from tests.unit.test_publish_release import _run_directory
+
+    run = _run_directory(tmp_path / "out")
+    result = runner.invoke(app, ["publish", "release", "--from", str(run), "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "poll-2023-w15" in result.output
+    assert "DRY RUN" in result.output
+
+    manifest = json.loads(
+        (run / "release" / "poll-2023-w15" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["tag"] == "poll-2023-w15"
+    assert manifest["asset_count"] == len(manifest["assets"])
+    assert (run / "release" / "poll-2023-w15" / "SHA256SUMS").exists()
+
+
+def test_publish_release_refuses_a_published_week_through_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from cfbpoll.publish import release as release_mod
+    from tests.unit.test_publish_release import _run_directory
+
+    run = _run_directory(tmp_path / "out")
+    original = release_mod._run_gh
+    try:
+        release_mod._run_gh = lambda args: subprocess.CompletedProcess(  # type: ignore[assignment]
+            list(args), 0, stdout='{"tagName":"poll-2023-w15"}', stderr=""
+        )
+        result = runner.invoke(app, ["publish", "release", "--from", str(run)])
+    finally:
+        release_mod._run_gh = original  # type: ignore[assignment]
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, release_mod.ReleaseExistsError)
+    assert "already exists" in str(result.exception)
+
+
 def test_rank_requires_a_season_until_the_calendar_resolver_exists() -> None:
     result = runner.invoke(app, ["rank"])
     assert result.exit_code != 0

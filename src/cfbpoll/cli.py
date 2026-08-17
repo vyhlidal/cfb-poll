@@ -6,9 +6,11 @@ fork story) and §9.2 (the byte-match replay job). Every verb invoked by
 here, so that the workflows are a readable specification of the pipeline even
 before the pipeline exists.
 
-STATUS: PARTIAL. `rank`, `grid`, `backtest`, `audit-features` and both publish
-targets (`publish postgres`, `publish fixtures`) are real and run offline against
-the local MIT archive. `rank` publishes the schedule-odds ordering as the
+STATUS: PARTIAL. `rank`, `grid`, `backtest`, `audit-features`, `validate` and the
+publish targets (`publish release`, `publish postgres`, `publish fixtures`) are
+real and run offline against the local MIT archive - `publish release` needs the
+network only for the upload leg, and `--dry-run` builds the identical bundle
+without it. `rank` publishes the schedule-odds ordering as the
 headline (ADR 0005), with opponent quality from the L3 blend of L1 efficiency and
 L2 results (`[resume].power_source`); a season with no play archive falls back to
 L2 and says so on every artifact. `rank` runs the feature audit BEFORE it fits
@@ -38,10 +40,11 @@ app = typer.Typer(
     name="cfbpoll",
     help=(
         "An open, bias-free college football ranking. "
-        "PARTIAL BUILD: `rank`, `grid`, `backtest` and `audit-features` work. The "
-        "headline poll is the schedule-odds ordering; opponent quality is the L3 "
-        "blend of L1 efficiency and L2 results, and the resume is published beside "
-        "every team. The remaining commands are stubs and raise NotImplementedError."
+        "PARTIAL BUILD: `rank`, `grid`, `backtest`, `audit-features`, `validate` and "
+        "`publish` work. The headline poll is the schedule-odds ordering; opponent "
+        "quality is the L3 blend of L1 efficiency and L2 results, and the resume is "
+        "published beside every team. The remaining commands are stubs and raise "
+        "NotImplementedError."
     ),
     epilog=_EPILOG,
     no_args_is_help=True,
@@ -474,18 +477,169 @@ def archive_push(
 
 @app.command()
 def validate(
-    season: Annotated[str | None, typer.Option(help="Season; blank = current.")] = None,
-    week: Annotated[str | None, typer.Option(help="Week; blank = from /calendar.")] = None,
+    season: Annotated[str | None, typer.Option(help="Season; blank = read it from --from.")] = None,
+    week: Annotated[str | None, typer.Option(help="Week; blank = read it from --from.")] = None,
+    season_type: Annotated[
+        str, typer.Option(help="regular | postseason. Buckets key on this, never on week alone.")
+    ] = "regular",
+    from_: Annotated[
+        Path | None,
+        typer.Option("--from", help="This week's run directory. Needed by the movement check."),
+    ] = None,
+    previous: Annotated[
+        Path | None,
+        typer.Option(help="Last week's run directory; blank = look beside --from."),
+    ] = None,
+    max_rating_move: Annotated[
+        float | None,
+        typer.Option(
+            help="Power points a team may move week over week; blank = the measured "
+            "default in validate/data_quality.py."
+        ),
+    ] = None,
+    strict: Annotated[
+        bool,
+        typer.Option(help="Treat a SKIPPED check as a failure. For a runner that has every input."),
+    ] = False,
+    out: Annotated[
+        Path | None, typer.Option(help="Verdict JSON; blank = <--from>/validation.json.")
+    ] = None,
 ) -> None:
     """Data-quality gate. On failure: halt, alert, publish nothing.
 
-    WILL DO: every assertion in report 01 §5.5 - completed flags and non-null
-    scores for every FBS-vs-FBS game, sane week game counts, no team twice, box
-    scores reconciling to final scores, bounded week-over-week rating movement,
-    a cross-source CFBD-vs-SportsDataverse score diff, and the known-bug guard
-    that no December/January game is bucketed into week 1 (game_id 401778314).
+    Every assertion in report 01 §5.5, each one reported BY NAME with its
+    verdict and the value it measured: completed flags and non-null scores for
+    every FBS-vs-FBS game, a sane week game count, no team twice, every
+    /teams/fbs team present with a plausible games-played count, box scores
+    reconciling to final scores, bounded week-over-week rating movement, a
+    cross-source CFBD-vs-SportsDataverse score diff, and the known-bug guard
+    that no December/January game is bucketed into REGULAR week 1.
+
+    THREE OUTCOMES, NEVER TWO. A check whose input is absent reports SKIPPED,
+    never passed. Four of the eight read the PRIVATE CFBD archive or a second
+    run directory and a fork has neither, so "we could not look" and "we looked
+    and it was fine" must not print the same word. `--strict` promotes any skip
+    to a failure, which is what a runner that knows it has every input should
+    pass.
+
+    TWO OF §5.5's SENTENCES ARE WRONG AS WRITTEN and are implemented as the
+    smallest honest version instead. The December/week-1 guard is division-aware
+    and keyed on (season_type, week), because four D-II championship games dated
+    2025-12-13 carry season_type='regular', week=1 and all 240 archived
+    postseason week-1 games are correctly bucketed (docs/data-findings.md §1,
+    §2). "No team appears twice" allows two appearances in regular week 1, where
+    upstream folds week 0 in, and four in a postseason bucket, where the 12-team
+    CFP plays four rounds. Both allowances are measured over 2021-2025 and named
+    as constants in validate/data_quality.py.
+
+    Exits non-zero on any failure and prints the failing checks last, so an
+    unattended runner's log ends with the reason it stopped.
     """
-    _stub("validate", "report 01 §5.5")
+    import json
+
+    from cfbpoll.validate import data_quality
+
+    if from_ is not None and not from_.exists():
+        raise typer.BadParameter(f"--from {from_} does not exist")
+
+    record: dict[str, Any] = {}
+    if from_ is not None and (from_ / "_run.json").exists():
+        record = json.loads((from_ / "_run.json").read_text(encoding="utf-8"))
+
+    if season is None or not str(season).strip():
+        if not record:
+            raise typer.BadParameter(
+                "--season is required unless --from points at a run directory whose "
+                "_run.json carries it. Resolving the CURRENT week needs CFBD's "
+                "/calendar, which needs an API key (report 01 §3.7)."
+            )
+        season_i = int(record["season"])
+    else:
+        season_i = int(season)
+    if week is None or not str(week).strip():
+        if not record:
+            raise typer.BadParameter("--week is required unless --from carries it")
+        week_i = int(record["through_week"])
+    else:
+        week_i = int(week)
+
+    # LAST WEEK, WITHOUT MAKING ANYBODY TYPE IT. The weekly job writes each run
+    # into its own directory under one parent, so the previous week is a sibling
+    # whose _run.json says week - 1. Discovery is refused when two siblings claim
+    # the same week, because guessing which one produced the published poll is
+    # exactly the kind of quiet choice this repository does not make.
+    resolved_previous = previous
+    if resolved_previous is None and from_ is not None:
+        resolved_previous = _sibling_run(from_, season_i, week_i - 1)
+
+    report = data_quality.validate_week(
+        season_i,
+        week_i,
+        season_type=season_type,
+        run=from_,
+        previous=resolved_previous,
+        max_rating_move=(
+            max_rating_move
+            if max_rating_move is not None
+            else data_quality.MAX_RATING_MOVE_POINTS
+        ),
+        strict=strict,
+    )
+
+    typer.echo(
+        f"{season_i} {season_type} week {week_i}: "
+        f"{sum(1 for c in report.checks if c.status == data_quality.PASS)} pass, "
+        f"{len(report.failures)} fail, {len(report.skipped)} skipped"
+        + ("  [STRICT]" if strict else "")
+    )
+    for check in report.checks:
+        mark = {data_quality.PASS: "ok  ", data_quality.FAIL: "FAIL", data_quality.SKIP: "SKIP"}[
+            check.status
+        ]
+        typer.echo(f"  {mark} {check.name:<36} {check.detail}")
+
+    destination = out if out is not None else ((from_ or Path("out")) / "validation.json")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(report.as_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    typer.echo(f"wrote: {destination}")
+
+    if not report.passed:
+        reasons = report.failures or report.skipped
+        typer.echo("")
+        typer.echo(
+            "HALT. Publish nothing. "
+            + ("; ".join(f"{c.name}: {c.detail}" for c in reasons))
+        )
+        typer.echo(
+            "Report 01 §5.2: keep the previous week's published ranking and say the "
+            "current one failed validation. Publishing late costs less than publishing wrong."
+        )
+        raise typer.Exit(code=1)
+
+
+def _sibling_run(run: Path, season: int, week: int) -> Path | None:
+    """The run directory beside `run` that holds (season, week). None if unclear."""
+    import json
+
+    parent = run.parent
+    if not parent.exists():
+        return None
+    found: list[Path] = []
+    for candidate in sorted(parent.iterdir()):
+        if not candidate.is_dir() or candidate == run:
+            continue
+        record_path = candidate / "_run.json"
+        if not record_path.exists():
+            continue
+        try:
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if int(record.get("season", -1)) == season and int(record.get("through_week", -1)) == week:
+            found.append(candidate)
+    return found[0] if len(found) == 1 else None
 
 
 @app.command()
@@ -1394,15 +1548,98 @@ def canonicalize(
 
 @publish_app.command("release")
 def publish_release(
-    out: Annotated[Path, typer.Option(help="Directory to publish.")] = Path("out"),
+    from_: Annotated[
+        Path, typer.Option("--from", help="Run directory to publish.")
+    ] = Path("out"),
+    out: Annotated[
+        Path | None,
+        typer.Option(
+            help="Where the bundle is staged; blank = <--from>/release. Keep it out of "
+            "a directory `publish fixtures --from` scans: a staged bundle carries a "
+            "poll.json and would be mistaken for a run."
+        ),
+    ] = None,
+    tag: Annotated[
+        str | None,
+        typer.Option(help="Release tag; blank = poll-{season}-w{NN} from the run record."),
+    ] = None,
+    repo: Annotated[
+        str, typer.Option(help="owner/name that owns the release.")
+    ] = "vyhlidal/cfb-poll",
+    fixtures: Annotated[
+        Path | None,
+        typer.Option(help="Published JSON tree to attach, e.g. site/_data/2023."),
+    ] = None,
+    cards: Annotated[
+        Path | None, typer.Option(help="Share-card directory to attach, e.g. out/share.")
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Build and verify the bundle. No network, no gh, nothing published.",
+        ),
+    ] = False,
 ) -> None:
-    """Publish out/ as an immutable GitHub Release asset (the canonical copy).
+    """Publish a run as an immutable GitHub Release (the canonical copy).
 
-    WILL DO: create/attach assets on tag `poll-{season}-w{NN}`. Release assets are
-    the right transport because they carry no bandwidth restriction, where Git LFS
-    bills the repo OWNER for every fork's downloads (report 03 §5.2).
+    Creates tag `poll-{season}-w{NN}` and attaches every artifact the run wrote,
+    plus whatever `--fixtures` and `--cards` point at, plus `SHA256SUMS` and a
+    `manifest.json` carrying the sha256, byte count and provenance of each one.
+    Release assets are the right transport because they carry no bandwidth
+    restriction, where Git LFS bills the repo OWNER for every fork's downloads
+    (report 03 §5.2, ADR 0003).
+
+    IMMUTABLE MEANS IMMUTABLE. If the tag already exists this refuses and exits
+    non-zero. It never edits a release, never re-uploads over an asset, and has
+    no --force. A corrected week is a NEW tag - the same rule that makes
+    cfb_poll_published append-only (ADR 0004), for the same reason: a published
+    number that can be quietly rewritten is not a published number.
+
+    ONLY THE HOUSE RECIPE gets the derived tag. An alternate lens (ADR 0011) must
+    be given an explicit --tag, because publishing a different value system to
+    the URL every downstream reader treats as THE poll for that week would be a
+    silent substitution.
+
+    `--dry-run` BUILDS THE REAL BUNDLE and verifies every staged byte against the
+    manifest it just wrote, with no network and no `gh`. It is not a rehearsal:
+    the manifest is a pure function of the run directory, so the bytes it
+    produces are the bytes that would be published, and staging the same run
+    twice produces an identical manifest.
     """
-    _stub("publish release", "report 03 §5.2")
+    from cfbpoll.publish import release as release_mod
+
+    bundle, url = release_mod.publish(
+        from_,
+        tag,
+        repo=repo,
+        dest=out,
+        fixtures=fixtures,
+        cards=cards,
+        dry_run=dry_run,
+    )
+    manifest = bundle.manifest
+    typer.echo(
+        f"{bundle.tag}: {manifest['asset_count']} assets, {bundle.total_bytes:,} bytes, "
+        f"recipe {manifest['recipe']}"
+        + ("  [PROVISIONAL WEEK]" if manifest["provisional"] else "")
+    )
+    for asset in bundle.assets:
+        typer.echo(f"  {asset.sha256[:16]}  {asset.bytes:>12,}  {asset.name}")
+    if bundle.missing:
+        typer.echo(
+            f"  not in this run and therefore not published: {', '.join(bundle.missing)}"
+        )
+    typer.echo(f"staged: {bundle.directory}")
+    typer.echo(f"manifest: {bundle.manifest_path.name} sha256 {bundle.manifest_sha256()}")
+    if dry_run:
+        typer.echo(
+            "DRY RUN: nothing was published and nothing on the network was contacted, "
+            f"so whether {repo}@{bundle.tag} already exists is UNKNOWN here. The real "
+            "run checks it before it uploads and refuses rather than overwriting."
+        )
+        return
+    typer.echo(f"published: {url}")
 
 
 @publish_app.command("postgres")

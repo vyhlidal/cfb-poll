@@ -43,8 +43,12 @@ board and a scorecard that says whether you beat the original.
 > column at **r = 0.847** over 221,945 plays, reported as a validation diagnostic
 > and never fed in.
 >
-> **What does not run:** publishing and the site. They are stubs and they raise
-> `NotImplementedError` rather than pretending. A season with no play archive falls back to `power_source = "L2"`
+> **What does not run:** the site, and the private archive's push to object
+> storage. They are stubs and they raise `NotImplementedError` rather than
+> pretending. Publishing does run: `cfbpoll validate` is the data-quality gate
+> and `cfbpoll publish release` cuts the immutable weekly tag, with a `--dry-run`
+> that builds and verifies the identical bundle offline.
+> A season with no play archive falls back to `power_source = "L2"`
 > and stamps that on every artifact rather than letting a reader assume otherwise.
 >
 > See [Status](#status) for what exists versus what is coming.
@@ -363,7 +367,12 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 ```
 cfbpoll ingest {cfbd,sportsdataverse}   pull a week or a season into the archive
 cfbpoll archive {sync,push}             materialise or push the raw archive
-cfbpoll validate                        data-quality gate; halt and publish nothing on failure
+cfbpoll validate                        data-quality gate; halt and publish nothing on failure.
+                                        Eight named checks from report 01 §5.5,
+                                        each pass/FAIL/SKIP with the value it
+                                        measured. A check whose input is absent
+                                        is SKIPPED, never passed; `--strict`
+                                        makes a skip a failure
 cfbpoll audit-features                  fail the build if a banned input reached a model matrix
 cfbpoll recipes                         the named value systems, with their costs
 cfbpoll rank [--recipe <slug>]          fit the model, write the poll and both surfaces
@@ -372,7 +381,13 @@ cfbpoll bootstrap                       rank + rating intervals (parametric, fix
 cfbpoll guard                           has this week already been published?
 cfbpoll canonicalize                    emit the sorted CSV that golden fixtures hash
 cfbpoll publish {release,postgres,fixtures,cards}
-                                        publish out/ to its destinations. `fixtures`
+                                        publish out/ to its destinations.
+                                        `release` cuts `poll-{season}-w{NN}` with
+                                        a sha256 manifest and REFUSES a tag that
+                                        already exists — a correction is a new
+                                        tag, never an edit; `--dry-run` builds
+                                        and verifies the same bundle with no
+                                        network. `fixtures`
                                         takes one run OR a directory of them, so
                                         `make fixtures` republishes a whole season;
                                         `cards` renders the share card (SVG + PNG);

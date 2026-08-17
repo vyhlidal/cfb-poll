@@ -57,7 +57,45 @@ schedule graph and its diagnostics, and no other poll's share image shows you th
 graph its ranking is standing on. `top5`, `top10` and the two `top25` canvases are
 the board itself, and the projection has its own three. The top five is the hero:
 five rows means the rank numeral and the mark can be drawn at a size that reads at
-thumbnail scale, which is where most of these are actually seen.
+thumbnail scale, which is where most of these are actually seen. The three
+`comparison` canvases put our board beside one or two NAMED EXTERNAL BOARDS, which
+is what turns a disagreement graphic from a hand-made image into a published
+artifact with a digest like every other card.
+
+THE BRAND IS THE MASTHEAD, AND THE ACCENT RULE IS A DISCIPLINE RATHER THAN A
+COLOUR. The gold-on-near-black palette this module shipped through 2026-08-17 is
+retired whole. What replaced it:
+
+  - GROUND `#101216`, INK `#eae7e0`, RULE `#6f7278`, ACCENT `#00c2e0`. Those four
+    are the brand's dark tokens and are not negotiable here. Everything else in
+    `PALETTE` is DERIVED from two of them by a stated blend, so a reader can check
+    every value on the card with arithmetic instead of taking it on faith.
+  - THE ACCENT MARKS THE MACHINE AND NOTHING ELSE. The brand permits exactly four
+    uses and a share card can reach three of them: the `.ai` in the wordmark, the
+    schedule-odds key and the column it labels, and ONE divider rule between the
+    board and the attribution. Everything that is the poll stays monochrome. A
+    cyan slab, a cyan team name, a cyan hairline anywhere else is the failure this
+    palette exists to prevent, and `tests/unit/test_share_cards.py` counts them.
+  - THE WORDMARK IS DRAWN AS PATHS, from `MASTHEAD_GLYPHS` below, so the mark on a
+    card is the mark and not a font's approximation of it. No image file, no
+    dependency on a family being installed, and it rasterises identically on any
+    machine, which is the same property the rest of the card already had.
+  - NUMBERS ARE NOT TERMINAL OUTPUT. Rank numerals, win totals and the odds key
+    are set in the BOARD face, not the mono. Mono is provenance only - run ids,
+    config hashes, the constants footer - which is the one place looking like
+    machine output is the point.
+
+TWO OF JOHN'S STANDING RULES ARE ENFORCED HERE RATHER THAN REMEMBERED. There is
+NO PLAYOFF CUT LINE on any card: the accent rule that used to fall under rank 4 is
+gone from every variant, because a poll that refuses to run a committee should not
+draw a committee's line, and the rule was the loudest thing on the hero card. And
+every row gets the SAME TREATMENT: rank 1 is drawn exactly like rank 25.
+
+AND NO PUBLISHED PNG CARRIES AI-PROVENANCE METADATA. Meta and TikTok apply
+AI-generated labels from file metadata rather than from what an image shows, and
+TikTok's cannot be removed, so a bar chart Python drew can be badged by a field
+nobody looked at. `render_png` strips every chunk outside a small allow-list and
+`png_metadata_chunks` is what a test and a human both read to check it.
 """
 
 from __future__ import annotations
@@ -72,25 +110,43 @@ from cfbpoll.publish import logos
 from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
+    "AGREEMENT_BAND",
     "BUILDERS",
     "CARD_HEIGHT",
     "CARD_WIDTH",
+    "COMPARISON_VARIANTS",
+    "DATA_CREDIT",
     "FONT_DIR",
+    "GAP_NEG",
+    "GAP_POS",
     "PALETTE",
     "PLATE_OPACITY",
+    "PNG_ALLOWED_CHUNKS",
     "PROJECTION_VARIANTS",
     "SAFE_TOP",
+    "SQUARE_HEIGHT",
     "TALL_HEIGHT",
     "VARIANTS",
+    "comparison_square_svg",
+    "comparison_svg",
+    "comparison_tall_svg",
     "connectivity_svg",
+    "disagreement_svg",
     "export",
+    "export_comparison",
     "export_projection",
     "fonts_are_vendored",
+    "load_comparison",
+    "masthead_height",
+    "png_chunks",
+    "png_metadata_chunks",
     "projection_top5_svg",
     "projection_top10_svg",
+    "grid_svg",
     "projection_top25_svg",
     "render_png",
     "stripe_colour",
+    "strip_png_metadata",
     "top5_svg",
     "top10_svg",
     "top25_instagram_svg",
@@ -108,6 +164,12 @@ CARD_HEIGHT = 628
 #: ships on BOTH this canvas and the 628 one rather than picking a compromise
 #: that is native to neither.
 TALL_HEIGHT = 1500
+
+#: 1200x1200 is 1:1, the carousel slide. It exists because GFX-10 asks for the
+#: comparison as three slides rather than one long card, and a square is what
+#: every platform crops least: Instagram shows it whole, X shows it whole, and a
+#: LinkedIn or Reddit thumbnail does not letterbox it.
+SQUARE_HEIGHT = 1200
 
 #: X crops the top and bottom on mobile, so the essential content lives in the
 #: middle ~60% (report 05 §6.2). The title band and the constants footer sit
@@ -127,6 +189,17 @@ SAFE_BOTTOM = CARD_HEIGHT - 126
 #: slash for a reader to get wrong.
 SITE_DOMAIN = "thepoll.ai"
 
+#: THE ATTRIBUTION, ON EVERY CARD, AND IT WAS NOT THERE BEFORE. CFBD's terms say
+#: attribution is "not required but strongly encouraged"; the site's own
+#: disclaimer already says "it is owed and it costs a line", and until now the
+#: share cards - the artifacts most likely to travel with no page attached - were
+#: the one surface that did not pay it. A line costs 12px.
+DATA_CREDIT = "data: collegefootballdata.com"
+
+#: How tall the signature strip is. Two constants lines on the left, the address
+#: and the data credit on the right.
+FOOTER_HEIGHT = 66.0
+
 #: `top25_x` and `top25_instagram` are the same table on two canvases and are
 #: separate variants rather than one variant with an option, because each is a
 #: published artifact with its own sha256 and neither is a derivative of the
@@ -141,6 +214,26 @@ PROJECTION_VARIANTS: tuple[str, ...] = (
     "projection_top5",
     "projection_top10",
     "projection_top25",
+    # The all-teams grid. Same input as the three above and the same refusal on a
+    # dark document, so it belongs in the same family; what it needs that they do
+    # not is a document published with more than 25 rows.
+    "projection_grid",
+)
+
+#: The variants that draw OUR BOARD BESIDE SOMEBODY ELSE'S. They take two inputs -
+#: the published projection document and a comparison spec naming each external
+#: board and its ranks - so they are named apart for the same reason the
+#: projection variants are: a variant is defined by what it reads.
+#:
+#: Their files are `<season>-<slug>-<variant>`, where the slug comes from the spec.
+#: Not the variant alone: three carousel slides are three different claims about
+#: three different slices of the board, and three published artifacts that
+#: overwrote each other would be one artifact with a moving digest.
+COMPARISON_VARIANTS: tuple[str, ...] = (
+    "comparison",
+    "comparison_tall",
+    "comparison_square",
+    "disagreement",
 )
 
 VARIANTS: tuple[str, ...] = (
@@ -150,47 +243,79 @@ VARIANTS: tuple[str, ...] = (
     "top25_x",
     "top25_instagram",
     *PROJECTION_VARIANTS,
+    *COMPARISON_VARIANTS,
 )
 
 #: One dark palette, fixed. A share card has no theme toggle: it is a PNG in
 #: somebody else's timeline, and it has to hold up against both a white and a
-#: black surrounding page, which a dark card with high-contrast type does.
+#: black surrounding page, which a dark card with high-contrast type does. The
+#: brand says the same thing for a second reason: "a bright card in a timeline
+#: reads as an advertisement and a dark one reads as a broadcast graphic".
 #:
-#: THE ACCENT IS GOLD AND IT OBEYS ONE RULE: it is either a filled slab with
-#: `brand_ink` drawn on top of it, or it is the odds/key numeral. Never a
-#: hairline, never a border, never body text. That single rule is what keeps a
-#: card carrying big numbers from reading as a betting advertisement, which is
-#: the failure mode nearest to this design.
+#: FOUR TOKENS ARE THE BRAND'S AND THE REST ARE ARITHMETIC. `bg`, `ink`, `rule`
+#: and `accent` are the brand book's dark values, copied. Every other entry is
+#: `ink` composited over `bg` at a stated fraction, so there is no colour on this
+#: card that a reader cannot reproduce, and no opportunity for a fifth hue to
+#: arrive because somebody needed "a slightly lighter grey". The measured contrast
+#: against the ground is on each line.
+#:
+#: THE ACCENT MARKS THE MACHINE AND NOTHING ELSE. On a card it may appear in
+#: exactly three places: the `.ai` of the wordmark, the schedule-odds key and the
+#: column it labels, and one divider rule above the attribution. It is never a
+#: slab, never a team name, never a row separator, never a border. The old gold
+#: could be a filled slab and that is what made the label banners loud; the
+#: replacement for that loudness is a BONE slab with `brand_ink` on it, which is a
+#: newspaper reverse block and costs the palette nothing.
 PALETTE: dict[str, str] = {
-    "bg": "#0B0C0F",
-    "panel": "#15181D",
-    "rule": "#262A31",
-    "ink": "#F4F2ED",
-    "ink_dim": "#A2A8B0",
-    "ink_faint": "#6C737C",
-    "edge": "#3A4048",
-    "accent": "#F0B429",
-    # Ink drawn ON an accent slab. `ink` on gold fails contrast; this does not.
-    "brand_ink": "#0B0C0F",
+    # --- the brand's own dark tokens.
+    "bg": "#101216",
+    "ink": "#eae7e0",  # 15.18:1 on the ground. AAA.
+    "rule": "#6f7278",  # 3.89:1. Hairlines and separators; large text at a push.
+    "accent": "#00c2e0",  # 8.74:1. THE MACHINE. Three permitted uses, see above.
+    # --- derived: ink over bg at the stated fraction.
+    "panel": "#15171b",  # the brand's ink tile, the one plate the graph card draws
+    "ink_dim": "#a09f9b",  # 0.66 -> 7.08:1. Datelines, secondary numbers, the address.
+    "ink_faint": "#6f7278",  # 0.44, which lands on the rule token. The constants whisper.
+    "edge": "#404142",  # 0.22 -> 1.83:1. Graph edges. A mark, never text.
+    # Ink drawn ON a bone slab. The reverse block that replaced the gold banner.
+    "brand_ink": "#101216",
     # The team stripe when a row carries no colour. Drawn either way, never
     # omitted: a missing box would misalign the row grid on exactly the rows
     # whose data is weakest.
-    "stripe_fallback": "#3A4048",
-    # The uncertainty rail is EVIDENCE and is deliberately not gold. Gold is the
-    # key. A rail in the accent colour would read as the thing being celebrated
-    # rather than the thing being admitted.
-    "rail_track": "#2A2F36",
-    "rail_band": "#C9D0D8",
+    "stripe_fallback": "#6f7278",
+    # The uncertainty rail is EVIDENCE and is deliberately not the accent. Cyan is
+    # the key. A rail in the accent colour would read as the thing being
+    # celebrated rather than the thing being admitted.
+    "rail_track": "#2a2c2e",  # 0.12
+    "rail_band": "#c9c4b8",  # the brand's LIGHT rule token, used here as a neutral band
     # The ground a near-black school mark is set on so it does not vanish into
-    # the card. A warm off-white rather than pure white: at this size a #FFFFFF
-    # chip is a hole punched in the card, and this one reads as paper. One token
-    # rather than a literal in the drawing code, because it is a palette decision
-    # and the next person to retune the card should find it here with the rest.
-    "plate": "#E8E6E1",
+    # the card. The brand's bone rather than a white: at this size a #FFFFFF chip
+    # is a hole punched in the card, and this one reads as paper.
+    "plate": "#eae7e0",
 }
 
+#: THE ONE PLACE A SECOND AND THIRD HUE ARE ALLOWED, and they are not brand accent.
+#: The brand book keeps a diverging pair for MOVEMENT FIGURES - amber against
+#: violet, chosen so a red-green colourblind reader can still read direction - and
+#: rules it "data encoding rather than brand accent". A comparison card is a
+#: movement figure: the whole point is that a reader sees which way each
+#: disagreement runs without reading a number.
+#:
+#: THE BRAND BOOK ALSO FLAGS THE RISK THIS CREATES, and the flag is answered in
+#: `_comparison_rules`: cyan must not appear beside the amber-violet pair in a way
+#: that reads as three competing categories, so a comparison card draws NO accent
+#: divider. Its only cyan is the `.ai` in the mark, which is identity rather than a
+#: data category and sits in the masthead rather than in the figure.
+GAP_POS = "#dc9440"  # 7.46:1. We rank this team HIGHER than they do.
+GAP_NEG = "#9c8fd6"  # 6.53:1. We rank it LOWER.
+
+#: Inside this many places, two boards agree and the card says so in bone. The
+#: number is not arbitrary: a one-place difference between a 25-team ballot and a
+#: 138-team model is noise, and colouring it would make every row a story.
+AGREEMENT_BAND = 2
+
 #: How solid that plate is. NOT "subtle" in the sense of nearly invisible: the
-#: plate exists to deliver contrast a near-black mark cannot get from #0B0C0F, and
+#: plate exists to deliver contrast a near-black mark cannot get from the ground, and
 #: a 15% white wash over a near-black ground is still a near-black ground. At 0.92
 #: the composite sits around #D6D4D0, which gives a black mark better than 13:1
 #: and still reads as a soft chip rather than a glaring white square. Subtlety is
@@ -198,9 +323,20 @@ PALETTE: dict[str, str] = {
 #: than the mark, drawn only on the rows that need it.
 PLATE_OPACITY = 0.92
 
-#: Four roles rather than two, because the card now has a voice: a condensed
-#: display face for the wordmark and rank numerals, a text face for team names,
-#: a mono for every number, and a serif for the one prose line.
+#: Four roles, and the brand cut two of them back hard.
+#:
+#: THE BOARD FACE DOES THE BOARD, ALL OF IT. Brand book §3: "Board numbers, rank
+#: numerals, win totals and schedule ranks are set in the board face with tabular
+#: figures. Monospace is for provenance only, where looking like machine output is
+#: the point." Every rank numeral and every value on this card used to be mono,
+#: which made a ranking look like a log file. They are the display face now, and
+#: `_num` asks for tabular figures.
+#:
+#: THE SERIF LEFT THE CARD. The same table assigns "headlines, share cards,
+#: endcards" to the board face and reserves the prose serif for "long answers,
+#: paragraphs a person reads sitting down". A share card is not that. `FONT_PROSE`
+#: stays defined because the vendored family is still shipped and still tested,
+#: and because other surfaces in this project do run prose.
 #:
 #: THE PRIMARY FAMILIES ARE SHIPPED IN-REPO AND THE RASTER NO LONGER DEPENDS ON
 #: THE HOST, which fixes a latent defect rather than adding a feature. The old
@@ -262,6 +398,76 @@ FONT_STACK = FONT_UI
 #: already ships as release assets rather than in the tree. The cost of not
 #: carrying it is a published artifact with a box in the middle of a team's name.
 FONT_DIR = Path(__file__).resolve().parents[3] / "assets" / "fonts"
+
+#: TABULAR FIGURES ARE ASKED FOR AND ARE NOT DELIVERED, AND THE CARD IS BUILT FOR
+#: THAT. The brand book flagged honest uncertainty about whether the shipped
+#: Archivo carries a `tnum` feature. It does - reading the GSUB feature list off
+#: `assets/fonts/archivo/Archivo-Variable.ttf` finds `tnum` among 21 tags. The
+#: renderer is the problem: rasterising the same numerals with and without
+#: `font-feature-settings="tnum"` and `font-variant-numeric: tabular-nums`
+#: produces BYTE-IDENTICAL output under the pinned resvg, so the feature is
+#: requested and ignored.
+#:
+#: So the card takes the fallback the brand book names: FIXED-WIDTH,
+#: RIGHT-ALIGNED COLUMNS. Every rank numeral is anchored to the right edge of a
+#: lane sized from the type, so 1 and 25 end in the same place and the marks
+#: beside them line up down the card. The attribute is still emitted, because the
+#: SVG is also read in a browser, where it works.
+TABULAR = 'font-feature-settings="tnum" style="font-variant-numeric:tabular-nums"'
+
+#: THE MASTHEAD, AS PATHS. Taken from `brand/logo/wordmark-dark.svg`, which is
+#: drawn as paths precisely so no surface has to have a font installed to set the
+#: name correctly.
+#:
+#: WHY THE GEOMETRY IS IN THIS FILE RATHER THAN AN ASSET. A card must be
+#: self-contained and this repository does not ship image files outside a named
+#: allow-list, which is the guard that keeps school marks out of the tree. Copying
+#: four path strings in is 1.5 KB and keeps both rules intact; adding an SVG to
+#: `assets/` would have meant widening the allow-list for a decoration, and the
+#: next thing through that hole would not be a decoration.
+#:
+#: THE CONSTRUCTION IS THE BRAND AND IT IS NOT ADJUSTABLE HERE. A heavy rule
+#: across the top, THE POLL set light and wide beneath it on a 100-unit cap
+#: height, `.ai` inline on the same baseline at 0.48 of that cap height in the
+#: accent, and a hairline closing the block. No badge, no pill, no container, no
+#: enclosed suffix - "that is deliberate and permanent". `_masthead` scales the
+#: whole lockup as one unit, so nothing in this module can restack it, recolour
+#: the nameplate, or set THE smaller than POLL.
+MASTHEAD_WIDTH = 740.56
+MASTHEAD_HEIGHT = 166.0
+#: One cap height on every side, and the cap height is 100 of the 166 above.
+MASTHEAD_CLEAR = 100.0 / MASTHEAD_HEIGHT
+#: Below this the hairline and the `.ai` both stop resolving. Use the compact mark.
+MASTHEAD_MIN_WIDTH = 200.0
+
+_MASTHEAD_NAME: tuple[tuple[float, str], ...] = (
+    (0.0, "M0 0H64V16H0ZM24 16H40V100H24Z"),
+    (94.0, "M0 0H16V100H0ZM48 0H64V100H48ZM16 42H48V58H16Z"),
+    (188.0, "M0 0H16V100H0ZM16 0H64V16H16ZM16 42H58V58H16ZM16 84H64V100H16Z"),
+    (
+        308.0,
+        "M0 0H16V100H0ZM16 0H36A30 30 0 0 1 66 30V32A30 30 0 0 1 36 62H16Z"
+        "M16 15H36A15 15 0 0 1 51 30V32A15 15 0 0 1 36 47H16Z",
+    ),
+    (
+        404.0,
+        "M36 0H36A36 36 0 0 1 72 36V64A36 36 0 0 1 36 100H36A36 36 0 0 1 0 64V36"
+        "A36 36 0 0 1 36 0ZM36 15H36A21 21 0 0 1 57 36V64A21 21 0 0 1 36 85H36"
+        "A21 21 0 0 1 15 64V36A21 21 0 0 1 36 15Z",
+    ),
+    (506.0, "M0 0H16V100H0ZM16 84H64V100H16Z"),
+    (600.0, "M0 0H16V100H0ZM16 84H64V100H16Z"),
+)
+
+_MASTHEAD_SUFFIX: tuple[tuple[float, str], ...] = (
+    (0.0, "M0 85H15V100H0Z"),
+    (
+        31.0,
+        "M34 28H60V100H34A34 34 0 0 1 0 66V62A34 34 0 0 1 34 28Z"
+        "M34 42H46V86H34A20 20 0 0 1 14 66V62A20 20 0 0 1 34 42Z",
+    ),
+    (107.0, "M0 28H15V100H0ZM0 6H15V21H0Z"),
+)
 
 
 def _esc(value: Any) -> str:
@@ -382,7 +588,7 @@ def _oklch_to_hex(lightness: float, chroma: float, hue: float) -> str:
 
 
 #: The legibility band a team stripe is clamped into, on THIS background.
-#: Navy sits near black on #0B0C0F and vanishes; a neon green shouts over every
+#: Navy sits near black on the ground and vanishes; a neon green shouts over every
 #: number beside it. Clamping lightness into a band and capping chroma puts every
 #: school in the same visual register while keeping each one recognisably itself.
 STRIPE_L_RANGE = (0.55, 0.74)
@@ -445,7 +651,7 @@ def _mark(x: float, y: float, radius: float, row: dict[str, Any]) -> str:
 
     THE PLATE IS THE LUMINANCE GUARD, and it is the same defect the website has in
     the other direction. `logos.resolve` measures the mark's effective luminance
-    over its painted pixels and compares it against what #0B0C0F needs for WCAG's
+    over its painted pixels and compares it against what the ground needs for WCAG's
     3:1 non-text contrast. Below that the mark is set on a light neutral chip a
     few px larger than itself. Asking the host for the `-dark` variant is not
     enough on its own: some schools have no genuine dark file and the same
@@ -498,131 +704,329 @@ def _slab(x: float, y: float, width: float, height: float, fill: str) -> str:
     )
 
 
-def _left_panel(
-    week_view: dict[str, Any], panel_w: float, height: float, thesis_size: float
-) -> list[str]:
-    """Wordmark, gold bar, eyebrow, lens marker, thesis. Shared by both variants.
+def _rule(
+    x: float, y: float, width: float, *, stroke: str, weight: float = 1.0, opacity: float = 1.0
+) -> str:
+    """A horizontal hairline. The masthead brand's most-used element by far.
 
-    THE THESIS IS `recipe.one_liner`, WHICH IS A PUBLISHED FIELD. It is not copy
-    typed into this renderer, so a card made under an alternate lens states that
-    lens's own argument rather than the house one, and nobody has to remember to
-    change a string here when a recipe's prose changes.
+    Opacity rather than a second grey, and that is a palette decision made once:
+    the brand's dark rule token is 3.89:1 against the ground, which is right for
+    the structural rules and far too loud repeated 25 times down a board. Drawing
+    the same token lighter keeps the palette at four colours instead of five.
     """
-    season, week = int(week_view["season"]), int(week_view["week"])
-    parts: list[str] = [_slab(0, 0, panel_w, height, PALETTE["panel"])]
-    parts.append(
-        f'<line x1="{_n(panel_w)}" y1="0" x2="{_n(panel_w)}" y2="{_n(height)}" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
+    attrs = f'stroke="{stroke}" stroke-width="{_n(weight)}"'
+    if opacity < 1.0:
+        attrs += f' stroke-opacity="{_n(opacity)}"'
+    return (
+        f'<line x1="{_n(x)}" y1="{_n(y)}" x2="{_n(x + width)}" y2="{_n(y)}" {attrs}/>'
     )
 
-    x, y = 32.0, 96.0
-    parts.append(
-        _text(x, y, "THE POLL", size=30, fill=PALETTE["ink"], weight="800",
-              anchor="start", family=FONT_DISPLAY, spacing=1.8)
-    )
-    # The gold bar under the wordmark: a filled slab, which is one of the two
-    # sanctioned uses of the accent. Width is measured off the type size rather
-    # than assumed, so it tracks the wordmark on any face.
-    parts.append(_slab(x, y + 12, 30 * 0.62 * len("THE POLL"), 6, PALETTE["accent"]))
 
-    y += 56
-    parts.append(
-        _text(x, y, f"{season} · WEEK {week}", size=16, fill=PALETTE["ink_dim"],
-              weight="700", family=FONT_DISPLAY, spacing=1.6)
+def _num(
+    x: float, y: float, content: str, *, size: float, fill: str, weight: str = "700",
+    anchor: str = "end",
+) -> str:
+    """A board numeral: the board face, tabular figures asked for, right-anchored.
+
+    THE ANCHOR IS THE POINT. resvg ignores the tabular-figures request (see
+    `TABULAR`), so the column is made to line up by geometry instead of by font
+    feature. Right-anchored means the units digit of 1 sits under the units digit
+    of 25, which is the whole of what tabular figures would have bought.
+    """
+    return (
+        f'<text x="{_n(x)}" y="{_n(y)}" font-family="{FONT_DISPLAY}" '
+        f'font-size="{_n(size)}" fill="{fill}" font-weight="{weight}" '
+        f'text-anchor="{anchor}" {TABULAR}>{_esc(content)}</text>'
     )
 
-    banner = _lens_banner(week_view)
-    if banner:
-        y += 30
-        # An accent slab with brand_ink on it: the second sanctioned use.
-        parts.append(_slab(x - 6, y - 14, panel_w - (x - 6) - 26, 24, PALETTE["accent"]))
-        parts.append(
-            _text(x, y + 3, _clip(banner, 34), size=13, fill=PALETTE["brand_ink"],
-                  weight="700", family=FONT_DISPLAY, spacing=0.8)
+
+def _masthead(x: float, y: float, width: float, *, accent: str | None = None) -> list[str]:
+    """The Poll.ai, drawn as paths, scaled as one unit. The card's signature.
+
+    `width` is the lockup's full width and everything else follows from it, so a
+    caller cannot stretch the name, restack it, or set THE smaller than POLL. The
+    nameplate is always `ink`: the brand permits no coloured wordmark, and the ONLY
+    coloured element in the whole mark is the `.ai`.
+
+    `accent=None` draws a monochrome mark. That exists for one case and it is a
+    real one: a comparison card encodes direction in the brand's amber-violet
+    movement pair, and the brand book flags that cyan must not sit beside that pair
+    reading as a third category. On those cards the suffix goes bone.
+    """
+    if width < MASTHEAD_MIN_WIDTH:
+        raise ValueError(
+            f"the wordmark is drawn at {width:.0f}px and its minimum is "
+            f"{MASTHEAD_MIN_WIDTH:.0f}px, below which the hairline and the .ai stop "
+            "resolving. Use the compact mark rather than shrinking this one."
         )
+    scale = width / MASTHEAD_WIDTH
+    ink = PALETTE["ink"]
+    suffix_fill = accent if accent is not None else ink
+    body = [
+        f'<g transform="translate({_n(x)},{_n(y)}) scale({scale:.6f})">',
+        f'<rect x="0" y="0" width="{_n(MASTHEAD_WIDTH)}" height="7" fill="{ink}"/>',
+        f'<g fill="{ink}" fill-rule="evenodd" transform="translate(0 37)">',
+    ]
+    body += [
+        f'<path d="{d}" transform="translate({_n(dx)} 0)"/>' for dx, d in _MASTHEAD_NAME
+    ]
+    body.append("</g>")
+    body.append(
+        f'<g fill="{suffix_fill}" fill-rule="evenodd" '
+        f'transform="translate(682 89) scale(0.48)">'
+    )
+    body += [
+        f'<path d="{d}" transform="translate({_n(dx)} 0)"/>' for dx, d in _MASTHEAD_SUFFIX
+    ]
+    body.append("</g>")
+    body.append(
+        f'<rect x="0" y="163" width="{_n(MASTHEAD_WIDTH)}" height="3" '
+        f'fill="{PALETTE["rule"]}"/>'
+    )
+    body.append("</g>")
+    return body
 
-    thesis = str((week_view.get("recipe") or {}).get("one_liner") or "")
+
+def masthead_height(width: float) -> float:
+    """How tall the lockup is at that width, so a caller can lay out beneath it."""
+    return MASTHEAD_HEIGHT * (width / MASTHEAD_WIDTH)
+
+
+def _eyebrow(
+    x: float,
+    y: float,
+    text: str,
+    *,
+    size: float = 15.0,
+    fill: str | None = None,
+    anchor: str = "start",
+) -> str:
+    """The dateline under the mark. Board face, tracked, upper case."""
+    return _text(
+        x, y, str(text).upper(), size=size, fill=fill or PALETTE["ink_dim"],
+        weight="700", family=FONT_DISPLAY, spacing=size * 0.12, anchor=anchor,
+    )
+
+
+#: How wide one character of the board face is, as a fraction of its type size,
+#: measured off the widest plausible run of capitals rather than assumed. Used
+#: wherever text has to be fitted to a box without a layout engine.
+CAP_ADVANCE = 0.62
+
+
+def _reverse_block(
+    x: float, y: float, width: float, text: str, *, size: float = 13.0, min_size: float = 9.0
+) -> list[str]:
+    """A bone slab with ground-coloured type on it. What replaced the gold banner.
+
+    THE LABEL HAS TO BE UNMISSABLE AND IT MAY NOT BE CYAN. The old banner was an
+    accent slab, which the brand retired: the accent means "the machine", and a
+    document's own statement of what it is is not the machine. A reverse block is
+    the newspaper answer, it is louder than the gold ever was at 15.18:1, and it
+    costs the palette nothing.
+
+    IT SHRINKS BEFORE IT CLIPS, and that is the whole reason this function does
+    arithmetic instead of taking a character budget. The string it draws is a
+    document's statement of what the document IS - "THE PROJECTION. It is not the
+    poll" - and a truncated version of that sentence is worse than no sentence.
+    The old code took a fixed budget and cut the label mid-word the first time a
+    longer one arrived, which is exactly what happened.
+    """
+    height = size * 1.85
+    inner = width - size
+    fitted = size
+    while fitted > min_size and len(text) * fitted * CAP_ADVANCE > inner:
+        fitted -= 0.25
+    budget = max(8, int(inner / (fitted * CAP_ADVANCE)))
+    return [
+        _slab(x, y, width, height, PALETTE["ink"]),
+        _text(
+            x + size * 0.5,
+            y + height - size * 0.62,
+            _clip(text, budget),
+            size=fitted,
+            fill=PALETTE["brand_ink"],
+            weight="700",
+            family=FONT_DISPLAY,
+            spacing=fitted * 0.03,
+        ),
+    ]
+
+
+#: The masthead column: where the wordmark sits and where the board starts.
+#: 392 was the old panel's width and it survives the rebrand because the number
+#: was never about the panel - it is what leaves the board enough room for a long
+#: school name and a value beside it on a 1200px canvas. What changed is that the
+#: column is no longer a filled box. The ground runs edge to edge and a single
+#: vertical hairline divides the two, which is the masthead brand's whole idea:
+#: a document is organised by rules, not by boxes.
+COLUMN_W = 392.0
+COLUMN_X = 32.0
+#: The lockup's drawn width in that column. 300 is comfortably over the 200px
+#: minimum and leaves the column's right margin clear of the closing hairline.
+COLUMN_MARK_W = 300.0
+
+
+def _masthead_column(
+    panel_w: float,
+    height: float,
+    *,
+    eyebrow: str,
+    label: str | None,
+    thesis: str,
+    thesis_size: float,
+    thesis_lines: int = 5,
+    accent: str | None = None,
+    extra: list[str] | None = None,
+) -> list[str]:
+    """The card's left column: the mark, the dateline, the label, the thesis.
+
+    ONE FUNCTION FOR EVERY CARD THAT HAS A COLUMN, and the arguments are strings
+    the CALLER read out of a document. The poll's dateline is its season and week,
+    the projection's is its season and the word PRESEASON, a comparison card's is
+    whatever its input says - and none of those sentences is typed in here. That is
+    the same rule the thesis has always obeyed and it now covers the whole column.
+    """
+    # THE COLUMN RULE STOPS AT THE SIGNATURE STRIP. A vertical hairline that runs
+    # into the footer divider makes a cross, and a cross in the corner of a card
+    # is the one shape that reads as a mistake rather than as a grid.
+    parts: list[str] = [
+        f'<line x1="{_n(panel_w)}" y1="0" x2="{_n(panel_w)}" y2="{_n(footer_top(height))}" '
+        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
+    ]
+
+    y = 54.0
+    parts.extend(_masthead(COLUMN_X, y, COLUMN_MARK_W, accent=accent))
+    y += masthead_height(COLUMN_MARK_W) + 28
+
+    parts.append(_eyebrow(COLUMN_X, y, eyebrow))
+    y += 30
+
+    inner = panel_w - COLUMN_X * 2
+    if label:
+        parts.extend(_reverse_block(COLUMN_X, y, inner, label))
+        y += 13.0 * 1.85 + 30
+    else:
+        y += 8
+
     if thesis:
-        y += 58
-        budget = max(12, int((panel_w - x - 26) / (thesis_size * 0.46)))
-        for line in _wrap(thesis, budget, 5):
+        budget = max(12, int(inner / (thesis_size * 0.44)))
+        for line in _wrap(thesis, budget, thesis_lines):
             parts.append(
-                _text(x, y, line, size=thesis_size, fill=PALETTE["ink"], family=FONT_PROSE)
+                _text(COLUMN_X, y, line, size=thesis_size, fill=PALETTE["ink"],
+                      family=FONT_DISPLAY, weight="500")
             )
-            y += thesis_size * 1.09
+            y += thesis_size * 1.24
+
+    if extra:
+        parts.extend(extra)
     return parts
 
 
-def _top_banner(week_view: dict[str, Any], width: float, height: float) -> list[str]:
+def _top_banner(
+    width: float,
+    height: float,
+    *,
+    eyebrow: str,
+    label: str | None,
+    thesis: str,
+    thesis_size: float = 28.0,
+    thesis_lines: int = 2,
+    accent: str | None = None,
+) -> list[str]:
     """The header as a full-width band, for the tall canvas.
 
-    A 4:5 card cannot use the 16:9 card's left panel: a 392px column beside a
+    A 4:5 card cannot use the 16:9 card's left column: a 392px column beside a
     1500px-tall page is a stripe of empty space, and it squeezes the table into
     three columns so narrow that a team name collides with its own odds. That is
     exactly what the first attempt did. Portrait wants a banner across the top
     and the full width for the rows underneath.
+
+    THIS IS THE MASTHEAD IN ITS NATIVE ORIENTATION. The lockup already carries a
+    heavy rule above it and a hairline below it, so the band needs no box: it is
+    the nameplate, the dateline set against it, and the rule the mark brought with
+    it, which is what a front page looks like.
     """
-    season, week = int(week_view["season"]), int(week_view["week"])
-    parts: list[str] = [
-        _slab(0, 0, width, height, PALETTE["panel"]),
-        f'<line x1="0" y1="{_n(height)}" x2="{_n(width)}" y2="{_n(height)}" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>',
-    ]
-    x, y = 40.0, 104.0
-    parts.append(
-        _text(x, y, "THE POLL", size=46, fill=PALETTE["ink"], weight="800",
-              family=FONT_DISPLAY, spacing=2.6)
-    )
-    parts.append(_slab(x, y + 18, 46 * 0.62 * len("THE POLL"), 8, PALETTE["accent"]))
-    parts.append(
-        _text(width - 40, y, f"{season} · WEEK {week}", size=22, fill=PALETTE["ink_dim"],
-              weight="700", anchor="end", family=FONT_DISPLAY, spacing=2.0)
-    )
+    mark_w = 420.0
+    parts: list[str] = list(_masthead(40.0, 52.0, mark_w, accent=accent))
+    y = 52.0 + masthead_height(mark_w)
 
-    y += 78
-    banner = _lens_banner(week_view)
-    if banner:
-        parts.append(_slab(x - 8, y - 18, min(width - 80, 13 * len(banner) + 16), 30,
-                           PALETTE["accent"]))
-        parts.append(
-            _text(x, y + 3, _clip(banner, 60), size=16, fill=PALETTE["brand_ink"],
-                  weight="700", family=FONT_DISPLAY, spacing=1.0)
-        )
-        y += 48
+    # The dateline sits on the mark's own closing hairline, at the far side of it.
+    parts.append(
+        _text(width - 40, y - 12, str(eyebrow).upper(), size=20, fill=PALETTE["ink_dim"],
+              weight="700", anchor="end", family=FONT_DISPLAY, spacing=2.2)
+    )
+    y += 34
 
-    thesis = str((week_view.get("recipe") or {}).get("one_liner") or "")
+    if label:
+        parts.extend(_reverse_block(40.0, y, width - 80, label, size=17))
+        y += 17 * 1.85 + 26
+
     if thesis:
-        for line in _wrap(thesis, int((width - 80) / (30 * 0.46)), 2):
-            parts.append(_text(x, y, line, size=30, fill=PALETTE["ink"], family=FONT_PROSE))
-            y += 34
+        for line in _wrap(thesis, int((width - 80) / (thesis_size * 0.44)), thesis_lines):
+            parts.append(
+                _text(40.0, y + thesis_size, line, size=thesis_size, fill=PALETTE["ink"],
+                      family=FONT_DISPLAY, weight="500")
+            )
+            y += thesis_size * 1.24
+
+    parts.append(_rule(0, height, width, stroke=PALETTE["rule"]))
     return parts
 
 
-def _constants_strip(week_view: dict[str, Any], width: float, height: float) -> list[str]:
-    """The constants footer. NEVER DROPPED FOR SPACE, on either variant.
+def _footer(
+    lines: list[str], width: float, height: float, *, accent_divider: bool = True
+) -> list[str]:
+    """The signature strip: the divider, the constants, the address.
 
-    No other poll's share image carries its model constants. That line is the
-    signature, and the X variant is the one most likely to get squeezed until it
-    falls off, so it is drawn from the same function on both canvases.
+    NEVER DROPPED FOR SPACE, ON ANY VARIANT. No other poll's share image carries
+    its model constants. That line is the signature, and the 16:9 canvas is the
+    one most likely to get squeezed until it falls off, so every card draws it
+    from this one function.
+
+    THE DIVIDER IS THE CARD'S ONE PERMITTED ACCENT RULE. The brand allows exactly
+    one on a share card, "separating the board from the attribution", which is
+    this line and no other. `accent_divider=False` is for the comparison cards,
+    whose figures already carry the amber-violet movement pair and which the brand
+    book flags must not put cyan beside it.
+
+    THE CONSTANTS ARE MONO AND THE ADDRESS IS NOT. Mono is provenance - run ids,
+    config hashes, the numbers a person would paste into a shell. `thepoll.ai` is
+    an address a person types into a phone, so it is set in the board face like
+    the rest of the card.
     """
-    footer = list((week_view.get("params") or {}).get("footer_lines") or [])
-    top = height - 60
+    top = height - FOOTER_HEIGHT
     parts = [
-        _slab(0, top, width, 60, PALETTE["panel"]),
-        f'<line x1="0" y1="{_n(top)}" x2="{_n(width)}" y2="{_n(top)}" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>',
+        _rule(0, top, width, stroke=PALETTE["accent"] if accent_divider else PALETTE["rule"],
+              weight=2 if accent_divider else 1),
     ]
-    y = top + 24
-    for line in footer[:2]:
+    y = top + 26
+    for line in lines[:2]:
         parts.append(
-            _text(32, y, _clip(line, 118), size=15, fill=PALETTE["ink_faint"], family=FONT_MONO)
+            _text(32, y, _clip(line, 118), size=14, fill=PALETTE["ink_faint"], family=FONT_MONO)
         )
         y += 19
     parts.append(
-        _text(width - 32, top + 24, SITE_DOMAIN, size=15,
-              fill=PALETTE["ink_dim"], anchor="end", family=FONT_MONO)
+        _text(width - 32, top + 26, SITE_DOMAIN, size=17,
+              fill=PALETTE["ink"], anchor="end", family=FONT_UI, weight="600")
+    )
+    parts.append(
+        _text(width - 32, top + 45, DATA_CREDIT, size=12,
+              fill=PALETTE["ink_faint"], anchor="end", family=FONT_UI)
     )
     return parts
+
+
+def footer_top(height: float) -> float:
+    """Where the signature strip begins. Anything above it must stop here."""
+    return height - FOOTER_HEIGHT
+
+
+def _constants_strip(week_view: dict[str, Any], width: float, height: float) -> list[str]:
+    """The poll's footer: `params.footer_lines`, which is where the constants are."""
+    return _footer(
+        list((week_view.get("params") or {}).get("footer_lines") or []), width, height
+    )
 
 
 def _graph_panel(
@@ -674,9 +1078,14 @@ def _graph_panel(
         a, b = place.get(int(edge["source"])), place.get(int(edge["target"]))
         if a is None or b is None:
             continue
+        # A NAMED BRIDGE IS DRAWN IN BONE AND NOT IN THE ACCENT. It used to be
+        # gold. The brand permits the accent in four places and a graph edge is
+        # not one of them, so the highlight is carried by value instead: bone at
+        # full strength against `edge` at half, which separates further than the
+        # gold did on this ground anyway.
         named = frozenset((int(edge["source"]), int(edge["target"]))) in named_bridges
-        stroke = PALETTE["accent"] if named else PALETTE["edge"]
-        opacity = "0.95" if named else "0.5"
+        stroke = PALETTE["ink"] if named else PALETTE["edge"]
+        opacity = "0.95" if named else "0.55"
         lines.append(
             f'<line x1="{_n(a[0])}" y1="{_n(a[1])}" x2="{_n(b[0])}" y2="{_n(b[1])}" '
             f'stroke="{stroke}" stroke-opacity="{opacity}"/>'
@@ -738,44 +1147,34 @@ def connectivity_svg(bundle: Bundle) -> str:
         f'<rect width="{CARD_WIDTH}" height="{CARD_HEIGHT}" fill="{PALETTE["bg"]}"/>',
     ]
 
-    # --- title band. Outside the mobile-safe zone on purpose (report 05 §6.2).
+    # --- the masthead band. Outside the mobile-safe zone on purpose (report 05
+    # §6.2): the mark is the signature and the graph is the message.
+    parts.extend(_masthead(54, 26, 236.0, accent=PALETTE["accent"]))
+    # THE PROVISIONAL LABEL USED TO GO GOLD AND NOW IT GOES BONE. It is a fact
+    # about the document, not a number the model produced, so it is not an accent
+    # use; full ink against the dim dateline beside it is the louder signal here
+    # anyway.
     parts.append(
-        _text(
-            54,
-            58,
-            f"THE POLL · {season} · WEEK {week}",
-            size=27,
-            fill=PALETTE["ink"],
-            weight="bold",
-            spacing=2.2,
-        )
-    )
-    parts.append(
-        _text(
+        _eyebrow(
             CARD_WIDTH - 54,
-            58,
+            60,
             _clip(label, 58) if provisional and label else "SCHEDULE CONNECTIVITY",
-            size=15,
-            fill=PALETTE["accent"] if provisional else PALETTE["ink_dim"],
-            weight="bold",
+            fill=PALETTE["ink"] if provisional and label else PALETTE["ink_dim"],
             anchor="end",
-            spacing=1.4 if provisional else 1.8,
         )
     )
+    parts.append(_eyebrow(CARD_WIDTH - 54, 82, f"{season} · WEEK {week}", anchor="end"))
     # THE COUNTER GOES ABOVE THE GRAPH, not below it, and that is not a taste
     # call. The published sentence says "the schedule graph BELOW is what the
     # ranking is standing on" — it is written for the web page, and a card that
     # prints it under the graph makes the project's own copy wrong on the one
     # artifact most likely to be read without its page. Placing rather than
     # rewriting is the same rule every other number on this card obeys.
-    y = 88
+    y = 100
     for line in _wrap(str(conn.get("counter") or ""), 112, 2):
-        parts.append(_text(54, y, line, size=15, fill=PALETTE["ink_dim"]))
+        parts.append(_text(54, y, line, size=15, fill=PALETTE["ink_dim"], family=FONT_DISPLAY))
         y += 20
-    parts.append(
-        f'<line x1="54" y1="124" x2="{CARD_WIDTH - 54}" y2="124" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
-    )
+    parts.append(_rule(54, 130, CARD_WIDTH - 108, stroke=PALETTE["rule"]))
 
     # --- the graph, and the diagnostics rail beside it.
     parts.append(
@@ -790,64 +1189,44 @@ def connectivity_svg(bundle: Bundle) -> str:
     # overlaps the line under it is worse than one that is not on the card.
     for row in list(conn.get("diagnostics") or [])[:5]:
         parts.append(
-            _text(
-                rail_x,
-                y,
-                _clip(str(row["label"]).upper(), 34),
-                size=12,
-                fill=PALETTE["ink_faint"],
-                spacing=1.4,
-            )
+            _eyebrow(rail_x, y, _clip(str(row["label"]), 34), size=12, fill=PALETTE["ink_faint"])
         )
         parts.append(
-            _text(
+            _num(
                 rail_x,
-                y + 27,
+                y + 28,
                 _clip(str(row["display"]), 22),
                 size=24,
                 fill=PALETTE["ink"],
-                weight="bold",
+                anchor="start",
             )
         )
         y += 58
 
     # --- what would have to be true, inside the safe zone. This is the sentence
     # that makes the graph mean something to a reader who has never seen the site.
-    parts.append(
-        f'<line x1="54" y1="480" x2="{CARD_WIDTH - 54}" y2="480" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
-    )
+    parts.append(_rule(54, 476, CARD_WIDTH - 108, stroke=PALETTE["rule"]))
     claims = list(conn.get("what_would_have_to_be_true") or [])
-    y = 502
-    for line in _wrap(claims[0] if claims else "", 114, 3):
-        parts.append(_text(54, y, line, size=15, fill=PALETTE["ink"]))
-        y += 21
+    y = 500
+    for line in _wrap(claims[0] if claims else "", 110, 3):
+        parts.append(_text(54, y, line, size=16, fill=PALETTE["ink"], family=FONT_DISPLAY))
+        y += 22
 
     # --- THE CONSTANTS FOOTER IS ON THE CARD AND IS NEVER DROPPED FOR SPACE
     # (report 05 §6.2). No other poll's share image carries its model constants;
-    # that line is the signature.
-    y = CARD_HEIGHT - 32
-    for line in reversed(footer[:2]):
-        parts.append(
-            _text(54, y, _clip(line, 132), size=12, fill=PALETTE["ink_faint"], family=FONT_MONO)
-        )
-        y -= 18
-    parts.append(
-        _text(
-            CARD_WIDTH - 54,
-            CARD_HEIGHT - 32,
-            SITE_DOMAIN,
-            size=13,
-            fill=PALETTE["ink_dim"],
-            anchor="end",
-        )
-    )
+    # that line is the signature. Drawn from `_footer` like every other card, so
+    # the accent divider and the address cannot drift between variants.
+    parts.extend(_footer(footer, CARD_WIDTH, CARD_HEIGHT))
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 
 
 def _odds_key(row: dict[str, Any]) -> str:
-    """The poll board's right-hand column: the published odds key, in gold.
+    """The poll board's right-hand column: the published odds key.
+
+    THE ONE COLUMN ON A BOARD THAT TAKES THE ACCENT, because the brand names it:
+    "the schedule-odds key on the board, and the odds column it labels". It is the
+    number the model produced, and cyan means the machine.
 
     `one_in` is published; it is never recomputed from `tail_p`.
     """
@@ -874,55 +1253,73 @@ def _poll_row(
     height: float,
     rank_size: float,
     name_size: float,
-    odds_size: float,
+    value_size: float,
     use_abbreviation: bool,
     value_of: Any = _odds_key,
+    value_fill: str | None = None,
 ) -> list[str]:
-    """One team, on Look's row grid. Every value is printed, none is derived.
+    """One team, on the board's row grid. Every value is printed, none is derived.
 
     The rank, the record and the right-hand value are fields. This function does
     arithmetic on pixels and on nothing else.
 
-    `value_of` is what makes the row shared between the two products: the poll
-    prints its odds key and the projection prints its win total, on the same grid,
-    in the same slot, in the same gold. Two row renderers would be two places for
-    the stripe clamp and the name budget to drift apart.
+    ONE UNIFORM ROW TREATMENT, AND THAT IS A STANDING RULE RATHER THAN A DEFAULT.
+    Rank 1 is drawn exactly like rank 25: same stripe, same numeral weight, same
+    mark radius, no crown, no highlight, no heavier separator. A poll whose claim
+    is that it has no favourites should not draw one on its own card.
+
+    `value_of` is what makes the row shared between the products: the poll prints
+    its odds key and the projection prints its win total, on the same grid, in the
+    same slot. `value_fill` is bone unless the caller has a published reason - the
+    poll's odds key is the schedule-odds key and takes the accent, and nothing
+    else on a row ever does.
     """
     mid = y + height / 2
     parts: list[str] = [
-        # The team stripe, clamped. Full row height, 4px, always drawn.
-        _slab(x, y + 3, 4, height - 6, stripe_colour(row.get("mark_bg"))),
+        # The team stripe, clamped. Full row height, 3px, always drawn.
+        _slab(x, y + 3, 3, height - 6, stripe_colour(row.get("mark_bg"))),
     ]
 
-    rank_x = x + 16
+    # THE RANK LANE IS FIXED-WIDTH AND THE NUMERAL IS RIGHT-ANCHORED IN IT. Two
+    # digits wide, always, so 1 and 25 end in the same column and every mark on
+    # the card starts at the same x. This is the tabular-figures fallback the
+    # brand book asks for when the renderer will not honour `tnum`, and it is why
+    # `_num` exists.
+    rank_lane = rank_size * 1.32
+    rank_x = x + 14
     parts.append(
-        _text(rank_x, mid + rank_size * 0.34, str(int(row["rank"])), size=rank_size,
-              fill=PALETTE["ink"], weight="800", family=FONT_MONO)
+        _num(rank_x + rank_lane, mid + rank_size * 0.34, str(int(row["rank"])),
+             size=rank_size, fill=PALETTE["ink"])
     )
 
     mark_r = height * 0.35
-    mark_cx = rank_x + rank_size * 1.7 + mark_r
+    mark_cx = rank_x + rank_lane + 14 + mark_r
     parts.append(_mark(mark_cx, mid, mark_r, row))
 
     name = str(row.get("abbreviation") if use_abbreviation else row.get("team") or "")
     name_x = mark_cx + mark_r + 12
-    # The odds string is right-aligned to the row's right edge and the name is
-    # clipped to what is left, so a long school name can never collide with the
-    # number. Budgeted in characters because the raster's metrics are the host's.
-    odds = value_of(row)
-    odds_w = odds_size * len(odds) * 0.62
-    name_budget = max(4, int((width - (name_x - x) - odds_w) / (name_size * 0.56)))
+    # The value is right-aligned to the row's right edge and the name is clipped
+    # to what is left, so a long school name can never collide with the number.
+    # Budgeted in characters because the raster's metrics are the host's.
+    value = value_of(row)
+    value_w = value_size * len(value) * 0.58
+    name_budget = max(4, int((width - (name_x - x) - value_w) / (name_size * 0.52)))
     parts.append(
         _text(name_x, mid + name_size * 0.34, _clip(name, name_budget), size=name_size,
-              fill=PALETTE["ink"], weight="600", family=FONT_UI)
+              fill=PALETTE["ink"], weight="600", family=FONT_DISPLAY)
     )
 
-    # The odds numeral is the accent's other sanctioned use: the key, in gold.
     parts.append(
-        _text(x + width, mid + odds_size * 0.34, odds, size=odds_size,
-              fill=PALETTE["accent"], weight="600", anchor="end", family=FONT_MONO)
+        _num(x + width, mid + value_size * 0.34, value, size=value_size,
+             fill=value_fill or PALETTE["ink"], weight="600")
     )
     return parts
+
+
+#: How hard a row separator is drawn. The brand's rule token at full strength is
+#: 3.89:1, which is right for the structural rules and shouts when it is repeated
+#: twenty-five times down a board.
+ROW_RULE_OPACITY = 0.38
 
 
 def _row_block(
@@ -932,26 +1329,28 @@ def _row_block(
     width: float,
     *,
     height: float,
-    playoff_after: int | None,
     **row_kwargs: Any,
 ) -> list[str]:
-    """A column of rows, its separators, and the gold playoff rule.
+    """A column of rows and its separators. Identical treatment on every row.
 
-    THE GOLD RULE UNDER ROW 4 IS THE CARD'S LOUDEST SPORTS SIGNAL and it is kept
-    on every variant. `playoff_after` is None for a column that does not contain
-    that boundary, which is how the multi-column variants avoid drawing it three
-    times.
+    THERE IS NO PLAYOFF CUT LINE HERE AND THERE WILL NOT BE ONE. Until
+    2026-08-17 this function drew a 2px accent rule after rank 4 on every variant,
+    and the module called it "the card's loudest sports signal", which it was: on
+    the five-row hero card the cut line WAS the card. It is gone by ruling.
+
+    The argument is not that it looked bad. A poll that publishes its own misses
+    and refuses to run a committee has no business drawing the committee's line,
+    and a bracket boundary on a preseason projection asserts a claim about
+    January that no number on the card supports. The rule is enforced by a test,
+    not by this comment: nothing in this module may draw an accent stroke on the
+    board.
     """
     parts: list[str] = []
     for i, row in enumerate(rows):
         y = top + i * height
         parts.extend(_poll_row(row, x, y, width, height=height, **row_kwargs))
-        is_playoff = playoff_after is not None and (i + 1) == playoff_after
-        stroke = PALETTE["accent"] if is_playoff else PALETTE["rule"]
         parts.append(
-            f'<line x1="{_n(x)}" y1="{_n(y + height)}" x2="{_n(x + width)}" '
-            f'y2="{_n(y + height)}" stroke="{stroke}" '
-            f'stroke-width="{"2" if is_playoff else "1"}"/>'
+            _rule(x, y + height, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)
         )
     return parts
 
@@ -981,38 +1380,60 @@ HERO_ROW_HEIGHT = 75.0
 HERO_ROW_TOP = float(SAFE_TOP)
 
 
+def _poll_column(week_view: dict[str, Any], height: float, thesis_size: float) -> list[str]:
+    """The poll's masthead column. Every string on it is a published field.
+
+    THE THESIS IS `recipe.one_liner`, WHICH IS PUBLISHED. It is not copy typed
+    into this renderer, so a card made under an alternate lens states that lens's
+    own argument rather than the house one, and nobody has to remember to change a
+    string here when a recipe's prose changes. The label is `recipe.label` for the
+    same reason: `docs/fixture-contract-recipes.md` §4 requires the surface to
+    show it whenever it is non-null.
+    """
+    season, week = int(week_view["season"]), int(week_view["week"])
+    return _masthead_column(
+        COLUMN_W,
+        height,
+        eyebrow=f"{season} · WEEK {week}",
+        label=_lens_banner(week_view),
+        thesis=str((week_view.get("recipe") or {}).get("one_liner") or ""),
+        thesis_size=thesis_size,
+        accent=PALETTE["accent"],
+    )
+
+
 def top5_svg(bundle: Bundle) -> str:
     """The top five, at hero scale. 1200x628, the `summary_large_image` ratio.
 
-    Same two-panel structure as the top ten, deliberately: these are the same
-    board and a reader should be comparing numbers, not noticing that the card
-    changed shape. What changes is the scale.
+    Same structure as the top ten, deliberately: these are the same board and a
+    reader should be comparing numbers, not noticing that the card changed shape.
+    What changes is the scale.
 
-    THE GOLD PLAYOFF RULE IS THE REASON THIS VARIANT IS INTERESTING. It falls
-    after rank 4, so on a five-row card it lands between the last row and the
-    second to last: the whole card is the cut line and the one team sitting on the
-    wrong side of it. On the ten-row card that rule is a detail; here it is the
-    subject.
+    THE VARIANT USED TO BE INTERESTING FOR THE WRONG REASON. It was built around
+    the cut line falling after rank 4, so that a five-row card was "the whole card
+    is the cut line and the one team sitting on the wrong side of it". The cut
+    line is gone. What is left is the reason the hero exists in the first place:
+    five rows buy a 52px mark and a 54px numeral, and that is what reads in a
+    timeline thumbnail, which is where most of these are actually seen.
     """
     week_view = bundle.views["week"]
     rows = list(week_view.get("poll") or [])[:5]
     season, week = int(week_view["season"]), int(week_view["week"])
 
-    panel_w = 392.0
     parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Poll top five, {season} week {week}")
-    parts.extend(_left_panel(week_view, panel_w, CARD_HEIGHT, thesis_size=30))
+    parts.extend(_poll_column(week_view, CARD_HEIGHT, thesis_size=25))
     parts.extend(
         _row_block(
             rows,
-            panel_w + 32,
+            COLUMN_W + 32,
             HERO_ROW_TOP,
-            CARD_WIDTH - panel_w - 64,
+            CARD_WIDTH - COLUMN_W - 64,
             height=HERO_ROW_HEIGHT,
-            playoff_after=4,
-            rank_size=54,
+            rank_size=52,
             name_size=40,
-            odds_size=34,
+            value_size=32,
             use_abbreviation=False,
+            value_fill=PALETTE["accent"],
         )
     )
     parts.extend(_constants_strip(week_view, CARD_WIDTH, CARD_HEIGHT))
@@ -1021,7 +1442,7 @@ def top5_svg(bundle: Bundle) -> str:
 
 
 def top10_svg(bundle: Bundle) -> str:
-    """The top ten, two-panel split. 1200x628, the `summary_large_image` ratio.
+    """The top ten. 1200x628, the `summary_large_image` ratio.
 
     Ten rows of 34px starting at y=144 puts the whole block inside the mobile
     safe band (126..502), so a reader who sees only the cropped middle on X still
@@ -1032,22 +1453,20 @@ def top10_svg(bundle: Bundle) -> str:
     rows = list(week_view.get("poll") or [])[:10]
     season, week = int(week_view["season"]), int(week_view["week"])
 
-    panel_w = 392.0
     parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Poll top ten, {season} week {week}")
-    parts.extend(_left_panel(week_view, panel_w, CARD_HEIGHT, thesis_size=30))
-
+    parts.extend(_poll_column(week_view, CARD_HEIGHT, thesis_size=25))
     parts.extend(
         _row_block(
             rows,
-            panel_w + 32,
+            COLUMN_W + 32,
             144.0,
-            CARD_WIDTH - panel_w - 64,
+            CARD_WIDTH - COLUMN_W - 64,
             height=34.0,
-            playoff_after=4,
-            rank_size=30,
-            name_size=26,
-            odds_size=26,
+            rank_size=28,
+            name_size=25,
+            value_size=24,
             use_abbreviation=False,
+            value_fill=PALETTE["accent"],
         )
     )
     parts.extend(_constants_strip(week_view, CARD_WIDTH, CARD_HEIGHT))
@@ -1065,23 +1484,22 @@ def _top25_columns(
     top: float,
     rank_size: float,
     name_size: float,
-    odds_size: float,
+    value_size: float,
 ) -> str:
-    """The top 25 laid into N columns. Shared by the X and Instagram canvases.
+    """The top 25 laid into N columns, with the constants strip under it.
 
-    Both carry the gold playoff rule and the constants strip, because those two
-    are the card's signature and the narrower canvas is exactly where they would
-    otherwise get squeezed out.
+    The footer is drawn on the narrow canvas from the same function as everywhere
+    else, because the narrow canvas is exactly where it would otherwise get
+    squeezed out, and it is the signature.
     """
     week_view = bundle.views["week"]
     rows = list(week_view.get("poll") or [])[:25]
     season, week = int(week_view["season"]), int(week_view["week"])
 
-    panel_w = 392.0
     parts = _card_open(width, height, f"The Poll top 25, {season} week {week}")
-    parts.extend(_left_panel(week_view, panel_w, height, thesis_size=28))
+    parts.extend(_poll_column(week_view, height, thesis_size=22))
 
-    area_x, area_w = panel_w + 24, width - panel_w - 48
+    area_x, area_w = COLUMN_W + 24, width - COLUMN_W - 48
     gutter = 16.0
     col_w = (area_w - gutter * (len(split) - 1)) / len(split)
 
@@ -1089,14 +1507,11 @@ def _top25_columns(
     for index, count in enumerate(split):
         chunk = rows[start : start + count]
         x = area_x + index * (col_w + gutter)
-        # The playoff boundary lives after rank 4, so it belongs to whichever
-        # column actually contains rank 4 and to no other.
-        after = 4 - start if any(int(r["rank"]) == 4 for r in chunk) else None
         parts.extend(
             _row_block(
-                chunk, x, top, col_w, height=row_h, playoff_after=after,
-                rank_size=rank_size, name_size=name_size, odds_size=odds_size,
-                use_abbreviation=True,
+                chunk, x, top, col_w, height=row_h,
+                rank_size=rank_size, name_size=name_size, value_size=value_size,
+                use_abbreviation=True, value_fill=PALETTE["accent"],
             )
         )
         if index < len(split) - 1:
@@ -1104,7 +1519,7 @@ def _top25_columns(
             parts.append(
                 f'<line x1="{_n(gx)}" y1="{_n(top)}" x2="{_n(gx)}" '
                 f'y2="{_n(top + max(split) * row_h)}" stroke="{PALETTE["rule"]}" '
-                f'stroke-width="1"/>'
+                f'stroke-width="1" stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
             )
         start += count
 
@@ -1122,7 +1537,7 @@ def top25_x_svg(bundle: Bundle) -> str:
     """
     return _top25_columns(
         bundle, CARD_WIDTH, CARD_HEIGHT, split=(13, 12), row_h=26.0, top=150.0,
-        rank_size=22, name_size=19, odds_size=19,
+        rank_size=21, name_size=19, value_size=18,
     )
 
 
@@ -1140,11 +1555,21 @@ def top25_instagram_svg(bundle: Bundle) -> str:
     season, week = int(week_view["season"]), int(week_view["week"])
 
     parts = _card_open(CARD_WIDTH, TALL_HEIGHT, f"The Poll top 25, {season} week {week}")
-    parts.extend(_top_banner(week_view, CARD_WIDTH, 300.0))
+    parts.extend(
+        _top_banner(
+            CARD_WIDTH,
+            300.0,
+            eyebrow=f"{season} · WEEK {week}",
+            label=_lens_banner(week_view),
+            thesis=str((week_view.get("recipe") or {}).get("one_liner") or ""),
+            accent=PALETTE["accent"],
+        )
+    )
     parts.extend(
         _row_block(
-            rows, 40.0, 344.0, CARD_WIDTH - 80, height=42.0, playoff_after=4,
-            rank_size=28, name_size=26, odds_size=26, use_abbreviation=False,
+            rows, 40.0, 344.0, CARD_WIDTH - 80, height=42.0,
+            rank_size=30, name_size=27, value_size=25, use_abbreviation=False,
+            value_fill=PALETTE["accent"],
         )
     )
     parts.extend(_constants_strip(week_view, CARD_WIDTH, TALL_HEIGHT))
@@ -1175,72 +1600,53 @@ def _projection_rows(document: dict[str, Any], top_n: int) -> list[dict[str, Any
     return rows[:top_n]
 
 
-def _projection_panel(
+#: WHAT THE PROJECTION CARD CALLS ITSELF, in the dateline, on every canvas.
+#: The old card set THE PROJECTION where the poll set THE POLL, as a drawn
+#: wordmark. That cannot survive the brand: there is one mark, it is The Poll.ai,
+#: and it may not be restacked, relettered or recoloured. So the mark goes on the
+#: card as the mark and the artifact names itself in the dateline underneath,
+#: which is exactly how a newspaper distinguishes a nameplate from a headline.
+#:
+#: ADR 0010'S CONCERN IS ANSWERED MORE STRONGLY THAN BEFORE, not weakened. What
+#: kept the projection from being read as the poll was never the wordmark: it was
+#: the document's own `label`, which says "This is a PROJECTION. It is not the
+#: poll, it never becomes the poll". That string is still drawn from the document
+#: and is now set as a bone reverse block at 15.18:1, where it used to be 12px on
+#: a gold bar. The dateline says PROJECTION and the block says what that means.
+PROJECTION_EYEBROW = "{season} PRESEASON PROJECTION"
+
+
+def _projection_column(
     document: dict[str, Any], panel_w: float, height: float, thesis_size: float
 ) -> list[str]:
-    """Wordmark, gold bar, season, the label in the accent slab, and the headline.
-
-    THE WORDMARK IS "THE PROJECTION" AND THAT IS THE POINT OF THE CARD. ADR 0010
-    says the Projection is not the Poll and may never touch its math; a card
-    carrying the poll's wordmark over a preseason projection would undo that in the one
-    artifact most likely to travel without its page.
-
-    THE LABEL IS DRAWN FROM THE DOCUMENT, never typed here, for the same reason
-    `_lens_banner` reads `recipe.label`: the words a document uses to say what it
-    is belong to the document.
-    """
-    season = int(document["season"])
-    parts: list[str] = [_slab(0, 0, panel_w, height, PALETTE["panel"])]
-    parts.append(
-        f'<line x1="{_n(panel_w)}" y1="0" x2="{_n(panel_w)}" y2="{_n(height)}" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>'
+    """The projection's masthead column. Every string is read from the document."""
+    return _masthead_column(
+        panel_w,
+        height,
+        eyebrow=PROJECTION_EYEBROW.format(season=int(document["season"])),
+        label=str(document.get("label") or "") or None,
+        thesis=str(document.get("headline") or ""),
+        thesis_size=thesis_size,
+        thesis_lines=7,
+        accent=PALETTE["accent"],
     )
 
-    x, y = 32.0, 96.0
-    parts.append(
-        _text(x, y, "THE PROJECTION", size=26, fill=PALETTE["ink"], weight="800",
-              anchor="start", family=FONT_DISPLAY, spacing=1.4)
-    )
-    parts.append(_slab(x, y + 12, 26 * 0.62 * len("THE PROJECTION"), 6, PALETTE["accent"]))
 
-    y += 52
-    parts.append(
-        _text(x, y, f"{season} PRESEASON", size=16, fill=PALETTE["ink_dim"],
-              weight="700", family=FONT_DISPLAY, spacing=1.6)
-    )
-
-    banner = str(document.get("label") or "")
-    if banner:
-        y += 30
-        # An accent slab with brand_ink on it, the same sanctioned use as the
-        # alternate-lens marker. The budget is 46 rather than the poll card's 34
-        # because this label is longer and a truncated "this is not the poll"
-        # notice is the one string on the card that must not be truncated.
-        parts.append(_slab(x - 6, y - 14, panel_w - (x - 6) - 20, 24, PALETTE["accent"]))
-        parts.append(
-            _text(x, y + 3, _clip(banner, 46), size=12, fill=PALETTE["brand_ink"],
-                  weight="700", family=FONT_DISPLAY, spacing=0.4)
-        )
-
-    thesis = str(document.get("headline") or "")
-    if thesis:
-        y += 52
-        budget = max(12, int((panel_w - x - 26) / (thesis_size * 0.46)))
-        for line in _wrap(thesis, budget, 7):
-            parts.append(
-                _text(x, y, line, size=thesis_size, fill=PALETTE["ink"], family=FONT_PROSE)
-            )
-            y += thesis_size * 1.09
-    return parts
-
-
-def _projection_footer(document: dict[str, Any], width: float, height: float) -> list[str]:
-    """The projection's signature strip, and it is the backtest that lost.
+def _projection_footer_lines(document: dict[str, Any]) -> list[str]:
+    """The projection's signature: provenance, then the backtest that lost.
 
     The poll card's footer carries the model constants because no other poll's
     share image does. The projection's equivalent is the measured record of the
     method against the AP's August ballot, published on the image itself, whether
     or not it flatters. Every figure is a published field printed verbatim.
+
+    THE SECOND LINE IS REWRITTEN AND NOT ONE NUMBER MOVED. The brand audit read
+    the shipping card and found `backtest, 3 transitions: AP 13.8 top 25 hits,
+    this projection 12.8, carry forward 13.0` - "four unexplained numbers on the
+    surface a stranger meets first". A footer nobody can parse is not a signature,
+    it is noise wearing one. So the same four fields now say what they are: how
+    many past Augusts, what was counted, and who did better. The AP still beats
+    us on this line, which is the point of printing it.
     """
     lines = [
         f"recipe {document.get('projection_version')} · the poll grades this from "
@@ -1249,61 +1655,49 @@ def _projection_footer(document: dict[str, Any], width: float, height: float) ->
     backtest = document.get("backtest") or {}
     if backtest:
         lines.append(
-            f"backtest, {backtest.get('transitions')} transitions: AP "
-            f"{backtest.get('ap_top25_hits')} top 25 hits, this projection "
-            f"{backtest.get('projection_top25_hits')}, carry forward "
-            f"{backtest.get('naive_top25_hits')}"
+            f"{backtest.get('transitions')} past preseasons, hits in the final top 25: "
+            f"AP {backtest.get('ap_top25_hits')} · this recipe "
+            f"{backtest.get('projection_top25_hits')} · last year's board carried "
+            f"forward {backtest.get('naive_top25_hits')}"
         )
+    return lines
 
-    top = height - 60
-    parts = [
-        _slab(0, top, width, 60, PALETTE["panel"]),
-        f'<line x1="0" y1="{_n(top)}" x2="{_n(width)}" y2="{_n(top)}" '
-        f'stroke="{PALETTE["rule"]}" stroke-width="1"/>',
-    ]
-    y = top + 24
-    for line in lines[:2]:
-        parts.append(
-            _text(32, y, _clip(line, 118), size=15, fill=PALETTE["ink_faint"], family=FONT_MONO)
-        )
-        y += 19
-    parts.append(
-        _text(width - 32, top + 24, SITE_DOMAIN, size=15,
-              fill=PALETTE["ink_dim"], anchor="end", family=FONT_MONO)
-    )
-    return parts
+
+def _projection_footer(document: dict[str, Any], width: float, height: float) -> list[str]:
+    return _footer(_projection_footer_lines(document), width, height)
 
 
 def projection_top5_svg(document: dict[str, Any]) -> str:
     """The projected top five, on the poll hero card's grid exactly.
 
-    Same 75px rows, same 54px numerals, same safe-band block, because the two
+    Same 75px rows, same 52px numerals, same safe-band block, because the two
     boards get posted side by side and the only thing that should differ between
-    them is what they say. What differs: the wordmark reads THE PROJECTION, the
-    right-hand column is `projected_wins`, and the footer is the backtest rather
-    than the model constants.
+    them is what they say. What differs: the dateline reads PRESEASON PROJECTION,
+    the right-hand column is `projected_wins`, and the footer is the backtest
+    rather than the model constants.
 
-    The gold rule after rank 4 means the same thing here that it does on the poll
-    card, and it means it about a projection: these are the four the model would seed
-    in August and the one it has just outside.
+    THE WIN COLUMN IS BONE AND THE POLL'S ODDS COLUMN IS CYAN, and that is the
+    accent rule doing real work rather than decoration. The brand permits the
+    accent on "the schedule-odds key and the odds column it labels". A projected
+    win total is not the schedule-odds key. So the difference a reader sees
+    between the two boards is not a shape or a wordmark; it is that one of them
+    has the key on it and the other does not.
     """
     rows = _projection_rows(document, 5)
     season = int(document["season"])
 
-    panel_w = 392.0
     parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top five, {season} preseason")
-    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=24))
+    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=21))
     parts.extend(
         _row_block(
             rows,
-            panel_w + 32,
+            COLUMN_W + 32,
             HERO_ROW_TOP,
-            CARD_WIDTH - panel_w - 64,
+            CARD_WIDTH - COLUMN_W - 64,
             height=HERO_ROW_HEIGHT,
-            playoff_after=4,
-            rank_size=54,
+            rank_size=52,
             name_size=40,
-            odds_size=34,
+            value_size=32,
             use_abbreviation=False,
             value_of=_projected_wins,
         )
@@ -1324,20 +1718,18 @@ def projection_top10_svg(document: dict[str, Any]) -> str:
     rows = _projection_rows(document, 10)
     season = int(document["season"])
 
-    panel_w = 392.0
     parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top ten, {season} preseason")
-    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=24))
+    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=21))
     parts.extend(
         _row_block(
             rows,
-            panel_w + 32,
+            COLUMN_W + 32,
             144.0,
-            CARD_WIDTH - panel_w - 64,
+            CARD_WIDTH - COLUMN_W - 64,
             height=34.0,
-            playoff_after=4,
-            rank_size=30,
-            name_size=26,
-            odds_size=26,
+            rank_size=28,
+            name_size=25,
+            value_size=24,
             use_abbreviation=False,
             value_of=_projected_wins,
         )
@@ -1360,11 +1752,10 @@ def projection_top25_svg(document: dict[str, Any]) -> str:
     season = int(document["season"])
     split = (13, 12)
 
-    panel_w = 392.0
     parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top 25, {season} preseason")
-    parts.extend(_projection_panel(document, panel_w, CARD_HEIGHT, thesis_size=21))
+    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=19))
 
-    area_x, area_w = panel_w + 24, CARD_WIDTH - panel_w - 48
+    area_x, area_w = COLUMN_W + 24, CARD_WIDTH - COLUMN_W - 48
     gutter = 16.0
     col_w = (area_w - gutter * (len(split) - 1)) / len(split)
 
@@ -1372,11 +1763,10 @@ def projection_top25_svg(document: dict[str, Any]) -> str:
     for index, count in enumerate(split):
         chunk = rows[start : start + count]
         x = area_x + index * (col_w + gutter)
-        after = 4 - start if any(int(r["rank"]) == 4 for r in chunk) else None
         parts.extend(
             _row_block(
-                chunk, x, 150.0, col_w, height=26.0, playoff_after=after,
-                rank_size=22, name_size=19, odds_size=19,
+                chunk, x, 150.0, col_w, height=26.0,
+                rank_size=21, name_size=19, value_size=18,
                 use_abbreviation=True, value_of=_projected_wins,
             )
         )
@@ -1385,7 +1775,7 @@ def projection_top25_svg(document: dict[str, Any]) -> str:
             parts.append(
                 f'<line x1="{_n(gx)}" y1="150" x2="{_n(gx)}" '
                 f'y2="{_n(150.0 + max(split) * 26.0)}" stroke="{PALETTE["rule"]}" '
-                f'stroke-width="1"/>'
+                f'stroke-width="1" stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
             )
         start += count
 
@@ -1394,12 +1784,808 @@ def projection_top25_svg(document: dict[str, Any]) -> str:
     return "\n".join(parts) + "\n"
 
 
+#: THE ONLY PNG CHUNKS A PUBLISHED CARD MAY CARRY. Everything else is stripped,
+#: whether or not this renderer is the thing that put it there.
+#:
+#: THIS IS A DISTRIBUTION REQUIREMENT AND NOT TIDINESS. Meta and TikTok apply
+#: AI-generated labels from FILE METADATA rather than from what the image shows,
+#: and on TikTok that label cannot be removed once applied. A card is a table of
+#: real numbers that Python drew; a C2PA manifest (`caBX`), an XMP packet (`iTXt`)
+#: or an EXIF block (`eXIf`) left behind by any tool in the chain can get it
+#: badged as generated anyway. The chain today is clean - the pinned resvg writes
+#: IHDR, IDAT, IEND and nothing else - and that is exactly why the guard belongs
+#: in the code now, while there is nothing to remove, rather than after a wheel
+#: upgrade quietly starts stamping one.
+#:
+#: WHAT IS KEPT AND WHY: the four structural chunks a decoder needs, plus the
+#: three colour-space chunks, which describe how to display the pixels and carry
+#: no provenance. `tIME`, `tEXt`, `zTXt`, `iTXt`, `eXIf`, `caBX` and anything
+#: unrecognised are dropped.
+PNG_ALLOWED_CHUNKS: frozenset[bytes] = frozenset(
+    {b"IHDR", b"PLTE", b"tRNS", b"IDAT", b"IEND", b"sRGB", b"gAMA", b"cHRM"}
+)
+
+
+def png_chunks(raw: bytes) -> list[str]:
+    """Every chunk type in a PNG, in file order. What the metadata check reads."""
+    if raw[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("not a PNG")
+    out: list[str] = []
+    offset = 8
+    while offset + 8 <= len(raw):
+        length = int.from_bytes(raw[offset : offset + 4], "big")
+        kind = raw[offset + 4 : offset + 8]
+        out.append(kind.decode("latin-1"))
+        if kind == b"IEND":
+            break
+        offset += 12 + length
+    return out
+
+
+def png_metadata_chunks(raw: bytes) -> list[str]:
+    """The chunks in this PNG that are NOT on the allow-list. Empty is the pass."""
+    return [kind for kind in png_chunks(raw) if kind.encode("latin-1") not in PNG_ALLOWED_CHUNKS]
+
+
+def strip_png_metadata(raw: bytes) -> bytes:
+    """Drop every chunk outside `PNG_ALLOWED_CHUNKS`. Pixels are untouched.
+
+    Chunk-level surgery rather than a re-encode, deliberately: re-encoding would
+    change the IDAT bytes and therefore the sha256 of a published artifact for a
+    reason that has nothing to do with what the card says. Copying the structural
+    chunks through leaves an identical image and a file that cannot be labelled
+    off its own metadata, because it has none.
+    """
+    if raw[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError("not a PNG")
+    out = bytearray(raw[:8])
+    offset = 8
+    while offset + 8 <= len(raw):
+        length = int.from_bytes(raw[offset : offset + 4], "big")
+        kind = raw[offset + 4 : offset + 8]
+        end = offset + 12 + length
+        if kind in PNG_ALLOWED_CHUNKS:
+            out += raw[offset:end]
+        if kind == b"IEND":
+            break
+        offset = end
+    return bytes(out)
+
+
+# --------------------------------------------------------------------- the grid
+
+#: How many teams sit across the all-teams grid. Seven, because 1200px of width
+#: at seven columns leaves 160 per cell, which holds a two-digit rank, a mark big
+#: enough to identify a school and a four-character abbreviation without any of
+#: the three touching. Six columns wastes the width and eight puts the mark and
+#: the letters in the same 20 pixels.
+GRID_COLUMNS = 7
+
+
+def grid_svg(document: dict[str, Any]) -> str:
+    """Every ranked team on one card. The format this brand had to survive.
+
+    THE ONE DECISION THAT GOVERNS THIS CARD, and it is the brand book's: **we
+    never flood a cell with a school's colour.** The graphics this format is
+    borrowed from fill every tile with team colours, and the result belongs to the
+    schools rather than to the poll that made it - 138 colour schemes fighting,
+    and a card that could be any conference's promo. Ours keeps our own ground,
+    sets the rank numeral in the board face, draws the school's mark small for
+    identification, and gives the school's colour exactly the 3px stripe every
+    other board on this card set already gives it.
+
+    That is what keeps the card ours, and it is the same independence promise the
+    site prints above the board: a poll with no favourites does not wear
+    anybody's palette, not even 138 of them at once.
+
+    ORDERED BY RANK, ACROSS THE ROWS. A reader looking for one team scans for a
+    mark, and a reader looking at the shape of the board reads it like a page. An
+    alphabetical grid would serve the first better and the second not at all, and
+    the second is what a ranking card is for.
+    """
+    rows = _projection_rows(document, 138)
+    season = int(document["season"])
+
+    parts = _card_open(CARD_WIDTH, TALL_HEIGHT, f"All {len(rows)} teams, {season} preseason")
+    parts.extend(
+        _top_banner(
+            CARD_WIDTH,
+            300.0,
+            eyebrow=PROJECTION_EYEBROW.format(season=season),
+            label=str(document.get("label") or "") or None,
+            thesis=f"Every one of the {len(rows)} teams the model rates, in order.",
+            thesis_size=26,
+            accent=PALETTE["accent"],
+        )
+    )
+
+    x, top = 40.0, 336.0
+    width = CARD_WIDTH - 80
+    cell_w = width / GRID_COLUMNS
+    lines = (len(rows) + GRID_COLUMNS - 1) // GRID_COLUMNS
+    cell_h = min(56.0, (TALL_HEIGHT - FOOTER_HEIGHT - 20 - top) / lines)
+
+    for index, row in enumerate(rows):
+        column, line = index % GRID_COLUMNS, index // GRID_COLUMNS
+        cx, cy = x + column * cell_w, top + line * cell_h
+        mid = cy + cell_h / 2
+        parts.append(_slab(cx, cy + 3, 3, cell_h - 6, stripe_colour(row.get("mark_bg"))))
+        # THE LANE IS SIZED FOR THREE DIGITS BECAUSE THIS CARD HAS THREE-DIGIT
+        # RANKS. Every other board on this card set tops out at 25 and a 1.32
+        # lane is right for it; here the lane has to hold 138, and the first
+        # version of this grid ran the numeral into the school's mark from rank
+        # 100 down.
+        rank_size = cell_h * 0.42
+        rank_lane = rank_size * 1.95
+        parts.append(
+            _num(cx + 10 + rank_lane, mid + rank_size * 0.34, str(int(row["rank"])),
+                 size=rank_size, fill=PALETTE["ink"])
+        )
+        mark_r = cell_h * 0.27
+        mark_cx = cx + 16 + rank_lane + mark_r
+        parts.append(_mark(mark_cx, mid, mark_r, row))
+        name_size = cell_h * 0.30
+        parts.append(
+            _text(mark_cx + mark_r + 7, mid + name_size * 0.34,
+                  _clip(str(row.get("abbreviation") or row.get("team") or ""), 5),
+                  size=name_size, fill=PALETTE["ink"], weight="600", family=FONT_DISPLAY)
+        )
+        if column < GRID_COLUMNS - 1:
+            parts.append(
+                f'<line x1="{_n(cx + cell_w)}" y1="{_n(cy + 4)}" x2="{_n(cx + cell_w)}" '
+                f'y2="{_n(cy + cell_h - 4)}" stroke="{PALETTE["rule"]}" stroke-width="1" '
+                f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
+            )
+        if column == 0 and line:
+            parts.append(
+                _rule(x, cy, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)
+            )
+
+    parts.extend(_projection_footer(document, CARD_WIDTH, TALL_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+# --------------------------------------------------------------- the comparison
+#
+# THE DISAGREEMENT CARD IS A PIPELINE PRODUCT, WHICH IS THE WHOLE POINT OF THIS
+# SECTION. Every board this project has ever been compared against was compared
+# in somebody's image editor, once, by hand, off a screenshot. That produces an
+# artifact with no digest, no input file, no way to re-derive it and no way to
+# find out later which numbers were wrong. It is also the exact shape of artifact
+# that gets a number wrong: the transcription these cards were first specified
+# from had USC at AP 15, and USC is tied at 14 with no 15 in the poll at all.
+#
+# So: OUR COLUMN COMES OUT OF THE PUBLISHED DOCUMENT and their columns come out of
+# a small JSON file that names each board, gives its ranks, and carries the URL it
+# was read from. The card cannot say we had a team 3rd unless the projection says
+# so, the input file is committed beside whatever is published, and the next
+# disagreement card is a new JSON rather than a new afternoon.
+#
+# FRAMING IS DATA AND NOT DEFAULTS. "Their preseason poll, our preseason
+# projection" is a labelling rule this renderer cannot get right on its own, so
+# `ours.kind` and each board's `kind` are required fields. A card that called our
+# projection a poll would be the one dishonest thing on it.
+
+
+#: The longest board name a column head has to hold without colliding with its
+#: neighbour. "COACHES" is seven characters and it is the one that broke the first
+#: attempt: a column sized to hold `T14` is not a column sized to hold the word
+#: over it, and the heads ran into each other.
+#: What one tracked BOLD CAPITAL of the board face actually advances, as a
+#: fraction of the type size. Measured off the rendered heads rather than assumed:
+#: `CAP_ADVANCE` describes mixed-case text at normal weight and is far too narrow
+#: for `_eyebrow`, which sets caps at weight 700 with 0.12 of tracking on top.
+#: Using the wrong one is what printed APCOACHES on the first two renders.
+HEAD_ADVANCE = 1.0
+
+#: The column head is this fraction of the numbers under it. Smaller, because the
+#: numbers are the message and the head is the reference.
+HEAD_RATIO = 0.62
+
+#: Clear space between the last board's numbers and the gap lane. Without it the
+#: word COACHES ends exactly where THE GAP begins, which is how the first tall
+#: render read as one word.
+GAP_GUTTER = 20.0
+
+
+def _lane(gap_lane: float) -> float:
+    """How much of the row's right edge the gap bar and its clear space take."""
+    return gap_lane + GAP_GUTTER if gap_lane else 0.0
+
+
+def _board_head_size(value_size: float) -> float:
+    return value_size * HEAD_RATIO
+
+
+def _board_column_w(value_size: float, boards: list[dict[str, Any]]) -> float:
+    """How wide one external board's column is: the wider of its numbers and its name.
+
+    Sized from THE ACTUAL NAMES rather than a fixed character budget, so a spec
+    naming a board `Coaches` and a spec naming one `BCS` do not both pay for the
+    longer word.
+    """
+    longest = max((len(str(b.get("name") or "")) for b in boards), default=2)
+    return max(
+        value_size * 3.1,
+        longest * _board_head_size(value_size) * HEAD_ADVANCE + value_size * 0.6,
+    )
+
+
+def _comparison_ranks(board: dict[str, Any]) -> dict[str, int]:
+    return {str(team): int(rank) for team, rank in (board.get("ranks") or {}).items()}
+
+
+def _comparison_display(ranks: dict[str, int], team: str) -> str:
+    """Their rank as it should be PRINTED, ties included, or an em-less dash.
+
+    A TIE IS PRINTED AS A TIE. The 2026 AP preseason poll ties BYU and USC at 14
+    on 839 points each and then goes to 16, so a card that renders 14/15 has
+    invented a ranking the AP did not publish. Two teams sharing a number in the
+    input is the definition of the tie, so nothing has to be declared: the shared
+    rank is detected here and printed as `T14` on both rows, which is AP's own
+    presentation.
+    """
+    rank = ranks.get(team)
+    if rank is None:
+        return "NR"
+    tied = sum(1 for value in ranks.values() if value == rank) > 1
+    return f"T{rank}" if tied else str(rank)
+
+
+def _gap(ours: int, theirs: int | None, *, unranked_at: int) -> int:
+    """How far apart the two boards are, with an unranked team pinned to a floor.
+
+    `unranked_at` is where a team a board did not rank is treated as sitting. It
+    is one past the ballot rather than infinity, because a 25-team ballot cannot
+    say how much it dislikes a team, only that it is outside - and drawing an
+    unbounded bar for "outside 25" would make the least informative rows the
+    loudest ones on the card.
+    """
+    return (unranked_at if theirs is None else theirs) - ours
+
+
+def _gap_colour(gap: int) -> str:
+    """Bone inside the agreement band, otherwise the brand's movement pair."""
+    if abs(gap) <= AGREEMENT_BAND:
+        return PALETTE["ink"]
+    return GAP_POS if gap > 0 else GAP_NEG
+
+
+def _comparison_rows(
+    document: dict[str, Any], spec: dict[str, Any]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The rows this card draws and the boards it draws beside them.
+
+    `mode` decides which rows, and every mode is a SELECTION over the published
+    document rather than a computation on it:
+
+      - `board`   our board in our order, sliced by `slice`. GFX-01 and GFX-10.
+      - `gaps`    the rows the two sides disagree about most. GFX-10 slide 3.
+      - `agree`   the rows every board lands on together. GFX-03.
+      - `missing` the teams THEY rank that our top 25 does not, with the rank our
+                  full list actually gives them. GFX-11, and it needs a document
+                  published with more than 25 rows or it has nothing to say.
+    """
+    rows = list(document.get("rows") or [])
+    by_team = {str(r["team"]): r for r in rows}
+    boards = list(spec.get("boards") or [])
+    if not boards:
+        raise ValueError("a comparison card needs at least one external board")
+    mode = str(spec.get("mode") or "board")
+    unranked_at = int(spec.get("unranked_at") or 26)
+
+    def worst_gap(row: dict[str, Any]) -> int:
+        ours = int(row["rank"])
+        return max(
+            abs(_gap(ours, _comparison_ranks(b).get(str(row["team"])), unranked_at=unranked_at))
+            for b in boards
+        )
+
+    if mode == "missing":
+        wanted: list[str] = []
+        for board in boards:
+            for team, _rank in sorted(_comparison_ranks(board).items(), key=lambda kv: kv[1]):
+                if team not in wanted and team in by_team and int(by_team[team]["rank"]) > 25:
+                    wanted.append(team)
+        picked = [by_team[team] for team in wanted]
+    elif mode == "gaps":
+        picked = sorted(rows, key=lambda r: (-worst_gap(r), int(r["rank"])))
+    elif mode == "agree":
+        # EVERY BOARD HAS TO HAVE ACTUALLY RANKED THE TEAM. Without this, a team
+        # we have 24th that nobody else ranked scores a 2-place "gap" against the
+        # unranked floor and lands on the agreement card, which would put a
+        # sentence on a published graphic - "the AP agrees" - about a team the AP
+        # left off its ballot. The floor is a drawing device; it is not a rank
+        # somebody issued, and only modes that are ABOUT the gap may use it.
+        picked = [
+            r
+            for r in rows
+            if worst_gap(r) <= AGREEMENT_BAND
+            and all(str(r["team"]) in _comparison_ranks(b) for b in boards)
+        ]
+    elif mode == "board":
+        picked = rows
+    else:
+        raise ValueError(f"unknown comparison mode {mode!r}")
+
+    if mode in ("board", "agree"):
+        lo, hi = spec.get("slice") or [1, 25]
+        picked = [r for r in picked if int(lo) <= int(r["rank"]) <= int(hi)]
+    return picked[: int(spec.get("limit") or 25)], boards
+
+
+def _comparison_row(
+    row: dict[str, Any],
+    boards: list[dict[str, Any]],
+    x: float,
+    y: float,
+    width: float,
+    *,
+    height: float,
+    rank_size: float,
+    name_size: float,
+    value_size: float,
+    use_abbreviation: bool,
+    unranked_at: int,
+    gap_lane: float = 0.0,
+) -> list[str]:
+    """One team across every board. Their numbers are printed, never derived.
+
+    THE COLOUR IS THE MESSAGE AND THE NUMBER IS THE RECEIPT. A reader scanning
+    this card should see which way each disagreement runs before reading a single
+    figure, which is what the storylines doc asks for in as many words; the amber
+    and violet do that and the bone says "these two agree". The numeral beside the
+    colour is what makes the claim checkable.
+    """
+    mid = y + height / 2
+    ours = int(row["rank"])
+    parts: list[str] = [_slab(x, y + 3, 3, height - 6, stripe_colour(row.get("mark_bg")))]
+
+    rank_lane = rank_size * 1.32
+    rank_x = x + 14
+    parts.append(
+        _num(rank_x + rank_lane, mid + rank_size * 0.34, str(ours), size=rank_size,
+             fill=PALETTE["ink"])
+    )
+
+    mark_r = height * 0.34
+    mark_cx = rank_x + rank_lane + 13 + mark_r
+    parts.append(_mark(mark_cx, mid, mark_r, row))
+
+    # Every board column is the same width so the numbers form columns down the
+    # card, which is the only way "find your team, then look right" works.
+    board_w = _board_column_w(value_size, boards)
+    columns_w = board_w * len(boards) + _lane(gap_lane)
+    name_x = mark_cx + mark_r + 12
+    name_budget = max(3, int((width - (name_x - x) - columns_w - 8) / (name_size * 0.52)))
+    name = str(row.get("abbreviation") if use_abbreviation else row.get("team") or "")
+    parts.append(
+        _text(name_x, mid + name_size * 0.34, _clip(name, name_budget), size=name_size,
+              fill=PALETTE["ink"], weight="600", family=FONT_DISPLAY)
+    )
+
+    worst = 0
+    for index, board in enumerate(boards):
+        ranks = _comparison_ranks(board)
+        theirs = ranks.get(str(row["team"]))
+        gap = _gap(ours, theirs, unranked_at=unranked_at)
+        worst = gap if abs(gap) > abs(worst) else worst
+        right = x + width - _lane(gap_lane) - board_w * (len(boards) - 1 - index)
+        parts.append(
+            _num(right, mid + value_size * 0.34, _comparison_display(ranks, str(row["team"])),
+                 size=value_size, fill=_gap_colour(gap), weight="700")
+        )
+
+    if gap_lane:
+        # The bar is the "without reading a word" half of the brief. Length is the
+        # gap, capped at the lane, and its direction is which side of the row it
+        # grows from, so a reader sees the shape of the disagreement before any
+        # number resolves.
+        span = min(abs(worst), unranked_at - 1) / float(unranked_at - 1)
+        bar = max(2.0, span * (gap_lane - 14))
+        left = x + width - gap_lane + 8
+        parts.append(_slab(left, mid - 4, gap_lane - 14, 8, PALETTE["rail_track"]))
+        if worst:
+            parts.append(_slab(left, mid - 4, bar, 8, _gap_colour(worst)))
+    return parts
+
+
+def _comparison_legend(
+    x: float,
+    y: float,
+    width: float,
+    boards: list[dict[str, Any]],
+    *,
+    horizontal: bool = False,
+    size: float = 13.0,
+) -> list[str]:
+    """Three swatches and the sentences that say what they mean.
+
+    A DIVERGING PAIR WITH NO KEY IS DECORATION. The card uses the brand's movement
+    colours to carry direction, so it owes the reader the sentence that decodes
+    them, on the card, in words rather than in a caption somebody has to have read
+    first. It is never dropped for space: a card that runs out of room for its own
+    key has run out of room for its argument.
+    """
+    names = " and ".join(str(b.get("name") or "?") for b in boards)
+    entries = [
+        (GAP_POS, f"we rank them higher than {names}"),
+        (GAP_NEG, "we rank them lower"),
+        (PALETTE["ink"], f"within {AGREEMENT_BAND}: the boards agree"),
+    ]
+    parts: list[str] = []
+    if horizontal:
+        cell = width / len(entries)
+        for index, (colour, text) in enumerate(entries):
+            cx = x + cell * index
+            parts.append(_slab(cx, y - size * 0.7, size * 1.3, size * 0.62, colour))
+            parts.append(
+                _text(cx + size * 1.9, y, _clip(text, int((cell - size * 2.4) / (size * 0.5))),
+                      size=size, fill=PALETTE["ink_dim"], family=FONT_DISPLAY)
+            )
+        return parts
+    for index, (colour, text) in enumerate(entries):
+        row_y = y + index * (size * 1.7)
+        parts.append(_slab(x, row_y - size * 0.7, size * 1.3, size * 0.62, colour))
+        parts.append(
+            _text(x + size * 1.9, row_y, _clip(text, int((width - size * 2) / (size * 0.5))),
+                  size=size, fill=PALETTE["ink_dim"], family=FONT_DISPLAY)
+        )
+    return parts
+
+
+def _comparison_headers(
+    boards: list[dict[str, Any]],
+    spec: dict[str, Any],
+    x: float,
+    y: float,
+    width: float,
+    *,
+    value_size: float,
+    gap_lane: float = 0.0,
+) -> list[str]:
+    """The column heads: every board's name over its numbers, and what kind it is.
+
+    THE KIND IS ON THE CARD BECAUSE THE LABELLING RULE SAYS SO, AND IT IS ON OURS
+    FIRST. Ours is a projection and theirs are polls. A comparison that named only
+    the other two boards, or that quietly called all three the same thing, would
+    be claiming a like-for-like the season has not happened yet to support. So the
+    left-hand head says whose column the ranks belong to and what kind of claim it
+    is, in the same type as theirs.
+    """
+    board_w = _board_column_w(value_size, boards)
+    head = _board_head_size(value_size)
+    ours = spec.get("ours") or {}
+    parts: list[str] = [
+        _eyebrow(x + 14, y, str(ours.get("name") or "The Poll"), size=head, fill=PALETTE["ink"]),
+        _eyebrow(x + 14, y + head + 2, str(ours.get("kind") or ""), size=head * 0.78),
+    ]
+    for index, board in enumerate(boards):
+        right = x + width - _lane(gap_lane) - board_w * (len(boards) - 1 - index)
+        parts.append(
+            _eyebrow(right, y, str(board.get("name") or "?"), size=head, fill=PALETTE["ink"],
+                     anchor="end")
+        )
+        parts.append(
+            _eyebrow(right, y + head + 2, str(board.get("kind") or ""), size=head * 0.78,
+                     anchor="end")
+        )
+    return parts
+
+
+def _comparison_footer_lines(document: dict[str, Any], spec: dict[str, Any]) -> list[str]:
+    """Our provenance, then theirs. Both, on the card, every time.
+
+    THE SECOND LINE IS THE PART THAT MAKES THIS PUBLISHABLE. A card that prints
+    somebody else's numbers owes the reader where they came from and when they
+    were read, because a poll moves every week and a screenshot does not say which
+    week it is. `source` is required on every board for that reason.
+    """
+    lines = list(spec.get("footer_lines") or [])
+    if lines:
+        return lines
+    lines = [
+        f"recipe {document.get('projection_version')} · the poll grades this from "
+        f"week {document.get('grading_start_week')}"
+    ]
+    parts = [
+        f"{board.get('name')} {board.get('released') or ''}".strip()
+        for board in (spec.get("boards") or [])
+    ]
+    source = str((spec.get("boards") or [{}])[0].get("source") or "")
+    host = source.split("//")[-1].split("/")[0]
+    lines.append(f"their ranks as published: {' · '.join(parts)}" + (f" · {host}" if host else ""))
+    return lines
+
+
+def _comparison_column(
+    document: dict[str, Any],
+    spec: dict[str, Any],
+    boards: list[dict[str, Any]],
+    height: float,
+) -> list[str]:
+    """The masthead column for a comparison card: mark, dateline, label, legend.
+
+    THE MARK IS MONOCHROME HERE, AND THAT IS THE FLAGGED CHECK BEING ANSWERED.
+    The brand book keeps the amber-violet movement pair and warns that no figure
+    may place cyan beside it "in a way that reads as three competing categories".
+    This card is that figure. So the `.ai` goes bone and the footer divider goes
+    bone, and the only colours on the card are the two that mean direction.
+    """
+    return _masthead_column(
+        COLUMN_W,
+        height,
+        eyebrow=str(spec.get("eyebrow") or f"{int(document['season'])} preseason"),
+        label=str(spec.get("label") or "") or None,
+        thesis=str(spec.get("headline") or ""),
+        thesis_size=21,
+        thesis_lines=6,
+        accent=None,
+        extra=_comparison_legend(COLUMN_X, height - FOOTER_HEIGHT - 96, COLUMN_W - COLUMN_X * 2,
+                                 boards),
+    )
+
+
+def comparison_svg(document: dict[str, Any], spec: dict[str, Any]) -> str:
+    """The comparison on the 1200x628 X canvas: two columns of 13 and 12.
+
+    Abbreviations and no gap bar, because five fields in a 360px column is what
+    fits and the colour already carries the direction. The tall canvas is where
+    the full names and the bars live.
+    """
+    rows, boards = _comparison_rows(document, spec)
+    unranked_at = int(spec.get("unranked_at") or 26)
+    season = int(document["season"])
+
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, _comparison_label(spec, season))
+    parts.extend(_comparison_column(document, spec, boards, CARD_HEIGHT))
+
+    area_x, area_w = COLUMN_W + 24, CARD_WIDTH - COLUMN_W - 48
+    gutter = 16.0
+    col_w = (area_w - gutter) / 2
+    split = (13, 12)
+    top = 168.0
+    start = 0
+    for index, count in enumerate(split):
+        chunk = rows[start : start + count]
+        x = area_x + index * (col_w + gutter)
+        parts.extend(_comparison_headers(boards, spec, x, top - 32, col_w, value_size=18))
+        parts.append(_rule(x, top - 8, col_w, stroke=PALETTE["rule"]))
+        for i, row in enumerate(chunk):
+            y = top + i * 26.0
+            parts.extend(
+                _comparison_row(
+                    row, boards, x, y, col_w, height=26.0, rank_size=21, name_size=19,
+                    value_size=18, use_abbreviation=True, unranked_at=unranked_at,
+                )
+            )
+            parts.append(
+                _rule(x, y + 26.0, col_w, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)
+            )
+        start += count
+
+    parts.extend(
+        _footer(
+            _comparison_footer_lines(document, spec), CARD_WIDTH, CARD_HEIGHT,
+            accent_divider=False,
+        )
+    )
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+def _comparison_label(spec: dict[str, Any], season: int) -> str:
+    names = ", ".join(str(b.get("name") or "?") for b in (spec.get("boards") or []))
+    return f"The Poll {season} projection compared with {names}"
+
+
+def _comparison_wide(
+    document: dict[str, Any],
+    spec: dict[str, Any],
+    *,
+    height: float,
+    row_h: float,
+    top: float,
+    banner_h: float,
+) -> str:
+    """The comparison on a full-width canvas: one column, full names, gap bars.
+
+    Shared by the 4:5 Instagram card and the 1:1 square, which differ in nothing
+    but how many pixels they have. Portrait is not a squeezed landscape card and a
+    square is not a cropped portrait one; each gets its own row height and each
+    draws the same rows from the same document.
+    """
+    rows, boards = _comparison_rows(document, spec)
+    unranked_at = int(spec.get("unranked_at") or 26)
+    season = int(document["season"])
+
+    # REFUSED RATHER THAN DRAWN OFF THE BOTTOM. A square canvas holds a slice, not
+    # a whole board, and the failure mode this catches is silent: 25 rows on a
+    # 1200-tall card renders happily and puts the last eight below the edge, which
+    # nothing but a human looking at the PNG would notice.
+    available = height - FOOTER_HEIGHT - 16 - top
+    room = int(available // row_h)
+    if len(rows) > room:
+        raise ValueError(
+            f"{len(rows)} rows do not fit this canvas; it holds {room}. Narrow the "
+            "spec's `slice` or `limit`, or render the taller variant."
+        )
+    # A SHORT LIST GETS TALLER ROWS RATHER THAN A HALF-EMPTY CARD. The "not on the
+    # board" card is four teams; drawn on the 25-row grid it is four lines at the
+    # top of a poster and 500px of nothing, which reads as a card that failed to
+    # load. Growing the rows to fill, capped at three times the nominal so a
+    # two-row card does not become two billboards, makes the same layout serve
+    # both without a second set of variants.
+    if rows:
+        row_h = min(available / len(rows), row_h * 3.0, 130.0)
+
+    parts = _card_open(CARD_WIDTH, height, _comparison_label(spec, season))
+    parts.extend(
+        _top_banner(
+            CARD_WIDTH,
+            banner_h,
+            eyebrow=str(spec.get("eyebrow") or f"{season} preseason"),
+            label=str(spec.get("label") or "") or None,
+            thesis=str(spec.get("headline") or ""),
+            thesis_size=26,
+            accent=None,
+        )
+    )
+
+    x, width = 40.0, CARD_WIDTH - 80
+    gap_lane = 150.0
+    parts.extend(_comparison_legend(x, banner_h + 30, width, boards, horizontal=True, size=15))
+    parts.extend(
+        _comparison_headers(boards, spec, x, top - 44, width, value_size=25, gap_lane=gap_lane)
+    )
+    parts.append(
+        _eyebrow(x + width - gap_lane + 8, top - 44, "the gap",
+                 size=_board_head_size(25), fill=PALETTE["ink"])
+    )
+    parts.append(_rule(x, top - 8, width, stroke=PALETTE["rule"]))
+    for i, row in enumerate(rows):
+        y = top + i * row_h
+        parts.extend(
+            _comparison_row(
+                row, boards, x, y, width, height=row_h, rank_size=30, name_size=27,
+                value_size=25, use_abbreviation=False, unranked_at=unranked_at,
+                gap_lane=gap_lane,
+            )
+        )
+        parts.append(_rule(x, y + row_h, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY))
+
+    parts.extend(
+        _footer(_comparison_footer_lines(document, spec), CARD_WIDTH, height,
+                accent_divider=False)
+    )
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+def comparison_tall_svg(document: dict[str, Any], spec: dict[str, Any]) -> str:
+    """1200x1500, the tallest ratio Instagram serves in feed. 25 rows at 42px."""
+    return _comparison_wide(document, spec, height=TALL_HEIGHT, row_h=40.0, top=418.0,
+                            banner_h=318.0)
+
+
+def comparison_square_svg(document: dict[str, Any], spec: dict[str, Any]) -> str:
+    """1200x1200. The carousel slide, which is why it exists.
+
+    A square holds thirteen rows comfortably and twenty-five not at all, so this
+    canvas is built for a SLICE of the board and the input file says which - top
+    ten, eleven to twenty-five, or the widest gaps. Three input files and three
+    calls make the three-slide carousel, with no option flag anywhere and three
+    separate digests, which is what a published artifact needs.
+    """
+    return _comparison_wide(document, spec, height=SQUARE_HEIGHT, row_h=46.0, top=418.0,
+                            banner_h=318.0)
+
+
+def disagreement_svg(document: dict[str, Any], spec: dict[str, Any]) -> str:
+    """ONE team, at poster scale, with every board's number on it. The template.
+
+    GFX-02 in the launch queue, and it is a template rather than a card: `focus`
+    names the team and `sentence` is the one football line that explains the
+    disagreement. Texas, Vanderbilt, Utah, Texas Tech and the rest are the same
+    JSON with two fields changed.
+
+    THE SENTENCE IS AN INPUT AND NOT A COMPUTATION, on purpose. A model can say
+    that it has Texas 13th and the AP has them 5th. It cannot say why in football
+    words, and a renderer that generated that line would be putting a claim on a
+    published card that nothing in the pipeline stands behind.
+    """
+    focus = str(spec.get("focus") or "")
+    rows = {str(r["team"]): r for r in (document.get("rows") or [])}
+    if focus not in rows:
+        raise ValueError(
+            f"{focus!r} is not in this document. A disagreement card is drawn from "
+            "the published board, so a team it does not rank cannot be the subject."
+        )
+    row = rows[focus]
+    boards = list(spec.get("boards") or [])
+    unranked_at = int(spec.get("unranked_at") or 26)
+    season = int(document["season"])
+    ours = int(row["rank"])
+
+    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"{focus}, {season}: where the boards disagree")
+    parts.extend(_masthead(COLUMN_X, 44, 246.0, accent=None))
+    parts.append(
+        _eyebrow(CARD_WIDTH - 40, 60, str(spec.get("eyebrow") or f"{season} preseason"),
+                 anchor="end")
+    )
+    parts.append(_rule(COLUMN_X, 132, CARD_WIDTH - COLUMN_X * 2, stroke=PALETTE["rule"]))
+
+    # The team, at the size the card is for.
+    parts.append(_mark(COLUMN_X + 46, 200, 46, row))
+    name_budget = max(6, int((CARD_WIDTH - COLUMN_X - 120) / 30))
+    parts.append(
+        _text(COLUMN_X + 112, 216, _clip(focus, name_budget), size=58, fill=PALETTE["ink"],
+              weight="700", family=FONT_DISPLAY)
+    )
+
+    # Three cells across: ours, then theirs, each with its kind under it.
+    cells: list[tuple[str, str, str, str]] = [
+        (str(ours), str((spec.get("ours") or {}).get("name") or "The Poll"),
+         str((spec.get("ours") or {}).get("kind") or ""), PALETTE["ink"])
+    ]
+    for board in boards:
+        ranks = _comparison_ranks(board)
+        gap = _gap(ours, ranks.get(focus), unranked_at=unranked_at)
+        cells.append(
+            (
+                _comparison_display(ranks, focus),
+                str(board.get("name") or "?"),
+                str(board.get("kind") or ""),
+                _gap_colour(gap),
+            )
+        )
+
+    cell_w = (CARD_WIDTH - COLUMN_X * 2) / len(cells)
+    for index, (value, name, kind, colour) in enumerate(cells):
+        cx = COLUMN_X + cell_w * index
+        parts.append(_eyebrow(cx, 288, name, size=15, fill=PALETTE["ink"]))
+        parts.append(_eyebrow(cx, 306, kind, size=11))
+        # Left-anchored under its own label rather than right-anchored in the
+        # cell: these are three separate claims side by side, not a column of
+        # figures to be compared digit by digit, and a numeral that has drifted
+        # 200px from the name over it belongs to nothing.
+        parts.append(_num(cx, 392, value, size=92, fill=colour, anchor="start"))
+        if index:
+            parts.append(
+                f'<line x1="{_n(cx - 12)}" y1="270" x2="{_n(cx - 12)}" y2="400" '
+                f'stroke="{PALETTE["rule"]}" stroke-width="1" '
+                f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
+            )
+
+    parts.append(_rule(COLUMN_X, 414, CARD_WIDTH - COLUMN_X * 2, stroke=PALETTE["rule"]))
+    # THE SENTENCE ENDS INSIDE THE MOBILE SAFE BAND. Three lines from 444 at
+    # 26px leading finish at 496, six pixels above the crop X takes on a phone.
+    # A one-football-sentence card whose last line is cropped off is a card
+    # with no sentence on it.
+    y = 444.0
+    for line in _wrap(str(spec.get("sentence") or ""), 92, 3):
+        parts.append(_text(COLUMN_X, y, line, size=22, fill=PALETTE["ink"], family=FONT_DISPLAY))
+        y += 26
+
+    parts.extend(
+        _footer(_comparison_footer_lines(document, spec), CARD_WIDTH, CARD_HEIGHT,
+                accent_divider=False)
+    )
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
 def render_png(svg: str) -> bytes:
-    """Rasterise. No network, no headless browser, no system-font surprise hidden.
+    """Rasterise, then strip. No network, no headless browser, no hidden metadata.
 
     resvg is a static Rust rasteriser exposed as a wheel, which is what makes the
     Sunday job hermetic: report 05 §6.1 rejected a Chromium download for one image
     a week, and it was right.
+
+    EVERY PNG THIS FUNCTION RETURNS HAS BEEN THROUGH `strip_png_metadata`, so the
+    guarantee is a property of the one place cards are rasterised rather than a
+    step somebody has to remember before posting.
     """
     try:
         import resvg_py
@@ -1418,16 +2604,18 @@ def render_png(svg: str) -> bytes:
         # project ever published was rasterised in Helvetica while its own SVG
         # said otherwise. A hashed, immutable, published artifact must not be
         # able to say that.
-        return bytes(
-            resvg_py.svg_to_bytes(
-                svg_string=svg,
-                skip_system_fonts=True,
-                font_dirs=[str(FONT_DIR)],
+        return strip_png_metadata(
+            bytes(
+                resvg_py.svg_to_bytes(
+                    svg_string=svg,
+                    skip_system_fonts=True,
+                    font_dirs=[str(FONT_DIR)],
+                )
             )
         )
     # No vendored families yet: fall back to the host, and be loud about what
     # that costs rather than producing a card that silently is not reproducible.
-    return bytes(resvg_py.svg_to_bytes(svg_string=svg))
+    return strip_png_metadata(bytes(resvg_py.svg_to_bytes(svg_string=svg)))
 
 
 def fonts_are_vendored() -> bool:
@@ -1474,6 +2662,22 @@ BUILDERS: dict[str, Any] = {
     "projection_top5": (lambda d: projection_top5_svg(d), CARD_WIDTH, CARD_HEIGHT, 5),
     "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
     "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT, 25),
+    # 138, AND THE COST IS ACCEPTED RATHER THAN AVOIDED. The row count is what
+    # the export path warms the cache from, and a grid warmed to 25 draws the top
+    # of the board with real marks and the rest with generated discs - which reads
+    # as a card that failed to load rather than as a design. The owner's rule is
+    # real school logos everywhere, so this variant pays for a hundred-odd extra
+    # fetches, once, into a cache every later card reuses.
+    "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, TALL_HEIGHT, 138),
+    # The comparison variants take TWO documents. Same table anyway, and their
+    # row count is 25 because that is the most rows any of them can draw and the
+    # count is what the export path warms the logo cache from - warming fewer than
+    # a card draws leaves a row with the generated disc beside neighbours carrying
+    # real marks, which only shows up in a published PNG.
+    "comparison": (comparison_svg, CARD_WIDTH, CARD_HEIGHT, 25),
+    "comparison_tall": (comparison_tall_svg, CARD_WIDTH, TALL_HEIGHT, 25),
+    "comparison_square": (comparison_square_svg, CARD_WIDTH, SQUARE_HEIGHT, 25),
+    "disagreement": (disagreement_svg, CARD_WIDTH, CARD_HEIGHT, 25),
 }
 
 
@@ -1524,6 +2728,12 @@ def export(
             "and no week. Use `export_projection`, or `publish cards --projection "
             "<path>` from the CLI."
         )
+    if variant in COMPARISON_VARIANTS:
+        raise ValueError(
+            f"{variant!r} draws a published board beside one or more external boards "
+            "and needs both documents. Use `export_comparison`, or `publish cards "
+            "--projection <path> --compare <path>` from the CLI."
+        )
     bundle = build(out, archive=archive, backtest=backtest)
     drawn = int(BUILDERS[variant][3])
     if drawn:
@@ -1570,6 +2780,65 @@ def export_projection(
         )
     svg = BUILDERS[variant][0](payload)
     stem = f"{int(payload['season'])}-projection-{variant.removeprefix('projection_')}"
+    return _write(dest, stem, svg, png=png)
+
+
+#: Every field a comparison spec must carry, and why each one is not optional.
+#: `boards[].source` is the load-bearing one: a card printing somebody else's
+#: numbers has to say where they were read and when, because a poll moves every
+#: week and the image it was transcribed from does not say which week it is.
+COMPARISON_REQUIRED: tuple[str, ...] = ("slug", "boards")
+COMPARISON_BOARD_REQUIRED: tuple[str, ...] = ("name", "kind", "ranks", "source")
+
+
+def load_comparison(path: Path) -> dict[str, Any]:
+    """Read and CHECK a comparison spec. A missing field is refused, not defaulted.
+
+    The whole argument for this file existing is that the numbers on a
+    disagreement card become auditable. A spec with no `source` on a board is a
+    screenshot with extra steps, so it is rejected here rather than rendered.
+    """
+    spec = json.loads(Path(path).read_text(encoding="utf-8"))
+    missing = [field for field in COMPARISON_REQUIRED if not spec.get(field)]
+    if missing:
+        raise ValueError(f"the comparison spec is missing {missing}")
+    for index, board in enumerate(spec.get("boards") or []):
+        absent = [field for field in COMPARISON_BOARD_REQUIRED if not board.get(field)]
+        if absent:
+            raise ValueError(f"board {index} ({board.get('name')!r}) is missing {absent}")
+    return spec
+
+
+def export_comparison(
+    document: Path,
+    spec_path: Path,
+    dest: Path,
+    *,
+    variant: str = "comparison",
+    png: bool = True,
+    fetch_logos: bool = True,
+) -> list[Path]:
+    """Write `<dest>/<season>-<slug>-<variant>.{svg,png}`. Returns the paths, sorted.
+
+    TWO INPUTS AND BOTH ARE FILES ON DISK. `document` is the published board, so
+    our column cannot disagree with what a reader downloads; `spec_path` is the
+    external boards, so their columns cannot disagree with what was verified. A
+    card whose inputs are both files is a card somebody can re-render in a year
+    and get the same bytes.
+    """
+    if variant not in COMPARISON_VARIANTS:
+        raise ValueError(
+            f"unknown comparison card variant {variant!r}; expected one of "
+            f"{COMPARISON_VARIANTS}"
+        )
+    payload = json.loads(Path(document).read_text(encoding="utf-8"))
+    spec = load_comparison(spec_path)
+    rows, _boards = _comparison_rows(payload, spec)
+    if variant == "disagreement":
+        rows = [r for r in (payload.get("rows") or []) if str(r["team"]) == spec.get("focus")]
+    logos.warm(rows, background=PALETTE["bg"], fetch=fetch_logos)
+    svg = BUILDERS[variant][0](payload, spec)
+    stem = f"{int(payload['season'])}-{spec['slug']}-{variant}"
     return _write(dest, stem, svg, png=png)
 
 

@@ -240,7 +240,7 @@ argument. Two worked examples ship with it, and so does the scorecard one of the
 actually produced:
 
 ```bash
-uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+make challenge CHALLENGE_ENTRY=configs/challengers/iterative_margin.py
 ```
 
 That entry beats the incumbent on **1 of 7** metrics and clears **0 of 5** gate
@@ -329,8 +329,9 @@ Every `make` target maps to `cfbpoll` CLI verbs.
 |---|---|
 | `make .venv` | **Works now.** `uv sync --locked` — installs Python 3.12 and every pinned wheel |
 | `make archive` | **Works now.** Fetch the MIT archive from our release and sha256-check every file. `SEASONS=2023` or `ONLY=schedules,crosswalk` narrows it |
-| `make rankings` | **Works now.** `archive` → fit → `out/poll.csv`, `out/poll.json`, `out/_run.json`. `RANK_SEASON=2023 RANK_WEEK=15` by default |
+| `make rankings` | **Works now.** `archive` → fit → `out/poll.csv`, `out/poll.json`, `out/_run.json`. `RANK_SEASON=2023 RANK_WEEK=15 RANK_RECIPE=house` by default; pair `RANK_RECIPE` with `OUT` to keep two boards side by side |
 | `make backtest` | **Works now.** Walk-forward 2021–2023 against every baseline; 2025 stays locked |
+| `make challenge` | **Works now.** Score one community entry through that same harness. `CHALLENGE_ENTRY=<path>`, `CHALLENGE_SEASONS=2021-2023` |
 | `make demos` | **Works now.** Regenerate everything under `demo/` from the archive |
 | `make projection` | **Works now.** Regenerate the 2026 Projection, its backtest and the grading-loop demo. A labelled prediction, never the poll — [ADR 0010](docs/adr/0010-projection-and-poll.md) |
 | `make projection-audit` | **Works now.** The separation proof: both products, both deny-lists, one report. Non-zero if a projection input is anywhere near a poll layer |

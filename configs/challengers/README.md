@@ -7,8 +7,14 @@ one of them has a scored scorecard committed at
 `.github/workflows/challenge.yml` runs any entry a pull request adds.
 
 ```bash
-uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+make challenge CHALLENGE_ENTRY=configs/challengers/iterative_margin.py
 ```
+
+Use the make target rather than `cfbpoll challenge run` directly. Scoring an entry
+fits models, so it needs the single-threaded BLAS prefix that every fitting target
+carries: multi-threaded reductions sum in a nondeterministic order, and a number
+that moves between runs is not a finding. `CHALLENGE_SEASONS` defaults to
+`2021-2023`; narrow it to match if your archive holds fewer seasons.
 
 ## The one rule that makes any of this mean anything
 

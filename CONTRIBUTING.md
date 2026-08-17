@@ -61,7 +61,7 @@ def rate(games, plays, through_week) -> dict[int, float]: ...
 Run it yourself first — it needs nothing but the clone:
 
 ```bash
-uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+make challenge CHALLENGE_ENTRY=configs/challengers/iterative_margin.py
 ```
 
 Then open a PR. `.github/workflows/challenge.yml` runs your entry through the

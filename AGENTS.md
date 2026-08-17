@@ -16,6 +16,35 @@ against the original on the same harness that scores the original.
 
 You do not need them to write any Python. That is what you are for.
 
+## If you read nothing else
+
+Ten facts that stop the failures a fresh assistant actually hits. Everything below
+this block is the long version.
+
+1. **`uv` is the only prerequisite.** Not Python, not Docker, not `sudo`.
+   `make .venv` first.
+2. **`make archive` is a large download** (see [the targets](#the-targets) for the
+   current size). Say so before you start it. `make archive SEASONS=2023` while
+   iterating.
+3. **Use the `make` targets, not the bare CLI.** Every target that fits a model
+   pins single-threaded BLAS. A bare `uv run cfbpoll rank` does not, and
+   multi-threaded reductions sum in a nondeterministic order.
+4. **Give every run its own `OUT`.** `out/` is the default and output files are
+   overwritten in place with no prompt. `OUT=out/<slug>` keeps two boards apart.
+5. **`ONLY=schedules,crosswalk` silently changes the model.** No plays means L1
+   cannot fit and the blend degrades to L2. It does not error. Check
+   `power_source` in `model_params.json` before comparing anything.
+6. **`make fixtures` defaults to a path outside the repo** that does not exist in
+   your fork. Always pass `FIXTURES=out/data` or it breaks.
+7. **Uncapped margin is spelled `c = inf`.** Any other spelling of "no
+   compression" either fails or produces `nan` quietly.
+8. **2025 is a sealed holdout.** Single shot. Do not tune against it.
+9. **Numbers: quote the ones pinned in `configs/default.toml` or in source;
+   regenerate anything a run produced.** Details under
+   [the vocabulary](#the-vocabulary-so-you-can-answer-without-opening-a-file).
+10. **Their team's ranking is the point.** Get to a board they can look at before
+    you get to a scorecard.
+
 ---
 
 ## The flow you are offering
@@ -39,34 +68,57 @@ become a real change to the model. The ladder is in
 honestly expresses what they said, and tell them when you are climbing past it and
 why.
 
-**3. We run your version.** Against the same archive, the same schedule, the same
-walk-forward window and the same scoreboard the published poll ran against. No
-API key and no account, ever. It is not one command though, and do not tell them
-it is: it is `make .venv`, then a one-time archive download, then a rank. See
-[The commands](#the-commands) for what that actually costs.
+**3. We run your version, and you see your board.** It produces a ranked table
+from the same archive the published poll reads. This is the step where they find
+out where their own team landed, and it is worth reaching quickly.
+
+It is **not** one command, and do not tell them it is: it is `make .venv`, then a
+one-time archive download, then a rank. See [First run, end to end](#first-run-end-to-end).
 
 **4. We score it against the original.** Same harness, same baselines, same
-metrics, and the answer is mechanical:
+metrics, same walk-forward window, and the same scoreboard the published poll was
+scored against:
 
 ```bash
-uv run cfbpoll challenge run --entry configs/challengers/<name>.toml   # constants
-uv run cfbpoll challenge run --entry configs/challengers/<name>.py     # a method
+make challenge CHALLENGE_ENTRY=configs/challengers/<name>.toml   # constants
+make challenge CHALLENGE_ENTRY=configs/challengers/<name>.py     # a method
 ```
 
-`--entry` takes either form. The scorecard gives straight-up win percentage, MAE,
+Either entry form works, and it **computes its own baselines, so `make backtest`
+is not a prerequisite.** The scorecard gives straight-up win percentage, MAE,
 RMSE, Brier, log loss, calibration and ordering violations, side by side with the
 published poll and with five computed baselines, plus the publication gate applied
-to all of it.
+to all of it. It lands in `out/challenge/`.
 
-**Know this seam before you promise a score.** The harness scores *orderings and
-rating methods*, not recipes. A recipe is a `[recipe]` block; a challenger is a
-`[challenger]` block. They take the same constants, so scoring a recipe means
-writing its constants out a second time as a challenger TOML, and you should do
-that rather than skip step 4. The project says so about itself: no recipe has been
-backtested end to end as a system, and `configs/recipes/README.md` lists that under
-"where this is weak". If someone's idea is a pure value judgement, be straight that
-the scorecard measures prediction, which is not the same question as whether their
-poll is *right*.
+**The one thing that will bite you: seasons.** Scoring defaults to `2021-2023`,
+but the fast iteration loop tells people to fetch one season. If the archive only
+holds 2023, match them or the run asks for data that is not on disk:
+
+```bash
+make challenge CHALLENGE_ENTRY=... CHALLENGE_SEASONS=2023
+```
+
+Say which seasons a score covers when you report it. A number from one season is
+not the same claim as a number from three.
+
+**The number is reproducible. It is not the last word, so do not call it
+"mechanical" and walk away.** Two seams decide how much it is worth, and you
+should say both out loud:
+
+- **A recipe is not directly scorable.** The harness scores *rating methods and
+  orderings*. Scoring a recipe means transcribing its constants into a challenger
+  TOML, and part of a recipe does not survive that trip. See
+  [Recipe to challenger](#recipe-to-challenger-the-transcription-that-matters),
+  which is the exact procedure and the exact thing that gets lost.
+- **The scorecard measures prediction, not desert.** It asks "does this forecast
+  games better", which is a different question from "is this the right way to rank
+  a season". Somebody whose conviction is about fairness can lose every metric and
+  still be making a coherent argument. Say so rather than letting a table settle a
+  question it was not asked.
+
+The project already says this about itself: no recipe has been backtested end to
+end as a system, and `configs/recipes/README.md` lists that under "where this is
+weak".
 
 If their idea loses, say so plainly and show them where. A losing example is
 already committed here on purpose, because that is what happens to most ideas and
@@ -148,12 +200,33 @@ You will meet these in the source tree and in conversation. Learn them now.
   ranking.
 - **The holdout.** 2025. Sealed, single shot.
 
-**Two habits about numbers.** This document quotes specific figures, and the ones
-in the recipe table came off a published board at a moment in time. Before you
-repeat any number to the person as a current fact, regenerate it or read it out of
-`out/_run.json`, because a briefing file cannot know what has moved since it was
-written. And when you are unsure whether something is still true, check `git log`
-and the ADRs rather than trusting this page.
+**"Variant" means three unrelated things here.** Keep them straight or you will
+send somebody to the wrong command:
+
+| phrase | what it is | where |
+|---|---|---|
+| **playground variant** | a one-knob perturbation of the published poll, as a thin ordering document | `publish/variants.py`, `make variants`, rung 3 |
+| **card variant** | which canvas a share card is drawn on (`top5`, `top25_x`, `connectivity`, …) | `publish cards --variant` |
+| **challenger variant** | an outside entry, `kind = "parameter"` or `"structural"` | `configs/challengers/`, rung 4 |
+
+`--variant` on a command line is always the card sense.
+
+**Which numbers in this file you may repeat.** There are two kinds here and they
+have opposite rules:
+
+- **Pinned by a file, safe to quote.** Constants and thresholds that live in
+  `configs/default.toml` or in source: `c = 32`, `beta_w = 7`, the gate's five
+  criteria, the 0.985 tau line, and the three ordering strings.
+  If one of these ever moves, the file moves with it, so check the config when it
+  matters rather than assuming this page is stale.
+- **Produced by a run, never quote from here.** Anything about where a team
+  landed, what a metric came out at, or how many rows moved. The recipe table's
+  Liberty placements are this kind. **Regenerate them or read them out of the run
+  before you say them to anybody**, because a briefing file cannot know what has
+  changed since it was written.
+
+When you are unsure which kind you are holding, check `git log` and the ADRs
+rather than trusting this page.
 
 ---
 
@@ -197,9 +270,18 @@ Plus three from the research that will bite you specifically:
     uv run cfbpoll rank --season 2023 --through-week 15 --recipe just-win
   ```
 
-  It matters for anything that fits a model: `rank`, `backtest`, `grid`,
-  `challenge run`. It does not matter for `recipes`, `publish` or `audit-features`,
-  which fit nothing.
+  **It matters for anything that fits a model**, and the list is longer than it
+  looks: `rank`, `backtest`, `grid`, `bootstrap`, `challenge run`, and
+  **`audit-features`**, which is easy to assume is a read-only check but rebuilds
+  the design matrices through `ep.fit` and `schedule_odds.fit` to prove no banned
+  input reached them.
+
+  It genuinely does not matter for `recipes` (which prints a roster) or
+  `publish` (which reads a finished run directory and writes files). Those two
+  are safe bare.
+
+  **The reliable rule: if a command produces a number, use a make target.** Only
+  reach for the bare CLI when there is no target, and then carry the prefix.
 
 Regularization is **not** a reputation prior, and this distinction matters when
 someone objects. Ridge shrinks an unknown team toward *league average*, which is a
@@ -209,6 +291,28 @@ think of its brand*, which is the bias this project exists to delete.
 Full text and the banned-input table: [`docs/constraints.md`](docs/constraints.md).
 `cfbpoll audit-features --fail-on-banned` enforces it mechanically on every run, so
 a violation fails the build rather than shipping quietly.
+
+### Which ADR answers which argument
+
+Most objections a person raises have already been argued out and written down.
+Find the record before you re-litigate it from scratch, and read it *with* them
+rather than using it to shut them down. A decision that was made on evidence can
+be changed by better evidence, and several of these say so themselves.
+
+| If they say... | Read |
+|---|---|
+| "Why is the poll sorted by odds and not by résumé?" / "unbeatens should be first" | [ADR 0005](docs/adr/0005-headline-ordering.md) + [the study](docs/analysis/headline-ordering-study.md) |
+| "Where did C = 32 and beta_w = 7 come from? They look arbitrary" | [ADR 0007](docs/adr/0007-tuned-constants.md), [campaign 1](docs/analysis/tuning-campaign.md), [campaign 2](docs/analysis/campaign-2.md) |
+| "Why fit on that set of teams? Why are FCS teams in there?" | [ADR 0006](docs/adr/0006-fit-universe.md) |
+| "Recent games should count more" / "why this accumulation window?" | [ADR 0009](docs/adr/0009-accumulation-window.md) |
+| "Just add home field from last season, everyone knows it" | [ADR 0008](docs/adr/0008-league-structural-home-field.md). **Open**: it puts the question to the owner rather than answering it |
+| "A ranking is subjective, so this whole thing is fake" | [ADR 0011](docs/adr/0011-recipes.md). The project agrees, and ships three value systems |
+| "Can it predict next season?" | [ADR 0010](docs/adr/0010-projection-and-poll.md). Yes, as a separate product that may never touch the poll. [ADR 0013](docs/adr/0013-projection-measurement-defects.md) is its repaired measurement |
+| "Why is 2025 special?" | [ADR 0012](docs/adr/0012-2025-opens.md) |
+| "Why Python?" / "why is the data in a GitHub release?" / "why files not a database?" | [ADR 0001](docs/adr/0001-python-not-rails.md), [0003](docs/adr/0003-storage.md), [0004](docs/adr/0004-files-are-truth.md) |
+
+If their argument is genuinely not in there and it holds up, that is an ADR worth
+writing, and rung 5 says so.
 
 ---
 
@@ -264,14 +368,33 @@ tests/                unit, property and golden
 
 Climb this ladder in order. Tell the person which rung you are on.
 
+**First, check what shape their conviction is, because the ladder only fits one of
+them.** Rungs 1 to 4 move *continuous constants and orderings*. A belief like
+"margin should count for less" is a knob and the ladder is built for it. A belief
+like **"an unbeaten team must always finish above a team with a loss"** is a hard
+rule, and no constant delivers "always". Say that difference out loud rather than
+handing someone a recipe that mostly does what they asked:
+
+- **Get as close as a lever gets, and name the gap.** `just-win` orders on the
+  wins-based résumé, where every unbeaten team saturates at the same published
+  bracket. That is very close to "unbeatens first" and it is not a guarantee.
+- **Then show them the price, because this one is written down.** That same
+  saturation is why the retroactive re-ranking cannot move an unbeaten team by a
+  single place, in any week, in any direction. `just-win`'s own `tradeoffs` list
+  says so, and so does [ADR 0005](docs/adr/0005-headline-ordering.md). A hard rule
+  usually costs something specific, and finding that cost together is more useful
+  than either granting the rule or refusing it.
+- **A real guarantee is rung 5**, a change to the ordering itself, and it needs an
+  ADR because it is a constraint rather than a value.
+
 ### Rung 1: a recipe
 
 A ranking is a value system, and three are already published and named. This costs
 one flag.
 
 ```bash
-uv run cfbpoll recipes                      # the roster, with each one's costs
-uv run cfbpoll rank --season 2023 --through-week 15 --recipe full-merit
+uv run cfbpoll recipes                      # the roster, with costs. Fits nothing
+make rankings RANK_RECIPE=full-merit OUT=out/full-merit
 ```
 
 | recipe | what it believes | 2023: where does 13-0 Liberty land? |
@@ -295,16 +418,48 @@ filename (`recipes.load` enforces that), and it is immediately available as
 key that `configs/default.toml` does not define, so a typo like `beta-w` fails
 loudly instead of quietly publishing a poll under constants nobody set.
 
-The two constants people actually want are in `[margin]`:
+The two constants people actually want are in `[margin]`. The response curve is
+`s = c·tanh(m/c) + beta_w·sign(m)`, so both are in points:
 
 - **`c`** (default `32.0`), the compression scale. Lower means a blowout counts
-  for less. `just-win` uses `1.0`. Uncapped means margin at face value.
+  for less. `just-win` uses `1.0`.
+
+  **"Uncapped" is written `c = inf`**, a bare TOML float, exactly as
+  [`full-merit.toml`](configs/recipes/full-merit.toml) writes it. It is the limit
+  of the tanh family, not a missing value or a sentinel string: at `inf` the
+  response becomes `s = m + beta_w·sign(m)` and margin enters at face value.
+  `design.tanh_term` takes that limit explicitly, because numpy would evaluate
+  `inf * tanh(m/inf)` as `nan` and take the poll down quietly. Do not write
+  `"uncapped"`, `0`, or `-1` and expect it to work. (The string `uncapped` does
+  appear in the codebase, but only as the *label* of the `margin-c-uncapped`
+  playground variant, never as a config value.)
+
 - **`beta_w`** (default `7.0`), the win premium. This is the constant that makes
   it a football ranking instead of a scoring-margin ranking. Set it to `0` and
-  winning stops mattering on its own.
+  winning stops mattering on its own. `full-merit` uses `12.0`, the top of
+  campaign 2's grid.
 
-And `[publication] headline_ordering` picks what the board is sorted on:
-schedule odds, the wins-based résumé, or the margin-aware résumé.
+**`[publication] headline_ordering` picks what sorts the board, and it accepts
+exactly three strings.** Anything else raises `unknown [publication].headline_ordering`:
+
+| value | what sorts the table | used by |
+|---|---|---|
+| `schedule_odds` | how hard the season was | the published poll (default) |
+| `L4_resume` | the wins-based résumé | `just-win` |
+| `L4_resume_margin` | the margin-aware résumé | `full-merit` |
+
+**Set `headline_ordering` and nothing else. Do not set `headline_layer`.** That is
+the whole rule, and both shipped recipes follow it. The reason, for when you meet
+it: `[publication] headline_layer` is the human-readable name stamped on
+artifacts, and `poll.headline_ordering` raises if the two disagree, because two
+names for one fact is a drift hazard. Omitted, it is derived for you
+(`schedule_odds -> C_schedule_odds`, `L4_resume -> L4_resume`,
+`L4_resume_margin -> L4_resume_margin`). Setting it by hand buys nothing and can
+only cost you a raise.
+
+**Numbers may be written as ints.** `beta_w = 10` is accepted exactly like
+`beta_w = 10.0`. The shipped files use the float form for readability, and `inf`
+is the one value with a required spelling.
 
 **`tradeoffs` is required and must be non-empty.** `recipes.load` refuses a recipe
 that will not state its own cost. Do not write a throwaway line to get past the
@@ -317,7 +472,10 @@ the holdout, the FCS policy, `[constraints]`, `[weights]`), and
 `assert_values_only` refuses the file at load time if it names one. If their idea
 needs to change what data the model sees, it is not a recipe. Go to rung 4.
 
-### Rung 3: a one-knob variant
+### Rung 3: a one-knob playground variant
+
+This is the **playground** sense of "variant" (see the vocabulary above; the word
+means three different things in this repo).
 
 Eight perturbations of the published poll already exist as thin ordering
 documents, for showing someone how much a single constant is actually worth:
@@ -332,21 +490,178 @@ spends real time on it. Often the answer is no, and that is worth knowing early.
 ### Rung 4: a challenger
 
 This is a new rating method, and it is the contribution the project most wants.
-Either a parameter override TOML or a module implementing one function:
+There are two forms, and **the file extension and the declared `kind` must agree**
+or the loader refuses the entry.
+
+#### Form A: a parameter variant (`.toml`, `kind = "parameter"`)
+
+Copy [`configs/challengers/beta-w-4.toml`](configs/challengers/beta-w-4.toml).
+The whole schema is a `[challenger]` block plus the constants you change:
+
+```toml
+[challenger]
+name   = "beta-w-4"        # REQUIRED. Any string. Not tied to the filename
+kind   = "parameter"       # REQUIRED. "parameter" for .toml
+author = "your name"       # optional
+notes  = """Optional. Why you think this is right."""
+
+[margin]                   # then ONLY the constants you change
+beta_w = 4.0
+```
+
+**A challenger block is not a recipe block.** There is no `slug`, no `stance`, no
+`one_liner`, no `manifesto`, and **`tradeoffs` is not required** and is not read.
+Only `name` and `kind` are required; `kind` must be exactly `parameter` or
+`structural`. Two more rules the loader enforces: a `.toml` that overrides no
+constant is refused (an override that changes nothing would publish a finding
+about a model nobody ran), and every key must exist in `configs/default.toml`,
+since `merge_overlay` rejects unknown keys rather than absorbing a typo.
+
+#### Form B: a structural variant (`.py`, `kind = "structural"`)
+
+A module with a module-level `CHALLENGER` dict (not a TOML block) and one
+function. See [`iterative_margin.py`](configs/challengers/iterative_margin.py),
+about forty lines:
 
 ```python
-def rate(games, plays, through_week) -> dict[int, float]: ...
+CHALLENGER = {
+    "name": "iterative-margin",
+    "kind": "structural",
+    "author": "you",
+    "needs_plays": False,   # True if rate() reads the play archive
+    "notes": "...",
+}
+
+def rate(games, plays, through_week, state=None) -> dict[str, float]: ...
 ```
 
-Drop it in [`configs/challengers/`](configs/challengers/) and run it:
+**The `rate()` contract, precisely.** Guessing at any of this wastes a run:
+
+- **Key on the team NAME, a string.** `games["home_team"]` is a polars `String`
+  holding `"Jacksonville State"`, not an id number. Return
+  `{"Georgia": 18.4, ...}`.
+
+  **Do not trust the type hint in `src/cfbpoll/model/__init__.py` on this one
+  point.** The `Rater` protocol there declares `TeamId = int` and
+  `Ratings = dict[TeamId, float]`, and the running code disagrees with it: the
+  canonical games frame carries string team names, the harness's internal caches
+  are `dict[str, float]`, and the shipped example
+  [`iterative_margin.py`](configs/challengers/iterative_margin.py) is annotated
+  `-> dict[str, float]`. **Follow the shipped example, not the protocol
+  annotation.** (`game_id` really is an `Int64`. It is the team columns that are
+  strings.)
+
+- **The value is a rating on the points scale, higher is better.** It is not a
+  rank, and lower is not better.
+
+- **A team you omit is treated as league average**, which is also what returning
+  `{}` means. That is a defined answer, not an error.
+
+- **`games`**: one polars frame, one row per game, already sliced to
+  `through_week`. It never contains a banned column, because
+  `cfbpoll audit-features` enforces that upstream. Columns:
+  `game_id` (`Int64`), `season`, `week`, `season_type`, `game_type`,
+  `start_date`, `completed`, `neutral_site`, `conference_game`,
+  `home_team` / `away_team` (`String`), `home_points` / `away_points` (`Int32`),
+  `home_class` / `away_class`, `source`.
+
+- **`plays`**: a polars frame **or `None`**, and `needs_plays` decides which.
+  Declare `needs_plays = True` and the harness loads the play archive and hands it
+  over. Declare `False` (or omit it) and **you are handed `None` deliberately**, so
+  a rater that reads plays anyway fails loudly rather than quietly consuming a
+  frame it disclaimed.
+
+  Columns are a 17-field allow-list out of a 362-column feed: `game_id`,
+  `game_row_number`, `pos_team`, `def_pos_team`, `home`, `away`, `period`,
+  `clock_minutes`, `clock_seconds`, `down`, `distance`, `yards_to_goal`,
+  `yards_gained`, `play_type` and the scoring fields. **There is no `week` or
+  `season_type` column, by design**: the games table is the only authority on
+  those, and `attach_games` is the only supported way to get them onto a play.
+
+  **`needs_plays = True` against a scores-only archive raises `FileNotFoundError`**
+  naming the missing `pbp/play_by_play_<season>.parquet` and telling you to run
+  `cfbpoll archive sync --verify`. That is a loud, useful failure rather than a
+  silent degradation, so a play-level challenger and `ONLY=schedules,crosswalk`
+  simply do not go together.
+
+- **`through_week`**: the data window `K`. **You must never look past it**, and
+  that is the entire walk-forward protocol. In practice the harness has already
+  truncated the frames for you, so the rule reduces to: do not go find data
+  yourself.
+
+- **`state`**: an `l3_power.SeasonState` or `None`. It is a per-season fit cache
+  plus an out-of-sample accumulator whose `add` the harness calls only *after* a
+  bucket has been predicted and scored, which is what makes the blend weights
+  out-of-sample. **Passing `None` is always correct and only slower.** A rater that
+  does not use it must still accept and ignore it, and almost every challenger
+  should just ignore it.
+
+- **Call cadence:** **once per system per week bucket**, walking each season
+  forward, memoised so a system that predicts through another does not refit it.
+  It is not called once per game. Assume many calls and keep it deterministic:
+  same inputs, same output, every time.
+
+#### Running either one
 
 ```bash
-uv run cfbpoll challenge run --entry configs/challengers/iterative_margin.py
+make challenge CHALLENGE_ENTRY=configs/challengers/iterative_margin.py
 ```
 
-CI runs the identical harness against the identical baselines and posts a
-scorecard. Two worked examples ship, including one that loses on 6 of 7 metrics,
-which is the more useful example.
+Three knobs, all on the target: `CHALLENGE_ENTRY`, `CHALLENGE_SEASONS`, and
+**`OUT`, which puts the scorecard in `$(OUT)/challenge`** exactly as it redirects
+a rank. Scoring overwrites, so two entries need two of them:
+
+```bash
+make challenge CHALLENGE_ENTRY=configs/challengers/theirs.toml OUT=out/theirs
+```
+
+Underneath is `cfbpoll challenge run`; its `--systems` option you simply **omit**
+to get the published comparison set. CI runs the identical harness against the
+identical baselines and posts a scorecard. Two worked examples ship, including one
+that loses on 6 of 7 metrics, which is the more useful example.
+
+### Recipe to challenger: the transcription that matters
+
+Step 4 of the flow depends on this, so get it right rather than improvising.
+
+**What carries over unchanged:** every constant block. `[margin]`, and any other
+`configs/default.toml` key the recipe overrides, are copied across **verbatim**.
+That is the whole point: the same numbers, scored.
+
+**What you replace:** the `[recipe]` block becomes a `[challenger]` block, which
+needs only two keys. `stance`, `one_liner`, `manifesto` and `tradeoffs` have no
+equivalent and are dropped. Put the manifesto's argument in `notes` if you want it
+to reach the scorecard's context.
+
+**Which string becomes `name`: use the recipe's `slug`, not its `name`.** Both
+would load, since challenger `name` is free-form and tied to nothing. The slug is
+the better choice because it is already the identifier the person types and sees
+on their runs, so the recipe and its scorecard carry one label instead of two.
+
+```toml
+# configs/recipes/theirs.toml        ->   # configs/challengers/theirs.toml
+[recipe]                                  [challenger]
+slug = "theirs"            ---------->    name = "theirs"     # from slug
+name = "Theirs"                           kind = "parameter"  # always, for .toml
+stance = 1                                author = "them"     # optional
+one_liner = "..."                         notes = """..."""   # optional
+manifesto = """..."""
+tradeoffs = ["..."]                       # everything below copies UNCHANGED
+[margin]                                  [margin]
+c = 12.0                                  c = 12.0
+beta_w = 9.0                              beta_w = 9.0
+```
+
+**What does not survive the trip, and you must say so out loud:
+`[publication] headline_ordering`.** A parameter challenger is scored under the
+`schedule_odds` system row regardless of what its config says the headline should
+be, so transcribing a recipe whose whole idea is "sort by the wins-based résumé"
+produces a scorecard that did not test that idea. If their conviction is about the
+*ordering* rather than about the constants, the honest report is that the
+scorecard measured the constants only, and the ordering question belongs to
+[the headline-ordering study](docs/analysis/headline-ordering-study.md) and
+[ADR 0005](docs/adr/0005-headline-ordering.md) instead. Comparing orderings
+directly is what `cfbpoll backtest --systems ...` does.
 
 ### Rung 5: change the model
 
@@ -355,15 +670,20 @@ to express what they believe. Before you do:
 
 - New constants go in `configs/default.toml` with a comment citing why, never
   hard-coded in a module.
-- If the change alters a published number, regenerate the affected golden fixture
-  in the same change, so it gets reviewed instead of absorbed.
 - If a future reader will wonder why, write an ADR in `docs/adr/`.
-- Run `uv run cfbpoll audit-features --fail-on-banned` before you believe anything.
+- Prove no banned input got in before you believe anything. There is no make
+  target for this one, so carry the prefix:
 
-Working on a branch, opening a PR, and what CI will do to it are all in
-[`CONTRIBUTING.md`](CONTRIBUTING.md). The short version: one idea per PR, and if a
-change alters a published number, say so and regenerate the affected fixture in
-the same PR so the change gets reviewed instead of absorbed.
+  ```bash
+  OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+    uv run cfbpoll audit-features --fail-on-banned
+  ```
+
+Branches, PRs and what CI will do to them are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). The one rule worth repeating here: **one
+idea per PR, and if a change alters a published number, say so and regenerate the
+affected fixture in the same PR**, so the change gets reviewed instead of
+absorbed.
 
 ---
 
@@ -374,19 +694,55 @@ compiler, not Docker, not `sudo`. `uv` fetches the interpreter itself. If it is
 missing, install it first, because `make .venv` is the first thing that breaks
 without it.
 
-Every `make` target maps to a `cfbpoll` verb. These all work on a fresh clone with
-no account and no API key.
+### First run, end to end
+
+This is the whole path from a fresh clone to their own board. Say what each step
+costs before you start it.
+
+```bash
+# A. toolchain. Seconds to a couple of minutes. Needs `uv` on PATH.
+make .venv
+
+# B. the data. A real, large download (size in `make archive` below). Say so
+#    first, and narrow it while iterating.
+make archive SEASONS=2023
+
+# C. the published poll, so there is a baseline to compare against
+make rankings RANK_SEASON=2023 RANK_WEEK=15
+
+# D. their version, into its own directory so both survive
+make rankings RANK_SEASON=2023 RANK_WEEK=15 RANK_RECIPE=just-win OUT=out/just-win
+
+# E. show them the two boards
+head -30 out/poll.csv out/just-win/poll.csv
+```
+
+(Lettered so they do not collide with the five numbered steps of
+[the flow](#the-flow-you-are-offering). This whole block is flow step 3.)
+
+C and D each write four files into their `OUT`: `poll.csv`, `poll.json`,
+`model_params.json` and `_run.json`. Scoring comes next and is
+`make challenge`, which computes its own baselines and needs nothing run before
+it.
+
+### The targets
+
+Every `make` target maps to a `cfbpoll` verb. **Everything in this list runs with
+no account and no API key** on a fresh clone. The one thing anywhere in the
+project that needs a key is resolving the *live current week*, and nothing shipped
+does that.
 
 ```bash
 make .venv        # uv sync --locked. Installs Python 3.12 and every pinned wheel
 make archive      # fetch the MIT archive (~0.55 GB) and sha256-check every file
-make rankings     # archive -> fit -> out/poll.csv, out/poll.json, out/_run.json
+make rankings     # archive -> fit -> the four files in out/ (see --out below)
 make backtest     # walk-forward 2021-2023 against every baseline
+make challenge    # score ONE community entry on that same harness
 make grid         # the R(N,K) retroactive triangle for one season
 make fixtures     # rank a whole season -> the published JSON tree (see below)
 make demos        # regenerate the committed demo/ boards from the archive
 make cards        # the share cards, SVG and PNG
-make variants     # the eight one-knob variants
+make variants     # the eight one-knob playground variants
 make test         # pytest
 make lint         # ruff
 ```
@@ -394,10 +750,16 @@ make lint         # ruff
 Run the CLI through `uv run cfbpoll ...`. That is what the make targets do and it
 works without activating anything.
 
-Narrow the archive while iterating: `make archive SEASONS=2023` or
-`ONLY=schedules,crosswalk` for a scores-only run that skips the 0.52 GB of
-play-by-play. Override the season with
-`make rankings RANK_SEASON=2022 RANK_WEEK=12`.
+Useful overrides: `make rankings RANK_SEASON=2022 RANK_WEEK=12`,
+`RANK_RECIPE=<slug>`, `OUT=<dir>`, `make grid GRID_SEASON=2021`,
+`make archive SEASONS=2023 ONLY=schedules,crosswalk`.
+
+**`--out` / `OUT`, because two boards side by side is the normal case.** The
+default is `out/`. The directory is created if it does not exist, and the four
+filenames are **overwritten in place** with no prompt and no backup, so a second
+run into the same directory silently replaces the first. Nothing is cleaned, so a
+stale unrelated file left in there survives and can mislead you later. Give every
+recipe its own directory (`OUT=out/<slug>`) and they coexist.
 
 Things to know before you run anything:
 
@@ -407,10 +769,25 @@ Things to know before you run anything:
   renamed only once the digest matches, so an interrupted sync costs nothing and
   any file that is there is a file that was checked. A checksum mismatch is a hard
   failure by design, not a warning: re-run rather than working around it.
+
+- **`ONLY=schedules,crosswalk` is cheap but it changes the model, and it does not
+  warn you in a way anyone notices.** With no play archive there is nothing for
+  **L1 efficiency** to regress on. It does **not** error: `l3_power.fit` sees
+  `plays is None`, substitutes an empty L1 fit, and the L3 blend **degrades to the
+  L2 results core**. You get a real ranking built on scoring margin alone, with no
+  play-level efficiency in it at all.
+
+  The run stamps `power_source` as `L2` rather than `L3` on `model_params.json`,
+  `poll.json` and every artifact, which is how you tell after the fact. **Check
+  that field before you compare a scores-only run against anything**, because
+  comparing an L2-powered board to an L3-powered one and calling the difference a
+  result of their recipe is the exact mistake this flag sets up. Use it to iterate
+  fast, then re-run with the full archive before anybody draws a conclusion.
+
 - **`make fixtures` writes to `../sandbox/cfb-poll-data` by default**, which is
   the poll owner's layout and does not exist in your fork. Point it somewhere
-  real: `make fixtures FIXTURES=out/data`. It also depends on `backtest`, so it is
-  the slow one.
+  real: `make fixtures FIXTURES=out/data`.
+
 - **`make backtest` and `make fixtures` take minutes, not seconds**, because they
   read the play archive and refit every week. `make rankings` for a single week is
   quick. Background the long ones rather than leaving somebody watching a cursor.
@@ -418,32 +795,56 @@ Things to know before you run anything:
 The run record, `out/_run.json`, says which archives the run read and every
 constant it used. When a number surprises someone, open that file first.
 
-**The archive is historical, so "what does this week's poll look like" has no
-keyless answer.** Ranking *now* means resolving which week it is, which needs
-CFBD's `/calendar`, which needs an API key. That is why the default is a complete
-past season. If they ask for the current week, say that plainly rather than
-producing a stale board and calling it live.
+### Two questions people ask that have awkward answers
+
+**"Show me this week's poll."** There is no keyless answer. The archive is
+historical, and ranking *now* means resolving which week it is, which needs CFBD's
+`/calendar`, which needs an API key. That is why the default is a complete past
+season. Say that plainly rather than producing a stale board and calling it live.
+
+**"What about weeks 1 to 4?"** The headline poll deliberately does not start until
+week 5, so ranking an early week gives you provisional output plus the
+connectivity report, not a poll. That is a feature and the card set has a variant
+for exactly this:
+
+```bash
+make rankings RANK_SEASON=2023 RANK_WEEK=3
+uv run cfbpoll publish cards --from out --variant connectivity
+```
+
+The `connectivity` card draws the schedule graph the fit is standing on, with its
+diagnostics. It is the honest artifact for September, and it is worth showing
+somebody who wants to know why the poll will not commit yet.
 
 ---
 
 ## Ship it
 
-A ranking nobody can see is not a poll. When their version is producing a board
-they believe in, give it a surface.
+When their version is producing a board they believe in, give it a surface.
 
 ```bash
-# 1. produce their board into a run directory
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-  uv run cfbpoll rank --season 2023 --through-week 15 --recipe <their-slug> --out out
+# 1. produce their board into its own run directory
+make rankings RANK_SEASON=2023 RANK_WEEK=15 RANK_RECIPE=<their-slug> OUT=out/theirs
 
-# 2. the share cards: SVG and PNG, carrying THEIR constants in the footer
-uv run cfbpoll publish cards --from out --variant top5     # the hero card
-uv run cfbpoll publish cards --from out --variant top25_x
-uv run cfbpoll publish cards --from out --variant top25_instagram
+# 2. the share cards: SVG and PNG, carrying THEIR constants in the footer.
+#    `publish` fits nothing, so these need no BLAS prefix.
+uv run cfbpoll publish cards --from out/theirs --variant top5     # the hero card
+uv run cfbpoll publish cards --from out/theirs --variant top25_x
+uv run cfbpoll publish cards --from out/theirs --variant top25_instagram
 
-# 3. the JSON tree a site reads
+# 3. the JSON tree a site reads. SLOW: it runs a full backtest first and will
+#    look stuck for minutes. Tell them before you start it.
 make fixtures FIXTURES=out/data
 ```
+
+**Warn them before you start `make fixtures`, because it looks like it has
+hung.** It depends on `backtest`, so it silently runs a full walk-forward over
+2021-2023 first, and only then ranks every week of the season one at a time. That
+is minutes of no useful output. The dependency is deliberate rather than
+belt-and-braces: the gate table and baseline comparison in the published documents
+are read out of `backtest_metrics.json`, so publishing against a stale one puts
+numbers on a page that no longer describe the model. Say "this takes a few minutes
+and will look stuck partway through" first, and background it.
 
 **Do not reach for `make demos` here.** It regenerates the *committed house*
 boards under `demo/` from the archive. It does not know about their recipe and it
@@ -471,8 +872,12 @@ in this repo's voice, then match it. The short version:
 
 **Football first, code second.** They came for the sport. Lead with teams, weeks
 and results, and reach for the implementation only when it is the answer to
-something they asked. "Liberty goes from #10 to #2 under just-win" is the
-sentence. The TOML is the footnote.
+something they asked. The shape of the sentence you want is:
+
+> *"&lt;team&gt; goes from #&lt;n&gt; to #&lt;m&gt; under &lt;recipe&gt;."*
+
+Fill it from the run you just did, never from memory and never from this file. The
+TOML is the footnote.
 
 **Plain and confident.** Contractions. Active voice. Direct address. Cut the
 consultant vocabulary. Skip em dashes; a period or a comma does the job. Authority

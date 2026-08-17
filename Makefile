@@ -20,7 +20,7 @@ JOBS ?= 4
 .PHONY: help rankings archive archive-lock backtest cards demos fixtures \
         recipe-fixtures variants projection projection-audit projection-2025 \
         holdout-scorecard revision-numbers replay replay-tolerant grid \
-        site test lint clean
+        challenge site test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -30,6 +30,7 @@ help:
 	@echo "  make archive          fetch + sha256-verify the MIT archive (~0.55 GB)"
 	@echo "  make archive-lock     regenerate the committed lockfile from a backfill"
 	@echo "  make backtest         walk-forward 2021-2023 vs every baseline"
+	@echo "  make challenge        score ONE community entry on the same harness"
 	@echo "  make grid             the R(N,K) retroactive triangle for one season"
 	@echo "  make cards            render the weekly share card (SVG + PNG)"
 	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
@@ -62,11 +63,23 @@ help:
 # command a stranger types first. 2025 is the sealed holdout and is not the
 # default either. Override both freely: `make rankings RANK_SEASON=2022
 # RANK_WEEK=12`.
+#
+# RANK_RECIPE EXISTS SO A FORK NEVER HAS TO LEAVE THE MAKE TARGET. It defaults to
+# `house`, which is `cfbpoll rank`'s own default, so this target's behaviour is
+# unchanged. It is here because the one thing a fork does constantly is run its
+# own value system, and without a variable the only way to do that was the bare
+# CLI - which does not carry the single-threaded BLAS prefix above, so the
+# obvious next step after writing a recipe was a nondeterministic run. Pair it
+# with OUT to keep two boards side by side:
+#
+#     make rankings RANK_RECIPE=just-win OUT=out/just-win
 RANK_SEASON ?= 2023
 RANK_WEEK   ?= 15
+RANK_RECIPE ?= house
 rankings: .venv archive
 	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
-	  $(UV) run cfbpoll rank --config $(CONFIG) --season $(RANK_SEASON) \
+	  $(UV) run cfbpoll rank --config $(CONFIG) --recipe $(RANK_RECIPE) \
+	    --season $(RANK_SEASON) \
 	    --through-week $(RANK_WEEK) --seed $(SEED) --draws $(DRAWS) --out $(OUT)
 	@echo
 	@echo "The poll is $(OUT)/poll.csv and $(OUT)/poll.json; the run record, with"
@@ -316,6 +329,31 @@ grid: .venv
 	@echo "private CFBD backfill present they do, and \"final\" means final; without"
 	@echo "it, \"final\" means through conference championships. The run record's"
 	@echo "game_sources says which one you got."
+
+# Real, and it is THE ANSWER TO "DID IT BEAT THE MODEL". Scores one community
+# entry through the identical walk-forward harness against the identical
+# baselines and writes a scorecard.
+#
+# IT EXISTS BECAUSE THE BARE CLI CALL IS A DETERMINISM TRAP. `challenge run`
+# fits models, so it needs the single-threaded BLAS prefix for the same reason
+# `rank` and `backtest` do - and it is the one command the whole contribution
+# story points at, so it was the worst one to leave without a target. Without
+# this, the documented path to a published finding ran multi-threaded reductions
+# in a nondeterministic order.
+#
+# CHALLENGE_SEASONS MATCHES `cfbpoll challenge run`'s OWN DEFAULT. It is a
+# variable because the archive can legitimately hold fewer seasons than that: a
+# fork iterating under `make archive SEASONS=2023` must pass a matching
+# `CHALLENGE_SEASONS=2023` or the run asks for seasons that are not on disk.
+CHALLENGE_ENTRY   ?= configs/challengers/iterative_margin.py
+CHALLENGE_SEASONS ?= 2021-2023
+challenge: .venv archive
+	OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	  $(UV) run cfbpoll challenge run --entry $(CHALLENGE_ENTRY) \
+	    --config $(CONFIG) --seasons $(CHALLENGE_SEASONS) --out $(OUT)/challenge
+	@echo
+	@echo "The scorecard is $(OUT)/challenge/. It is the same run_backtest, the same"
+	@echo "frames and the same publication gate as demo/backtest-2021-2023.md."
 
 site: .venv
 	@echo "[stub] uv run cfbpoll site build --from $(OUT)/ --to site/_build"

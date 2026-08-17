@@ -1,0 +1,92 @@
+{
+  "name": "cfb-poll - Sunday dispatch (06:00 ET)",
+  "active": false,
+  "settings": {
+    "timezone": "America/New_York",
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "a1c0f2e4-0001-4a10-9f00-000000000001",
+      "name": "Sunday 06:00 America/New_York",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-160, 0],
+      "notes": "THE CLOCK. The cron is plain (0 6 * * 0 = Sunday 06:00) and the timezone comes from the workflow settings above, which are set to America/New_York. Do not put a UTC offset in the expression: DST would silently move the poll by an hour twice a season, in the middle of it.",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a1c0f2e4-0002-4a10-9f00-000000000002",
+      "name": "Dispatch weekly.yml",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "POST /repos/vyhlidal/cfb-poll/actions/workflows/weekly.yml/dispatches. Success is HTTP 204 with an empty body. The workflow FILE NAME works as the {workflow_id} path segment, which is why nothing here has to look up a numeric id. Retries three times because a transient GitHub 5xx on the one clock that matters is worth three seconds of patience.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "GitHub PAT - cfb-poll Actions"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/vyhlidal/cfb-poll/actions/workflows/weekly.yml/dispatches",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Accept", "value": "application/vnd.github+json" },
+            { "name": "X-GitHub-Api-Version", "value": "2022-11-28" },
+            { "name": "User-Agent", "value": "cfb-poll-n8n/1.0" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"trigger\": \"n8n\",\n    \"publish\": \"true\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": false
+            }
+          },
+          "timeout": 30000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sunday 06:00 America/New_York": {
+      "main": [
+        [
+          {
+            "node": "Dispatch weekly.yml",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cfb-poll",
+    "description": "THE PRIMARY CLOCK for the Sunday poll (ADR 0002). Two nodes, no daemon, no port, no TLS, no database. Import, attach the credential, do NOT activate until ops/arming.toml has `n8n = true` on main - the GitHub side no-ops until then, so activating early costs a wasted dispatch rather than a bad publication, but there is no reason to spend it. Runbook: docs/runbooks/sunday-automation.md"
+  }
+}

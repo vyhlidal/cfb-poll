@@ -1,0 +1,45 @@
+# THE SAFETY CATCH. Nothing in this repository publishes on its own until a line
+# below says `true`, and every line below says `false`.
+#
+# WHY THIS FILE EXISTS. ADR 0002 gives the Sunday poll three clocks — an n8n
+# dispatch from the VPS at 06:00 ET, a GitHub `schedule:` cron deliberately
+# early, and a systemd timer on the VPS at 08:30 ET. All three are wired. None of
+# them may fire yet, because the pipeline is a partial build and an automatic
+# publication from an incomplete pipeline is exactly the silent failure this
+# design was written to prevent.
+#
+# Commenting out the `schedule:` block in the workflow would do the same job
+# once. It would not survive the next person who un-comments it to test
+# something, and it leaves nothing for an operator to read when they ask "is the
+# Sunday job live?". A committed switch answers that question in one `cat`, and
+# the answer is in the diff of whoever flipped it.
+#
+# HOW TO ARM ONE. Change its `false` to `true`, commit, push to `main`. The guard
+# reads this file out of the checkout, so an arming change is a reviewed change
+# with an author and a date, not a click in somebody's console.
+#
+# `cfbpoll guard --trigger <name>` prints which line it read and what it decided.
+# Run it before and after flipping anything.
+
+[triggers]
+
+# The n8n Schedule Trigger on the Hostinger VPS, Sunday 06:00 America/New_York,
+# posting to the workflow's dispatch endpoint. THE PRIMARY CLOCK.
+# Arm this one FIRST, and arm it alone for at least one Sunday.
+n8n = false
+
+# GitHub Actions' own `schedule:` cron in .github/workflows/weekly.yml. THE THIRD
+# STRING, deliberately early. ADR 0002 measured why it is not the primary: 35-216
+# minute drift, and ~5% of high-frequency runs dropped outright. It is here to
+# catch the case where the VPS is down, and for no other reason.
+schedule = false
+
+# The systemd timer on the VPS at 08:30 ET, running the identical
+# ops/bin/weekly.sh. THE FALLBACK. Arm this only after the units are installed
+# and `systemctl list-timers` shows it.
+vps_timer = false
+
+# There is deliberately no `manual` line. A person clicking "Run workflow" is not
+# a clock and is never refused; `ops.guard.Arming.allows` special-cases it. A
+# switch that could lock a human out of their own repository would be a worse
+# failure than the one it prevents.

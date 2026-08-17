@@ -1,0 +1,34 @@
+# The fallback clock: Sunday 08:30 America/New_York, two and a half hours after
+# the n8n primary. DELIVERED, NOT INSTALLED.
+#
+# `Persistent=false` IS THE LOAD-BEARING LINE AND IT IS DELIBERATE.
+#
+# With `Persistent=true`, systemd runs a missed timer as soon as the machine
+# comes back. That is precisely the behaviour ADR 0002 rejected the Mac for:
+# launchd "runs a missed job whenever the lid next opens, which for a weekly
+# publication is a coin flip with a silent failure mode". A fallback that fires
+# at 03:00 on Wednesday because the VPS rebooted is not a fallback, it is an
+# unscheduled publication nobody is awake for. If this timer misses its window,
+# the correct outcome is that the dead-man's switch tells a human at 14:00 ET
+# and the human decides.
+#
+# THE TIMEZONE SUFFIX NEEDS systemd >= 252. Ubuntu 24.04 ships 255, so this
+# works as written on the target VPS. Confirm with `systemd-analyze calendar
+# 'Sun *-*-* 08:30:00 America/New_York'` before you enable it; if the suffix is
+# rejected, the machine is older than this file assumes and the correct fix is
+# `timedatectl set-timezone America/New_York`, not a hardcoded UTC hour that
+# will be wrong for half the season.
+
+[Unit]
+Description=cfb-poll weekly publication fallback, Sunday 08:30 ET
+Documentation=https://github.com/vyhlidal/cfb-poll/blob/main/docs/adr/0002-scheduling.md
+
+[Timer]
+OnCalendar=Sun *-*-* 08:30:00 America/New_York
+Persistent=false
+AccuracySec=1min
+RandomizedDelaySec=0
+Unit=cfb-poll-weekly.service
+
+[Install]
+WantedBy=timers.target

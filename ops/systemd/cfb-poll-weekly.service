@@ -1,0 +1,74 @@
+# ADR 0002's FALLBACK: the identical Sunday job on the Hostinger VPS.
+#
+# DELIVERED, NOT INSTALLED. Nothing on the VPS has been touched. The install
+# procedure is docs/runbooks/vps-fallback-install.md and it is a human's job.
+#
+# It runs ops/bin/weekly.sh, which is the same file .github/workflows/weekly.yml
+# runs. That is the entire point of the fallback design: "no second
+# implementation", so there is nothing here to drift out of sync with the
+# primary. This unit supplies a user, a working directory and an environment;
+# the job itself lives in the repository.
+#
+# It exits 0 immediately when the week is already published, because the first
+# thing weekly.sh does is ask `cfbpoll guard`. On a Sunday where the 06:00 ET
+# n8n dispatch worked, this unit costs about forty seconds and writes nothing.
+
+[Unit]
+Description=cfb-poll weekly publication (ADR 0002 fallback clock)
+Documentation=https://github.com/vyhlidal/cfb-poll/blob/main/docs/adr/0002-scheduling.md
+Documentation=file:///opt/cfb-poll/docs/runbooks/vps-fallback-install.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cfbpoll
+Group=cfbpoll
+WorkingDirectory=/opt/cfb-poll
+
+# THE SECRETS LIVE HERE, NOT IN THIS FILE. CFBD_API_KEY and (optionally)
+# DATABASE_URL go in /etc/cfb-poll/weekly.env, root-owned, chmod 600. The
+# leading `-` means the unit still starts if the file is absent, which is
+# correct: with no key the job degrades to the MIT archive and still ranks.
+EnvironmentFile=-/etc/cfb-poll/weekly.env
+
+Environment=TRIGGER=vps_timer
+Environment=PUBLISH=true
+Environment=HOME=/var/lib/cfb-poll
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=UV_CACHE_DIR=/var/lib/cfb-poll/uv-cache
+
+ExecStart=/opt/cfb-poll/ops/bin/weekly.sh
+
+# A full week takes minutes. An hour is a ceiling, not a target, and a job still
+# running at 09:30 ET is a job that has gone wrong and should be killed before
+# the dead-man's switch fires at 14:00 and tells a human a half-truth.
+TimeoutStartSec=3600
+
+# The VPS also runs n8n, which is the PRIMARY clock for this same poll. A fit
+# that starves the scheduler would be the fallback taking down the primary.
+Nice=10
+IOSchedulingClass=idle
+CPUWeight=50
+
+# Hardening. None of this is theatre: the job holds a CFBD key and writes into
+# a directory a web server may later serve.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ReadWritePaths=/opt/cfb-poll /var/lib/cfb-poll /srv/cfb-poll-data
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cfb-poll-weekly
+
+[Install]
+WantedBy=multi-user.target

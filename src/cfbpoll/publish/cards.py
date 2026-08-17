@@ -115,9 +115,11 @@ from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
     "AGREEMENT_BAND",
+    "BILLBOARD_CLARITY",
     "BILLBOARD_TEASER",
     "BILLBOARD_VARIANTS",
     "BUILDERS",
+    "CORPUS_COUNTS_PATH",
     "CARD_HEIGHT",
     "CARD_WIDTH",
     "COMPARISON_VARIANTS",
@@ -139,6 +141,7 @@ __all__ = [
     "comparison_svg",
     "comparison_tall_svg",
     "connectivity_svg",
+    "corpus_counts",
     "disagreement_svg",
     "export",
     "export_billboard",
@@ -1254,6 +1257,27 @@ def _odds_key(row: dict[str, Any]) -> str:
     return f"1 in {int(row['one_in']):,}"
 
 
+def _projected_power(row: dict[str, Any]) -> str:
+    """The billboard's right-hand column, and it is the one that SORTS.
+
+    THIS REPLACED `projected_wins` ON THE BILLBOARDS AND THE REASON IS THE ONLY
+    reason that matters: the win total does not move with the rank. Ohio State
+    projects 8.8 wins at number 1 and Oregon projects 9.0 at number 2, which is
+    the whole point of the board (Ohio State's schedule is far harder) and which
+    reads at a glance as broken data. The owner caught it on the first render:
+    "8.8 above 9.0 reads as broken data."
+
+    Power is the engine's own number and the projection's rows are ordered by it,
+    so a reader scanning down the column sees it fall on every row. That is
+    checkable rather than asserted: `projected_power` is non-increasing over all
+    138 rows of the published document, and a test asserts it on the drawn card.
+
+    `projected_power` arrives PRE-FORMATTED, like every other published figure, so
+    the unit is the only thing this adds.
+    """
+    return f"{row['projected_power']} power"
+
+
 def _projected_wins(row: dict[str, Any]) -> str:
     """The projection board's right-hand column.
 
@@ -2013,56 +2037,92 @@ def grid_svg(document: dict[str, Any]) -> str:
 #
 # THE OWNER ASKED FOR THIS DIRECTLY, on 2026-08-17, having looked at the launch
 # set and found it legible and silent: huge ranks, real logos, and one short line
-# for the curious. The teaser below is his sentence, tightened against the voice
-# profile rather than rewritten.
+# for the curious. The copy below is his, tightened against the voice profile
+# rather than rewritten.
+#
+# AND THE CONSTANTS FOOTER COMES OFF THIS FAMILY, WHICH IS A REVERSAL OF A
+# STANDING RULE. `AGENTS.md` says the footer "is on every card and is never
+# dropped for space", the voice profile carves it out of the banned-strings rule
+# by name, and this module has argued for it at length. The owner overruled it for
+# the billboards on 2026-08-18, verbatim: "No stat nerd shit. Just the taglines."
+#
+# The old reasoning is restated rather than deleted, because it still governs
+# every other card here: a share card that argues with the published poll should
+# argue with its own constants visible, and no other poll's share image publishes
+# the numbers that produced it. What changed is the audience. A billboard is aimed
+# at somebody who has never heard of this project, where a run id and a backtest
+# line are not a signature, they are the reason he keeps scrolling. Every card
+# built to be READ still carries the footer, and `_projection_footer` is untouched;
+# the receipts are one tap away on the site the tagline names. That is the owner's
+# call on his own project, and it is confined to this family by construction:
+# `BILLBOARD_VARIANTS` is the only place `_billboard_credit` is drawn.
 
 
-#: THE ONE MARKETING SENTENCE IN THIS MODULE, and every other string on a card is
-#: still a published field. It is a constant so that two billboards cannot drift
-#: apart and so a single edit changes every card that carries it.
+#: THE CLARITY LINE, AND EVERY NUMBER IN IT COMES OUT OF A FILE. The owner's draft
+#: was "AI used 5 seasons of publicly available football stats - N stats, N games,
+#: N simulations - to build a projection and a poll that follows the data", with
+#: the counts left as N and one instruction attached: pull the true numbers from
+#: the pipeline, no placeholders ship.
 #:
-#: WHAT WAS TIGHTENED, AND WHY EACH CHANGE HAD TO HAPPEN. The owner's line was
-#: "fully unbiased · built on 5 years of public CFB data · AI-built prediction and
-#: polling model · open source - try to improve it", and the voice profile refuses
-#: three things in it. The middots join four clauses, which is the em-dash rule
-#: wearing a different hat: a `·` may separate two short labelled data fields and
-#: may never do a conjunction's job. The dash before "try to improve it" is banned
-#: outright. And "fully unbiased" is an absolute claim about our own work, which
-#: this project does not make about itself anywhere else; the checkable version of
-#: it is that no ballot enters either product, so that is what the card says.
+#: SO NOTHING HERE IS TYPED. `data/corpus-counts.json` is written by
+#: `scripts/count_corpus.py`, which counts through the pipeline's own loaders, and
+#: this template is filled from it at render time. A number typed into a renderer
+#: is the number that goes stale the first week of the season, and `AGENTS.md` is
+#: explicit that a run-produced figure is regenerated rather than quoted.
 #:
-#: WHAT SURVIVED: all four of his beats, in his order. What it is, what it was
-#: built on, that the code is open, and the invitation to beat it. The address is
-#: `SITE_DOMAIN` rather than a fourth typed copy of the host.
-#:
-#: FIVE SEASONS IS A CHECKABLE NUMBER AND NOT A ROUND ONE. `configs/default.toml`
-#: fits on 2021-2023, validates on 2024 and scored the 2025 holdout, which is five
-#: seasons of public college football data and no more.
-BILLBOARD_TEASER = (
-    "An AI built this prediction and polling model on five seasons of public "
-    "college football data. No votes go into it. The code is open at "
-    f"{SITE_DOMAIN}. Try to improve it."
+#: WHAT WAS TIGHTENED. The em dashes are banned outright, so the counts become an
+#: appositive between commas. "N stats" is not a thing anybody counts, and the
+#: measurable quantity underneath it is plays, so the card says plays. And
+#: "simulations" needed checking rather than repeating: the headline tail is an
+#: exact Poisson-binomial convolution and simulates nothing, but `bootstrap.simulate`
+#: genuinely does "simulate `draws` seasons on the fixed schedule and re-rank each
+#: one", so the word is honest as long as it points at the bootstrap. It does.
+BILLBOARD_CLARITY = (
+    "An AI read five seasons of public college football data, {games} games and "
+    "{plays} plays, and simulated {simulated_seasons} seasons to build a "
+    "projection and a poll that follow the data."
 )
+
+#: THE TAGLINE. The owner's four beats, and his 2026-08-18 correction to the last
+#: one: "If you don't agree, try to improve it" beats "try to improve it", because
+#: clarity beats compression and the reader needs to be told what the disagreement
+#: is FOR. The voice profile picked the same fix up as an addendum the same day.
+#:
+#: "Fully unbiased" is still not what this says. It is an absolute claim about our
+#: own work, which this project makes nowhere else about itself; the checkable
+#: version is that no ballot enters either product, and that is what ships. The
+#: address is `SITE_DOMAIN` rather than a second typed copy of the host.
+BILLBOARD_TEASER = (
+    "No human vote goes into either one. The code is open at "
+    f"{SITE_DOMAIN}. If you don't agree, try to improve it."
+)
+
+#: Where the counts come from. A second pinned input beside the logo cache, and
+#: the same property: the card is a pure function of files a reader can open.
+CORPUS_COUNTS_PATH = Path(__file__).resolve().parents[3] / "data" / "corpus-counts.json"
 
 #: The billboard's grid, on the 1200x1200 canvas.
 #:
-#: FIVE ROWS OF 138 FROM 286 END AT 976, which leaves the teaser its own band
-#: above the signature strip and nothing else on the card at all. 138px per row is
-#: 1.84x the hero card's 75 and about 5.3x the top 25's 26: the rank numeral lands
-#: at 96px and the school mark at 121px across, which is what still reads when a
-#: 1200px card is drawn 300px wide in somebody's feed.
+#: FIVE ROWS OF 138 FROM 286 END AT 976, which leaves the copy its own band at the
+#: foot of the card and nothing else on it at all. 138px per row is 1.84x the hero
+#: card's 75 and about 5.3x the top 25's 26: the rank numeral lands at 96px and the
+#: school mark at 121px across, which is what still reads when a 1200px card is
+#: drawn 300px wide in somebody's feed.
 BILLBOARD_BANNER_H = 250.0
 BILLBOARD_ROW_TOP = 286.0
 BILLBOARD_ROW_HEIGHT = 138.0
 
-#: Where the teaser sits, on both billboards, so the pair reads as one family.
-#: Three lines from here at 26px finish at 1098, which clears the signature strip
-#: at 1134 - the wrap takes two lines today and the third is headroom for an edit.
-#: The hairline above it is the last row's separator on the top-five card, and the
-#: single-team card draws the same line at the same y for the same reason.
-BILLBOARD_TEASER_TOP = 1030.0
-BILLBOARD_TEASER_SIZE = 26.0
+#: The copy band, identical on both billboards so the pair reads as one family.
+#: The clarity line explains and the tagline invites, so the tagline is the larger
+#: of the two and sits last, where a reader who got that far is ready to be asked
+#: for something. Two lines each at these sizes finish at 1113, which clears the
+#: attribution strip. The hairline above the band is the last row's separator on
+#: the top-five card, and the single-team card draws the same line at the same y.
 BILLBOARD_TEASER_RULE = BILLBOARD_ROW_TOP + 5 * BILLBOARD_ROW_HEIGHT
+BILLBOARD_CLARITY_TOP = 1012.0
+BILLBOARD_CLARITY_SIZE = 22.0
+BILLBOARD_TEASER_TOP = 1082.0
+BILLBOARD_TEASER_SIZE = 25.0
 
 
 def _billboard_banner(document: dict[str, Any]) -> list[str]:
@@ -2091,18 +2151,90 @@ def _billboard_banner(document: dict[str, Any]) -> list[str]:
     )
 
 
-def _billboard_teaser(width: float) -> list[str]:
-    """The teaser, wrapped to the canvas. The only prose on the card."""
+def corpus_counts(path: Path | None = None) -> dict[str, Any]:
+    """The pinned counts the clarity line is filled from. Read, never computed.
+
+    A missing or unreadable pin is a HARD FAILURE rather than a card with a gap
+    in the sentence, because the whole instruction attached to this line was that
+    no placeholder ships. `scripts/count_corpus.py` writes the file.
+    """
+    target = Path(path) if path is not None else CORPUS_COUNTS_PATH
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"{target} is missing and a billboard prints its counts. Run "
+            "`uv run python scripts/count_corpus.py` to regenerate the pin."
+        ) from exc
+    missing = [k for k in ("games", "plays", "simulated_seasons") if not payload.get(k)]
+    if missing:
+        raise ValueError(f"{target} is missing {missing}; a billboard cannot print a blank count")
+    return payload
+
+
+def _billboard_copy(width: float, counts: dict[str, Any] | None = None) -> list[str]:
+    """The clarity line and the tagline. The only prose on the card.
+
+    THE COUNTS ARE FORMATTED HERE AND NOWHERE ELSE, with thousands separators,
+    because a bare 1235232 on a card is a number nobody can read at a glance and
+    an exact 1,235,232 is more credible than a rounded 1.2 million. Both are true;
+    only one of them sounds like somebody counted.
+    """
+    figures = counts if counts is not None else corpus_counts()
+    clarity = BILLBOARD_CLARITY.format(
+        games=f"{int(figures['games']):,}",
+        plays=f"{int(figures['plays']):,}",
+        simulated_seasons=f"{int(figures['simulated_seasons']):,}",
+    )
+
     parts: list[str] = []
+    y = BILLBOARD_CLARITY_TOP
+    budget = max(24, int((width - 80) / (BILLBOARD_CLARITY_SIZE * 0.44)))
+    for line in _wrap(clarity, budget, 2):
+        parts.append(
+            _text(40.0, y, line, size=BILLBOARD_CLARITY_SIZE, fill=PALETTE["ink_dim"],
+                  family=FONT_DISPLAY)
+        )
+        y += BILLBOARD_CLARITY_SIZE * 1.28
+
     y = BILLBOARD_TEASER_TOP
     budget = max(24, int((width - 80) / (BILLBOARD_TEASER_SIZE * 0.44)))
-    for line in _wrap(BILLBOARD_TEASER, budget, 3):
+    for line in _wrap(BILLBOARD_TEASER, budget, 2):
         parts.append(
             _text(40.0, y, line, size=BILLBOARD_TEASER_SIZE, fill=PALETTE["ink"],
-                  family=FONT_DISPLAY, weight="500")
+                  family=FONT_DISPLAY, weight="600")
         )
-        y += BILLBOARD_TEASER_SIZE * 1.30
+        y += BILLBOARD_TEASER_SIZE * 1.28
     return parts
+
+
+#: The attribution strip that stands where the constants footer stands on every
+#: other card: one accent divider and one line of credit, 44px instead of 66.
+BILLBOARD_CREDIT_H = 44.0
+
+
+def _billboard_credit(width: float, height: float) -> list[str]:
+    """The billboard's foot: the permitted divider, and CFBD's name. Nothing else.
+
+    WHAT IS NOT HERE IS THE POINT. No run id, no config hash, no recipe version,
+    no backtest line, no constants. The owner struck all of it from this family
+    on 2026-08-18 and the section comment above records why the rule it broke
+    existed in the first place.
+
+    THE ONE LINE THAT SURVIVED IS NOT A CONSTANT AND IS NOT NEGOTIABLE THE SAME
+    WAY. `AGENTS.md` puts CFBD's attribution at the top rather than in a footnote,
+    their terms call it strongly encouraged, and this project gives it "on every
+    published poll and every post". It is 12px, it names a person's work, and it
+    is not the stat-nerd material that was struck. The address is not repeated
+    here either: the tagline says it in a sentence, which is where somebody
+    reading a billboard will actually meet it.
+    """
+    top = height - BILLBOARD_CREDIT_H
+    return [
+        _rule(0, top, width, stroke=PALETTE["accent"], weight=2),
+        _text(width - 32, top + 26, DATA_CREDIT, size=12,
+              fill=PALETTE["ink_faint"], anchor="end", family=FONT_UI),
+    ]
 
 
 def billboard_top5_svg(document: dict[str, Any]) -> str:
@@ -2115,8 +2247,11 @@ def billboard_top5_svg(document: dict[str, Any]) -> str:
     ratio is fixed for us; this one exists for the post itself.
 
     Same rows, same fields, same uniform treatment as every other board here: rank
-    1 is drawn exactly like rank 5, and the win column is bone because a projected
-    win total is not the schedule-odds key.
+    1 is drawn exactly like rank 5, and the power column is bone because power is
+    not the schedule-odds key.
+
+    THE COLUMN IS POWER AND NOT PROJECTED WINS, which is the difference between a
+    board that reads and a board that reads as broken. See `_projected_power`.
     """
     rows = _projection_rows(document, 5)
     season = int(document["season"])
@@ -2136,12 +2271,12 @@ def billboard_top5_svg(document: dict[str, Any]) -> str:
             name_size=62,
             value_size=44,
             use_abbreviation=False,
-            value_of=_projected_wins,
+            value_of=_projected_power,
             mark_ratio=0.44,
         )
     )
-    parts.extend(_billboard_teaser(CARD_WIDTH))
-    parts.extend(_projection_footer(document, CARD_WIDTH, SQUARE_HEIGHT))
+    parts.extend(_billboard_copy(CARD_WIDTH))
+    parts.extend(_billboard_credit(CARD_WIDTH, SQUARE_HEIGHT))
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 
@@ -2165,10 +2300,16 @@ def billboard_team_svg(document: dict[str, Any], team: str) -> str:
     one of these is one argument changed rather than an afternoon in an editor.
 
     THE NUMERAL IS LABELLED AND THAT IS RULE 0 RATHER THAN DECORATION. A bare 5
-    at 300px is a puzzle to somebody who arrives with no context, so the eyebrow
-    over it says PROJECTED RANK and the line under the school says what the win
-    total counts. The card is built to be read by a stranger, which is the only
-    kind of reader a billboard has.
+    at 340px is a puzzle to somebody who arrives with no context, so the eyebrow
+    over it says PROJECTED RANK and the line under the school says what the second
+    number is. The card is built to be read by a stranger, which is the only kind
+    of reader a billboard has.
+
+    THAT SECOND NUMBER IS THE POWER RATING RATHER THAN THE WIN TOTAL, and on this
+    card the reason is sharper than it is on the top five. Two of these posted
+    side by side ARE a board: Texas Tech at 5 with 9.6 projected wins beside Ohio
+    State at 1 with 8.8 is the same broken-looking pair the owner caught, split
+    across two images where no column header can explain it.
 
     THE ROW'S OWN `note` IS DRAWN WHEN THE DOCUMENT PUBLISHES ONE. It is the one
     football sentence on the card ("Returning production adds 1.4 points to the
@@ -2213,7 +2354,7 @@ def billboard_team_svg(document: dict[str, Any], team: str) -> str:
               size=name_size, fill=PALETTE["ink"], weight="700", family=FONT_DISPLAY)
     )
     parts.append(
-        _text(40.0, 840.0, f"{row['projected_wins']} projected wins", size=34,
+        _text(40.0, 840.0, f"{row['projected_power']} projected power rating", size=34,
               fill=PALETTE["ink_dim"], weight="600", family=FONT_DISPLAY)
     )
 
@@ -2228,8 +2369,8 @@ def billboard_team_svg(document: dict[str, Any], team: str) -> str:
         _rule(40.0, BILLBOARD_TEASER_RULE, CARD_WIDTH - 80, stroke=PALETTE["rule"],
               opacity=ROW_RULE_OPACITY)
     )
-    parts.extend(_billboard_teaser(CARD_WIDTH))
-    parts.extend(_projection_footer(document, CARD_WIDTH, SQUARE_HEIGHT))
+    parts.extend(_billboard_copy(CARD_WIDTH))
+    parts.extend(_billboard_credit(CARD_WIDTH, SQUARE_HEIGHT))
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 

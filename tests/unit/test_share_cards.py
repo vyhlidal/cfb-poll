@@ -681,6 +681,11 @@ def _projection_document(status: str = "published", rows: int = 25) -> dict[str,
                 "mark_fg": "#ffffff",
                 "mark_label": f"T{i + 1:02d}",
                 "projected_wins": f"{12.0 - i * 0.2:.1f}",
+                # Power FALLS with the rank and the win total does not have to.
+                # That is the real shape of the published document (Ohio State
+                # projects fewer wins than Oregon and outranks it), and the
+                # billboards exist to print the figure that agrees with the order.
+                "projected_power": f"{25.0 - i * 0.4:.1f}",
             }
             for i in range(rows)
         ],
@@ -910,15 +915,100 @@ def test_the_billboard_carries_the_teaser_whole_and_sends_it_to_our_own_domain()
 
     It is also the sentence most likely to be read with nothing around it, so the
     voice profile's hard rules are asserted on it rather than trusted: no em dash,
-    and no middot doing a conjunction's job.
+    and no middot doing a conjunction's job. The owner's 2026-08-18 correction is
+    asserted too, because "try to improve it" alone does not say what the
+    disagreement is for and he asked for the full sentence.
     """
     teaser = cards.BILLBOARD_TEASER
     assert cards.SITE_DOMAIN in teaser
     assert "—" not in teaser
     assert "·" not in teaser
+    assert "If you don't agree, try to improve it." in teaser
     for name, svg in _billboards(_projection_document()):
         drawn = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
-        assert teaser in drawn, name
+        # Compared through the module's own escaper: the apostrophe in "don't"
+        # reaches the file as `&apos;`, and asserting on the raw string would be
+        # asserting that the card is invalid XML.
+        assert cards._esc(teaser) in drawn, name
+
+
+def test_the_clarity_line_prints_real_counts_from_the_pinned_file() -> None:
+    """No placeholder ships. The counts come from `data/corpus-counts.json`.
+
+    The owner's instruction with this line was to pull the true numbers out of
+    the pipeline, so the test asserts the drawn sentence contains the pin's
+    figures formatted with separators, and that no `N` or `{}` survived the
+    template.
+    """
+    counts = cards.corpus_counts()
+    for key in ("games", "plays", "simulated_seasons"):
+        assert int(counts[key]) > 0, key
+    expected = [f"{int(counts[key]):,}" for key in ("games", "plays", "simulated_seasons")]
+
+    for name, svg in _billboards(_projection_document()):
+        drawn = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
+        for figure in expected:
+            assert figure in drawn, (name, figure)
+        assert "{" not in drawn and "}" not in drawn, name
+        assert " N " not in drawn, name
+    # And the sentence itself obeys the same hard rules as the tagline.
+    assert "—" not in cards.BILLBOARD_CLARITY
+    assert "·" not in cards.BILLBOARD_CLARITY
+
+
+def test_a_billboard_refuses_to_draw_without_its_counts(tmp_path: Path) -> None:
+    """A card with a hole where a number goes is the thing this must never be."""
+    with pytest.raises(FileNotFoundError, match="count_corpus"):
+        cards.corpus_counts(tmp_path / "nope.json")
+    blank = tmp_path / "blank.json"
+    blank.write_text(json.dumps({"games": 0, "plays": 0, "simulated_seasons": 0}))
+    with pytest.raises(ValueError, match="blank count"):
+        cards.corpus_counts(blank)
+
+
+def test_the_billboard_number_falls_with_the_rank() -> None:
+    """THE FIX THE OWNER CAUGHT: 8.8 wins above 9.0 wins reads as broken data.
+
+    The projection is ordered on power, so power is the only published figure
+    that a reader can scan down the column and see agree with the rank. This
+    reads the numerals off the drawn card rather than trusting the field, and it
+    runs over the whole 138-row board rather than the top five, because the
+    single-team template draws from all of it.
+    """
+    document = _projection_document(rows=138)
+    values = [float(row["projected_power"]) for row in document["rows"]]  # type: ignore[index]
+    assert values == sorted(values, reverse=True)
+
+    svg = cards.billboard_top5_svg(document)
+    drawn = re.findall(r"<text[^>]*>(-?\d+\.\d+) power</text>", svg)
+    assert len(drawn) == 5
+    assert [float(v) for v in drawn] == sorted((float(v) for v in drawn), reverse=True)
+    # The win total is off this family entirely, so the two cannot disagree.
+    assert "wins" not in svg
+
+
+def test_the_billboard_carries_no_constants_footer() -> None:
+    """A REVERSAL OF A STANDING RULE, ENFORCED SO IT CANNOT DRIFT BACK.
+
+    `AGENTS.md` says the constants footer is never dropped for space, and it is
+    still on every other card. The owner struck it from this family on
+    2026-08-18: "No stat nerd shit. Just the taglines." So no run id, no config
+    hash, no recipe version, no backtest line, and no mono type at all.
+
+    CFBD's attribution stays, and that is deliberate rather than an incomplete
+    edit: it is an attribution commitment this project makes on every published
+    surface, not a constant.
+    """
+    document = _projection_document()
+    for name, svg in _billboards(document):
+        assert "recipe projection-" not in svg, name
+        assert "past preseasons" not in svg, name
+        assert "grades this from week" not in svg, name
+        assert cards.FONT_MONO not in svg, name
+        assert cards.DATA_CREDIT in svg, name
+    # The variants built to be READ are untouched by the ruling.
+    kept = cards.projection_top5_svg(document)
+    assert "recipe projection-" in kept and cards.FONT_MONO in kept
 
 
 def test_the_billboard_says_which_document_it_is_drawing() -> None:
@@ -934,7 +1024,7 @@ def test_the_single_team_billboard_labels_its_giant_numeral() -> None:
     context, and a billboard has no other kind of reader."""
     svg = cards.billboard_team_svg(_projection_document(), "Team 3")
     assert "PROJECTED RANK" in svg
-    assert "11.6 projected wins" in svg
+    assert "24.2 projected power rating" in svg
     assert f'font-size="{cards._n(cards.BILLBOARD_TEAM_RANK_SIZE)}"' in svg
 
 

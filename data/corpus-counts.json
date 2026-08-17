@@ -1,0 +1,30 @@
+{
+  "games": 8117,
+  "games_by_season": {
+    "2021": 1564,
+    "2022": 1594,
+    "2023": 1603,
+    "2024": 1669,
+    "2025": 1687
+  },
+  "games_universe": "model",
+  "note": "What the model read, counted through the pipeline's own loaders. Regenerate with `uv run python scripts/count_corpus.py` after an archive sync. Surfaces print these; nothing types them by hand.",
+  "plays": 1235232,
+  "plays_by_season": {
+    "2021": 158634,
+    "2022": 252307,
+    "2023": 254090,
+    "2024": 277001,
+    "2025": 293200
+  },
+  "schema_version": 1,
+  "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "simulated_seasons": 1000,
+  "simulated_seasons_source": "configs/default.toml [bootstrap] draws"
+}

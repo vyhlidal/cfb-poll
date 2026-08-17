@@ -1026,10 +1026,19 @@ which is what step 1 above is for.
 
 The cards carry the schools' real marks from a pinned local cache, embedded as
 `data:` URIs so a card never renders as a blank square when someone reposts it.
-The constants footer is on every card and is never dropped for space. That footer
-is the signature: no other poll's share image publishes the numbers that produced
-it, and if this fork is going to argue with the published poll in public, it
-should argue with its own constants visible.
+The constants footer is on every card built to be read and is never dropped for
+space. That footer is the signature: no other poll's share image publishes the
+numbers that produced it, and if this fork is going to argue with the published
+poll in public, it should argue with its own constants visible.
+
+**The one exception is the `billboard_*` family, and it is a ruling rather than
+an oversight.** Those cards are aimed at somebody who has never heard of this
+project and are read at thumbnail size in a feed, and the owner struck the
+provenance off them on 2026-08-18: "No stat nerd shit. Just the taglines." They
+carry the taglines, CFBD's attribution and nothing else, and the receipts stay one
+tap away on the site the tagline names. Every other variant is unchanged. If you
+are adding a card, the footer is the default and leaving it off needs a reason
+this specific.
 
 `cards.SITE_DOMAIN` is the address drawn in the footer, and in this fork it still
 says `thepoll.ai`. If they are publishing their own board somewhere else, change

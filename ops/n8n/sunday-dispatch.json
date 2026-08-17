@@ -1,8 +1,8 @@
 {
-  "name": "cfb-poll - Sunday dispatch (06:00 ET)",
+  "name": "cfb-poll - weekly dispatch (Tuesday 06:00 PT)",
   "active": false,
   "settings": {
-    "timezone": "America/New_York",
+    "timezone": "America/Los_Angeles",
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "saveDataSuccessExecution": "all",
@@ -11,17 +11,17 @@
   "nodes": [
     {
       "id": "a1c0f2e4-0001-4a10-9f00-000000000001",
-      "name": "Sunday 06:00 America/New_York",
+      "name": "Tuesday 06:00 America/Los_Angeles",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-160, 0],
-      "notes": "THE CLOCK. The cron is plain (0 6 * * 0 = Sunday 06:00) and the timezone comes from the workflow settings above, which are set to America/New_York. Do not put a UTC offset in the expression: DST would silently move the poll by an hour twice a season, in the middle of it.",
+      "notes": "THE CLOCK. The cron is plain (0 6 * * 2 = Tuesday 06:00) and the timezone comes from the workflow settings above, which are set to America/Los_Angeles. Do not put a UTC offset in the expression: DST would silently move the poll by an hour twice a season, in the middle of it. WHY TUESDAY AND NOT SUNDAY: the 2026 FBS schedule has week 1 finishing on Labor Day MONDAY (SMU at Florida State, 16:30 PT, 2026-09-07), and every other week finishing with a Hawai'i nightcap that kicks 20:59 PT and ends after midnight. Tuesday 06:00 PT is the earliest weekly slot at a sane hour that clears every one of them, and it still lands ten hours before the earliest game of the next week (Tuesday MACtion, 16:00 PT).",
       "parameters": {
         "rule": {
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 6 * * 0"
+              "expression": "0 6 * * 2"
             }
           ]
         }
@@ -72,7 +72,7 @@
     }
   ],
   "connections": {
-    "Sunday 06:00 America/New_York": {
+    "Tuesday 06:00 America/Los_Angeles": {
       "main": [
         [
           {
@@ -87,6 +87,6 @@
   "pinData": {},
   "meta": {
     "instanceId": "cfb-poll",
-    "description": "THE PRIMARY CLOCK for the Sunday poll (ADR 0002). Two nodes, no daemon, no port, no TLS, no database. Import, attach the credential, do NOT activate until ops/arming.toml has `n8n = true` on main - the GitHub side no-ops until then, so activating early costs a wasted dispatch rather than a bad publication, but there is no reason to spend it. Runbook: docs/runbooks/sunday-automation.md"
+    "description": "THE PRIMARY CLOCK for the weekly poll (ADR 0002, moved to Tuesday 06:00 America/Los_Angeles on 2026-08-17). Two nodes, no daemon, no port, no TLS, no database. Import, attach the credential, do NOT activate until ops/arming.toml has `n8n = true` on main - the GitHub side no-ops until then, so activating early costs a wasted dispatch rather than a bad publication, but there is no reason to spend it. Runbook: docs/runbooks/sunday-automation.md"
   }
 }

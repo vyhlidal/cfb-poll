@@ -217,13 +217,39 @@ def test_the_runner_sets_single_threaded_blas_itself():
 
 
 @pytest.mark.parametrize("path", N8N, ids=lambda p: p.name)
-def test_n8n_workflows_are_shipped_inactive_and_in_eastern_time(path: Path):
+def test_n8n_workflows_are_shipped_inactive_and_in_pacific_time(path: Path):
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["active"] is False, "an imported workflow must not start itself"
-    assert payload["settings"]["timezone"] == "America/New_York", (
+    assert payload["settings"]["timezone"] == "America/Los_Angeles", (
         "the cron expressions are bare local times; the workflow timezone is what "
-        "makes them Eastern, and it is what survives daylight saving"
+        "makes them Pacific, and it is what survives daylight saving"
     )
+
+
+@pytest.mark.parametrize("path", N8N, ids=lambda p: p.name)
+def test_every_n8n_clock_fires_on_tuesday(path: Path):
+    """THE DEFECT THIS EXISTS TO CATCH is the one John caught by hand.
+
+    Week 1 of the 2026 FBS season does not end until SMU finishes at Florida
+    State on Labor Day MONDAY, and most other weeks do not end until a Hawai'i
+    nightcap that kicks 20:59 PT. A Sunday clock published a week before the
+    week was over, silently, and the guard then marked it published. The day of
+    week is the whole fix, so it is pinned rather than left to a comment.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    crons = [
+        interval["expression"]
+        for node in payload["nodes"]
+        if node["type"] == "n8n-nodes-base.scheduleTrigger"
+        for interval in node["parameters"]["rule"]["interval"]
+        if interval.get("field") == "cronExpression"
+    ]
+    assert crons, f"{path.name} has no schedule trigger with a cron expression"
+    for expression in crons:
+        assert expression.split()[-1] == "2", (
+            f"{path.name}: {expression!r} does not fire on Tuesday (day-of-week 2). "
+            "See docs/runbooks/sunday-automation.md for the schedule evidence."
+        )
 
 
 @pytest.mark.parametrize("path", N8N, ids=lambda p: p.name)
@@ -261,6 +287,21 @@ def test_the_timer_does_not_catch_up_a_missed_run():
     """`Persistent=true` would republish at 03:00 on a Wednesday after a reboot,
     which is the launchd failure mode ADR 0002 rejected the Mac for."""
     assert "Persistent=false" in TIMER.read_text(encoding="utf-8")
+
+
+def test_the_timer_fires_on_tuesday_in_pacific_time():
+    """Same defect as the n8n clocks, on the other host. The timezone suffix is
+    the point: a hardcoded UTC hour is an hour wrong for half of every season."""
+    assert "OnCalendar=Tue *-*-* 08:30:00 America/Los_Angeles" in TIMER.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_the_github_third_string_fires_on_tuesday():
+    """GitHub cron is UTC and has no timezone field, so the day of week is the
+    only thing pinnable here. 11:43 UTC is 04:43 PDT, deliberately early."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'cron: "43 11 * 8-12,1 TUE"' in text
 
 
 def test_the_service_reads_its_secrets_from_a_file_and_holds_none():

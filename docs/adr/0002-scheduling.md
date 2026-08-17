@@ -16,6 +16,40 @@
 - **Dead-man's-switch:** if no published row exists for the current week by
   14:00 ET Sunday, alert.
 
+> **Amendment, 2026-08-17: the day and the timezone are wrong, and are now
+> Tuesday and `America/Los_Angeles`.** The four times above are left as written,
+> because this project does not tidy up its own record, and every one of them has
+> moved. The shape of the design — two hosts, one guarded idempotent job, a
+> primary, a fallback two and a half hours later, a deliberately early third
+> string, and a dead-man's switch eight hours after the primary — is unchanged.
+> Only the wall clock moved:
+>
+> | | was | is |
+> |---|---|---|
+> | primary (n8n) | Sun 06:00 ET | **Tue 06:00 America/Los_Angeles** |
+> | fallback (systemd) | Sun 08:30 ET | **Tue 08:30 America/Los_Angeles** |
+> | third string (GitHub) | `43 8 * 8-12,1 SUN` | **`43 11 * 8-12,1 TUE`** |
+> | dead-man's switch | Sun 14:00 ET | **Tue 14:00 America/Los_Angeles** |
+>
+> **Why.** The Sunday clock was never safe. Read against the real 2026 FBS
+> schedule, week 1 does not finish until SMU plays at Florida State on Labor Day
+> Monday, 2026-09-07, and most other weeks do not finish until a Hawai'i nightcap
+> that kicks 20:59 PT and ends after midnight. A Sunday 06:00 publication would
+> have shipped week 1 two days early, and the failure would have been silent: the
+> guard would then have recorded the week as published and refused to correct it.
+> Tuesday 06:00 PT is the earliest weekly slot at a sane hour that clears every
+> week's final game, and it still lands ten hours before the earliest game of the
+> following week (Tuesday MACtion, 16:00 PT).
+>
+> **What it costs.** About 53 hours of staleness on a typical week, against 29
+> for the Monday slot that Labor Day rules out. The cheaper slot becomes
+> available the day `cfbpoll guard` learns to ask whether a week's slate is
+> complete; it does not ask that today. The per-week evidence table is in
+> [`docs/runbooks/sunday-automation.md`](../runbooks/sunday-automation.md).
+>
+> **And every time in this project is Pacific now.** John lives in PT and ruled
+> that the project stops carrying two clocks in its head.
+
 Two independent hosts, one guarded idempotent job, and a check that fires when
 *neither* worked. The recurring lesson of report 01 is that the dangerous failure
 is the silent one; this design makes silence itself the alert.

@@ -14,7 +14,7 @@
 #   2. the guard resolves a week, and that week is not already published, and
 #   3. PUBLISH=true is passed in.
 # Any one of them false and this exits 0 having written nothing. Exit 0 is
-# correct: "there was nothing to do" is the expected outcome on most Sundays,
+# correct: "there was nothing to do" is the expected outcome on most Tuesdays,
 # and a job that goes red for it is a job somebody mutes.
 #
 # ENVIRONMENT, all optional, all with defaults:
@@ -117,7 +117,7 @@ step() {
   local verb="$1"; shift
   if stubbed "$verb"; then
     note "SKIPPED: \`cfbpoll $verb\` is still a stub (cli._stub). See \`cfbpoll preflight\`."
-    printf '::warning title=stubbed verb::cfbpoll %s is not implemented; the Sunday job skipped it\n' \
+    printf '::warning title=stubbed verb::cfbpoll %s is not implemented; the weekly job skipped it\n' \
       "$verb"
     return 0
   fi
@@ -195,7 +195,7 @@ SEASON_TYPE="$(read_guard season_type)"
 if [ "$SHOULD_RUN" != "true" ]; then
   say "Nothing to do. Exiting 0."
   note "The guard's reasons are printed above. This is the normal outcome for two"
-  note "of the three clocks on any Sunday where the first one worked."
+  note "of the three clocks on any Tuesday where the first one worked."
   exit 0
 fi
 
@@ -204,7 +204,7 @@ say "Season $SEASON, week $WEEK ($SEASON_TYPE)"
 # A KNOWN LIMIT, NAMED RATHER THAN PAPERED OVER. The guard resolves the season
 # TYPE from /calendar and `cfbpoll validate` takes it, but `cfbpoll rank` has no
 # --season-type option: it takes --through-week and nothing else. So a
-# postseason Sunday ranks through regular week N, which is the behaviour the
+# postseason Tuesday ranks through regular week N, which is the behaviour the
 # rank verb has always had. If the postseason needs its own board, that is a
 # change to `rank`, not something this runner can paper over with a flag that
 # does not exist.

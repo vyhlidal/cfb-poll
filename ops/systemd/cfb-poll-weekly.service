@@ -1,4 +1,4 @@
-# ADR 0002's FALLBACK: the identical Sunday job on the Hostinger VPS.
+# ADR 0002's FALLBACK: the identical weekly job on the Hostinger VPS.
 #
 # DELIVERED, NOT INSTALLED. Nothing on the VPS has been touched. The install
 # procedure is docs/runbooks/vps-fallback-install.md and it is a human's job.
@@ -10,7 +10,7 @@
 # the job itself lives in the repository.
 #
 # It exits 0 immediately when the week is already published, because the first
-# thing weekly.sh does is ask `cfbpoll guard`. On a Sunday where the 06:00 ET
+# thing weekly.sh does is ask `cfbpoll guard`. On a Tuesday where the 06:00 PT
 # n8n dispatch worked, this unit costs about forty seconds and writes nothing.
 
 [Unit]
@@ -41,8 +41,8 @@ Environment=UV_CACHE_DIR=/var/lib/cfb-poll/uv-cache
 ExecStart=/opt/cfb-poll/ops/bin/weekly.sh
 
 # A full week takes minutes. An hour is a ceiling, not a target, and a job still
-# running at 09:30 ET is a job that has gone wrong and should be killed before
-# the dead-man's switch fires at 14:00 and tells a human a half-truth.
+# running at 09:30 PT is a job that has gone wrong and should be killed before
+# the dead-man's switch fires at 14:00 PT and tells a human a half-truth.
 TimeoutStartSec=3600
 
 # The VPS also runs n8n, which is the PRIMARY clock for this same poll. A fit

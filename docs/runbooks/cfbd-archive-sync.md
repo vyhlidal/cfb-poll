@@ -3,7 +3,7 @@
 **Why this exists.** John ruled on 2026-08-17 that the private CFBD raw archive
 gets no Cloudflare R2 bucket ([ADR 0015](../adr/0015-cfbd-archive-no-r2.md)). Its
 durability is therefore two machines instead of an object store: the Hostinger
-VPS writes it every Sunday, and this Mac holds the second copy. This is how the
+VPS writes it every Tuesday, and this Mac holds the second copy. This is how the
 second copy gets made.
 
 **It is a runbook and not a daemon, deliberately.** Nothing is installed, nothing
@@ -61,8 +61,8 @@ A healthy run ends like this:
   56 files verified across 11 buckets under /Users/…/cfb-poll/archive/cfbd
 ```
 
-**When to run it.** After any Sunday the job pulled from CFBD, which in season is
-every Sunday. The archive is append-only, so a late sync loses nothing except the
+**When to run it.** After any Tuesday the job pulled from CFBD, which in season
+is every Tuesday. The archive is append-only, so a late sync loses nothing except the
 window in which only one copy existed.
 
 ## What the flags mean, and why they are not negotiable

@@ -371,8 +371,10 @@ configs/
   recipes/            the three published value systems
   challengers/        outside entries. This is where a new idea goes
 ops/                  THE SUNDAY AUTOMATION, delivered and armed nowhere
-  arming.toml         the safety catch. Three triggers, all committed `false`
+  arming.toml         the safety catch. Three clocks and one step, all `false`
   bin/weekly.sh       THE job. GitHub Actions and the VPS timer both run this file
+  bin/deliver-fixtures.sh   pushes the week to the site repo. ARMING THIS DEPLOYS
+                      thepoll.ai, which is why it has its own switch
   bin/pull-cfbd-archive.sh  the Mac's copy of the private archive (ADR 0015)
   n8n/                the clock and the dead-man's switch, ready to import
   systemd/            the VPS fallback unit and timer, ready to install
@@ -876,13 +878,21 @@ make weekly-dry-run # the whole job, printed, executing nothing
 ```
 
 **If somebody asks "does the poll publish itself yet?", the answer is no and
-`make guard` proves it.** The clock, the fallback and the dead-man's switch are
-all built and none is armed: the n8n workflows in `ops/n8n/` are not imported,
-the systemd units in `ops/systemd/` are not installed, and
-[`ops/arming.toml`](ops/arming.toml) says `false` three times. `make preflight`
-names the two verbs (`validate`, `publish release`) that still have to be real
-before a publication can complete at all. The whole procedure, including the
-one credential a human has to create, is
+`make guard` proves it.** The clock, the fallback, the dead-man's switch and the
+delivery to the website are all built and none is armed: the n8n workflows in
+`ops/n8n/` are not imported, the systemd units in `ops/systemd/` are not
+installed, and [`ops/arming.toml`](ops/arming.toml) says `false` four times.
+`make preflight` names any verb that still has to be real before a publication
+can complete at all.
+
+**`[steps] delivery` is the one to be careful with.** The other three switches
+decide whether a board gets computed. That one pushes the published tree into the
+site repository, which auto-deploys, so arming it is arming a live website with
+no staging step in between. It is a separate table from the clocks for that
+reason, and unlike them it has no human exemption: a person clicking "Run
+workflow" does not deploy the site either.
+
+The whole procedure, including the two credentials a human has to create, is
 [`docs/runbooks/sunday-automation.md`](docs/runbooks/sunday-automation.md).
 
 Run the CLI through `uv run cfbpoll ...`. That is what the make targets do and it

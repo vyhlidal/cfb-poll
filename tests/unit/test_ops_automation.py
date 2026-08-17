@@ -267,3 +267,203 @@ def test_the_service_reads_its_secrets_from_a_file_and_holds_none():
     text = UNIT.read_text(encoding="utf-8")
     assert "EnvironmentFile=-/etc/cfb-poll/weekly.env" in text
     assert "CFBD_API_KEY=" not in text
+
+
+# ------------------------------------------------------------------- delivery
+
+DELIVER = REPO_ROOT / "ops" / "bin" / "deliver-fixtures.sh"
+
+
+def test_the_delivery_script_exists_and_is_executable():
+    assert DELIVER.exists()
+    assert DELIVER.stat().st_mode & 0o111
+
+
+def test_delivery_is_disarmed_in_the_committed_switch():
+    """The one `true` in this repository that would deploy a public website."""
+    from cfbpoll.ops import guard
+
+    assert guard.load_arming(guard.ARMING_PATH).allows_step("delivery") is False
+
+
+def test_a_disarmed_delivery_prints_no_path_and_exits_zero(tmp_path):
+    """weekly.sh reads `prepare`'s stdout as a directory. Disarmed, it must be
+    empty, so the caller falls back to its own FIXTURES rather than publishing
+    into a path named after a log line."""
+    proc = subprocess.run(
+        ["bash", str(DELIVER), "prepare"],
+        env={**os.environ, "SANDBOX_CONTENTS_PAT": "unused", "DELIVERY_CLONE": str(tmp_path / "c")},
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0
+    assert proc.stdout.strip() == ""
+    assert "DISARMED" in proc.stderr
+
+
+def test_a_missing_credential_skips_rather_than_fails(tmp_path):
+    """Same posture DATABASE_URL gets: a fork runs the whole job and delivers
+    nothing, instead of failing at the last step."""
+    env = {k: v for k, v in os.environ.items() if k != "SANDBOX_CONTENTS_PAT"}
+    arming = tmp_path / "arming.toml"
+    arming.write_text("[steps]\ndelivery = true\n")
+    proc = subprocess.run(
+        ["bash", str(DELIVER), "prepare"],
+        env={**env, "ARMING_FILE": str(arming), "DELIVERY_CLONE": str(tmp_path / "c")},
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0
+    assert proc.stdout.strip() == ""
+    assert "SANDBOX_CONTENTS_PAT is not set" in proc.stderr
+
+
+def test_the_delivery_script_never_sweeps_the_site_repo_or_embeds_a_token():
+    text = DELIVER.read_text(encoding="utf-8")
+    # Comments are stripped first: the script explains WHY it does not sweep the
+    # site repo, and the explanation naturally contains the thing it refuses.
+    code = "\n".join(
+        line for line in text.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "git add -A" not in code and "add --all" not in code, (
+        "the site repo is somebody else's working tree; stage by explicit pathspec"
+    )
+    # A tokenised remote URL persists in .git/config. GIT_ASKPASS does not.
+    assert "GIT_ASKPASS" in text
+    assert "@github.com" not in text, "no credential-in-URL remote"
+    assert "GIT_TERMINAL_PROMPT=0" in text, "must never hang waiting for a human"
+
+
+def _stand_in_remote(tmp_path: Path) -> Path:
+    """A bare repo with a fixture tree in it, standing in for vyhlidal/sandbox."""
+    remote = tmp_path / "sandbox.git"
+    seed = tmp_path / "seed"
+    subprocess.run(["git", "init", "--quiet", "--bare", str(remote)], check=True)
+    subprocess.run(["git", "clone", "--quiet", str(remote), str(seed)], check=True)
+    data = seed / "cfb-poll-data" / "2023"
+    data.mkdir(parents=True)
+    (data / "week-05.json").write_text('{"season": 2023, "week": 5}\n')
+    (seed / "cfb-poll-data" / "index.json").write_text('{"seasons": [{"season": 2023}]}\n')
+    git = ["git", "-C", str(seed), "-c", "user.email=a@b", "-c", "user.name=seed"]
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "--quiet", "-m", "the site"], check=True)
+    subprocess.run(["git", "-C", str(seed), "branch", "-M", "main"], check=True)
+    subprocess.run(["git", "-C", str(seed), "push", "--quiet", "origin", "main"], check=True)
+    return remote
+
+
+def _deliver_env(tmp_path: Path, remote: Path) -> dict[str, str]:
+    arming = tmp_path / "arming.toml"
+    arming.write_text("[steps]\ndelivery = true\n")
+    return {
+        **os.environ,
+        "ARMING_FILE": str(arming),
+        "SANDBOX_REMOTE": str(remote),
+        "SANDBOX_CONTENTS_PAT": "local-stand-in-no-auth-needed",
+        "DELIVERY_CLONE": str(tmp_path / "clone"),
+        "SEASON": "2023",
+        "WEEK": "6",
+        "SEASON_TYPE": "regular",
+        "GITHUB_SHA": "0123456789abcdef0123456789abcdef01234567",
+        "GITHUB_SERVER_URL": "https://github.com",
+        "GITHUB_REPOSITORY": "vyhlidal/cfb-poll",
+        "GITHUB_RUN_ID": "424242",
+    }
+
+
+def _head(remote: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(remote), "rev-parse", "main"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+
+def test_delivery_carries_provenance_and_is_idempotent(tmp_path):
+    """The two properties the site's history depends on, end to end.
+
+    A stand-in remote rather than a mock, because the failure modes that matter
+    here are git's: what gets staged, whether an unchanged tree still produces a
+    commit, and whether a second run leaves a trace.
+    """
+    remote = _stand_in_remote(tmp_path)
+    env = _deliver_env(tmp_path, remote)
+    before = _head(remote)
+
+    prepare = subprocess.run(
+        ["bash", str(DELIVER), "prepare"], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert prepare.returncode == 0, prepare.stderr
+    target = Path(prepare.stdout.strip())
+    assert target.is_dir()
+    # The clone carries the season already on the site: this is what stops
+    # `publish fixtures` rebuilding an index that names one week.
+    assert (target / "2023" / "week-05.json").exists()
+
+    # Cloning and writing locally must not move the remote.
+    assert _head(remote) == before, "prepare touched the remote"
+
+    (target / "2023" / "week-06.json").write_text('{"season": 2023, "week": 6}\n')
+
+    push = subprocess.run(
+        ["bash", str(DELIVER), "push"], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert push.returncode == 0, push.stderr
+    after = _head(remote)
+    assert after != before, "the week was never delivered"
+
+    message = subprocess.run(
+        ["git", "-C", str(remote), "log", "-1", "--format=%B", "main"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert "2023" in message and "week 06" in message, "the week is not named"
+    assert env["GITHUB_SHA"] in message, "the model sha is not named"
+    assert f"actions/runs/{env['GITHUB_RUN_ID']}" in message, "the run URL is not named"
+
+    # Re-deliver the identical tree: no commit, no push, no trace.
+    subprocess.run(["rm", "-rf", env["DELIVERY_CLONE"]], check=True)
+    again = subprocess.run(
+        ["bash", str(DELIVER), "prepare"], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert again.returncode == 0, again.stderr
+    repeat = subprocess.run(
+        ["bash", str(DELIVER), "push"], env=env, capture_output=True, text=True, timeout=300
+    )
+    assert repeat.returncode == 0, repeat.stderr
+    assert _head(remote) == after, "a re-run added an empty commit to the site's history"
+    assert "nothing to push" in repeat.stderr
+
+
+def test_the_site_pat_is_scoped_to_the_delivery_steps_only():
+    """The compute step runs the model and every wheel in uv.lock. It has no
+    business holding a credential that can write to the website.
+
+    Text rather than a YAML parse, because pyyaml is not a dependency of this
+    project and adding one so a test can read a file the rest of the suite reads
+    as text would be a poor trade. Steps begin at a known indent, which is
+    enough to attribute an `env:` entry to the step that owns it.
+    """
+    text = WORKFLOW.read_text(encoding="utf-8")
+    head, _, body = text.partition("\n    steps:\n")
+    assert body, "could not find the job's steps block"
+    assert "SANDBOX_CONTENTS_PAT" not in head, "the PAT must not be job-wide env"
+
+    blocks = body.split("\n      - ")
+    holders = []
+    for block in blocks:
+        if "SANDBOX_CONTENTS_PAT" not in block:
+            continue
+        first = block.strip().splitlines()[0]
+        holders.append(first)
+    assert holders, "no step can deliver"
+    for first in holders:
+        assert "Delivery" in first, f"a non-delivery step holds the site PAT: {first}"
+
+    assert text.index("name: Run the weekly job") < text.index(
+        "name: Delivery - push to the site repo"
+    ), "the push must come after the job that runs the gate"

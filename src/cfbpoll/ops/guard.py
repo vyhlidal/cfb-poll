@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -40,6 +40,7 @@ from cfbpoll.config import REPO_ROOT
 
 __all__ = [
     "ARMING_PATH",
+    "STEPS",
     "TRIGGERS",
     "Arming",
     "Decision",
@@ -59,6 +60,16 @@ TRIGGERS: tuple[str, ...] = ("manual", "n8n", "schedule", "vps_timer")
 
 #: A clock trigger with no line in `ops/arming.toml` is refused. Absent means no.
 HUMAN_TRIGGER = "manual"
+
+#: Steps inside the job that write somewhere OUTSIDE this repository, and so get
+#: their own switch rather than riding on whichever clock happened to fire.
+#:
+#: `delivery` pushes the published fixture tree into the site repository, which
+#: auto-deploys thepoll.ai. That is a different kind of act from "rank a week
+#: into out/", and a human arming the Sunday clock has not thereby agreed to let
+#: a runner write to a second repository. Kept out of TRIGGERS deliberately:
+#: TRIGGERS answers "who is asking", and `--trigger delivery` would be nonsense.
+STEPS: tuple[str, ...] = ("delivery",)
 
 
 class GuardError(RuntimeError):
@@ -80,6 +91,7 @@ class Arming:
     path: Path
     present: bool
     triggers: dict[str, bool]
+    steps: dict[str, bool] = field(default_factory=dict)
 
     def allows(self, trigger: str) -> bool:
         if trigger == HUMAN_TRIGGER:
@@ -99,26 +111,62 @@ class Arming:
         state = "armed" if self.triggers[trigger] else "DISARMED"
         return f"[triggers] {trigger} = {str(self.triggers[trigger]).lower()} ({state})"
 
+    def allows_step(self, step: str) -> bool:
+        """Is a step that writes outside this repository armed?
+
+        NOTE THE MISSING SPECIAL CASE. `allows` waves a human through, because a
+        person clicking Run is not a clock. There is no equivalent here on
+        purpose: `delivery` pushes to the site repository and deploys the public
+        site, and "a human started the run" is not consent to publish. A manual
+        rehearsal with delivery disarmed is the whole point of being able to
+        rehearse.
+        """
+        if step not in STEPS:
+            raise GuardError(f"unknown step {step!r}. Known: {list(STEPS)}")
+        return bool(self.steps.get(step, False))
+
+    def step_reason(self, step: str) -> str:
+        if not self.present:
+            return f"{self.path} does not exist, so no step is armed"
+        if step not in self.steps:
+            return (
+                f"[steps] in {self.path} has no `{step}` line; an absent step is "
+                "a disarmed step"
+            )
+        state = "armed" if self.steps[step] else "DISARMED"
+        return f"[steps] {step} = {str(self.steps[step]).lower()} ({state})"
+
+
+def _table(
+    payload: dict[str, Any], name: str, known: tuple[str, ...], path: Path
+) -> dict[str, bool]:
+    raw = payload.get(name) or {}
+    if not isinstance(raw, dict):
+        raise GuardError(f"{path}: [{name}] must be a table, got {type(raw).__name__}")
+    parsed = {str(k): bool(v) for k, v in raw.items()}
+    unknown = sorted(set(parsed) - set(known))
+    if unknown:
+        raise GuardError(
+            f"{path}: unknown {name[:-1]}(s) {unknown}. Known: {list(known)}. "
+            "A misspelled name would read as disarmed forever, which is a switch "
+            "that silently does nothing."
+        )
+    return parsed
+
 
 def load_arming(path: str | Path | None = None) -> Arming:
     """Read the arming switch. Anything unreadable disarms everything."""
     p = Path(path) if path is not None else ARMING_PATH
     if not p.exists():
-        return Arming(path=p, present=False, triggers={})
+        return Arming(path=p, present=False, triggers={}, steps={})
     with p.open("rb") as fh:
         payload = tomllib.load(fh)
-    raw = payload.get("triggers") or {}
-    if not isinstance(raw, dict):
-        raise GuardError(f"{p}: [triggers] must be a table, got {type(raw).__name__}")
-    triggers = {str(k): bool(v) for k, v in raw.items()}
-    unknown = sorted(set(triggers) - set(TRIGGERS))
-    if unknown:
-        raise GuardError(
-            f"{p}: unknown trigger(s) {unknown}. Known triggers: {list(TRIGGERS)}. "
-            "A misspelled trigger name would read as disarmed forever, which is a "
-            "switch that silently does nothing."
-        )
-    return Arming(path=p, present=True, triggers=triggers)
+    return Arming(
+        path=p,
+        present=True,
+        triggers=_table(payload, "triggers", TRIGGERS, p),
+        steps=_table(payload, "steps", STEPS, p),
+    )
 
 
 # ---------------------------------------------------------------- the calendar

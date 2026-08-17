@@ -1927,6 +1927,103 @@ def publish_variants(
         )
 
 
+@publish_app.command("lever-grid")
+def publish_lever_grid(
+    out: Annotated[
+        Path, typer.Option(help="Destination tree. The published poll must already be in it.")
+    ] = Path("site/_data"),
+    from_: Annotated[
+        Path,
+        typer.Option("--from", help="Directory of runs for ONE cell, one subdirectory per week."),
+    ] = Path(".cache/lever-grid/runs"),
+    cell: Annotated[
+        str, typer.Option(help="Which grid cell these runs are, e.g. `c-32-bw-7-odds`.")
+    ] = "",
+    manifest: Annotated[
+        bool,
+        typer.Option(
+            "--manifest",
+            help="Write the manifest from what is on disk instead of publishing a cell.",
+        ),
+    ] = False,
+    season: Annotated[
+        int, typer.Option(help="Season, for --manifest only. Ignored otherwise.")
+    ] = 0,
+) -> None:
+    """Publish one LEVER GRID cell's weeks, or (with --manifest) the grid's index.
+
+    The grid is every combination of three published levers, precomputed, so a
+    reader can move them and see a real alternative poll instantly. The site does
+    not compute: every board here came out of this `cfbpoll rank`, which is what
+    keeps the comparison with the published poll checkable. Contract:
+    docs/fixture-contract-levers.md.
+
+    TWO MODES, AND THE MANIFEST IS THE SECOND ONE ON PURPOSE. A manifest is a
+    statement about the WHOLE grid, so writing it once per cell would produce
+    seventy-two manifests, seventy-one of which described a grid that was not
+    finished. `make lever-grid` publishes every cell and then writes the manifest
+    once, last, and `--manifest` refuses to write at all unless every cell carries
+    the week.
+
+    IT WRITES ONLY `<season>/lever-grid/`. No index is rebuilt, no divergence curve
+    is written and the published poll is not touched, so this composes with
+    `publish fixtures`, `publish variants` and `make recipe-fixtures`, and none of
+    them overwrites another's files. The house week must already be on disk: a cell
+    is defined as a difference from the house board and there is nothing to compare
+    against without one.
+    """
+    import json
+
+    from cfbpoll.publish import fixtures
+    from cfbpoll.publish import lever_grid as grid
+
+    if manifest:
+        if not season:
+            raise typer.BadParameter("--manifest needs --season. It writes one season's index.")
+        path = grid.write_manifest(out, season)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        typer.echo(
+            f"{path}  {path.stat().st_size:,d} B  "
+            f"{payload['n_cells']} cells x weeks {payload['weeks']}"
+        )
+        labelled = sum(1 for c in payload["cells"] if c["equivalent_to"])
+        typer.echo(
+            f"  {labelled} cells reproduce an already-published document "
+            f"(the poll, two recipes, eight playground variants)."
+        )
+        return
+
+    if not cell:
+        raise typer.BadParameter(
+            "--cell is required. A run directory does not say which combination "
+            "produced it in a form this command should trust, and filing a board "
+            "under the wrong cell would hand a reader a poll they did not ask for. "
+            f"There are {len(grid.CELLS)}; the published poll is "
+            f"{grid.published_cell().id!r}."
+        )
+    try:
+        chosen = grid.by_id(cell)
+    except KeyError as error:
+        raise typer.BadParameter(str(error)) from error
+
+    runs = fixtures.run_directories(from_)
+    settings = ", ".join(f"{k} = {v}" for k, v in chosen.published_settings.items())
+    typer.echo(
+        f"{len(runs)} run{'' if len(runs) == 1 else 's'} under {from_} for cell "
+        f"{chosen.id!r} ({settings})"
+    )
+    for run in runs:
+        path = grid.export(run, out, chosen)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        agree = payload["agreement"]
+        verdict = agree["verdict"] or f"{agree['n_knobs_moved']} knobs, no verdict"
+        typer.echo(
+            f"  {path.relative_to(out)}  {path.stat().st_size:>6,d} B  "
+            f"tau={agree['kendall_tau_vs_house']:.4f}  "
+            f"moved>=5: {agree['n_moved_5_or_more']:>3d}  {verdict.upper()}"
+        )
+
+
 # --------------------------------------------------------------------------- site
 
 

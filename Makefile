@@ -20,7 +20,7 @@ JOBS ?= 4
 .PHONY: help rankings archive archive-lock backtest cards demos fixtures \
         recipe-fixtures variants projection projection-audit projection-2025 \
         projection-chain projection-fixture projection-cards projection-all levers \
-        holdout-scorecard revision-numbers replay replay-tolerant grid \
+        lever-grid holdout-scorecard revision-numbers replay replay-tolerant grid \
         challenge site guard preflight weekly-dry-run test lint clean
 
 help:
@@ -37,6 +37,7 @@ help:
 	@echo "  make fixtures         rank every week of a season -> publish the JSON tree"
 	@echo "  make recipe-fixtures  the same weeks under each ALTERNATE LENS (ADR 0011)"
 	@echo "  make variants         eight one-knob variants -> thin ordering documents"
+	@echo "  make lever-grid       72 precomputed boards, one per lever combination"
 	@echo "  make demos            regenerate demo/ from the local archive"
 	@echo "  make projection       the 2026 Projection - a PREDICTION, never the poll"
 	@echo "  make projection-audit prove the Projection and the Poll stay separate"
@@ -71,6 +72,8 @@ help:
 	@echo "  fixtures:  FIXTURES=$(FIXTURES)   <- OUTSIDE this repo; always override"
 	@echo "             FIXTURE_SEASON=$(FIXTURE_SEASON)"
 	@echo "  variants:  VARIANT_SEASON=$(VARIANT_SEASON)"
+	@echo "  lever-grid: LEVER_SEASON=$(LEVER_SEASON)  LEVER_WEEKS=$(LEVER_WEEKS)"
+	@echo "             (72 fits per week, about an hour. Background it.)"
 
 # The only target that works today. `uv sync --locked` errors instead of
 # updating if uv.lock is stale, which is exactly what CI and a stranger both want.
@@ -302,6 +305,68 @@ variants: .venv archive
 	@echo "The playground is $(FIXTURES)/$(VARIANT_SEASON)/variants/<id>/. The published"
 	@echo "poll is untouched at $(FIXTURES)/$(VARIANT_SEASON)/week-NN.json, and so is"
 	@echo "index.json: a variant is not a recipe and never enters the roster."
+
+# Real, and it is the ONLY supported way to regenerate the LEVER GRID
+# (src/cfbpoll/publish/lever_grid.py, docs/fixture-contract-levers.md).
+#
+# WHAT IT MAKES. Every combination of three published levers - `margin.c` at six
+# detents, `margin.beta_w` at four, `[publication].headline_ordering` at all three
+# of its legal values - ranked for every week in LEVER_WEEKS and published as a
+# THIN ordering document at `<season>/lever-grid/<cell-id>/week-NN.json`, plus one
+# `manifest.json` naming every cell, its detents, its file, and which cell is the
+# published poll. Seventy-two boards, about 8 KB each.
+#
+# IT COSTS AN HOUR PER WEEK AND THAT IS THE NUMBER TO PLAN AROUND. One rank of
+# 2025 through week 16 was timed at 50.7s wall on the author's machine, so 72
+# cells is a little over an hour, serial. Background it. If it ever has to get
+# cheaper, cut DETENTS and not levers: dropping margin.c to {1, 18, 32, uncapped}
+# is 48 runs and still reproduces every shipped recipe and variant.
+#
+# IT DOES NOT REGENERATE THE PUBLISHED POLL AND IT DEPENDS ON IT, exactly as
+# `variants` does. A cell's agreement block is defined against the house board, so
+# `<season>/week-NN.json` must already be in FIXTURES or `publish lever-grid`
+# refuses rather than inventing a baseline. Like `recipe-fixtures` and `variants`
+# this writes only into its own subtree, so the four targets compose and none
+# overwrites another's files. `index.json` is untouched: a grid cell is not a
+# recipe and never enters the roster.
+#
+# THE MANIFEST IS WRITTEN ONCE, LAST. It is a statement about the whole grid, and
+# a manifest written per cell would be seventy-two manifests, seventy-one of which
+# described a grid that was not finished. It also refuses to name a week that not
+# every cell carries, so an interrupted run leaves no manifest that 404s.
+#
+# THE 2026 HOOK IS THESE TWO VARIABLES AND NOTHING ELSE. A weekly regeneration is
+# `make lever-grid LEVER_SEASON=2026 LEVER_WEEKS=8`; it writes a new week beside
+# the existing ones and rewrites the manifest with `weeks` extended. Nothing here
+# schedules it, on purpose.
+LEVER_SEASON  ?= 2025
+LEVER_WEEKS   ?= 16
+LEVER_RUNS    ?= .cache/lever-grid/runs
+LEVER_CONFIGS ?= .cache/lever-grid/overlays
+lever-grid: .venv archive
+	$(UV) run python -c "from pathlib import Path; from cfbpoll.publish import lever_grid; \
+	  print('overlays:', len(lever_grid.write_overlays(Path('$(LEVER_CONFIGS)'))))"
+	@for c in $$($(UV) run python -c "from cfbpoll.publish import lever_grid; \
+	  print(' '.join(x.id for x in lever_grid.CELLS))"); do \
+	  for w in $(LEVER_WEEKS); do \
+	    printf 'rank %s %s week %s\n' "$$c" "$(LEVER_SEASON)" "$$w"; \
+	    OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+	      $(UV) run cfbpoll rank --config $(CONFIG) --recipe $$c \
+	        --recipe-dir $(LEVER_CONFIGS) \
+	        --season $(LEVER_SEASON) --through-week $$w --seed $(SEED) \
+	        --draws $(DRAWS) --out $(LEVER_RUNS)/$$c/w$$(printf '%02d' $$w) \
+	        >/dev/null || exit 1; \
+	  done; \
+	  $(UV) run cfbpoll publish lever-grid --from $(LEVER_RUNS)/$$c --out $(FIXTURES) \
+	    --cell $$c || exit 1; \
+	done
+	$(UV) run cfbpoll publish lever-grid --manifest --out $(FIXTURES) \
+	  --season $(LEVER_SEASON)
+	$(UV) run python scripts/check_lever_grid.py --data $(FIXTURES) --season $(LEVER_SEASON)
+	@echo
+	@echo "The grid is $(FIXTURES)/$(LEVER_SEASON)/lever-grid/, indexed by its own"
+	@echo "manifest.json. The published poll is untouched at"
+	@echo "$(FIXTURES)/$(LEVER_SEASON)/week-NN.json, and so is index.json."
 
 # Real. The weekly share card. No headless browser: a Jinja-free SVG template
 # rendered by resvg, which is what keeps the Sunday job cheap (report 05 §6.1).

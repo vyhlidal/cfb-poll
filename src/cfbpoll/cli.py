@@ -2077,6 +2077,7 @@ def publish_cards(
         typer.Option(
             help="Card variant: connectivity, top5, top10, top25_x, top25_instagram, "
             "projection_top5, projection_top10, projection_top25, projection_grid, "
+            "billboard_top5, billboard_team, "
             "comparison, "
             "comparison_tall, comparison_square, disagreement."
         ),
@@ -2093,6 +2094,13 @@ def publish_cards(
         typer.Option(
             help="A comparison spec: the external boards, their ranks and the URL "
             "each was read from. Required by the comparison and disagreement variants."
+        ),
+    ] = None,
+    team: Annotated[
+        str | None,
+        typer.Option(
+            help="The school a single-team billboard is about, spelled as the "
+            "published board spells it. Required by billboard_team, refused by the rest."
         ),
     ] = None,
     backtest: Annotated[
@@ -2139,6 +2147,20 @@ def publish_cards(
             )
         written = cards.export_comparison(
             projection, compare, out, variant=variant, png=png, fetch_logos=fetch_logos
+        )
+    elif variant in cards.BILLBOARD_VARIANTS:
+        if projection is None:
+            raise typer.BadParameter(
+                f"{variant} draws the published projection document. Pass "
+                "--projection <data root>/<season>/projection.json."
+            )
+        if variant == "billboard_team" and not team:
+            raise typer.BadParameter(
+                "billboard_team draws one school. Pass --team 'Ohio State', spelled "
+                "as the published board spells it."
+            )
+        written = cards.export_billboard(
+            projection, out, variant=variant, team=team, png=png, fetch_logos=fetch_logos
         )
     elif variant in cards.PROJECTION_VARIANTS:
         if projection is None:

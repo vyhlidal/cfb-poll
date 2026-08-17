@@ -398,7 +398,11 @@ cfbpoll publish {release,postgres,fixtures,cards}
                                         `--variant projection_top5|projection_top10
                                         |projection_top25 --projection
                                         <season>/projection.json` renders the
-                                        Projection's cards instead
+                                        Projection's cards instead;
+                                        `--variant billboard_top5|billboard_team
+                                        [--team "Ohio State"]` renders the same
+                                        board at feed scale, huge ranks and logos
+                                        on a square canvas
 cfbpoll site build                      build the static site
 cfbpoll projection {ingest,build,audit,fixture}
                                         THE PROJECTION - a preseason ranking from

@@ -348,13 +348,18 @@ def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
     cache from it. A variant that drew more rows than it declared would render its
     last rows with the generated disc while their neighbours carried real marks,
     which is the kind of defect that only shows up in a published PNG.
+
+    ONE is a legal count and it arrived with the single-team billboard, which
+    draws exactly one school. `export_billboard` warms that row by name rather
+    than by depth, because the subject of a billboard is regularly outside the
+    top five.
     """
     assert set(cards.VARIANTS) == set(cards.BUILDERS)
     canvases = (cards.CARD_HEIGHT, cards.TALL_HEIGHT, cards.SQUARE_HEIGHT)
     for name, (_builder, width, height, rows) in cards.BUILDERS.items():
         assert width == cards.CARD_WIDTH, name
         assert height in canvases, name
-        assert rows in (0, 5, 10, 25, 138), name
+        assert rows in (0, 1, 5, 10, 25, 138), name
         assert (rows == 0) == (name == "connectivity"), name
 
 
@@ -416,6 +421,8 @@ def _every_offline_card() -> list[tuple[str, str]]:
     document = _projection_document()
     spec = _comparison_spec()
     out = [(name, cards.BUILDERS[name][0](document)) for name in cards.PROJECTION_VARIANTS]
+    out.append(("billboard_top5", cards.billboard_top5_svg(document)))
+    out.append(("billboard_team", cards.billboard_team_svg(document, "Team 3")))
     out.append(("comparison", cards.comparison_svg(document, spec)))
     out.append(("comparison_tall", cards.comparison_tall_svg(document, spec)))
     out.append(
@@ -449,8 +456,9 @@ def test_the_accent_marks_the_machine_and_nothing_else() -> None:
         rules = [line for line in lines if line.startswith("<line") and accent in line]
         assert len(rules) <= 1, (name, rules)
         # A projection board prints win totals, which are NOT the schedule-odds
-        # key, so the accent may not reach any text on one.
-        if name.startswith("projection"):
+        # key, so the accent may not reach any text on one. The billboards draw
+        # the same document and are held to the same rule.
+        if name in (*cards.PROJECTION_VARIANTS, *cards.BILLBOARD_VARIANTS):
             texts = [line for line in lines if line.startswith("<text") and accent in line]
             assert texts == [], (name, texts)
 
@@ -828,6 +836,162 @@ def test_export_projection_names_the_files_after_the_season_and_no_week(
         document, tmp_path / "share", variant="projection_top25", png=False
     )
     assert [p.name for p in written] == ["2026-projection-top25.svg"]
+
+
+# ------------------------------------------------------------------- the grid
+
+
+def test_the_grid_fills_down_each_column_before_it_moves_across() -> None:
+    """A poll is read top to bottom, so the grid is filled top to bottom.
+
+    The first version of this card ran the ranks ACROSS the rows, which put 1 to 7
+    along the top and 8 under 1. A reader scanning the left edge for the twenties
+    found 15 there and read a board that did not say what they thought it said.
+    """
+    cells = cards._grid_cells(138, 7)
+    assert len(cells) == 138
+    assert len(set(cells)) == 138
+    # 2 sits directly under 1, and 21 tops the next column rather than following 20.
+    assert cells[0] == (0, 0)
+    assert cells[1] == (0, 1)
+    assert cells[19] == (0, 19)
+    assert cells[20] == (1, 0)
+    # Twenty deep, and the two teams that do not divide evenly leave the hole at
+    # the bottom of the RIGHTMOST columns rather than at the bottom of the first.
+    depths = [sum(1 for column, _line in cells if column == index) for index in range(7)]
+    assert depths == [20, 20, 20, 20, 20, 19, 19]
+    # A board shorter than one row per column still fills left to right.
+    assert cards._grid_cells(5, 7) == [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
+
+
+def test_the_drawn_grid_puts_rank_two_under_rank_one() -> None:
+    """The same rule, asserted on the artifact rather than on the arithmetic."""
+    svg = cards.grid_svg(_projection_document(rows=138))
+    placed = {
+        int(match.group(3)): (float(match.group(1)), float(match.group(2)))
+        for match in re.finditer(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>(\d+)</text>', svg)
+    }
+    assert len(placed) == 138
+    assert placed[2][0] == placed[1][0]
+    assert placed[2][1] > placed[1][1]
+    assert placed[21][0] > placed[1][0]
+    assert placed[21][1] == placed[1][1]
+    # Every column runs downwards, and each starts higher than the one it follows.
+    for first, last in ((1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 119)):
+        column_x = placed[first][0]
+        assert [placed[rank][0] for rank in range(first, last + 1)] == [column_x] * (
+            last - first + 1
+        )
+        assert placed[last][1] > placed[first][1]
+
+
+# -------------------------------------------------------------- the billboard
+
+
+def _billboards(document: dict[str, object]) -> list[tuple[str, str]]:
+    return [
+        ("billboard_top5", cards.billboard_top5_svg(document)),
+        ("billboard_team", cards.billboard_team_svg(document, "Team 3")),
+    ]
+
+
+def test_the_billboards_draw_on_the_square_canvas_their_table_promises() -> None:
+    """1:1 is the canvas a feed crops least, which is the whole reason they exist."""
+    for name, svg in _billboards(_projection_document()):
+        height = cards.BUILDERS[name][2]
+        assert height == cards.SQUARE_HEIGHT, name
+        assert 'width="1200"' in svg and f'height="{height}"' in svg, name
+        assert f'viewBox="0 0 1200 {height}"' in svg, name
+        assert 'role="img"' in svg and "aria-label=" in svg, name
+
+
+def test_the_billboard_carries_the_teaser_whole_and_sends_it_to_our_own_domain() -> None:
+    """The one marketing sentence on the card set, and it may not arrive clipped.
+
+    It is also the sentence most likely to be read with nothing around it, so the
+    voice profile's hard rules are asserted on it rather than trusted: no em dash,
+    and no middot doing a conjunction's job.
+    """
+    teaser = cards.BILLBOARD_TEASER
+    assert cards.SITE_DOMAIN in teaser
+    assert "—" not in teaser
+    assert "·" not in teaser
+    for name, svg in _billboards(_projection_document()):
+        drawn = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
+        assert teaser in drawn, name
+
+
+def test_the_billboard_says_which_document_it_is_drawing() -> None:
+    """ADR 0010, on the surface where letting the two blur would cost the most."""
+    document = _projection_document()
+    for name, svg in _billboards(document):
+        assert str(document["label"]) in svg, name
+        assert "PRESEASON PROJECTION" in svg, name
+
+
+def test_the_single_team_billboard_labels_its_giant_numeral() -> None:
+    """Rule 0. A bare 3 at 300px is a puzzle to a reader who arrives with no
+    context, and a billboard has no other kind of reader."""
+    svg = cards.billboard_team_svg(_projection_document(), "Team 3")
+    assert "PROJECTED RANK" in svg
+    assert "11.6 projected wins" in svg
+    assert f'font-size="{cards._n(cards.BILLBOARD_TEAM_RANK_SIZE)}"' in svg
+
+
+def test_a_billboard_refuses_a_team_the_board_does_not_rank() -> None:
+    with pytest.raises(ValueError, match="not in this document"):
+        cards.billboard_team_svg(_projection_document(), "Nowhere State")
+
+
+def test_the_billboard_svg_is_a_pure_function_of_the_document() -> None:
+    assert cards.billboard_top5_svg(_projection_document()) == cards.billboard_top5_svg(
+        _projection_document()
+    )
+    assert cards.billboard_team_svg(
+        _projection_document(), "Team 3"
+    ) == cards.billboard_team_svg(_projection_document(), "Team 3")
+
+
+def test_a_billboard_variant_refuses_the_run_directory_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="export_billboard"):
+        cards.export(tmp_path, tmp_path, variant="billboard_top5")
+    with pytest.raises(ValueError, match="unknown billboard card variant"):
+        cards.export_billboard(tmp_path / "p.json", tmp_path, variant="top10")
+
+
+def test_export_billboard_names_the_files_after_the_season_and_the_subject(
+    tmp_path: Path,
+) -> None:
+    """`2026-billboard-top5` and `2026-billboard-team-3`, one artifact per subject."""
+    document = tmp_path / "projection.json"
+    document.write_text(json.dumps(_projection_document()), encoding="utf-8")
+    written = cards.export_billboard(
+        document, tmp_path / "share", variant="billboard_top5", png=False, fetch_logos=False
+    )
+    assert [p.name for p in written] == ["2026-billboard-top5.svg"]
+    written = cards.export_billboard(
+        document,
+        tmp_path / "share",
+        variant="billboard_team",
+        team="Team 3",
+        png=False,
+        fetch_logos=False,
+    )
+    assert [p.name for p in written] == ["2026-billboard-team-3.svg"]
+
+
+def test_a_billboard_that_names_the_wrong_number_of_subjects_is_refused(
+    tmp_path: Path,
+) -> None:
+    """A run that names a team and gets the top five back is one somebody ships."""
+    document = tmp_path / "projection.json"
+    document.write_text(json.dumps(_projection_document()), encoding="utf-8")
+    with pytest.raises(ValueError, match="needs `team`"):
+        cards.export_billboard(document, tmp_path, variant="billboard_team", png=False)
+    with pytest.raises(ValueError, match="takes no `team`"):
+        cards.export_billboard(
+            document, tmp_path, variant="billboard_top5", team="Team 3", png=False
+        )
 
 
 # ------------------------------------------------------------- the top five, big

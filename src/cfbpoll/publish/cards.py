@@ -60,7 +60,11 @@ five rows means the rank numeral and the mark can be drawn at a size that reads 
 thumbnail scale, which is where most of these are actually seen. The three
 `comparison` canvases put our board beside one or two NAMED EXTERNAL BOARDS, which
 is what turns a disagreement graphic from a hand-made image into a published
-artifact with a digest like every other card.
+artifact with a digest like every other card. The two `billboard` canvases are
+the newest and they invert the usual assumption: every other card here is built
+to be READ by somebody who stopped scrolling, and a billboard is built to survive
+being scrolled PAST by a stranger, which is why the ranks are drawn at twice the
+hero card's scale and why it is the only card carrying a line of marketing copy.
 
 THE BRAND IS THE MASTHEAD, AND THE ACCENT RULE IS A DISCIPLINE RATHER THAN A
 COLOUR. The gold-on-near-black palette this module shipped through 2026-08-17 is
@@ -111,6 +115,8 @@ from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
     "AGREEMENT_BAND",
+    "BILLBOARD_TEASER",
+    "BILLBOARD_VARIANTS",
     "BUILDERS",
     "CARD_HEIGHT",
     "CARD_WIDTH",
@@ -127,12 +133,15 @@ __all__ = [
     "SQUARE_HEIGHT",
     "TALL_HEIGHT",
     "VARIANTS",
+    "billboard_team_svg",
+    "billboard_top5_svg",
     "comparison_square_svg",
     "comparison_svg",
     "comparison_tall_svg",
     "connectivity_svg",
     "disagreement_svg",
     "export",
+    "export_billboard",
     "export_comparison",
     "export_projection",
     "fonts_are_vendored",
@@ -236,6 +245,17 @@ COMPARISON_VARIANTS: tuple[str, ...] = (
     "disagreement",
 )
 
+#: THE FEED VARIANTS. They read the same projection document the `projection_*`
+#: family does and they are named apart because they are a different product: a
+#: board card is built to be read by somebody who stopped, and a billboard is
+#: built to survive being scrolled past at thumbnail size by a stranger. That is
+#: why they carry a teaser line and nothing else does, and why the single-team one
+#: takes a second argument naming its subject.
+BILLBOARD_VARIANTS: tuple[str, ...] = (
+    "billboard_top5",
+    "billboard_team",
+)
+
 VARIANTS: tuple[str, ...] = (
     "connectivity",
     "top5",
@@ -243,6 +263,7 @@ VARIANTS: tuple[str, ...] = (
     "top25_x",
     "top25_instagram",
     *PROJECTION_VARIANTS,
+    *BILLBOARD_VARIANTS,
     *COMPARISON_VARIANTS,
 )
 
@@ -1257,6 +1278,7 @@ def _poll_row(
     use_abbreviation: bool,
     value_of: Any = _odds_key,
     value_fill: str | None = None,
+    mark_ratio: float = 0.35,
 ) -> list[str]:
     """One team, on the board's row grid. Every value is printed, none is derived.
 
@@ -1273,6 +1295,11 @@ def _poll_row(
     same slot. `value_fill` is bone unless the caller has a published reason - the
     poll's odds key is the schedule-odds key and takes the accent, and nothing
     else on a row ever does.
+
+    `mark_ratio` is how much of the row's height the school's mark takes. It is a
+    knob rather than a constant for exactly one caller: a billboard is read at
+    thumbnail scale, where the mark is doing as much identifying work as the
+    numeral, so it is drawn larger there than on a board somebody taps into.
     """
     mid = y + height / 2
     parts: list[str] = [
@@ -1292,7 +1319,7 @@ def _poll_row(
              size=rank_size, fill=PALETTE["ink"])
     )
 
-    mark_r = height * 0.35
+    mark_r = height * mark_ratio
     mark_cx = rank_x + rank_lane + 14 + mark_r
     parts.append(_mark(mark_cx, mid, mark_r, row))
 
@@ -1862,6 +1889,32 @@ def strip_png_metadata(raw: bytes) -> bytes:
 GRID_COLUMNS = 7
 
 
+def _grid_cells(total: int, columns: int) -> list[tuple[int, int]]:
+    """Where each rank sits on the grid, as `(column, line)`, in rank order.
+
+    THE ORDER IS DOWN EACH COLUMN AND THEN ACROSS, WHICH IS A CORRECTION. The
+    first version of this card filled the grid across the rows: 1 to 7 along the
+    top, 8 to 14 under it. Every poll a football fan has ever read runs
+    top-to-bottom, so a reader looking for the teams around 20th scanned the
+    left edge, found 15, and read a board that did not mean what they thought it
+    meant. Filling down the columns puts 1 to 20 under each other and moves 21 to
+    the top of the next column, which is a newspaper agate page.
+
+    THE SHORT COLUMNS ARE ON THE RIGHT AND THE HOLE IS AT THE BOTTOM. 138 teams
+    over seven columns is 20 rows with two teams left over, so the first five
+    columns carry 20 and the last two carry 19. Column 0 is always one of the
+    full ones, which is what lets the caller draw a horizontal rule per line off
+    that column alone.
+    """
+    lines = -(-total // columns)
+    tall = total - columns * (lines - 1)
+    return [
+        (column, line)
+        for column in range(columns)
+        for line in range(lines if column < tall else lines - 1)
+    ]
+
+
 def grid_svg(document: dict[str, Any]) -> str:
     """Every ranked team on one card. The format this brand had to survive.
 
@@ -1878,10 +1931,10 @@ def grid_svg(document: dict[str, Any]) -> str:
     site prints above the board: a poll with no favourites does not wear
     anybody's palette, not even 138 of them at once.
 
-    ORDERED BY RANK, ACROSS THE ROWS. A reader looking for one team scans for a
-    mark, and a reader looking at the shape of the board reads it like a page. An
-    alphabetical grid would serve the first better and the second not at all, and
-    the second is what a ranking card is for.
+    ORDERED BY RANK, DOWN EACH COLUMN AND THEN ACROSS, which is how a poll is
+    read. `_grid_cells` holds that arithmetic and says why. An alphabetical grid
+    would serve a reader hunting for one school better and a reader looking at the
+    shape of the board not at all, and the second is what a ranking card is for.
     """
     rows = _projection_rows(document, 138)
     season = int(document["season"])
@@ -1902,11 +1955,12 @@ def grid_svg(document: dict[str, Any]) -> str:
     x, top = 40.0, 336.0
     width = CARD_WIDTH - 80
     cell_w = width / GRID_COLUMNS
-    lines = (len(rows) + GRID_COLUMNS - 1) // GRID_COLUMNS
+    cells = _grid_cells(len(rows), GRID_COLUMNS)
+    lines = max(line for _column, line in cells) + 1
     cell_h = min(56.0, (TALL_HEIGHT - FOOTER_HEIGHT - 20 - top) / lines)
 
     for index, row in enumerate(rows):
-        column, line = index % GRID_COLUMNS, index // GRID_COLUMNS
+        column, line = cells[index]
         cx, cy = x + column * cell_w, top + line * cell_h
         mid = cy + cell_h / 2
         parts.append(_slab(cx, cy + 3, 3, cell_h - 6, stripe_colour(row.get("mark_bg"))))
@@ -1942,6 +1996,240 @@ def grid_svg(document: dict[str, Any]) -> str:
             )
 
     parts.extend(_projection_footer(document, CARD_WIDTH, TALL_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+# ---------------------------------------------------------------- the billboard
+#
+# WHAT A BILLBOARD IS FOR, AND WHY IT IS NOT JUST A BIGGER TOP FIVE. Every other
+# card in this set is built to be READ: it assumes somebody stopped, tapped, and
+# is now looking at a table. A billboard assumes the opposite. It is seen at
+# thumbnail size, in a feed, by somebody scrolling past who has never heard of
+# this project, and it has to survive that with the rank numerals and the school
+# marks alone. So the numbers are drawn at roughly twice the hero card's scale on
+# the square canvas every platform crops least, and the only prose on it is one
+# teaser that says what this is and where to find it.
+#
+# THE OWNER ASKED FOR THIS DIRECTLY, on 2026-08-17, having looked at the launch
+# set and found it legible and silent: huge ranks, real logos, and one short line
+# for the curious. The teaser below is his sentence, tightened against the voice
+# profile rather than rewritten.
+
+
+#: THE ONE MARKETING SENTENCE IN THIS MODULE, and every other string on a card is
+#: still a published field. It is a constant so that two billboards cannot drift
+#: apart and so a single edit changes every card that carries it.
+#:
+#: WHAT WAS TIGHTENED, AND WHY EACH CHANGE HAD TO HAPPEN. The owner's line was
+#: "fully unbiased · built on 5 years of public CFB data · AI-built prediction and
+#: polling model · open source - try to improve it", and the voice profile refuses
+#: three things in it. The middots join four clauses, which is the em-dash rule
+#: wearing a different hat: a `·` may separate two short labelled data fields and
+#: may never do a conjunction's job. The dash before "try to improve it" is banned
+#: outright. And "fully unbiased" is an absolute claim about our own work, which
+#: this project does not make about itself anywhere else; the checkable version of
+#: it is that no ballot enters either product, so that is what the card says.
+#:
+#: WHAT SURVIVED: all four of his beats, in his order. What it is, what it was
+#: built on, that the code is open, and the invitation to beat it. The address is
+#: `SITE_DOMAIN` rather than a fourth typed copy of the host.
+#:
+#: FIVE SEASONS IS A CHECKABLE NUMBER AND NOT A ROUND ONE. `configs/default.toml`
+#: fits on 2021-2023, validates on 2024 and scored the 2025 holdout, which is five
+#: seasons of public college football data and no more.
+BILLBOARD_TEASER = (
+    "An AI built this prediction and polling model on five seasons of public "
+    "college football data. No votes go into it. The code is open at "
+    f"{SITE_DOMAIN}. Try to improve it."
+)
+
+#: The billboard's grid, on the 1200x1200 canvas.
+#:
+#: FIVE ROWS OF 138 FROM 286 END AT 976, which leaves the teaser its own band
+#: above the signature strip and nothing else on the card at all. 138px per row is
+#: 1.84x the hero card's 75 and about 5.3x the top 25's 26: the rank numeral lands
+#: at 96px and the school mark at 121px across, which is what still reads when a
+#: 1200px card is drawn 300px wide in somebody's feed.
+BILLBOARD_BANNER_H = 250.0
+BILLBOARD_ROW_TOP = 286.0
+BILLBOARD_ROW_HEIGHT = 138.0
+
+#: Where the teaser sits, on both billboards, so the pair reads as one family.
+#: Three lines from here at 26px finish at 1098, which clears the signature strip
+#: at 1134 - the wrap takes two lines today and the third is headroom for an edit.
+#: The hairline above it is the last row's separator on the top-five card, and the
+#: single-team card draws the same line at the same y for the same reason.
+BILLBOARD_TEASER_TOP = 1030.0
+BILLBOARD_TEASER_SIZE = 26.0
+BILLBOARD_TEASER_RULE = BILLBOARD_ROW_TOP + 5 * BILLBOARD_ROW_HEIGHT
+
+
+def _billboard_banner(document: dict[str, Any]) -> list[str]:
+    """The billboard's header: the mark, the dateline, and the document's label.
+
+    THE LABEL IS NOT OPTIONAL HERE AND IT IS THE ONE THING A BILLBOARD MAY NOT
+    DROP FOR SPACE. `docs/fixture-contract-recipes.md` §4 requires the surface to
+    show `label` whenever it is non-null, and on the projection that string is
+    "THE PROJECTION. The poll grades it weekly." A card built to be seen by people
+    who have never heard of this project is exactly the surface where letting a
+    projection pass for the poll would do the most damage, which is ADR 0010's
+    whole concern.
+
+    The document's `headline` is the one field a billboard leaves behind. Every
+    other projection card runs it as the thesis; here the teaser has that slot,
+    because a reader who has not stopped scrolling has room for one sentence and
+    it needs to be the one that says where to go next.
+    """
+    return _top_banner(
+        CARD_WIDTH,
+        BILLBOARD_BANNER_H,
+        eyebrow=PROJECTION_EYEBROW.format(season=int(document["season"])),
+        label=str(document.get("label") or "") or None,
+        thesis="",
+        accent=PALETTE["accent"],
+    )
+
+
+def _billboard_teaser(width: float) -> list[str]:
+    """The teaser, wrapped to the canvas. The only prose on the card."""
+    parts: list[str] = []
+    y = BILLBOARD_TEASER_TOP
+    budget = max(24, int((width - 80) / (BILLBOARD_TEASER_SIZE * 0.44)))
+    for line in _wrap(BILLBOARD_TEASER, budget, 3):
+        parts.append(
+            _text(40.0, y, line, size=BILLBOARD_TEASER_SIZE, fill=PALETTE["ink"],
+                  family=FONT_DISPLAY, weight="500")
+        )
+        y += BILLBOARD_TEASER_SIZE * 1.30
+    return parts
+
+
+def billboard_top5_svg(document: dict[str, Any]) -> str:
+    """The projected top five at billboard scale. 1200x1200, the square canvas.
+
+    THE SQUARE IS THE FEED CANVAS AND THAT IS WHY THIS IS NOT THE HERO CARD AGAIN.
+    Instagram shows a 1:1 whole, X shows it whole, and a Reddit or LinkedIn
+    thumbnail does not letterbox it, so a square is the shape that arrives intact
+    wherever it is posted. The 1200x628 hero exists for the link preview, where the
+    ratio is fixed for us; this one exists for the post itself.
+
+    Same rows, same fields, same uniform treatment as every other board here: rank
+    1 is drawn exactly like rank 5, and the win column is bone because a projected
+    win total is not the schedule-odds key.
+    """
+    rows = _projection_rows(document, 5)
+    season = int(document["season"])
+
+    parts = _card_open(
+        CARD_WIDTH, SQUARE_HEIGHT, f"The Projection top five, {season} preseason"
+    )
+    parts.extend(_billboard_banner(document))
+    parts.extend(
+        _row_block(
+            rows,
+            40.0,
+            BILLBOARD_ROW_TOP,
+            CARD_WIDTH - 80,
+            height=BILLBOARD_ROW_HEIGHT,
+            rank_size=96,
+            name_size=62,
+            value_size=44,
+            use_abbreviation=False,
+            value_of=_projected_wins,
+            mark_ratio=0.44,
+        )
+    )
+    parts.extend(_billboard_teaser(CARD_WIDTH))
+    parts.extend(_projection_footer(document, CARD_WIDTH, SQUARE_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+#: The single-team billboard's numeral and mark, which are the whole card.
+#: A 340px numeral beside a 340px mark is the largest pair the square canvas holds
+#: with the banner above it and the school beneath it, and it is the size at which
+#: a THREE-DIGIT rank still fits: 138 advances about 632px, which leaves the mark
+#: its 340 and still clears the right margin. The board runs to 138 and a card
+#: that only composed for the top 25 would be a card for a quarter of the league.
+BILLBOARD_TEAM_RANK_SIZE = 340.0
+BILLBOARD_TEAM_MARK_R = 170.0
+BILLBOARD_TEAM_BASELINE = 640.0
+
+
+def billboard_team_svg(document: dict[str, Any], team: str) -> str:
+    """ONE team, one rank, at poster scale. The template a season of posts runs on.
+
+    A template rather than a card, like the disagreement variant: `team` names the
+    school and every other string comes out of the published document, so the next
+    one of these is one argument changed rather than an afternoon in an editor.
+
+    THE NUMERAL IS LABELLED AND THAT IS RULE 0 RATHER THAN DECORATION. A bare 5
+    at 300px is a puzzle to somebody who arrives with no context, so the eyebrow
+    over it says PROJECTED RANK and the line under the school says what the win
+    total counts. The card is built to be read by a stranger, which is the only
+    kind of reader a billboard has.
+
+    THE ROW'S OWN `note` IS DRAWN WHEN THE DOCUMENT PUBLISHES ONE. It is the one
+    football sentence on the card ("Returning production adds 1.4 points to the
+    projection"), it is a published field printed verbatim, and a document without
+    it simply draws nothing there.
+    """
+    rows = _projection_rows(document, len(document.get("rows") or []))
+    board = {str(row["team"]): row for row in rows}
+    if team not in board:
+        raise ValueError(
+            f"{team!r} is not in this document. A billboard is drawn from the "
+            "published board, so a team it does not rank cannot be the subject."
+        )
+    row = board[team]
+    season = int(document["season"])
+    rank = str(int(row["rank"]))
+
+    parts = _card_open(CARD_WIDTH, SQUARE_HEIGHT, f"{team}, {season} preseason projection")
+    parts.extend(_billboard_banner(document))
+
+    parts.append(_eyebrow(40.0, 340.0, "projected rank", size=22))
+    parts.append(
+        _num(40.0, BILLBOARD_TEAM_BASELINE, rank, size=BILLBOARD_TEAM_RANK_SIZE,
+             fill=PALETTE["ink"], anchor="start")
+    )
+    # The mark sits beside the numeral, on the numeral's optical middle, at the
+    # far end of however wide the digits ran. Sized from the type rather than
+    # placed at a fixed x, so a 138 does not print through the school's logo.
+    numeral_w = BILLBOARD_TEAM_RANK_SIZE * CAP_ADVANCE * len(rank)
+    parts.append(
+        _mark(
+            40.0 + numeral_w + 56.0 + BILLBOARD_TEAM_MARK_R,
+            BILLBOARD_TEAM_BASELINE - BILLBOARD_TEAM_RANK_SIZE * 0.34,
+            BILLBOARD_TEAM_MARK_R,
+            row,
+        )
+    )
+
+    name_size = 84.0
+    parts.append(
+        _text(40.0, 780.0, _clip(team, max(6, int((CARD_WIDTH - 96) / (name_size * 0.52)))),
+              size=name_size, fill=PALETTE["ink"], weight="700", family=FONT_DISPLAY)
+    )
+    parts.append(
+        _text(40.0, 840.0, f"{row['projected_wins']} projected wins", size=34,
+              fill=PALETTE["ink_dim"], weight="600", family=FONT_DISPLAY)
+    )
+
+    y = 888.0
+    for line in _wrap(str(row.get("note") or ""), 104, 2):
+        parts.append(_text(40.0, y, line, size=24, fill=PALETTE["ink_dim"], family=FONT_DISPLAY))
+        y += 30
+
+    # The same hairline the top-five billboard gets from its last row, at the same
+    # y, so the two cards are one family: banner, block, rule, teaser, signature.
+    parts.append(
+        _rule(40.0, BILLBOARD_TEASER_RULE, CARD_WIDTH - 80, stroke=PALETTE["rule"],
+              opacity=ROW_RULE_OPACITY)
+    )
+    parts.extend(_billboard_teaser(CARD_WIDTH))
+    parts.extend(_projection_footer(document, CARD_WIDTH, SQUARE_HEIGHT))
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 
@@ -2669,6 +2957,12 @@ BUILDERS: dict[str, Any] = {
     # real school logos everywhere, so this variant pays for a hundred-odd extra
     # fetches, once, into a cache every later card reuses.
     "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, TALL_HEIGHT, 138),
+    # The billboards read the same document and draw on the square canvas. The
+    # single-team one declares ONE row, which is the truth: `export_billboard`
+    # warms the cache for the row it was asked for rather than for the top of the
+    # board, because the subject of a billboard is often not in the top five.
+    "billboard_top5": (lambda d: billboard_top5_svg(d), CARD_WIDTH, SQUARE_HEIGHT, 5),
+    "billboard_team": (billboard_team_svg, CARD_WIDTH, SQUARE_HEIGHT, 1),
     # The comparison variants take TWO documents. Same table anyway, and their
     # row count is 25 because that is the most rows any of them can draw and the
     # count is what the export path warms the logo cache from - warming fewer than
@@ -2728,6 +3022,12 @@ def export(
             "and no week. Use `export_projection`, or `publish cards --projection "
             "<path>` from the CLI."
         )
+    if variant in BILLBOARD_VARIANTS:
+        raise ValueError(
+            f"{variant!r} draws the projection document, which has no run directory "
+            "and no week. Use `export_billboard`, or `publish cards --projection "
+            "<path>` from the CLI."
+        )
     if variant in COMPARISON_VARIANTS:
         raise ValueError(
             f"{variant!r} draws a published board beside one or more external boards "
@@ -2780,6 +3080,74 @@ def export_projection(
         )
     svg = BUILDERS[variant][0](payload)
     stem = f"{int(payload['season'])}-projection-{variant.removeprefix('projection_')}"
+    return _write(dest, stem, svg, png=png)
+
+
+def _team_slug(team: str) -> str:
+    """`Ohio State` -> `ohio-state`. The filename half of a single-team card.
+
+    Lower case, runs of anything that is not a letter or a digit collapsed to one
+    dash, no leading or trailing dash. `Texas A&M` becomes `texas-a-m`, which is
+    ugly and is a filename rather than a label, so it is allowed to be.
+    """
+    out: list[str] = []
+    for character in str(team).lower():
+        if character.isalnum():
+            out.append(character)
+        elif out and out[-1] != "-":
+            out.append("-")
+    return "".join(out).strip("-") or "team"
+
+
+def export_billboard(
+    document: Path,
+    dest: Path,
+    *,
+    variant: str = "billboard_top5",
+    team: str | None = None,
+    png: bool = True,
+    fetch_logos: bool = True,
+) -> list[Path]:
+    """Write `<dest>/<season>-billboard-<name>.{svg,png}`. Returns the paths, sorted.
+
+    Same single input as `export_projection` and the same reason: the card is
+    drawn from the artifact a reader can download, so the two cannot disagree.
+
+    `team` is required by `billboard_team` and refused by the other one, rather
+    than being quietly ignored, because a run that names a team and gets the top
+    five back is a run somebody publishes without noticing.
+
+    THE CACHE IS WARMED FOR THE ROW THIS CARD ACTUALLY DRAWS. The top-five
+    billboard warms the top five; the single-team billboard warms its subject,
+    which is frequently nowhere near the top of the board. Warming from the
+    builder table's row count instead would have left every billboard of a team
+    outside the top five carrying the generated disc while its neighbours on other
+    cards carried real marks.
+    """
+    if variant not in BILLBOARD_VARIANTS:
+        raise ValueError(
+            f"unknown billboard card variant {variant!r}; expected one of "
+            f"{BILLBOARD_VARIANTS}"
+        )
+    if variant == "billboard_team" and not team:
+        raise ValueError("billboard_team draws one school and needs `team` naming it")
+    if variant != "billboard_team" and team:
+        raise ValueError(f"{variant!r} draws the top of the board and takes no `team`")
+
+    payload = json.loads(Path(document).read_text(encoding="utf-8"))
+    rows = list(payload.get("rows") or [])
+    if team:
+        drawn = [row for row in rows if str(row.get("team")) == team]
+        stem = f"{int(payload['season'])}-billboard-{_team_slug(team)}"
+    else:
+        drawn = rows[: int(BUILDERS[variant][3])]
+        stem = f"{int(payload['season'])}-billboard-{variant.removeprefix('billboard_')}"
+    # Warm BEFORE anything is drawn, exactly as the other two export paths do:
+    # the builders read the cache and cannot reach the network themselves.
+    logos.warm(drawn, background=PALETTE["bg"], fetch=fetch_logos)
+    svg = (
+        billboard_team_svg(payload, team) if team else BUILDERS[variant][0](payload)
+    )
     return _write(dest, stem, svg, png=png)
 
 

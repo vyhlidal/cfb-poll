@@ -21,7 +21,7 @@ JOBS ?= 4
         recipe-fixtures variants projection projection-audit projection-2025 \
         projection-chain projection-fixture projection-cards projection-all levers \
         holdout-scorecard revision-numbers replay replay-tolerant grid \
-        challenge site test lint clean
+        challenge site guard preflight weekly-dry-run test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -46,6 +46,13 @@ help:
 	@echo "  make replay           offline byte-match replay of a known week   [stub]"
 	@echo "  make replay-tolerant  same replay, ~1e-12 tolerance (for a Mac)   [stub]"
 	@echo "  make site             build the static site into site/_build      [stub]"
+	@echo
+	@echo "  THE SUNDAY AUTOMATION (ADR 0002). Nothing below fires on its own:"
+	@echo "  every trigger in ops/arming.toml is committed false."
+	@echo "  make guard            would the Sunday job run right now, and why not"
+	@echo "  make preflight        which verbs the Sunday job needs are still stubs"
+	@echo "  make weekly-dry-run   the whole job, printed, executing nothing"
+	@echo
 	@echo "  make test / make lint pytest / ruff"
 	@echo
 	@echo "VARIABLES, with their defaults. A default you did not know about is the"
@@ -434,6 +441,33 @@ site: .venv
 	@echo "[stub] uv run cfbpoll site build --from $(OUT)/ --to site/_build"
 	@echo "       Zero accounts: opens with python -m http.server -d site/_build"
 	@echo "NOT IMPLEMENTED — report 03 §7.1."
+
+# --------------------------------------------------------------------- ops
+#
+# The Sunday automation (ADR 0002). None of these fits a model, so none of them
+# needs the single-threaded BLAS prefix.
+#
+# THEY ARE HERE BECAUSE THE ALTERNATIVE IS A TERMINAL HISTORY. The whole design
+# rests on being able to answer "is the Sunday job armed, and would it run right
+# now?" without reading three files, and a question that important should be one
+# command.
+TRIGGER ?= manual
+
+# What the job would decide right now: armed or not, published or not, and why.
+# Read-only. Costs at most one CFBD call, to resolve the live week.
+guard: .venv
+	$(UV) run cfbpoll guard --trigger $(TRIGGER) --fixtures $(FIXTURES)
+
+# Which verbs the Sunday job calls are still stubs. Derived from the source, so
+# it goes green on its own the day somebody implements one.
+preflight: .venv
+	$(UV) run cfbpoll preflight
+
+# The whole Sunday job, printing every command and running none of them - except
+# the guard, which is read-only and is the part you want a real answer from.
+weekly-dry-run: .venv
+	DRY_RUN=true SKIP_SYNC=true PUBLISH=false TRIGGER=$(TRIGGER) \
+	  FIXTURES=$(FIXTURES) ops/bin/weekly.sh
 
 test: .venv
 	$(UV) run pytest

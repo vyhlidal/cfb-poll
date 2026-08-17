@@ -1,0 +1,148 @@
+{
+  "name": "cfb-poll - dead-man's switch (14:00 ET Sunday)",
+  "active": false,
+  "settings": {
+    "timezone": "America/New_York",
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "b2d1a3f5-0001-4b20-8e00-000000000001",
+      "name": "Sunday 14:00 America/New_York",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        0
+      ],
+      "notes": "Eight hours after the primary and five and a half after the fallback. If all three clocks worked, the published tree moved hours ago and this run sends nothing.",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 14 * * 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b2d1a3f5-0002-4b20-8e00-000000000002",
+      "name": "Read the published index",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "CHANGE THE URL HERE if the published tree moves. It must be the index.json that `cfbpoll publish fixtures` writes, which carries seasons[].weeks[].published_at. onError is continueRegularOutput on purpose: a 404, a 500 or a timeout must reach the decision node as evidence, because an unreachable poll is exactly as alarming as an unpublished one and this switch exists to make silence audible.",
+      "parameters": {
+        "method": "GET",
+        "url": "https://thepoll.ai/data/index.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "cb",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "b2d1a3f5-0003-4b20-8e00-000000000003",
+      "name": "Did this week publish?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "notes": "Emits ONE item when something is wrong and ZERO items when everything is fine, so the email node downstream simply does not run on a good Sunday. No IF node, no filter syntax to get wrong across n8n versions.",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// The dead-man's switch. ADR 0002: if no published row exists for the current\n// week by 14:00 ET Sunday, alert. Silence itself has to be the alarm, so this\n// alarms on an UNREACHABLE index exactly as loudly as on a stale one.\n//\n// THE SIGNAL is index.json's seasons[].weeks[].published_at, which\n// `cfbpoll publish fixtures` stamps on every export. We do not need to know\n// which week it is; we need to know that the current season's newest week was\n// published today. That is checkable with no API key and no database.\n//\n// READ THIS BEFORE CHANGING THE LOGIC: `played: true` in that document does NOT\n// mean \"the games were played\". `publish/fixtures.rebuild_index` sets it only\n// for weeks that HAVE a published document, and fills every other week of the\n// schedule from `serving.unplayed_week`, which writes `published_at: null`. So\n// `played` cannot be used to detect \"the games happened and we published\n// nothing\" - that is exactly the outage this switch is for, and the flag would\n// read false during it. The timestamp is the only honest signal here.\n\n// The first Sunday this season is expected to publish. Before it, a season with\n// no published weeks is a season that has not started, not an outage.\n// UPDATE THIS ONE LINE EACH AUGUST.\nconst FIRST_PUBLISH_DATE = '2026-08-30';\n\n// 14:00 ET back past midnight: a publication from this morning is fresh, one\n// from last Sunday is not.\nconst STALE_AFTER_HOURS = 14;\n\nconst input = $input.first().json || {};\nconst status = input.statusCode;\nconst body = input.body;\n\nfunction alarm(headline, detail) {\n  return [{ json: { alarm: true, headline, detail, checked_at: new Date().toISOString() } }];\n}\n\nif (typeof status === 'number' && status >= 400) {\n  return alarm(\n    'The poll index is not being served (HTTP ' + status + ')',\n    'The dead-man\\'s switch could not read index.json. Either the site is down or the URL in this n8n workflow is wrong. Both need a human.'\n  );\n}\n\nif (!body || !Array.isArray(body.seasons)) {\n  return alarm(\n    'The poll index is unreadable',\n    'index.json was fetched but carries no seasons array. Expected the document that cfbpoll publish fixtures writes.'\n  );\n}\n\n// The same Feb-to-Jan convention as cfbpoll.ops.guard.current_season: a January\n// playoff game is the tail of the season that started the previous August.\nconst nowNY = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));\nconst season = nowNY.getMonth() + 1 >= 2 ? nowNY.getFullYear() : nowNY.getFullYear() - 1;\n\nif (Date.now() < Date.parse(FIRST_PUBLISH_DATE + 'T00:00:00-04:00')) {\n  return [];\n}\n\nconst block = body.seasons.find(function (s) { return Number(s.season) === season; });\nif (!block || !Array.isArray(block.weeks)) {\n  return alarm(\n    'The poll index has no ' + season + ' season at all',\n    'index.json carries seasons ' + body.seasons.map(function (s) { return s.season; }).join(', ') +\n      '. The Sunday job has never written a ' + season + ' week.'\n  );\n}\n\nconst published = block.weeks\n  .map(function (w) { return { week: w.week, at: Date.parse(w.published_at || '') }; })\n  .filter(function (w) { return Number.isFinite(w.at); })\n  .sort(function (a, b) { return b.at - a.at; });\n\nif (published.length === 0) {\n  return alarm(\n    'The ' + season + ' season has never published a week',\n    'Every week in the ' + season + ' block has published_at: null, which is what the index looks like before the first Sunday job ever succeeds. Check the weekly workflow at https://github.com/vyhlidal/cfb-poll/actions/workflows/weekly.yml'\n  );\n}\n\nconst newest = published[0];\nconst ageHours = (Date.now() - newest.at) / 3600000;\n\nif (ageHours > STALE_AFTER_HOURS) {\n  return alarm(\n    'The ' + season + ' poll did not publish this morning',\n    'The newest published week is ' + season + ' week ' + newest.week + ', published ' +\n      new Date(newest.at).toISOString() + ', which is ' + ageHours.toFixed(1) +\n      ' hours ago. All three clocks have had their turn: n8n at 06:00 ET, the GitHub schedule, and the VPS timer at 08:30 ET. Check https://github.com/vyhlidal/cfb-poll/actions/workflows/weekly.yml and run: systemctl status cfb-poll-weekly.service'\n  );\n}\n\n// Nothing to say. Zero items means the email node never fires, and a quiet\n// inbox is the signal that the poll went out.\nreturn [];\n"
+      }
+    },
+    {
+      "id": "b2d1a3f5-0004-4b20-8e00-000000000004",
+      "name": "Alert a human",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        0
+      ],
+      "notes": "CHANGE toEmail TO john@thepoll.ai once that mailbox exists. Until then it goes to vyhlidal@gmail.com, which is the address that is actually read today. Needs an SMTP credential on the n8n instance; see docs/runbooks/sunday-automation.md.",
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL_ID",
+          "name": "thepoll.ai SMTP"
+        }
+      },
+      "parameters": {
+        "fromEmail": "alerts@thepoll.ai",
+        "toEmail": "vyhlidal@gmail.com",
+        "subject": "=[thepoll.ai] {{ $json.headline }}",
+        "emailFormat": "text",
+        "text": "={{ $json.headline }}\n\n{{ $json.detail }}\n\nChecked at {{ $json.checked_at }} by the n8n dead-man's switch on the Hostinger VPS.\nThis message is sent ONLY when the poll did not publish. Silence from this address means the poll went out.\n",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Sunday 14:00 America/New_York": {
+      "main": [
+        [
+          {
+            "node": "Read the published index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the published index": {
+      "main": [
+        [
+          {
+            "node": "Did this week publish?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Did this week publish?": {
+      "main": [
+        [
+          {
+            "node": "Alert a human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cfb-poll",
+    "description": "ADR 0002's dead-man's switch: if no published row exists for the current week by 14:00 ET Sunday, alert. The recurring lesson of this project is that the dangerous failure is the silent one, so this makes silence itself the alarm - and note that it alarms on an UNREACHABLE index as loudly as on a stale one. Runbook: docs/runbooks/sunday-automation.md"
+  }
+}

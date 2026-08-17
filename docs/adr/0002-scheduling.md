@@ -24,6 +24,21 @@ is the silent one; this design makes silence itself the alert.
 `workflow_dispatch` only — no `schedule:`, no n8n workflow, no VPS runner — so
 that nothing can fire accidentally while the pipeline is a scaffold.
 
+> **Status note, 2026-08-17.** The paragraph above is left exactly as written,
+> because it was true when it was written and this project does not tidy up its
+> own record. It is now out of date in one respect: `weekly.yml` declares a live
+> `schedule:` block, `ops/n8n/` carries both n8n workflows and `ops/systemd/`
+> carries the VPS units. The safety property it describes is unchanged and is now
+> enforced by a mechanism rather than by an omission: every clock's first act is
+> `cfbpoll guard`, which refuses any trigger not armed in `ops/arming.toml`, and
+> every trigger in that committed file is `false`. A commented-out cron proves
+> nothing the next person cannot undo by accident; a committed switch is a
+> reviewed change with an author and a date. The n8n workflows are delivered and
+> not imported; the systemd units are delivered and not installed. See
+> [`docs/runbooks/sunday-automation.md`](../runbooks/sunday-automation.md) and
+> [ADR 0015](0015-cfbd-archive-no-r2.md), which removes the R2 leg referenced
+> below.
+
 ## Why not `schedule:`
 
 **GitHub Actions' scheduled event cannot be trusted as a clock in 2026, and this

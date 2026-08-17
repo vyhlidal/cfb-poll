@@ -1,11 +1,22 @@
 # cfb-poll
 
-**An open, bias-free college football ranking. The BCS, if it were invented
-today — with every equation, every constant, and every input published.**
+**The poll is at [thepoll.ai](https://thepoll.ai). This repository is the machine
+that prints it, and it is yours to take apart.**
 
-No human polls. No recruiting rankings. No reputation. No black boxes. Every
-number on every page recomputable by a stranger with no API key, no account, and
-no permission from anyone.
+An open, bias-free college football ranking. The BCS, if it were invented today,
+with every equation, every constant, and every input published. No human polls. No
+recruiting rankings. No reputation. No black boxes. Every number on every page
+recomputable by a stranger with no API key, no account, and no permission from
+anyone.
+
+**Read the poll first. Then come back and argue with it.** Everybody who watches
+this sport already has a ranking in their head, and the usual answer to a bad one
+is to complain about it. Here the answer is to fork this, change what you think a
+poll should reward, and run your version against the same schedule, the same
+archive and the same scoreboard the published poll ran against. You do not have to
+write Python to do it. Point any AI coding assistant at
+[`AGENTS.md`](AGENTS.md) and it will take you from a football opinion to a ranked
+board and a scorecard that says whether you beat the original.
 
 > ## ⚠️ Status: all four layers exist. The bootstrap does not.
 >

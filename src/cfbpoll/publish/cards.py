@@ -116,6 +116,17 @@ TALL_HEIGHT = 1500
 SAFE_TOP = 126
 SAFE_BOTTOM = CARD_HEIGHT - 126
 
+#: THE ADDRESS ON EVERY CARD, IN ONE PLACE. Each canvas draws this in its footer,
+#: opposite the constants line, and it is the only route a reader has from a
+#: reposted PNG back to the poll it came from - so it is a constant rather than
+#: three string literals that can drift apart one card at a time.
+#:
+#: It is the bare host, with no scheme and no path, because the card is read at
+#: thumbnail scale and typed into a phone by hand. `thepoll.ai` is the whole
+#: address: the site serves the poll at its root, so there is nothing after the
+#: slash for a reader to get wrong.
+SITE_DOMAIN = "thepoll.ai"
+
 #: `top25_x` and `top25_instagram` are the same table on two canvases and are
 #: separate variants rather than one variant with an option, because each is a
 #: published artifact with its own sha256 and neither is a derivative of the
@@ -608,7 +619,7 @@ def _constants_strip(week_view: dict[str, Any], width: float, height: float) -> 
         )
         y += 19
     parts.append(
-        _text(width - 32, top + 24, "sb.unleashepic.com/cfb-poll", size=15,
+        _text(width - 32, top + 24, SITE_DOMAIN, size=15,
               fill=PALETTE["ink_dim"], anchor="end", family=FONT_MONO)
     )
     return parts
@@ -825,7 +836,7 @@ def connectivity_svg(bundle: Bundle) -> str:
         _text(
             CARD_WIDTH - 54,
             CARD_HEIGHT - 32,
-            "sb.unleashepic.com/cfb-poll",
+            SITE_DOMAIN,
             size=13,
             fill=PALETTE["ink_dim"],
             anchor="end",
@@ -1257,7 +1268,7 @@ def _projection_footer(document: dict[str, Any], width: float, height: float) ->
         )
         y += 19
     parts.append(
-        _text(width - 32, top + 24, "sb.unleashepic.com/cfb-poll", size=15,
+        _text(width - 32, top + 24, SITE_DOMAIN, size=15,
               fill=PALETTE["ink_dim"], anchor="end", family=FONT_MONO)
     )
     return parts

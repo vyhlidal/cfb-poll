@@ -259,12 +259,28 @@ def test_the_committed_svg_declares_the_same_geometry() -> None:
     assert 'role="img"' in svg and "aria-label=" in svg
 
 
+def test_the_address_on_the_cards_is_the_poll_s_own_domain() -> None:
+    """The one place the address is written down, pinned to a value.
+
+    The three footer tests below assert that `SITE_DOMAIN` REACHES the canvas,
+    which is a check that would pass against any string. This one asserts WHAT
+    THE STRING IS, so that a card set can never be published carrying an address
+    nobody chose. A card outlives the page it was posted from; the host on it has
+    to be the host that answers.
+
+    It is the bare apex on purpose. No scheme, no `www`, no path: the poll is
+    what the site serves at its root, and a reader retyping this off a PNG should
+    not have to get a path right.
+    """
+    assert cards.SITE_DOMAIN == "thepoll.ai"
+
+
 def test_the_card_carries_its_constants_footer() -> None:
     """Report 05 §6.2: "the constants footer is on the card... that line is the
     signature and it should never be dropped for space"."""
     svg = SAMPLE_SVG.read_text(encoding="utf-8")
     assert "q_ref" in svg
-    assert "sb.unleashepic.com/cfb-poll" in svg
+    assert cards.SITE_DOMAIN in svg
     assert "THE POLL · 2023 · WEEK 10" in svg
 
 
@@ -637,7 +653,7 @@ def test_the_projection_card_carries_its_backtest_footer() -> None:
     svg = cards.projection_top10_svg(_projection_document())
     assert "recipe projection-1.0.0" in svg
     assert "AP 14.7" in svg and "this projection 14.3" in svg
-    assert "sb.unleashepic.com/cfb-poll" in svg
+    assert cards.SITE_DOMAIN in svg
 
 
 def test_a_dark_projection_is_refused_rather_than_drawn() -> None:
@@ -736,7 +752,7 @@ def test_the_hero_card_keeps_the_footer_that_is_never_dropped_for_space(variant:
 
         svg = cards.top5_svg(build(out))
         assert "q_ref" in svg
-    assert "sb.unleashepic.com/cfb-poll" in svg
+    assert cards.SITE_DOMAIN in svg
 
 
 # ------------------------------------------------------- the pinned logo cache

@@ -114,8 +114,9 @@ widen the net after seeing the numbers, so the boundary is reported rather than
 crossed.
 
 It also says something about where the bounds came from. The review's §7 table
-lists C's range as Pasteur's cap of 21 and the CFBD SRS walkthrough's ±28 — other
-people's answers on other people's datasets — and the fitted value is above both.
+lists C's range as Pasteur's cap of 21 and the CFBD SRS walkthrough's ±28. Both
+are other people's answers on other people's datasets, and the fitted value is
+above both.
 **Widening `c_grid` is the first item for the next campaign, and it must be
 pre-registered before it is searched.**
 
@@ -126,8 +127,8 @@ The winner beats the incumbent by **0.0086**. The gate needs **0.219** more than
 the incumbent has, and the best cell in the entire searched space is still
 **0.210 points above the threshold**.
 
-**The gate gap is structural, not a tuning problem.** That is the most important
-sentence in this ADR and it is a negative result. Every constant in the pre-
+**The gate gap is built into the design. No amount of tuning closes it.** That is
+the most important sentence in this ADR and it is a negative result. Every constant in the pre-
 registered space was searched at full resolution and the answer is that these
 constants were never what stood between this system and its own thresholds.
 
@@ -160,10 +161,10 @@ config does not move on account of the calibration criterion.**
 
 | Candidate | Tune Δ | Clears 2 pp? | 2024 Δ | Verdict |
 |---|---:|---|---:|---|
-| Student-t margins, at the fitted ν = 92.7 | +2.50 pp | yes | −0.38 pp | direction reverses — not adopted |
-| Heteroscedastic σ(\|m̂\|) | −3.22 pp | no | +0.81 pp | fails tune — not adopted |
+| Student-t margins, at the fitted ν = 92.7 | +2.50 pp | yes | −0.38 pp | direction reverses; not adopted |
+| Heteroscedastic σ(\|m̂\|) | −3.22 pp | no | +0.81 pp | fails tune; not adopted |
 | Home-and-home `h` | — | — | — | **not runnable** under constraint 2 |
-| Favourite-longshot | — | — | — | **the diagnosis**, not a knob |
+| Favourite-longshot | — | — | — | **the diagnosis** itself, and there is no knob for it |
 
 **Neither named suspect did it.**
 
@@ -172,10 +173,10 @@ config does not move on account of the calibration criterion.**
   p = 0.275. These residuals are not distinguishable from normal. Low-ν rows in
   the sweep *do* cut the deviation, and that is a clue rather than an exoneration:
   a t with a matched second moment and small ν has a *narrower body*, so what
-  those rows buy is sharpness, not tail weight.
-- **The single home-field constant is eliminated as the cause** — the residual
+  those rows buy is sharpness rather than tail weight.
+- **The single home-field constant is eliminated as the cause.** The residual
   mean is −1.13 points at home sites against −0.19 at neutral, an order of
-  magnitude too small to make a 13.67 pp decile — **and separately convicted of
+  magnitude too small to make a 13.67 pp decile. It is **separately convicted of
   something else.** The site coefficient the harness uses averages **6.39 points
   with a standard deviation of 4.34** across published weeks, against **1.88 ±
   0.34** from 1,113 home-and-home pairs. Only 37 of 1,585 scored games are at
@@ -203,7 +204,7 @@ The mechanism is named in the campaign document: both the affine points
 calibration and σ are fitted on the games *accumulated so far* in a season, and the
 ratings feeding them improve as the season goes on, so a slope fitted on weeks 2-9
 under-scales week 10 and a σ fitted on weeks 2-9 (18.46) over-covers week 10
-(16.55). **This does not license relaxing the out-of-sample rule** — fitting either
+(16.55). **This does not license relaxing the out-of-sample rule.** Fitting either
 estimator on the training window costs L2 0.44 points of MAE and inverts the
 ordering against Elo. The defect is the *shape* of the accumulation window. A
 trailing window is out of sample too, and it is the next campaign's first

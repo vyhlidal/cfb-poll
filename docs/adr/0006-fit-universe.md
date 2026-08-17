@@ -82,7 +82,7 @@ own published standard that is a dial, and the config now says so.
 **The review's own example does not reproduce, and that is recorded rather than
 quietly dropped.** It reported James Madison moving #7 → #4 under `fbs_vs_fbs`.
 On this build JMU is #4 under all three universes. The review measured against a
-baseline this repository no longer has — σ was the 15.3 constant rather than an
+baseline this repository no longer has: σ was the 15.3 constant rather than an
 estimate ([ADR-adjacent, review S6](../analysis/fresh-eyes-review.md)) and its own
 §S4 baseline used in-sample blend weights. The *sensitivity* is real and larger
 than `q_ref`'s; the particular team it landed on was a property of the
@@ -93,8 +93,8 @@ configuration it was measured under. It now shows up on UCF (#66 → #83), Stanf
 fourteen-team G5 sample, 2023 through week 10: 10.83 points under `model`, 9.64
 under `fbs_vs_fbs`, 11.23 under `all`. Dropping the non-FBS teams *narrows* the
 P4-over-G5 gap by 1.19 points, so the mixed-division universe is mildly favourable
-to G5 teams — the review's direction, at a smaller magnitude than its framing
-suggests. That caveat belongs on the methodology page and is no longer unstated.
+to G5 teams. That is the review's direction, at a smaller magnitude than its
+framing suggests. That caveat belongs on the methodology page and is no longer unstated.
 
 **What this does not settle.** 2024 (validate) and 2025 (holdout) are untouched.
 If this decision is ever revisited against them, that has to be said publicly and

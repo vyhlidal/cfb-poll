@@ -136,7 +136,7 @@ the week `C` is the entire argument.
 2. **No recipe has been backtested end to end as a system.**
    [`demo/2023-recipes.md`](../../demo/2023-recipes.md) is one season's final board,
    which compares outputs and does not evaluate them. `cfbpoll backtest` scores
-   orderings, not recipes.
+   orderings, and a recipe as a whole is outside what it scores.
 3. **The gate is not applied per recipe.** `[gate]` is written against the
    published poll, so an alternate lens publishes no gate verdict and its
    methodology document says why. A page showing three rankings and one verdict

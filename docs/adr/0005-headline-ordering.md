@@ -153,7 +153,7 @@ its smoothness is useful and its desert defects are invisible.
    explaining every year.** It is the direct consequence of the promise. The
    explanation is on the page: the tail probability, the reference team it was
    measured against by name, and the Power column.
-2. **One published constant that A did not have.** `q_ref` — the Power rating of
+2. **One published constant that A did not have.** `q_ref` is the Power rating of
    the 25th-ranked Power team that week, the least flattering defensible reading of
    ESPN's "average Top-25 team", and a single team that can be *named* each week.
    Study §9 measured the ordering's sensitivity to it rather than asserting it was
@@ -198,8 +198,8 @@ Stated so it is not read as stronger than it is, and reproduced from study §10.
 
 - **Four seasons.** The forward-accuracy gap between B and the other two (2 pp on
   9,433 games) is comfortably significant. **The gap between A and C on violations
-  (0.1 to 0.5 pp) is not, and nothing here claims it is** — A and C are tied on
-  that axis and the decision was made on the structural finding, not on it.
+  (0.1 to 0.5 pp) is not, and nothing here claims it is.** A and C are tied on
+  that axis, and what decided between them was the structural finding.
 - The postseason axis is unusable at current sample sizes (14 CFP games, 4 non-CFP
   NY6 games) and 2021-2022 cannot contribute to it at all, because the archive
   carries no postseason rows for those seasons.

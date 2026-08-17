@@ -29,9 +29,9 @@ does nothing but fetch the one it was asked for. That is why this is a **grid** 
 not a slider: a continuous knob would need a fit per request, and a fit per request
 is a model in the browser.
 
-Seventy-two boards, one per combination of three levers. Twelve of them reproduce
-something this project has already published, which is how you check that the grid
-is the pipeline and not a second pipeline.
+Seventy-two boards, one per combination of three levers. **Eleven of them reproduce
+something this project has already published**, which is how you check that the
+grid is the pipeline and not a second pipeline.
 
 ---
 
@@ -171,6 +171,7 @@ which one is the poll. It never opens a cell document to find out what a cell is
                    "publication.headline_ordering": "schedule_odds" },
       "slugs": { "margin.c": "32", "margin.beta_w": "7",
                  "publication.headline_ordering": "odds" },
+      "changes": {},                     // only what differs from the poll
       "n_knobs_moved": 0,
       "is_published": true,
       "files": { "16": "lever-grid/c-32-bw-7-odds/week-16.json" },
@@ -185,6 +186,11 @@ which one is the poll. It never opens a cell document to find out what a cell is
 strings and a page that builds the path by hand will get the zero padding wrong
 once. Paths are relative to `<dir>/<season>/`.
 
+**`weeks` never names a week the whole grid does not carry.** A week counts only
+when all seventy-two cells have it, so an interrupted generation produces no
+manifest at all rather than one whose slider positions 404. A panel cannot tell a
+missing file from a network fault, so it is never shown one.
+
 **`equivalent_to` is `null` on most cells and is the interesting field on twelve of
 them.** It names something this project has already published at exactly these
 constants, so a panel can say "this is `Just Win`" instead of showing an unlabelled
@@ -196,8 +202,10 @@ board, and so anybody can check the grid against the tree beside it:
 | `recipe` | `full-merit`, `just-win` | `<season>/recipes/<slug>/week-NN.json` | 2 |
 | `variant` | the eight ids in `publish/variants.py` | `<season>/variants/<id>/week-NN.json` | 8 |
 
-That is eleven cells naming a published document, plus the house cell being the
-poll itself. Every one of them is checked by `scripts/check_lever_grid.py` (§9).
+Eleven cells in total, the house cell included, and every one of them is checked by
+`scripts/check_lever_grid.py` (§9). The other sixty-one carry `null`, which is not
+a defect: they are combinations nobody has published before, which is the entire
+reason to precompute them.
 
 ---
 
@@ -206,6 +214,9 @@ poll itself. Every one of them is checked by `scripts/check_lever_grid.py` (§9)
 `<dir>/<season>/lever-grid/<cell-id>/week-NN.json`. **It is the playground variant
 shape**, field for field, because a reader comparing a lever board with a shipped
 variant must not find the same number spelled two ways. About 8 KB.
+
+Field values in this block are illustrative except `n_games_in_fit`, which is
+2025 week 16's real figure and is the same on every cell and on the published poll.
 
 ```jsonc
 {
@@ -224,7 +235,7 @@ variant must not find the same number spelled two ways. About 8 KB.
                  "publication.headline_ordering": "L4_resume" },  // vs house only
     "config_sha256": "…",
     "evidence": { "archive_manifest_sha256": "manifest:…",
-                  "fit_window_sha256": "…", "n_games_in_fit": 1608 }
+                  "fit_window_sha256": "…", "n_games_in_fit": 1637 }
   },
 
   "agreement": {

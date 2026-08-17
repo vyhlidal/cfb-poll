@@ -5,7 +5,8 @@ are delivered as text. No agent has touched the Hostinger VPS, and this document
 is the procedure for a human who is about to.
 
 **What you are installing.** ADR 0002's fallback clock: a systemd timer that runs
-the identical Sunday job at 08:30 America/New_York, two and a half hours after
+the identical weekly job at Tuesday 08:30 America/Los_Angeles, two and a half
+hours after
 the n8n primary, and exits 0 in about forty seconds when the week is already
 published. It runs [`ops/bin/weekly.sh`](../../ops/bin/weekly.sh), which is the
 same file GitHub Actions runs. There is no second implementation to keep in sync.
@@ -104,14 +105,14 @@ will be sitting when somebody decides.
 sudo install -m 0644 /opt/cfb-poll/ops/systemd/cfb-poll-weekly.service /etc/systemd/system/
 sudo install -m 0644 /opt/cfb-poll/ops/systemd/cfb-poll-weekly.timer   /etc/systemd/system/
 sudo systemd-analyze verify /etc/systemd/system/cfb-poll-weekly.service
-sudo systemd-analyze calendar 'Sun *-*-* 08:30:00 America/New_York'
+sudo systemd-analyze calendar 'Tue *-*-* 08:30:00 America/Los_Angeles'
 sudo systemctl daemon-reload
 ```
 
-`systemd-analyze calendar` must print the next three Sundays at 08:30 Eastern. If
-it rejects the timezone suffix, this machine's systemd is older than 252 and the
-fix is `sudo timedatectl set-timezone America/New_York`, **not** a hardcoded UTC
-hour — that would be an hour wrong for half of every season.
+`systemd-analyze calendar` must print the next three Tuesdays at 08:30 Pacific.
+If it rejects the timezone suffix, this machine's systemd is older than 252 and
+the fix is `sudo timedatectl set-timezone America/Los_Angeles`, **not** a
+hardcoded UTC hour — that would be an hour wrong for half of every season.
 
 ## 8. Rehearse before you enable
 
@@ -145,7 +146,7 @@ sudo systemctl enable --now cfb-poll-weekly.timer
 systemctl list-timers cfb-poll-weekly.timer
 ```
 
-`list-timers` should show next Sunday 08:30 Eastern.
+`list-timers` should show next Tuesday 08:30 Pacific.
 
 ---
 
@@ -160,7 +161,7 @@ sudo systemctl disable --now cfb-poll-weekly.timer     # stop the clock
 ```
 
 **A missed run does not catch up, on purpose.** `Persistent=false`. If the VPS is
-down at 08:30 Sunday, this does not fire at 03:00 Wednesday when it comes back —
+down at 08:30 Tuesday, this does not fire at 03:00 Thursday when it comes back —
 that is the launchd behaviour ADR 0002 rejected the Mac for. The dead-man's
 switch tells a human at 14:00 and the human decides.
 

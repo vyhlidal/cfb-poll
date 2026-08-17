@@ -1,17 +1,24 @@
 # THE SAFETY CATCH. Nothing in this repository publishes on its own until a line
 # below says `true`, and every line below says `false`.
 #
-# WHY THIS FILE EXISTS. ADR 0002 gives the Sunday poll three clocks — an n8n
-# dispatch from the VPS at 06:00 ET, a GitHub `schedule:` cron deliberately
-# early, and a systemd timer on the VPS at 08:30 ET. All three are wired. None of
-# them may fire yet, because the pipeline is a partial build and an automatic
-# publication from an incomplete pipeline is exactly the silent failure this
-# design was written to prevent.
+# WHY THIS FILE EXISTS. ADR 0002 gives the weekly poll three clocks — an n8n
+# dispatch from the VPS at Tuesday 06:00 PT, a GitHub `schedule:` cron
+# deliberately early, and a systemd timer on the VPS at Tuesday 08:30 PT. All
+# three are wired. None of them may fire yet, because the pipeline is a partial
+# build and an automatic publication from an incomplete pipeline is exactly the
+# silent failure this design was written to prevent.
+#
+# THE CLOCK IS TUESDAY, NOT SUNDAY, AND EVERY TIME IN THIS PROJECT IS PACIFIC.
+# John ruled on 2026-08-17. The 2026 FBS schedule finishes week 1 on Labor Day
+# Monday and finishes most other weeks with a Hawai'i game that ends after
+# midnight PT, so the old Sunday 06:00 ET clock would have published week 1 two
+# days before week 1 was over. The per-week evidence table is in
+# docs/runbooks/sunday-automation.md.
 #
 # Commenting out the `schedule:` block in the workflow would do the same job
 # once. It would not survive the next person who un-comments it to test
 # something, and it leaves nothing for an operator to read when they ask "is the
-# Sunday job live?". A committed switch answers that question in one `cat`, and
+# weekly job live?". A committed switch answers that question in one `cat`, and
 # the answer is in the diff of whoever flipped it.
 #
 # HOW TO ARM ONE. Change its `false` to `true`, commit, push to `main`. The guard
@@ -23,9 +30,10 @@
 
 [triggers]
 
-# The n8n Schedule Trigger on the Hostinger VPS, Sunday 06:00 America/New_York,
-# posting to the workflow's dispatch endpoint. THE PRIMARY CLOCK.
-# Arm this one FIRST, and arm it alone for at least one Sunday.
+# The n8n Schedule Trigger on the Hostinger VPS, Tuesday 06:00
+# America/Los_Angeles, posting to the workflow's dispatch endpoint.
+# THE PRIMARY CLOCK.
+# Arm this one FIRST, and arm it alone for at least one Tuesday.
 n8n = false
 
 # GitHub Actions' own `schedule:` cron in .github/workflows/weekly.yml. THE THIRD
@@ -34,8 +42,8 @@ n8n = false
 # catch the case where the VPS is down, and for no other reason.
 schedule = false
 
-# The systemd timer on the VPS at 08:30 ET, running the identical
-# ops/bin/weekly.sh. THE FALLBACK. Arm this only after the units are installed
+# The systemd timer on the VPS at Tuesday 08:30 America/Los_Angeles, running the
+# identical ops/bin/weekly.sh. THE FALLBACK. Arm this only after units are installed
 # and `systemctl list-timers` shows it.
 vps_timer = false
 

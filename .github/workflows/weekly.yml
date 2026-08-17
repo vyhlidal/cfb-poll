@@ -1,16 +1,23 @@
-# The Sunday job. ADR 0002 is the design; this is the wiring.
+# The weekly job. ADR 0002 is the design; this is the wiring.
+#
+# THE CLOCK IS TUESDAY 06:00 PACIFIC, not Sunday, and every time in this project
+# is America/Los_Angeles. John ruled on 2026-08-17: the 2026 FBS schedule ends
+# week 1 on Labor Day MONDAY and ends most other weeks with a Hawai'i game that
+# finishes after midnight PT, so a Sunday clock published week 1 before week 1
+# was over. The per-week evidence is in docs/runbooks/sunday-automation.md.
 #
 # THREE CLOCKS, ONE JOB, ONE SCRIPT.
 #
-#   1. PRIMARY   n8n on the Hostinger VPS, Sunday 06:00 America/New_York, posting
-#                to this workflow's dispatch endpoint with trigger=n8n.
+#   1. PRIMARY   n8n on the Hostinger VPS, Tuesday 06:00 America/Los_Angeles,
+#                posting to this workflow's dispatch endpoint with trigger=n8n.
 #                ops/n8n/sunday-dispatch.json is the workflow, ready to import.
+#                (The filename is historical. The clock inside it is Tuesday.)
 #   2. THIRD     the `schedule:` block below, deliberately early. GitHub's own
 #      STRING    scheduled event drifts 35-216 minutes and DROPS about 5% of
 #                high-frequency runs (ADR 0002 has the measurements), so it is
 #                here to catch "the VPS is down", and for nothing else.
-#   3. FALLBACK  a systemd timer on the VPS at 08:30 ET running the identical
-#                ops/bin/weekly.sh. Units and runbook in ops/systemd/.
+#   3. FALLBACK  a systemd timer on the VPS at Tuesday 08:30 PT running the
+#                identical ops/bin/weekly.sh. Units and runbook in ops/systemd/.
 #
 # NOTHING BELOW CAN FIRE ON ITS OWN. `cfbpoll guard` reads ops/arming.toml out of
 # the checkout, every trigger in it is committed `false`, and a disarmed trigger
@@ -59,18 +66,22 @@ on:
         default: manual
         options: [manual, n8n]
 
-  # THE THIRD STRING. 08:43 UTC is the expression ADR 0002 wrote down, and the
-  # month list is the season: August through December, plus January for the
-  # bowls and the playoff. Early on purpose - with the measured 35-216 minute
-  # drift, a nominal 04:43 ET start lands in the 05:18-08:19 ET window, which is
-  # around and after the 06:00 ET primary rather than hours ahead of it.
+  # THE THIRD STRING. 11:43 UTC is ADR 0002's 04:43 expression carried across to
+  # Pacific, and the month list is the season: August through December, plus
+  # January for the bowls and the playoff. GitHub cron is UTC and does not know
+  # about daylight saving, so 11:43 UTC is 04:43 PDT from August to October and
+  # 03:43 PST from November on - the same one-hour walk the Eastern version had,
+  # and harmless because this string is deliberately early. With the measured
+  # 35-216 minute drift, a nominal 04:43 PT start lands in the 05:18-08:19 PT
+  # window, which is around and after the 06:00 PT primary rather than hours
+  # ahead of it.
   #
   # Note the trap this cannot solve: a public repository's scheduled workflows
   # are auto-disabled after 60 days with no repository activity, and the
   # offseason is seven months. That is precisely why this is the third string and
   # not the clock.
   schedule:
-    - cron: "43 8 * 8-12,1 SUN"
+    - cron: "43 11 * 8-12,1 TUE"
 
 permissions:
   contents: write        # the release asset for the week
@@ -115,7 +126,7 @@ jobs:
       - name: Sync the locked environment (fails if uv.lock is stale)
         run: uv sync --locked
 
-      # Runs before the archive restore so a disarmed Sunday costs forty seconds
+      # Runs before the archive restore so a disarmed Tuesday costs forty seconds
       # rather than a 0.55 GB download. Its outputs are read by every step below.
       - name: Guard - armed trigger, unpublished week, or nothing happens
         id: guard

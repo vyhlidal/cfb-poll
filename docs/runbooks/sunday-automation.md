@@ -1,7 +1,11 @@
-# Runbook: the Sunday automation
+# Runbook: the weekly automation
 
-**What this is.** The poll publishes on Sunday morning. This is how, what to
-touch when it does not, and the exact order to switch it on.
+**What this is.** The poll publishes on Tuesday morning, Pacific. This is how,
+what to touch when it does not, and the exact order to switch it on.
+
+**Every time on this page is Pacific**, `America/Los_Angeles`, and so is every
+time in `ops/`. John lives in PT and ruled on 2026-08-17 that the project stops
+carrying two clocks in its head. Nothing here is Eastern any more.
 
 **Status as of 2026-08-17: BUILT, WIRED, AND ARMED NOWHERE.** Every trigger and
 every step in [`ops/arming.toml`](../../ops/arming.toml) is `false`, the n8n
@@ -24,23 +28,136 @@ Design: [ADR 0002](../adr/0002-scheduling.md). Storage:
 ## The shape of it
 
 ```
-  Sunday 06:00 ET   n8n on the Hostinger VPS  ──POST /dispatches──┐
-                    (ops/n8n/sunday-dispatch.json)                │
-                                                                  ▼
-  Sunday ~04:43 ET  GitHub `schedule:` cron ────────────────► weekly.yml
-  (drifts 35-216m)  (.github/workflows/weekly.yml)                │
-                                                                  ▼
-                                                        ops/bin/weekly.sh
-                                                                  ▲
-  Sunday 08:30 ET   systemd timer on the VPS ─────────────────────┘
-                    (ops/systemd/cfb-poll-weekly.timer)
+  Tue 06:00 PT    n8n on the Hostinger VPS  ──POST /dispatches──┐
+                  (ops/n8n/sunday-dispatch.json)                │
+                                                                ▼
+  Tue ~04:43 PT   GitHub `schedule:` cron ────────────────► weekly.yml
+  (drifts 35-216m) (.github/workflows/weekly.yml)               │
+                                                                ▼
+                                                      ops/bin/weekly.sh
+                                                                ▲
+  Tue 08:30 PT    systemd timer on the VPS ─────────────────────┘
+                  (ops/systemd/cfb-poll-weekly.timer)
 
-  Sunday 14:00 ET   n8n dead-man's switch ───► email, ONLY if nothing published
-                    (ops/n8n/deadman-switch.json)
+  Tue 14:00 PT    n8n dead-man's switch ───► email, ONLY if nothing published
+                  (ops/n8n/deadman-switch.json)
 ```
 
 Three clocks, one script, and a fourth thing whose only job is to notice that
 none of them worked.
+
+**The two filenames still say `sunday`.** They are `ops/n8n/sunday-dispatch.json`
+and this page. Renaming them would break every link in the ADRs, the README and
+`AGENTS.md` for no behavioural gain, so the names are historical and the contents
+are correct. The workflow *inside* that file is named
+`cfb-poll - weekly dispatch (Tuesday 06:00 PT)`, which is what n8n will show you.
+
+---
+
+## Why Tuesday, and why every clock moved
+
+**The old clock was Sunday 06:00 ET and it was wrong about week 1.** Not
+marginally: it published the opening week two days before the opening week was
+over. This is the schedule it was wrong about, read from the CFBD API on
+2026-08-17.
+
+**Week 1 does not end on Saturday, and it does not end on Sunday either.** The
+2026 opener runs Thursday through Labor Day Monday:
+
+| 2026 week 1 | kickoff PT | |
+|---|---|---|
+| Washington State at Washington | Sun 2026-09-06 13:00 | |
+| Wisconsin at Notre Dame | Sun 2026-09-06 16:30 | |
+| Louisville at Ole Miss | Sun 2026-09-06 16:30 | |
+| **SMU at Florida State** | **Mon 2026-09-07 16:30** | **the last game of week 1** |
+
+2025 had the same shape — Virginia Tech–South Carolina and Notre Dame–Miami on
+the Sunday, TCU–North Carolina on Labor Day Monday at 17:00 PT — so this is the
+sport's habit, not a 2026 quirk.
+
+**Every other week ends late Saturday, in Hawai'i.** Four to six Saturdays a
+season carry a Hawai'i home game kicking 20:59 PT, which is the latest kickoff
+slot in the sport and puts the last whistle after midnight Pacific. Weeks 2, 5,
+11 and 13 of 2026 all have one.
+
+**And the next week starts on Tuesday afternoon.** From week 5 onward the
+MACtion midweek slate opens Tuesday at 16:00 PT. That is the late edge of the
+window: publish after it and the poll is describing a week that has already
+started playing the next one.
+
+### The whole season, week by week
+
+Last scheduled game of each week, in Pacific. Kickoffs are what CFBD `/games`
+carries; the finish column adds 3h45m, which is a long game with overtime rather
+than an average one. **Evidence column: `2026` is the real 2026 schedule as
+posted; `2025` is last season's actual, used where 2026 has not been filled in
+yet.**
+
+| week | last game (PT) | kickoff | est. finish | evidence |
+|---:|---|---|---|---|
+| 1 | **Mon** SMU at Florida State | 09-07 16:30 | Mon 20:15 | 2026 |
+| 2 | Sat New Mexico State at Hawai'i | 09-12 20:59 | Sun 00:44 | 2026 |
+| 3 | Sat Fresno State at San José State | 09-19 20:00 | Sat 23:45 | 2026 |
+| 4 | Sat Georgia Tech at Stanford | 09-26 19:30 | Sun 00:44 † | 2026 |
+| 5 | Sat San José State at Hawai'i | 10-03 20:59 | Sun 00:44 | 2026 |
+| 6 | Sat Boise State at Fresno State | 10-10 19:30 | Sun 00:44 † | 2026 |
+| 7 | Sat Fresno State at San Diego State | 10-17 19:30 | Sun 00:44 † | 2026 |
+| 8 | Sat North Dakota State at New Mexico | 10-24 19:00 | Sun 00:44 † | 2026 |
+| 9 | Sat Northern Illinois at UNLV | 10-31 19:30 | Sun 00:44 † | 2026 |
+| 10 | Sat Texas State at Oregon State | 11-07 19:30 | Sun 00:44 † | 2026 |
+| 11 | Sat North Dakota State at Hawai'i | 11-14 20:59 | Sun 00:44 | 2026 |
+| 12 | Sat Utah State at Oregon State | 11-21 19:30 | Sun 00:44 † | 2026 |
+| 13 | Sat Sacramento State at Hawai'i | 11-28 20:00 | Sun 00:44 | 2026 |
+| 14 | Sat conference championships | 12-05 17:00 | Sat 20:45 | **2025** ‡ |
+| 15 | Sat Navy at Army | 12-12 12:00 | Sat 15:45 | 2026 |
+| bowls / CFP | scattered Tue–Sat, latest kick 18:15 | — | ~22:00 | **2025** ‡ |
+
+† These weeks carry 36–45 games whose kickoff time is still TBD. CFBD stamps a
+TBD game at midnight Eastern on its calendar date, so the **date** is real and
+the clock is not. Every one of those TBD dates falls Tuesday through Saturday —
+**none on a Sunday or a Monday** — and the latest kickoff slot that exists in the
+sport is Hawai'i's 20:59 PT, so the finish column is the worst case, not a guess.
+
+‡ 2026 has no week 14 and no postseason in the feed yet, because championship
+participants and bowl assignments are not known in August. Those two rows are
+2025's actuals: championship Saturday finished 20:45 PT, and the latest bowl
+kickoff of the 2025 postseason was 18:15 PT. Re-read this table each August.
+
+**Midweek games matter for the other edge.** Weeks 6 through 13 all carry
+Tuesday and Wednesday MACtion. Those games are early in their own week, so they
+never set the *last* game — but the next week's Tuesday games are what stop the
+clock drifting later than Tuesday morning.
+
+So the window every clock has to fit inside is:
+
+| | earliest safe | latest safe | |
+|---|---|---|---|
+| week 1 | Mon 20:15 PT | Thu 17:00 PT | Labor Day nightcap |
+| weeks 2–4 | Sun 00:44 PT | Thu 16:30 PT | no midweek games yet |
+| weeks 5–13 | Sun 00:44 PT | **Tue 16:00 PT** | MACtion opens the next week |
+| championship week | Sat 20:45 PT | Sat 12:00 PT (next) | 2025 evidence |
+
+**`Tuesday 06:00 PT` is the only sane hour inside all of them.** It clears the
+Labor Day nightcap by nine and three quarter hours, clears a Hawai'i nightcap by
+twenty-nine, and still lands ten hours before the earliest game of the following
+week.
+
+**What it costs, said plainly: about 53 hours of staleness on a typical week.**
+The last whistle is around 00:44 PT Sunday and the poll goes out at 06:00 PT
+Tuesday. A Monday 06:00 PT clock would be 24 hours fresher (29.3 hours) and is
+the obvious cheaper answer, and it is rejected for one reason: it fires ten and a
+half hours *before* SMU–Florida State kicks off on Labor Day. The failure that
+buys is the silent kind this whole design exists to prevent — a week-1 board
+published without a game in it, the guard then marking the week published, and
+the Tuesday catch-up correctly no-opping on a wrong number that sits on
+thepoll.ai until week 2.
+
+**If you want Monday back, here is the price.** `cfbpoll guard` currently asks
+two questions: is the trigger armed, and is the week already published. It has no
+third question about whether the week's slate is *complete*. Teach it that — a
+`/games` check that refuses to publish a week with unplayed games in it — and
+Monday 06:00 PT becomes safe and the poll gets a day fresher. That is real work
+and it is not done, so until it is, the clock is Tuesday.
 
 **Why n8n is the clock and GitHub is not.** ADR 0002 measured it. GitHub's
 scheduled event drifted 35 to 216 minutes and *dropped about 5% of runs
@@ -95,13 +212,13 @@ n8n needs to press the button on this one workflow and nothing else.
    (Or: your avatar → **Settings** → **Developer settings** →
    **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.)
 2. **Token name:** `n8n cfb-poll weekly dispatch`
-3. **Description:** `Sunday 06:00 ET clock. Fires weekly.yml only.`
+3. **Description:** `Tuesday 06:00 PT clock. Fires weekly.yml only.`
 4. **Resource owner:** `vyhlidal`
 5. **Expiration:** **Custom → one year from today.** Not "No expiration".
    Write the date in your calendar now with a reminder a week before; a clock
    that stops in November because a token expired is the exact silent failure
    this design exists to prevent, and the dead-man's switch will catch it but
-   only after a missed Sunday.
+   only after a missed Tuesday.
 6. **Repository access:** **Only select repositories** → pick **`cfb-poll`**.
    Nothing else. Not "All repositories".
 7. **Permissions → Repository permissions**, set exactly one:
@@ -113,8 +230,8 @@ n8n needs to press the button on this one workflow and nothing else.
 9. Paste it into n8n, once, as described in the next section. Then close the tab.
    Do not put it in a file, a note, a message, or this repository.
 
-**How to check it later.** The token's page lists "Last used". If the Sunday
-dispatch is working, that date is the most recent Sunday.
+**How to check it later.** The token's page lists "Last used". If the weekly
+dispatch is working, that date is the most recent Tuesday.
 
 **If it leaks or you are unsure:** revoke it on the same settings page and make a
 new one. It can do exactly one thing — start a workflow run in `cfb-poll` — which
@@ -175,7 +292,7 @@ model, the archive sync and every third-party wheel in `uv.lock`. A test enforce
 that (`test_the_site_pat_is_scoped_to_the_delivery_steps_only`).
 
 **How to check it later.** The token page's "Last used" should be the most recent
-Sunday, and `vyhlidal/sandbox`'s history should show a `Poll <season> week <NN>`
+Tuesday, and `vyhlidal/sandbox`'s history should show a `Poll <season> week <NN>`
 commit from `cfb-poll robot` for that week.
 
 **If it leaks:** revoke it immediately, and check `sandbox`'s commit history for
@@ -199,9 +316,9 @@ On the Hostinger VPS's n8n, which already runs 24/7. Both files import inactive.
 3. Open the **Dispatch weekly.yml** node. Its credential will show as missing,
    because the committed file carries a placeholder id rather than a secret.
    Select `GitHub PAT - cfb-poll Actions`. Save.
-4. Check the workflow's **Settings → Timezone** reads `America/New_York`. The
+4. Check the workflow's **Settings → Timezone** reads `America/Los_Angeles`. The
    file sets it; confirm it survived the import, because the cron expression is a
-   bare local time and the timezone is the only thing making it Eastern. Getting
+   bare local time and the timezone is the only thing making it Pacific. Getting
    this wrong moves the poll by an hour twice a season, mid-season.
 5. **Do not activate yet.** See the switch-on order below.
 6. Repeat 2-4 for
@@ -229,7 +346,7 @@ credential works, the endpoint works, and the guard refused.
 
 ## The switch-on order
 
-Do these in order, one Sunday apart where it says so. The point of the staggering
+Do these in order, one Tuesday apart where it says so. The point of the staggering
 is that when something misbehaves you know which thing it was.
 
 1. **Close the two pipeline gaps first.** `cfbpoll preflight` says which:
@@ -276,12 +393,12 @@ is that when something misbehaves you know which thing it was.
    real repository, and it costs one run.
 6. **Arm the primary clock alone.** Set `n8n = true` in `ops/arming.toml`, commit,
    push to `main`, then activate the n8n dispatch workflow. Leave the other two
-   `false`. Watch one Sunday, end to end, all the way to the site.
-7. **Arm the dead-man's switch.** Activate that n8n workflow. Watch one Sunday
+   `false`. Watch one Tuesday, end to end, all the way to the site.
+7. **Arm the dead-man's switch.** Activate that n8n workflow. Watch one Tuesday
    and confirm it stays quiet.
 8. **Install and arm the VPS fallback.** Follow
    [the install runbook](vps-fallback-install.md), then set `vps_timer = true`.
-   Watch one Sunday: it should exit 0 in about forty seconds because the 06:00
+   Watch one Tuesday: it should exit 0 in about forty seconds because the 06:00
    run already published.
 
    Decide before you arm it whether the VPS should deliver too. It can — nothing
@@ -289,10 +406,10 @@ is that when something misbehaves you know which thing it was.
    `/etc/cfb-poll/weekly.env`, which is a second place a website-writing token
    lives. The conservative choice is to leave the VPS's `SANDBOX_CONTENTS_PAT`
    unset, so the fallback produces the board and a human delivers it on the rare
-   Sunday the primary died.
+   Tuesday the primary died.
 9. **Arm the third string last.** Set `schedule = true`. This is the one that can
    fire hours from where you expect it, so it goes on when the two reliable paths
-   are known good and the guard has been proven idempotent three Sundays running.
+   are known good and the guard has been proven idempotent three Tuesdays running.
 
 Reverse in the same order to switch anything off. Flipping a line in
 `ops/arming.toml` is a reviewed commit with an author and a date, which is the

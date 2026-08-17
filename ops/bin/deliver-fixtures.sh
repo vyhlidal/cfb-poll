@@ -142,7 +142,7 @@ if [ "$MODE" = "prepare" ]; then
   mkdir -p "$(dirname "$DELIVERY_CLONE")"
   log "cloning $SANDBOX_REMOTE ($SANDBOX_BRANCH) into $DELIVERY_CLONE"
   # --depth 1: we only ever add a commit on top of the tip. The full history of
-  # a Next.js app is not something a poll run needs to download every Sunday.
+  # a Next.js app is not something a poll run needs to download every week.
   git clone --quiet --depth 1 --single-branch --branch "$SANDBOX_BRANCH" \
     "$SANDBOX_REMOTE" "$DELIVERY_CLONE" >&2
 
@@ -207,7 +207,7 @@ fi
 MESSAGE="$(cat <<MSG
 Poll ${SEASON} week ${WEEK_LABEL} (${SEASON_TYPE})
 
-Published by the cfb-poll Sunday job.
+Published by the cfb-poll weekly job.
 
   season:     ${SEASON}
   week:       ${WEEK} (${SEASON_TYPE})

@@ -1,5 +1,10 @@
-# The fallback clock: Sunday 08:30 America/New_York, two and a half hours after
-# the n8n primary. DELIVERED, NOT INSTALLED.
+# The fallback clock: Tuesday 08:30 America/Los_Angeles, two and a half hours
+# after the n8n primary. DELIVERED, NOT INSTALLED.
+#
+# WHY TUESDAY. The 2026 FBS schedule finishes week 1 on Labor Day MONDAY and
+# every other week with a Hawai'i nightcap kicking 20:59 PT. A Sunday clock
+# published week 1 two days before it was over. The reasoning and the per-week
+# table are in docs/runbooks/sunday-automation.md.
 #
 # `Persistent=false` IS THE LOAD-BEARING LINE AND IT IS DELIBERATE.
 #
@@ -9,22 +14,22 @@
 # publication is a coin flip with a silent failure mode". A fallback that fires
 # at 03:00 on Wednesday because the VPS rebooted is not a fallback, it is an
 # unscheduled publication nobody is awake for. If this timer misses its window,
-# the correct outcome is that the dead-man's switch tells a human at 14:00 ET
+# the correct outcome is that the dead-man's switch tells a human at 14:00 PT
 # and the human decides.
 #
 # THE TIMEZONE SUFFIX NEEDS systemd >= 252. Ubuntu 24.04 ships 255, so this
 # works as written on the target VPS. Confirm with `systemd-analyze calendar
-# 'Sun *-*-* 08:30:00 America/New_York'` before you enable it; if the suffix is
-# rejected, the machine is older than this file assumes and the correct fix is
-# `timedatectl set-timezone America/New_York`, not a hardcoded UTC hour that
-# will be wrong for half the season.
+# 'Tue *-*-* 08:30:00 America/Los_Angeles'` before you enable it; if the suffix
+# is rejected, the machine is older than this file assumes and the correct fix
+# is `timedatectl set-timezone America/Los_Angeles`, not a hardcoded UTC hour
+# that will be wrong for half the season.
 
 [Unit]
-Description=cfb-poll weekly publication fallback, Sunday 08:30 ET
+Description=cfb-poll weekly publication fallback, Tuesday 08:30 PT
 Documentation=https://github.com/vyhlidal/cfb-poll/blob/main/docs/adr/0002-scheduling.md
 
 [Timer]
-OnCalendar=Sun *-*-* 08:30:00 America/New_York
+OnCalendar=Tue *-*-* 08:30:00 America/Los_Angeles
 Persistent=false
 AccuracySec=1min
 RandomizedDelaySec=0

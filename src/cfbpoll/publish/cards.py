@@ -137,8 +137,6 @@ from cfbpoll.publish.serving import Bundle, build
 
 __all__ = [
     "AGREEMENT_BAND",
-    "BILLBOARD_CLARITY",
-    "BILLBOARD_TEASER",
     "BILLBOARD_VARIANTS",
     "BUILDERS",
     "CORPUS_COUNTS_PATH",
@@ -152,12 +150,16 @@ __all__ = [
     "PALETTE",
     "PLATE_OPACITY",
     "PNG_ALLOWED_CHUNKS",
-    "POSTER_HEIGHT",
+    "SHARE_HEIGHT",
+    "SHARE_WIDTH",
     "PROJECTION_VARIANTS",
     "SAFE_TOP",
     "SQUARE_HEIGHT",
     "TALL_HEIGHT",
+    "TEASER",
     "TEASER_HEIGHT",
+    "teaser_line",
+    "tile_columns",
     "VARIANTS",
     "billboard_team_svg",
     "billboard_top5_svg",
@@ -207,19 +209,31 @@ TALL_HEIGHT = 1500
 #: LinkedIn or Reddit thumbnail does not letterbox it.
 SQUARE_HEIGHT = 1200
 
-#: 1200x1800 is 2:3, and it is the ALL-TEAMS POSTER. It is the one canvas here
-#: that is not native to a feed, and that is the honest trade rather than an
-#: oversight: 138 teams drawn large enough to recognise from a logo do not fit in
-#: a feed-native ratio at 1200px wide, and a card nobody can read at a glance has
-#: already failed whatever ratio it is cut to.
+#: 1080x1350 IS THE SHAREABLE SET, ALL FOUR CARDS, ONE SIZE. The owner's ruling of
+#: 2026-08-18: the top 5, the top 10, the top 25 and the whole board are posted
+#: together and have to look like a set, so they get one canvas and it is the one
+#: that survives all three surfaces WHOLE.
 #:
-#: THE ARITHMETIC IS WHY, AND IT IS NOT NEGOTIABLE BY TASTE. The drawable board on
-#: the 4:5 canvas is 1120x1088, which is 8,800 square pixels per team. A school
-#: mark and a rank numeral that read at arm's length need roughly twice that. 2:3
-#: buys the second half. It is still one file, still self-contained, still under
-#: the 5 MB ceiling by three orders of magnitude, and it is the artifact somebody
-#: taps to expand rather than the one that has to survive being scrolled past.
-POSTER_HEIGHT = 1800
+#: 4:5 IS THE ANSWER AND IT WAS CHECKED RATHER THAN ASSUMED (August 2026):
+#:
+#:   - INSTAGRAM caps feed content at 1080 wide and 1350 tall. Anything wider is
+#:     downscaled to 1080 and anything taller is cropped, so 1080x1350 is not a
+#:     preference here, it is the ceiling. A 1200px card was being resampled on
+#:     the way in every single time.
+#:   - X shows a single image whole between 16:9 and 4:5 in the timeline. 4:5 is
+#:     the tall end of that window, which is the most timeline height a card can
+#:     take without being cut down to a tap-to-expand thumbnail.
+#:   - REDDIT shows 4:5 whole in the mobile feed and crops to 5:4 in the old
+#:     Classic view, which is why nothing load-bearing sits in the top or bottom
+#:     tenth of any of these cards.
+#:
+#: WHAT IT COSTS, STATED RATHER THAN BURIED. The all-teams card was on a 2:3
+#: poster and drew a 63px mark; one canvas for the set puts it at about 49px,
+#: because 138 teams in 1016x966 is 7,100 square pixels each and no layout
+#: invents room that is not there. The set reading as a set was the ruling, and
+#: this is the bill for it.
+SHARE_WIDTH = 1080
+SHARE_HEIGHT = 1350
 
 #: X crops the top and bottom on mobile, so the essential content lives in the
 #: middle ~60% (report 05 §6.2). The title band and the constants footer sit
@@ -1062,10 +1076,25 @@ def _footer(
         _rule(0, top, width, stroke=PALETTE["accent"] if accent_divider else PALETTE["rule"],
               weight=2 if accent_divider else 1),
     ]
+    # IT SHRINKS BEFORE IT CLIPS, which is the rule `_reverse_block` already
+    # obeys, applied here for the same reason. This used to clip at the literal
+    # number 118, which fitted a 1200px card and, on the 1080px one the shareable
+    # set moved to, cut the backtest line mid-figure - dropping the third of three
+    # numbers from the one line on the card that publishes how often this method
+    # LOSES. A truncated honesty line is worse than a small one.
+    #
+    # The room is the canvas less the margins less the ~200px address block on the
+    # right; the mono face advances about 0.6 of its size per character. The floor
+    # is 10.5px: this line is a provenance whisper in `ink_faint`, not something a
+    # reader is asked to read at arm's length, and below that it stops resolving.
+    drawn = [_clip(line, 200) for line in lines[:2]]
+    room = width - 64 - 200
+    longest = max((len(line) for line in drawn), default=1)
+    size = max(10.5, min(14.0, room / (longest * 0.6)))
     y = top + 26
-    for line in lines[:2]:
+    for line in drawn:
         parts.append(
-            _text(32, y, _clip(line, 118), size=14, fill=PALETTE["ink_faint"], family=FONT_MONO)
+            _text(32, y, line, size=size, fill=PALETTE["ink_faint"], family=FONT_MONO)
         )
         y += 19
     parts.append(
@@ -1716,8 +1745,57 @@ def top25_instagram_svg(bundle: Bundle) -> str:
 #: FOURTEEN ALSO READS AS DECADES, which is a free property rather than the
 #: reason: ten deep means a column is 1-10, the next is 11-20, and a reader
 #: hunting the fifties goes to the sixth column instead of counting.
-GRID_COLUMNS = 14
+GRID_COLUMNS = 16
 TOP25_COLUMNS = 5
+
+#: The narrowest cell that can still hold a four-character abbreviation under the
+#: mark. Below this the caption starts clipping school names, which is the point
+#: at which a denser grid stops buying anything.
+TILE_MIN_CELL_W = 52.0
+
+
+def tile_columns(count: int, width: float, height: float) -> int:
+    """How many columns put the LARGEST mark on the board. Solved, not chosen.
+
+    THIS EXISTS BECAUSE THE CANVAS MOVED AND THE ANSWER MOVED WITH IT. A tile's
+    mark is capped twice - by the cell's width outright, and by what the cell's
+    height has left after the caption - and columns trade one against the other:
+    more of them make cells narrower but there are fewer rows, so each is taller.
+    The maximum is where the two caps cross, and it is not the same integer on a
+    2:3 poster as on a 4:5 card. Hard-coding it meant that every canvas change
+    silently left the mark smaller than the box allowed, which is exactly what
+    "maximise the logo" cannot survive.
+
+    Ties go to FEWER columns: two counts that draw the same mark are not equally
+    good, because the wider cell holds more of a school's name.
+    """
+    best, best_mark = 1, -1.0
+    for columns in range(1, count + 1):
+        if width / columns < TILE_MIN_CELL_W:
+            break
+        mark = _tile_metrics(count, columns, width, height)[0]
+        if mark > best_mark + 1e-9:
+            best, best_mark = columns, mark
+    return best
+
+
+def _tile_metrics(
+    count: int, columns: int, width: float, height: float
+) -> tuple[float, float, float, float, float]:
+    """`(mark_r, rank_size, name_size, cell_w, cell_h)` for one column count.
+
+    Split out of `_tile_block` so the chooser above and the drawing below cannot
+    disagree about what a column count is worth.
+    """
+    lines = -(-count // columns)
+    cell_w, cell_h = width / columns, height / lines
+    rank_size = cell_h * TILE_RANK_RATIO
+    name_size = cell_h * TILE_NAME_RATIO
+    caption = rank_size * 1.12 + name_size * 1.30
+    mark_r = max(
+        6.0, min(cell_w - TILE_PAD * 2, cell_h - caption - TILE_PAD * 2) / 2
+    )
+    return mark_r, rank_size, name_size, cell_w, cell_h
 
 #: The caption under the mark, as fractions of the cell's height. The rank is
 #: more than twice the name because the rank is the number the card is FOR and
@@ -1819,16 +1897,8 @@ def _tile_block(
     number a later edit can quietly walk back.
     """
     cells = _grid_cells(len(rows), columns)
-    lines = max(line for _column, line in cells) + 1
-    cell_w = width / columns
-    cell_h = height / lines
-
-    rank_size = cell_h * TILE_RANK_RATIO
-    name_size = cell_h * TILE_NAME_RATIO
-    caption = rank_size * 1.12 + name_size * 1.30
-    mark_r = max(
-        6.0,
-        min(cell_w - TILE_PAD * 2, cell_h - caption - TILE_PAD * 2) / 2,
+    mark_r, rank_size, name_size, cell_w, cell_h = _tile_metrics(
+        len(rows), columns, width, height
     )
 
     parts: list[str] = []
@@ -1867,22 +1937,72 @@ def _tile_block(
 #: it, and the constants footer stays exactly where `AGENTS.md` puts it, because
 #: these are cards built to be READ and the owner's "no stat nerd shit" ruling was
 #: confined to the billboards by name.
-TEASER_HEIGHT = 68.0
-TEASER_SIZE = 22.0
+TEASER_HEIGHT = 96.0
+TEASER_SIZE = 19.0
+TEASER_LINES = 3
 
 
 def _teaser(width: float, height: float) -> list[str]:
-    """The tagline, above the signature strip. Drawn from the module constant."""
+    """The teaser, above the signature strip. Drawn from the module constant."""
     top = footer_top(height) - TEASER_HEIGHT
-    parts = [_rule(40, top, width - 80, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)]
-    y = top + 32
-    budget = max(24, int((width - 80) / (TEASER_SIZE * 0.44)))
-    for line in _wrap(BILLBOARD_TEASER, budget, 2):
+    # A BAND DIVIDER AT FULL STRENGTH, NOT A ROW SEPARATOR. It closes the board
+    # and opens the copy, which is the same job the header's rule does, so it is
+    # drawn the same way. At `ROW_RULE_OPACITY` it was indistinguishable from the
+    # hairline under the last row and landed 12px beneath it, which reads as a
+    # doubled line rather than as the edge of a section.
+    parts = [_rule(32, top, width - 64, stroke=PALETTE["rule"])]
+    y = top + 26
+    budget = max(24, int((width - 64) / (TEASER_SIZE * 0.44)))
+    for line in _wrap(teaser_line(), budget, TEASER_LINES):
         parts.append(
-            _text(40, y, line, size=TEASER_SIZE, fill=PALETTE["ink"],
+            _text(32, y, line, size=TEASER_SIZE, fill=PALETTE["ink"],
                   family=FONT_DISPLAY, weight="600")
         )
         y += TEASER_SIZE * 1.28
+    return parts
+
+
+#: The header band every shareable card wears, and it is DELIBERATELY THIN.
+#:
+#: WHAT CAME OFF, on the owner's ruling of 2026-08-18: "the first three cards drop
+#: the left-side matter entirely, tight, logo+number maximized, minimal
+#: furniture." The top five and the top ten each carried a 392px masthead column
+#: down the left holding the wordmark, the dateline, the label and a four-line
+#: prose thesis: a third of the card spent on words, on an artifact whose job is
+#: to be recognised in a thumbnail. It is gone, and the board now runs the full
+#: width of every card in the set.
+#:
+#: WHAT STAYS, AND ONE OF THE TWO IS NOT NEGOTIABLE. The wordmark and the dateline
+#: stay because a card that does not say whose board it is and which season it is
+#: for is an orphan the moment it is reposted. The document's `label` stays
+#: because `docs/fixture-contract-recipes.md` §4 REQUIRES the surface to draw it
+#: whenever it is non-null, and on the projection it is the sentence that stops a
+#: prediction being read as the poll. Neither is furniture.
+#:
+#: WHAT DOES NOT COME BACK IS THE THESIS PARAGRAPH. `headline` is a sentence for
+#: somebody sitting down with the page, and the teaser at the foot is the sentence
+#: for somebody who is not.
+HEADER_MARK_W = 268.0
+HEADER_HEIGHT = 186.0
+
+
+def _share_header(document: dict[str, Any], width: float) -> list[str]:
+    """Wordmark, dateline, label, closing rule. The same block on all four cards."""
+    parts: list[str] = list(_masthead(32.0, 34.0, HEADER_MARK_W, accent=PALETTE["accent"]))
+    y = 34.0 + masthead_height(HEADER_MARK_W)
+
+    parts.append(
+        _text(width - 32, y - 8, PROJECTION_EYEBROW.format(season=int(document["season"])),
+              size=17, fill=PALETTE["ink_dim"], weight="700", anchor="end",
+              family=FONT_DISPLAY, spacing=1.9)
+    )
+    y += 24
+
+    label = str(document.get("label") or "") or None
+    if label:
+        parts.extend(_reverse_block(32.0, y, width - 64, label, size=15))
+
+    parts.append(_rule(0, HEADER_HEIGHT, width, stroke=PALETTE["rule"]))
     return parts
 
 
@@ -1992,14 +2112,109 @@ def _projection_footer(document: dict[str, Any], width: float, height: float) ->
     return _footer(_projection_footer_lines(document), width, height)
 
 
-def projection_top5_svg(document: dict[str, Any]) -> str:
-    """The projected top five, on the poll hero card's grid exactly.
+#: Where a shareable card's board begins and ends, on the one canvas all four
+#: share. Every card in the set puts its first row on the same pixel and its last
+#: row above the same teaser, so the four stack into a coherent post.
+SHARE_BOARD_TOP = HEADER_HEIGHT + 20.0
 
-    Same 75px rows, same 52px numerals, same safe-band block, because the two
-    boards get posted side by side and the only thing that should differ between
-    them is what they say. What differs: the dateline reads PRESEASON PROJECTION,
-    the right-hand column is `projected_wins`, and the footer is the backtest
-    rather than the model constants.
+
+def _share_board_box(height: float) -> tuple[float, float]:
+    """`(top, drawable height)` between the header rule and the teaser band."""
+    bottom = footer_top(height) - TEASER_HEIGHT - 26.0
+    return SHARE_BOARD_TOP, bottom - SHARE_BOARD_TOP
+
+
+def _share_card(
+    document: dict[str, Any], label: str, body: list[str]
+) -> str:
+    """Header, board, teaser, signature, on 1080x1350. The frame for all four."""
+    parts = _card_open(SHARE_WIDTH, SHARE_HEIGHT, label)
+    parts.extend(_share_header(document, SHARE_WIDTH))
+    parts.extend(body)
+    parts.extend(_teaser(SHARE_WIDTH, SHARE_HEIGHT))
+    parts.extend(_projection_footer(document, SHARE_WIDTH, SHARE_HEIGHT))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+def _share_rows(document: dict[str, Any], count: int, label: str) -> str:
+    """The 5 and the 10: one full-width row each, as tall as the board allows.
+
+    NO COLUMN, NO THESIS, NO ABBREVIATIONS, and the row is the whole width of the
+    card. What that buys is the entire point of the ruling: five rows across 966px
+    is a 193px row, which carries a 162px school mark and a 90px rank numeral, and
+    ten rows carry 81px and 52px. The old wide card gave the five a 63px mark and
+    the ten a 29px one, because a 392px prose column was standing where the board
+    is now.
+
+    `_poll_row` is unchanged and does the drawing, so these rows are the same
+    object as every other row this module has ever drawn: same stripe, same
+    right-anchored numeral lane, same uniform treatment of rank 1 and rank 10, no
+    cut line. Only the numbers passed in are different.
+    """
+    rows = _projection_rows(document, count)
+    top, height = _share_board_box(SHARE_HEIGHT)
+    row_h = height / count
+    return _share_card(
+        document,
+        label,
+        _row_block(
+            rows,
+            32.0,
+            top,
+            SHARE_WIDTH - 64,
+            height=row_h,
+            rank_size=row_h * 0.47,
+            name_size=row_h * 0.30,
+            value_size=row_h * 0.21,
+            use_abbreviation=False,
+            value_of=_projected_wins,
+            mark_ratio=BOARD_MARK_RATIO,
+        ),
+    )
+
+
+def _share_tiles(
+    document: dict[str, Any],
+    count: int,
+    label: str,
+    *,
+    use_abbreviation: bool,
+    columns: int | None = None,
+) -> str:
+    """The 25 and the 138 as tiles. `columns=None` solves for the biggest mark.
+
+    THE 25 DOES NOT SOLVE AND THE 138 DOES, which looks inconsistent and is not.
+    `tile_columns` maximises the mark and nothing else, and on 25 rows it answers
+    SEVEN, because four ranks of seven leaves taller cells than five of five and
+    the mark comes out 125px instead of 97. That is a bigger logo on a worse card.
+    Seven columns cannot divide 25, so the grid finishes ragged - four columns of
+    four beside three of three - and a top 25 is the one board in the sport that
+    every reader already knows the shape of. Five by five IS the format; a reader
+    counts the block rather than the rows. So the 25 is pinned and pays 28px for
+    a square, and the all-teams card, which has no canonical shape and 138 teams
+    that will not divide evenly by anything, takes the solved answer.
+    """
+    rows = _projection_rows(document, count)
+    top, height = _share_board_box(SHARE_HEIGHT)
+    width = SHARE_WIDTH - 64
+    return _share_card(
+        document,
+        label,
+        _tile_block(
+            rows,
+            32.0,
+            top,
+            width,
+            height,
+            columns=columns if columns is not None else tile_columns(len(rows), width, height),
+            use_abbreviation=use_abbreviation,
+        ),
+    )
+
+
+def projection_top5_svg(document: dict[str, Any]) -> str:
+    """The projected top five. 1080x1350, five rows, and nothing else on it.
 
     THE WIN COLUMN IS BONE AND THE POLL'S ODDS COLUMN IS CYAN, and that is the
     accent rule doing real work rather than decoration. The brand permits the
@@ -2008,151 +2223,69 @@ def projection_top5_svg(document: dict[str, Any]) -> str:
     between the two boards is not a shape or a wordmark; it is that one of them
     has the key on it and the other does not.
     """
-    rows = _projection_rows(document, 5)
     season = int(document["season"])
-
-    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top five, {season} preseason")
-    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=21))
-    parts.extend(
-        _row_block(
-            rows,
-            COLUMN_W + 32,
-            HERO_ROW_TOP,
-            CARD_WIDTH - COLUMN_W - 64,
-            height=HERO_ROW_HEIGHT,
-            rank_size=52,
-            name_size=40,
-            value_size=32,
-            use_abbreviation=False,
-            value_of=_projected_wins,
-            mark_ratio=BOARD_MARK_RATIO,
-        )
-    )
-    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
-    parts.append("</svg>")
-    return "\n".join(parts) + "\n"
+    return _share_rows(document, 5, f"The Projection top five, {season} preseason")
 
 
 def projection_top10_svg(document: dict[str, Any]) -> str:
-    """The projected top ten. Same canvas and same grid as the poll's top ten.
-
-    Deliberately the same geometry: the two boards sit on one page and a reader
-    comparing them should be comparing the numbers, not noticing that one card's
-    rows are taller. What differs is what the card says it is, and the column on
-    the right: `projected_wins` where the poll prints its odds key.
-    """
-    rows = _projection_rows(document, 10)
+    """The projected top ten. Same canvas, same header, same teaser as the five."""
     season = int(document["season"])
-
-    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top ten, {season} preseason")
-    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=21))
-    parts.extend(
-        _row_block(
-            rows,
-            COLUMN_W + 32,
-            144.0,
-            CARD_WIDTH - COLUMN_W - 64,
-            height=34.0,
-            rank_size=28,
-            name_size=25,
-            value_size=24,
-            use_abbreviation=False,
-            value_of=_projected_wins,
-            mark_ratio=BOARD_MARK_RATIO,
-        )
-    )
-    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
-    parts.append("</svg>")
-    return "\n".join(parts) + "\n"
-
-
-#: Where a tile card's board begins and how tall its header band is. Shared by
-#: the 25 and the 138 so the two read as one format at two densities: same
-#: banner, same first line of tiles, same tagline band, same signature strip.
-TILE_BANNER_H = 300.0
-TILE_BOARD_TOP = 336.0
-
-
-def _tile_card(
-    document: dict[str, Any],
-    rows: list[dict[str, Any]],
-    *,
-    height: float,
-    columns: int,
-    label: str,
-    thesis: str,
-    use_abbreviation: bool,
-) -> str:
-    """A tile card end to end: banner, tiles, tagline, signature. Both callers.
-
-    The 25 and the 138 differ in three arguments and in nothing else, which is
-    the point: a reader who has learned to read one of them has learned the
-    other, and a change to the format cannot land on one card and miss its twin.
-    """
-    season = int(document["season"])
-    parts = _card_open(CARD_WIDTH, height, label)
-    parts.extend(
-        _top_banner(
-            CARD_WIDTH,
-            TILE_BANNER_H,
-            eyebrow=PROJECTION_EYEBROW.format(season=season),
-            label=str(document.get("label") or "") or None,
-            thesis=thesis,
-            thesis_size=26,
-            thesis_lines=1,
-            accent=PALETTE["accent"],
-        )
-    )
-    board_bottom = footer_top(height) - TEASER_HEIGHT - 12
-    parts.extend(
-        _tile_block(
-            rows,
-            40.0,
-            TILE_BOARD_TOP,
-            CARD_WIDTH - 80,
-            board_bottom - TILE_BOARD_TOP,
-            columns=columns,
-            use_abbreviation=use_abbreviation,
-        )
-    )
-    parts.extend(_teaser(CARD_WIDTH, height))
-    parts.extend(_projection_footer(document, CARD_WIDTH, height))
-    parts.append("</svg>")
-    return "\n".join(parts) + "\n"
+    return _share_rows(document, 10, f"The Projection top ten, {season} preseason")
 
 
 def projection_top25_svg(document: dict[str, Any]) -> str:
-    """The projected top 25 as a 5x5 tile grid on the 1200x1500 canvas.
+    """The projected top 25 as a tile grid on the shared 1080x1350 canvas.
 
-    IT LEFT THE 16:9 CANVAS AND THAT IS A REVERSAL WITH A PRICE. The previous
-    version of this card argued for `summary_large_image` because "its job is to
-    be the image that embeds anywhere", and it drew 25 rows of 26px to get there:
-    a 21px rank numeral and an 18px school mark, on the card the owner named as
-    the one that has to read at a glance. Both jobs do not fit on one canvas. The
-    ruling of 2026-08-18 chose the glance, so the 25 goes portrait and the top
-    ten - same board, same brand, native to 1.91:1 - is what the link preview
-    picks up. See `share.ts`, which selects the widest ranking rather than a
-    variant name, so nothing had to be told about this.
+    IT LEFT 1.91:1 AND THEN IT LEFT 1200 WIDE, in two rulings a day apart. The
+    first sent it portrait to get the marks up; the second put the whole set on
+    one canvas so the four can be posted together. Neither is free and the second
+    one costs this card about six pixels of mark, which is worth it: a set that
+    reads as a set is what a reader is being asked to look at.
 
-    WHAT THE CANVAS BOUGHT: the mark goes from 18px to about 105px and the rank
-    numeral from 21px to about 49px. That is the whole change. Same rows, same
-    fields, same uniform treatment, same footer.
-
-    THE FULL SCHOOL NAME RATHER THAN THE ABBREVIATION, unlike the 138. A 224px
+    THE FULL SCHOOL NAME RATHER THAN THE ABBREVIATION, unlike the 138. A 203px
     cell holds `Mississippi State` at caption size and the mark has already done
-    the identifying anyway; the poster's 80px cells have room for four letters and
-    no more, which is the only reason that card abbreviates.
+    the identifying anyway; the all-teams card's 63px cells have room for four
+    letters and no more, which is the only reason that one abbreviates.
     """
-    rows = _projection_rows(document, 25)
     season = int(document["season"])
-    return _tile_card(
-        document,
-        rows,
-        height=TALL_HEIGHT,
-        columns=TOP25_COLUMNS,
-        label=f"The Projection top 25, {season} preseason",
-        thesis=f"The top {len(rows)} of the {_field_size(document)} teams the model ranks.",
-        use_abbreviation=False,
+    return _share_tiles(
+        document, 25, f"The Projection top 25, {season} preseason",
+        use_abbreviation=False, columns=TOP25_COLUMNS,
+    )
+
+
+def grid_svg(document: dict[str, Any]) -> str:
+    """Every ranked team on one card. The format this brand had to survive.
+
+    THE ONE DECISION THAT GOVERNS THIS CARD, and it is the brand book's: **we
+    never flood a cell with a school's colour.** The graphics this format is
+    borrowed from fill every tile with team colours, and the result belongs to the
+    schools rather than to the poll that made it - 138 colour schemes fighting,
+    and a card that could be any conference's promo. Ours keeps our own ground,
+    sets the rank numeral in the board face, draws the school's mark as the
+    biggest thing in the cell, and gives the school's colour exactly the 3px
+    stripe every board on this card set already gives it.
+
+    That is what keeps the card ours, and it is the same independence promise the
+    site prints above the board: a poll with no favourites does not wear
+    anybody's palette, not even 138 of them at once.
+
+    THIS IS THE CARD THE ONE-CANVAS RULING TAXES, and the number is on the record:
+    on its own 2:3 poster it drew a 63px mark, and on the shared 4:5 canvas it
+    draws about 49. 138 teams in 1016x966 is 7,100 square pixels each and no
+    layout invents room that is not there. It is still a two-thirds bigger mark
+    than the 29px the agate version drew, and the set now posts as a set.
+
+    ORDERED BY RANK, DOWN EACH COLUMN AND THEN ACROSS, which is how a poll is
+    read. `_grid_cells` holds that arithmetic and says why. An alphabetical grid
+    would serve a reader hunting for one school better and a reader looking at the
+    shape of the board not at all, and the second is what a ranking card is for.
+    """
+    rows = _projection_rows(document, 138)
+    season = int(document["season"])
+    return _share_tiles(
+        document, 138, f"All {len(rows)} teams, {season} preseason",
+        use_abbreviation=True,
     )
 
 
@@ -2224,52 +2357,6 @@ def strip_png_metadata(raw: bytes) -> bytes:
     return bytes(out)
 
 
-# ------------------------------------------------------------------- the poster
-
-
-def grid_svg(document: dict[str, Any]) -> str:
-    """Every ranked team on one card. The format this brand had to survive.
-
-    THE ONE DECISION THAT GOVERNS THIS CARD, and it is the brand book's: **we
-    never flood a cell with a school's colour.** The graphics this format is
-    borrowed from fill every tile with team colours, and the result belongs to the
-    schools rather than to the poll that made it - 138 colour schemes fighting,
-    and a card that could be any conference's promo. Ours keeps our own ground,
-    sets the rank numeral in the board face, draws the school's mark as the
-    biggest thing in the cell, and gives the school's colour exactly the 3px
-    stripe every board on this card set already gives it.
-
-    That is what keeps the card ours, and it is the same independence promise the
-    site prints above the board: a poll with no favourites does not wear
-    anybody's palette, not even 138 of them at once.
-
-    IT IS A POSTER NOW AND IT USED TO BE AN AGATE PAGE. Until 2026-08-18 this drew
-    138 rows of rank-mark-name across seven columns of the 4:5 canvas, which put
-    the mark at 29px: identifiable if you already knew which logo you were looking
-    for, and a smudge if you did not. The owner's ruling was to maximise the mark
-    and the numeral, so the row became a tile, the seven columns became fourteen,
-    and the canvas went to 2:3. The mark is about 65px and the numeral about 34px.
-    `_tile_block` derives both from the box rather than naming them, so the claim
-    survives the next edit.
-
-    ORDERED BY RANK, DOWN EACH COLUMN AND THEN ACROSS, which is how a poll is
-    read. `_grid_cells` holds that arithmetic and says why. An alphabetical grid
-    would serve a reader hunting for one school better and a reader looking at the
-    shape of the board not at all, and the second is what a ranking card is for.
-    """
-    rows = _projection_rows(document, 138)
-    season = int(document["season"])
-    return _tile_card(
-        document,
-        rows,
-        height=POSTER_HEIGHT,
-        columns=GRID_COLUMNS,
-        label=f"All {len(rows)} teams, {season} preseason",
-        thesis=f"Every one of the {len(rows)} teams the model ranks, in order.",
-        use_abbreviation=True,
-    )
-
-
 # ---------------------------------------------------------------- the billboard
 #
 # WHAT A BILLBOARD IS FOR, AND WHY IT IS NOT JUST A BIGGER TOP FIVE. Every other
@@ -2304,44 +2391,83 @@ def grid_svg(document: dict[str, Any]) -> str:
 # `BILLBOARD_VARIANTS` is the only place `_billboard_credit` is drawn.
 
 
-#: THE CLARITY LINE, AND EVERY NUMBER IN IT COMES OUT OF A FILE. The owner's draft
-#: was "AI used 5 seasons of publicly available football stats - N stats, N games,
-#: N simulations - to build a projection and a poll that follows the data", with
-#: the counts left as N and one instruction attached: pull the true numbers from
-#: the pipeline, no placeholders ship.
+#: THE TEASER, AND IT IS ONE SENTENCE-BLOCK ON ALL FOUR SHARE CARDS AND BOTH
+#: BILLBOARDS. It replaces a pair - a "clarity line" carrying the counts and a
+#: separate tagline - which is why there is one constant here where there were
+#: two.
 #:
-#: SO NOTHING HERE IS TYPED. `data/corpus-counts.json` is written by
+#: WHAT THE OWNER STRUCK, on 2026-08-18: "No human vote goes into either one."
+#: His reason is the right one and it is not about voice. "Either one" points at
+#: the projection AND the poll, which is two machines a card never explains, so
+#: the sentence asked a stranger to hold a distinction he has not been told
+#: about. Nothing replaces it, because the claim it was making is carried better
+#: by the open-source line: a reader who can read the code does not need to be
+#: told what is not in it.
+#:
+#: HIS STRUCTURE, KEPT IN ORDER: built by AI, the numbers, the address, open
+#: source, the invitation. Five beats, and the invitation is last because it is
+#: the only one that asks the reader for anything.
+#:
+#: NOTHING HERE IS TYPED. `data/corpus-counts.json` is written by
 #: `scripts/count_corpus.py`, which counts through the pipeline's own loaders, and
 #: this template is filled from it at render time. A number typed into a renderer
 #: is the number that goes stale the first week of the season, and `AGENTS.md` is
-#: explicit that a run-produced figure is regenerated rather than quoted.
+#: explicit that a run-produced figure is regenerated rather than quoted. The
+#: season count comes from the same file, so "five seasons" cannot outlive the
+#: five seasons.
 #:
-#: WHAT WAS TIGHTENED. The em dashes are banned outright, so the counts become an
-#: appositive between commas. "N stats" is not a thing anybody counts, and the
-#: measurable quantity underneath it is plays, so the card says plays. And
-#: "simulations" needed checking rather than repeating: the headline tail is an
-#: exact Poisson-binomial convolution and simulates nothing, but `bootstrap.simulate`
-#: genuinely does "simulate `draws` seasons on the fixed schedule and re-rank each
-#: one", so the word is honest as long as it points at the bootstrap. It does.
-BILLBOARD_CLARITY = (
-    "An AI read five seasons of public college football data, {games} games and "
-    "{plays} plays, and simulated {simulated_seasons} seasons to build a "
-    "projection and a poll that follow the data."
+#: PUNCTUATION IS A HARD RULE AND IT IS ASSERTED, NOT TRUSTED. No em dash, no en
+#: dash doing a conjunction's job, no middot. The draft that arrived carried em
+#: dashes around the counts; they are a colon and a comma here, which is the same
+#: sentence and the house punctuation. `test_share_cards` greps the drawn strings.
+#:
+#: ONE PHRASE IS NOT THE OWNER'S AND THE CHANGE IS DELIBERATE. His draft said the
+#: 1,000 simulated seasons "check the model", and he asked for whatever is truer.
+#: They do not check it: `bootstrap.simulate` replays the season on the FIXED
+#: schedule with the outcomes redrawn from the fitted model, and re-ranks each
+#: replay, so what comes out is how far a team's rank moves when the season is
+#: played again. That is a test of how firm a ranking is, not of whether the model
+#: is right, and the card says so.
+TEASER = (
+    "Built by AI using {seasons} seasons of public college football data: "
+    "{games} games and {plays} plays, with {simulated_seasons} simulated seasons "
+    "to test how firm each ranking is. It's at {domain}. The model is open "
+    "source. If you don't agree, try to improve it."
 )
 
-#: THE TAGLINE. The owner's four beats, and his 2026-08-18 correction to the last
-#: one: "If you don't agree, try to improve it" beats "try to improve it", because
-#: clarity beats compression and the reader needs to be told what the disagreement
-#: is FOR. The voice profile picked the same fix up as an addendum the same day.
-#:
-#: "Fully unbiased" is still not what this says. It is an absolute claim about our
-#: own work, which this project makes nowhere else about itself; the checkable
-#: version is that no ballot enters either product, and that is what ships. The
-#: address is `SITE_DOMAIN` rather than a second typed copy of the host.
-BILLBOARD_TEASER = (
-    "No human vote goes into either one. The code is open at "
-    f"{SITE_DOMAIN}. If you don't agree, try to improve it."
+#: Small counts are spelled and large ones are figures, which is the ordinary
+#: rule for English prose and also the useful one here: "five seasons" is a fact
+#: about the shape of the corpus and "1,235,232 plays" is the size of it, and
+#: setting both as digits would flatten the difference. Anything past twelve falls
+#: back to the figure rather than inventing a word.
+_SPELLED: tuple[str, ...] = (
+    "zero", "one", "two", "three", "four", "five", "six",
+    "seven", "eight", "nine", "ten", "eleven", "twelve",
 )
+
+
+def _spelled(value: int) -> str:
+    return _SPELLED[value] if 0 <= value < len(_SPELLED) else f"{value:,}"
+
+
+def teaser_line(counts: dict[str, Any] | None = None) -> str:
+    """The teaser with its counts in, from the pin. The one copy of this string.
+
+    THE COUNTS ARE FORMATTED HERE AND NOWHERE ELSE, with thousands separators,
+    because a bare 1235232 on a card is a number nobody can read at a glance and
+    an exact 1,235,232 is more credible than a rounded 1.2 million. Both are true;
+    only one of them sounds like somebody counted.
+    """
+    figures = counts if counts is not None else corpus_counts()
+    seasons = figures.get("seasons") or []
+    return TEASER.format(
+        seasons=_spelled(len(seasons)),
+        games=f"{int(figures['games']):,}",
+        plays=f"{int(figures['plays']):,}",
+        simulated_seasons=f"{int(figures['simulated_seasons']):,}",
+        domain=SITE_DOMAIN,
+    )
+
 
 #: Where the counts come from. A second pinned input beside the logo cache, and
 #: the same property: the card is a pure function of files a reader can open.
@@ -2359,16 +2485,14 @@ BILLBOARD_ROW_TOP = 286.0
 BILLBOARD_ROW_HEIGHT = 138.0
 
 #: The copy band, identical on both billboards so the pair reads as one family.
-#: The clarity line explains and the tagline invites, so the tagline is the larger
-#: of the two and sits last, where a reader who got that far is ready to be asked
-#: for something. Two lines each at these sizes finish at 1113, which clears the
-#: attribution strip. The hairline above the band is the last row's separator on
-#: the top-five card, and the single-team card draws the same line at the same y.
+#: One block now rather than two: four lines at this size run 1006 to 1129, which
+#: clears the attribution strip. The hairline above the band is the last row's
+#: separator on the top-five card, and the single-team card draws the same line at
+#: the same y.
 BILLBOARD_TEASER_RULE = BILLBOARD_ROW_TOP + 5 * BILLBOARD_ROW_HEIGHT
-BILLBOARD_CLARITY_TOP = 1012.0
-BILLBOARD_CLARITY_SIZE = 22.0
-BILLBOARD_TEASER_TOP = 1082.0
-BILLBOARD_TEASER_SIZE = 25.0
+BILLBOARD_TEASER_TOP = 1006.0
+BILLBOARD_TEASER_SIZE = 22.0
+BILLBOARD_TEASER_LINES = 4
 
 
 def _billboard_banner(document: dict[str, Any]) -> list[str]:
@@ -2412,40 +2536,27 @@ def corpus_counts(path: Path | None = None) -> dict[str, Any]:
             f"{target} is missing and a billboard prints its counts. Run "
             "`uv run python scripts/count_corpus.py` to regenerate the pin."
         ) from exc
-    missing = [k for k in ("games", "plays", "simulated_seasons") if not payload.get(k)]
+    missing = [
+        k for k in ("games", "plays", "simulated_seasons", "seasons") if not payload.get(k)
+    ]
     if missing:
-        raise ValueError(f"{target} is missing {missing}; a billboard cannot print a blank count")
+        raise ValueError(f"{target} is missing {missing}; a card cannot print a blank count")
     return payload
 
 
 def _billboard_copy(width: float, counts: dict[str, Any] | None = None) -> list[str]:
-    """The clarity line and the tagline. The only prose on the card.
+    """The teaser, which is now the only prose on the card.
 
-    THE COUNTS ARE FORMATTED HERE AND NOWHERE ELSE, with thousands separators,
-    because a bare 1235232 on a card is a number nobody can read at a glance and
-    an exact 1,235,232 is more credible than a rounded 1.2 million. Both are true;
-    only one of them sounds like somebody counted.
+    IT USED TO BE TWO BLOCKS AND IS ONE. A "clarity line" carried the counts in
+    dim ink and a tagline under it carried the invitation in bone, on the theory
+    that one explains and the other asks. The owner's rewrite of 2026-08-18 folds
+    both into a single sentence-block, and it is the same block every share card
+    now draws, so the whole set says one thing in one voice.
     """
-    figures = counts if counts is not None else corpus_counts()
-    clarity = BILLBOARD_CLARITY.format(
-        games=f"{int(figures['games']):,}",
-        plays=f"{int(figures['plays']):,}",
-        simulated_seasons=f"{int(figures['simulated_seasons']):,}",
-    )
-
     parts: list[str] = []
-    y = BILLBOARD_CLARITY_TOP
-    budget = max(24, int((width - 80) / (BILLBOARD_CLARITY_SIZE * 0.44)))
-    for line in _wrap(clarity, budget, 2):
-        parts.append(
-            _text(40.0, y, line, size=BILLBOARD_CLARITY_SIZE, fill=PALETTE["ink_dim"],
-                  family=FONT_DISPLAY)
-        )
-        y += BILLBOARD_CLARITY_SIZE * 1.28
-
     y = BILLBOARD_TEASER_TOP
     budget = max(24, int((width - 80) / (BILLBOARD_TEASER_SIZE * 0.44)))
-    for line in _wrap(BILLBOARD_TEASER, budget, 2):
+    for line in _wrap(teaser_line(counts), budget, BILLBOARD_TEASER_LINES):
         parts.append(
             _text(40.0, y, line, size=BILLBOARD_TEASER_SIZE, fill=PALETTE["ink"],
                   family=FONT_DISPLAY, weight="600")
@@ -3334,20 +3445,20 @@ BUILDERS: dict[str, Any] = {
     # anyway, so the CLI's help, the CI guard and `export` still cannot disagree
     # about what a variant is; `export` reads PROJECTION_VARIANTS to know which
     # argument to hand the builder.
-    "projection_top5": (lambda d: projection_top5_svg(d), CARD_WIDTH, CARD_HEIGHT, 5),
-    "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
-    # THE TWO TILE CARDS ARE THE ONES THAT LEFT 1.91:1, and each went to the
-    # shortest canvas that holds its marks at a size somebody can recognise
-    # across a room: 4:5 for 25 tiles, 2:3 for 138. The top ten is still on the
-    # wide canvas and is what a link preview picks up.
-    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, TALL_HEIGHT, 25),
+    "projection_top5": (lambda d: projection_top5_svg(d), SHARE_WIDTH, SHARE_HEIGHT, 5),
+    "projection_top10": (lambda d: projection_top10_svg(d), SHARE_WIDTH, SHARE_HEIGHT, 10),
+    # ALL FOUR ARE ONE SIZE, WHICH IS THE RULING AND NOT A COINCIDENCE OF THE
+    # TABLE. They are posted together and have to look like a set, so they share
+    # 1080x1350 - the tallest frame Instagram, X and Reddit all show WHOLE. See
+    # `SHARE_WIDTH` for the measurements and for what it cost the all-teams card.
+    "projection_top25": (lambda d: projection_top25_svg(d), SHARE_WIDTH, SHARE_HEIGHT, 25),
     # 138, AND THE COST IS ACCEPTED RATHER THAN AVOIDED. The row count is what
     # the export path warms the cache from, and a grid warmed to 25 draws the top
     # of the board with real marks and the rest with generated discs - which reads
     # as a card that failed to load rather than as a design. The owner's rule is
     # real school logos everywhere, so this variant pays for a hundred-odd extra
     # fetches, once, into a cache every later card reuses.
-    "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, POSTER_HEIGHT, 138),
+    "projection_grid": (lambda d: grid_svg(d), SHARE_WIDTH, SHARE_HEIGHT, 138),
     # The billboards read the same document and draw on the square canvas. The
     # single-team one declares ONE row, which is the truth: `export_billboard`
     # warms the cache for the row it was asked for rather than for the top of the
@@ -3366,19 +3477,110 @@ BUILDERS: dict[str, Any] = {
 }
 
 
-def _write(dest: Path, stem: str, svg: str, *, png: bool) -> list[Path]:
+#: How many hex characters of the content digest go in a filename.
+#:
+#: ============ WHY A CARD'S NAME NOW CARRIES ITS CONTENT'S FINGERPRINT ==========
+#:
+#: THIS IS THE FIX FOR A DEFECT THAT SHIPPED TO THE PUBLIC SITE AND SAT THERE FOR
+#: THREE DAYS. On 2026-08-15 the pipeline wrote `2026-projection-top5.png` in the
+#: retired gold palette with a playoff cut line under rank 4. On 2026-08-17 the
+#: rebrand landed and the pipeline wrote a completely different card TO THE SAME
+#: FILENAME. On 2026-08-18 the owner opened the site and saw the gold cards. They
+#: were not on the server. They were in his browser, because the route that serves
+#: these files stamps `Cache-Control: max-age=31536000, immutable` on them, and
+#: `immutable` is a PROMISE THAT THE BYTES AT THIS URL WILL NEVER CHANGE. Every
+#: client that loaded a card between the two dates was pinned to the gold version
+#: until 2027, and a normal reload does not fix it because a normal reload is
+#: exactly what `immutable` tells the browser to skip.
+#:
+#: THE HEADER WAS NOT WRONG. THE FILENAME WAS. A card IS immutable - report 05
+#: §6.1 makes it a published claim with a sha256, frozen at publication - and the
+#: header states that correctly. What broke the promise was a renderer that
+#: re-used the URL for a different artifact. Only one of the two could change, and
+#: weakening the header would have thrown away the property the cards exist to
+#: have. So the NAME changes instead, and it changes exactly when the bytes do.
+#:
+#: THE DIGEST IS OVER THE SVG AND NOT THE PNG, deliberately. The SVG is a pure
+#: function of the published documents and the pinned logo cache on any machine;
+#: the PNG's rasterisation depends on the renderer and the fonts, so a PNG digest
+#: would rename every card whenever resvg was upgraded, for no change a reader
+#: could see. Both files take the SVG's id, so the pair always travels together.
+#:
+#: OLD VERSIONS ARE NOT DELETED. A URL somebody already posted keeps serving the
+#: exact bytes it always served, which is the whole point of the promise. The
+#: manifest is what says which one is CURRENT.
+CARD_ID_LENGTH = 8
+
+
+def card_id(svg: str) -> str:
+    """The content id that goes in a card's filename. Stable across machines."""
+    return hashlib.sha256(svg.encode("utf-8")).hexdigest()[:CARD_ID_LENGTH]
+
+
+#: The file that says which card is current for each variant. Written beside the
+#: cards, read by the website.
+#:
+#: A DIRECTORY LISTING CANNOT ANSWER THIS AND THAT IS WHY THE FILE EXISTS. Once
+#: names carry a content id, a season's share directory holds every version ever
+#: published, and "which one is the top 25" stops being answerable by pattern. It
+#: is not answerable by timestamp either: mtimes do not survive a git checkout, so
+#: a website that picked the newest file would serve a different card depending on
+#: the order git happened to write the tree. The manifest is written by the thing
+#: that rendered the cards, which is the only party that knows.
+CARDS_MANIFEST = "cards.json"
+
+
+def _manifest_update(dest: Path, key: str, entry: dict[str, str]) -> Path:
+    """Record `key` as current, keeping every other entry. Sorted, so it diffs.
+
+    A read-modify-write rather than a rewrite because the variants are rendered by
+    separate CLI invocations, and a manifest that only knew about the last one
+    would leave the other three cards unreachable from the site.
+    """
+    target = dest / CARDS_MANIFEST
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        payload = {}
+    cards_by_key = dict(payload.get("cards") or {})
+    cards_by_key[key] = entry
+    payload = {
+        "schema_version": 1,
+        "note": (
+            "Which rendered file is current for each variant. Names carry a content "
+            "id because the serving route marks them immutable for a year; see "
+            "CARD_ID_LENGTH in publish/cards.py."
+        ),
+        "cards": dict(sorted(cards_by_key.items())),
+    }
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return target
+
+
+def _write(
+    dest: Path, stem: str, svg: str, *, png: bool, manifest_key: str | None = None
+) -> list[Path]:
     """Both files, and the SVG always. Returns the paths, sorted.
 
     The SVG because it is the diffable, reviewable, vector artifact and the thing
     a test can assert about; the PNG because that is what travels.
+
+    THE STEM GETS THE CONTENT ID HERE rather than at each call site, so no export
+    path can forget it and republish over a URL somebody has already shared.
     """
     dest.mkdir(parents=True, exist_ok=True)
+    stem = f"{stem}-{card_id(svg)}"
     written = [dest / f"{stem}.svg"]
     written[0].write_text(svg, encoding="utf-8")
     if png:
         target = dest / f"{stem}.png"
         target.write_bytes(render_png(svg))
         written.append(target)
+    if manifest_key:
+        entry = {"svg": f"{stem}.svg"}
+        if png:
+            entry["png"] = f"{stem}.png"
+        _manifest_update(dest, manifest_key, entry)
     return sorted(written)
 
 
@@ -3434,7 +3636,13 @@ def export(
             fetch=fetch_logos,
         )
     svg = BUILDERS[variant][0](bundle)
-    return _write(dest, f"{bundle.season}-w{bundle.week:02d}-{variant}", svg, png=png)
+    return _write(
+        dest,
+        f"{bundle.season}-w{bundle.week:02d}-{variant}",
+        svg,
+        png=png,
+        manifest_key=f"w{bundle.week:02d}-{variant}",
+    )
 
 
 def export_projection(
@@ -3470,8 +3678,9 @@ def export_projection(
             fetch=fetch_logos,
         )
     svg = BUILDERS[variant][0](payload)
-    stem = f"{int(payload['season'])}-projection-{variant.removeprefix('projection_')}"
-    return _write(dest, stem, svg, png=png)
+    name = variant.removeprefix("projection_")
+    stem = f"{int(payload['season'])}-projection-{name}"
+    return _write(dest, stem, svg, png=png, manifest_key=f"projection-{name}")
 
 
 def _team_slug(team: str) -> str:

@@ -360,15 +360,25 @@ def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
     # the next. The heights are the surfaces - 1.91:1 for a link preview, 4:5 for
     # a feed, 1:1 for a carousel slide, and 2:3 for the all-teams poster, which is
     # the one canvas here that is not feed-native and says why in its own comment.
-    canvases = (
-        cards.CARD_HEIGHT,
-        cards.TALL_HEIGHT,
-        cards.SQUARE_HEIGHT,
-        cards.POSTER_HEIGHT,
-    )
-    for name, (_builder, width, height, rows) in cards.BUILDERS.items():
-        assert width == cards.CARD_WIDTH, name
-        assert height in canvases, name
+    # TWO WIDTHS AND FOUR HEIGHTS, and the second width is the shareable set.
+    # 1200 is the weekly and comparison family. 1080x1350 is the four cards the
+    # owner posts together: it is the tallest frame Instagram, X and Reddit all
+    # show WHOLE, and Instagram caps feed width at 1080 anyway, so a wider card
+    # was being resampled on the way in. See `SHARE_WIDTH`.
+    sizes = {
+        (cards.CARD_WIDTH, cards.CARD_HEIGHT),
+        (cards.CARD_WIDTH, cards.TALL_HEIGHT),
+        (cards.CARD_WIDTH, cards.SQUARE_HEIGHT),
+        (cards.SHARE_WIDTH, cards.SHARE_HEIGHT),
+    }
+    for name, (_builder, width, height, _rows) in cards.BUILDERS.items():
+        assert (width, height) in sizes, (name, width, height)
+    # The four cards that get posted as a set are all one size. This is the
+    # ruling, asserted, because "they should look like a set" is the kind of
+    # intention that decays one variant at a time.
+    posted = {cards.BUILDERS[name][1:3] for name in cards.PROJECTION_VARIANTS}
+    assert posted == {(cards.SHARE_WIDTH, cards.SHARE_HEIGHT)}
+    for name, (_builder, _width, _height, rows) in cards.BUILDERS.items():
         assert rows in (0, 1, 5, 10, 25, 138), name
         assert (rows == 0) == (name == "connectivity"), name
 
@@ -471,6 +481,70 @@ def test_the_accent_marks_the_machine_and_nothing_else() -> None:
         if name in (*cards.PROJECTION_VARIANTS, *cards.BILLBOARD_VARIANTS):
             texts = [line for line in lines if line.startswith("<text") and accent in line]
             assert texts == [], (name, texts)
+
+
+#: THE RETIRED PALETTE, BY VALUE. The gold-on-near-black era ran until
+#: 2026-08-17 and every one of these hexes was on a published card.
+#:
+#: `#F0B429` was the accent: the label slabs, the win totals, and the 2px rule
+#: under rank 4 that this module used to call "the card's loudest sports signal".
+#: `#9A5B08` was its shadow, `#0B0C0F` the old ground, `#1A1D21` the old panel.
+RETIRED_PALETTE: tuple[str, ...] = ("#F0B429", "#9A5B08", "#0B0C0F", "#1A1D21")
+
+
+def test_no_rendered_card_carries_a_colour_from_the_retired_palette() -> None:
+    """THE GOLD IS GONE FROM THE PAINT, not just from the source.
+
+    ================== WHY THIS TEST EXISTS AND WHAT IT COST ===================
+
+    On 2026-08-18 the owner opened the live site and found gold cards with a
+    playoff cut line under rank 4 - the palette this project retired three days
+    earlier and banned twice over. The bytes were real: `28d6a48` published them
+    on 2026-08-15 at `2026-projection-top5.png`, and the rebrand overwrote THE
+    SAME FILENAME, which is a separate defect fixed by `card_id`. But the reason
+    nobody caught the gold sitting there is that the only guard on the palette
+    read the SOURCE for retired hexes. Source-grepping proves a constant is gone.
+    It cannot prove that no code path paints one.
+
+    So this renders every card the suite can build and looks at the paint. A hex
+    that is not in the palette and not a team's clamped stripe is a colour nobody
+    decided on, and the retired four are named because those are the ones with a
+    published history of coming back.
+
+    THE SCHOOL MARKS ARE NOT IN SCOPE AND CANNOT BE. A mark is embedded as a
+    `data:` URI over bytes we did not author and may not alter - a school whose
+    colour happens to be a gold is drawn in its own gold, which is the entire
+    point of drawing the real mark. What this checks is every colour THIS MODULE
+    chooses: fills and strokes it writes as literal attributes.
+    """
+    for name, svg in _every_offline_card():
+        for retired in RETIRED_PALETTE:
+            assert retired.lower() not in svg.lower(), (name, retired)
+
+    # And the stronger form: every colour the module paints is one it declared.
+    # A fifth hue arriving because somebody needed "a slightly lighter grey" is
+    # how the last palette drifted, and it is caught here rather than by eye.
+    document = _projection_document(rows=138)
+    allowed = {value.lower() for value in cards.PALETTE.values()}
+    allowed |= {cards.GAP_POS.lower(), cards.GAP_NEG.lower()}
+    allowed |= {
+        cards.stripe_colour(row.get("mark_bg")).lower()
+        for row in document["rows"]  # type: ignore[union-attr]
+    }
+    # The generated disc's own two colours are the team's published pair, and the
+    # commonest `mark_fg` in the sport is white. That is a school's colour on a
+    # school's mark, not a fifth hue arriving in the palette.
+    for field in ("mark_bg", "mark_fg"):
+        allowed |= {
+            str(row.get(field) or "").lower()
+            for row in document["rows"]  # type: ignore[union-attr]
+        }
+    for name, svg in _every_offline_card():
+        painted = {
+            match.group(1).lower()
+            for match in re.finditer(r'(?:fill|stroke)="(#[0-9A-Fa-f]{3,6})"', svg)
+        }
+        assert painted <= allowed, (name, sorted(painted - allowed))
 
 
 def test_no_card_draws_a_playoff_cut_line() -> None:
@@ -730,10 +804,10 @@ def test_the_projection_card_declares_the_canvas_its_builder_table_promises(
     can read. The check is against `BUILDERS` rather than a literal so adding a
     canvas is a one-line change in one place.
     """
-    height = cards.BUILDERS[variant][2]
+    width, height = cards.BUILDERS[variant][1:3]
     svg = cards.BUILDERS[variant][0](_projection_document(rows=138))
-    assert 'width="1200"' in svg and f'height="{height}"' in svg
-    assert f'viewBox="0 0 1200 {height}"' in svg
+    assert f'width="{width}"' in svg and f'height="{height}"' in svg
+    assert f'viewBox="0 0 {width} {height}"' in svg
     assert 'role="img"' in svg and "aria-label=" in svg
 
 
@@ -850,7 +924,22 @@ def test_export_projection_names_the_files_after_the_season_and_no_week(
     written = cards.export_projection(
         document, tmp_path / "share", variant="projection_top25", png=False
     )
-    assert [p.name for p in written] == ["2026-projection-top25.svg"]
+    # THE NAME CARRIES THE CONTENT'S FINGERPRINT, and that is the fix for a defect
+    # that reached the public site: the route marks these files immutable for a
+    # year, so re-rendering over a filename pins every client that already
+    # fetched it to the old artifact. See `CARD_ID_LENGTH`.
+    (written_svg,) = written
+    assert re.fullmatch(r"2026-projection-top25-[0-9a-f]{8}\.svg", written_svg.name)
+    # And the id is the content's, so the same document renders the same name.
+    again = cards.export_projection(
+        document, tmp_path / "share2", variant="projection_top25", png=False
+    )
+    assert [p.name for p in again] == [written_svg.name]
+    # The manifest says which one is current, because a directory listing cannot.
+    manifest = json.loads(
+        (tmp_path / "share" / cards.CARDS_MANIFEST).read_text(encoding="utf-8")
+    )
+    assert manifest["cards"]["projection-top25"]["svg"] == written_svg.name
 
 
 # ------------------------------------------------------------------ the tiles
@@ -964,8 +1053,12 @@ def test_a_tile_card_draws_its_mark_larger_than_its_own_numeral(
     assert len(numerals) == 1, "one rank size on the card; rank 1 is drawn like rank 138"
     assert diameter > numerals.pop() * 1.5, variant
     # And the mark is bigger than it was as a row, which is what the ruling asked
-    # for. The retired row layout gave the 25 an 18px mark and the 138 a 29px one.
-    assert diameter > 60, variant
+    # for. The retired row layout gave the 25 an 18px mark and the 138 a 29px one,
+    # so the floor is set against those rather than against what the code happens
+    # to draw today: a change that puts either card back under its own old row
+    # layout has undone the ruling, whatever else it improved.
+    was_a_row = {"projection_top25": 18.0, "projection_grid": 29.0}[variant]
+    assert diameter > was_a_row * 1.5, (variant, diameter, was_a_row)
 
 
 # -------------------------------------------------------------- the billboard
@@ -988,50 +1081,87 @@ def test_the_billboards_draw_on_the_square_canvas_their_table_promises() -> None
         assert 'role="img"' in svg and "aria-label=" in svg, name
 
 
-def test_the_billboard_carries_the_teaser_whole_and_sends_it_to_our_own_domain() -> None:
+#: Every card that draws the teaser: both billboards and all four of the
+#: shareable set. One sentence, one voice, and the guard runs over all of them
+#: rather than over the constant, because a string that is right in the module
+#: and clipped on the canvas has still shipped wrong.
+def _teaser_cards() -> list[tuple[str, str]]:
+    document = _projection_document(rows=138)
+    out = [(name, cards.BUILDERS[name][0](document)) for name in cards.PROJECTION_VARIANTS]
+    return out + _billboards(document)
+
+
+def test_every_card_carries_the_teaser_whole_and_sends_it_to_our_own_domain() -> None:
     """The one marketing sentence on the card set, and it may not arrive clipped.
 
-    It is also the sentence most likely to be read with nothing around it, so the
-    voice profile's hard rules are asserted on it rather than trusted: no em dash,
-    and no middot doing a conjunction's job. The owner's 2026-08-18 correction is
-    asserted too, because "try to improve it" alone does not say what the
-    disagreement is for and he asked for the full sentence.
+    IT IS THE SAME SENTENCE ON ALL SIX SURFACES NOW. It used to be a pair - a
+    counts line and a tagline - drawn only on the billboards, and the four
+    shareable cards said nothing. The owner's ruling of 2026-08-18 put one block
+    on all four, so the guard runs over all four rather than over the two.
+
+    THE HARD RULES ARE ASSERTED ON THE DRAWN STRING, NOT THE CONSTANT. This is
+    the sentence most likely to be read with nothing around it, and the voice
+    profile's punctuation rules are absolute: no em dash, no en dash doing a
+    conjunction's job, no middot. The draft that arrived carried em dashes around
+    the counts and they are a colon and a comma on the card.
     """
-    teaser = cards.BILLBOARD_TEASER
+    teaser = cards.teaser_line()
     assert cards.SITE_DOMAIN in teaser
-    assert "—" not in teaser
-    assert "·" not in teaser
+    for banned in ("\u2014", "\u2013", "\u00b7"):
+        assert banned not in teaser, banned
     assert "If you don't agree, try to improve it." in teaser
-    for name, svg in _billboards(_projection_document()):
+    # The owner's five beats, in his order. A rewrite that drops one is a rewrite
+    # of the ask rather than of the sentence.
+    for beat in ("Built by AI", "open source", "If you don't agree"):
+        assert beat in teaser, beat
+    for name, svg in _teaser_cards():
         drawn = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
         # Compared through the module's own escaper: the apostrophe in "don't"
         # reaches the file as `&apos;`, and asserting on the raw string would be
-        # asserting that the card is invalid XML.
-        assert cards._esc(teaser) in drawn, name
+        # asserting that the card is invalid XML. Whitespace is normalised because
+        # the sentence is word-wrapped across lines on the canvas.
+        assert cards._esc(teaser) in re.sub(r"\s+", " ", drawn), name
 
 
-def test_the_clarity_line_prints_real_counts_from_the_pinned_file() -> None:
+def test_the_teaser_prints_real_counts_from_the_pinned_file() -> None:
     """No placeholder ships. The counts come from `data/corpus-counts.json`.
 
     The owner's instruction with this line was to pull the true numbers out of
     the pipeline, so the test asserts the drawn sentence contains the pin's
     figures formatted with separators, and that no `N` or `{}` survived the
-    template.
+    template. The season count is in here too: "five seasons" typed into a
+    renderer is the phrase that outlives the five seasons.
     """
     counts = cards.corpus_counts()
     for key in ("games", "plays", "simulated_seasons"):
         assert int(counts[key]) > 0, key
     expected = [f"{int(counts[key]):,}" for key in ("games", "plays", "simulated_seasons")]
+    assert cards._spelled(len(counts["seasons"])) in cards.teaser_line()
 
-    for name, svg in _billboards(_projection_document()):
+    for name, svg in _teaser_cards():
         drawn = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", svg))
         for figure in expected:
             assert figure in drawn, (name, figure)
         assert "{" not in drawn and "}" not in drawn, name
         assert " N " not in drawn, name
-    # And the sentence itself obeys the same hard rules as the tagline.
-    assert "—" not in cards.BILLBOARD_CLARITY
-    assert "·" not in cards.BILLBOARD_CLARITY
+
+
+def test_the_retired_teaser_sentence_is_gone_from_the_card_set() -> None:
+    """"No human vote goes into either one" was struck by name on 2026-08-18.
+
+    His objection is the right one and it is not about voice: "either one" points
+    at the projection AND the poll, which is two machines a card never explains,
+    so the sentence asked a stranger to hold a distinction nobody had taught him.
+    A string that is deleted from a constant and still reachable through some
+    other path has not been deleted, so this looks at what is drawn.
+    """
+    for name, svg in _teaser_cards():
+        assert "No human vote" not in svg, name
+    # Read through the docstring stripper, exactly as the self-contained guard
+    # does and for the same reason: this module records what it retired and why,
+    # quoting the retired string, and a naive grep would find the obituary.
+    code = _code_without_docstrings(REPO_ROOT / "src" / "cfbpoll" / "publish" / "cards.py")
+    assert "No human vote" not in code
 
 
 def test_a_billboard_refuses_to_draw_without_its_counts(tmp_path: Path) -> None:
@@ -1136,7 +1266,8 @@ def test_export_billboard_names_the_files_after_the_season_and_the_subject(
     written = cards.export_billboard(
         document, tmp_path / "share", variant="billboard_top5", png=False, fetch_logos=False
     )
-    assert [p.name for p in written] == ["2026-billboard-top5.svg"]
+    (written_svg,) = written
+    assert re.fullmatch(r"2026-billboard-top5-[0-9a-f]{8}\.svg", written_svg.name)
     written = cards.export_billboard(
         document,
         tmp_path / "share",
@@ -1145,7 +1276,8 @@ def test_export_billboard_names_the_files_after_the_season_and_the_subject(
         png=False,
         fetch_logos=False,
     )
-    assert [p.name for p in written] == ["2026-billboard-team-3.svg"]
+    (team_svg,) = written
+    assert re.fullmatch(r"2026-billboard-team-3-[0-9a-f]{8}\.svg", team_svg.name)
 
 
 def test_a_billboard_that_names_the_wrong_number_of_subjects_is_refused(
@@ -1195,11 +1327,19 @@ def test_the_top_five_draws_five_rows_and_treats_every_one_of_them_alike() -> No
         assert f"{row['projected_wins']} wins" in svg
     assert f"{document['rows'][5]['projected_wins']} wins" not in svg  # type: ignore[index]
 
-    # Every row separator inside the block is byte-identical but for its y.
+    # Every row separator inside the block is byte-identical but for its y. The
+    # block starts at the card's own left margin now: the 392px masthead column
+    # these rows used to sit beside came off on 2026-08-18, so the board runs the
+    # full width and the separators start at 32 rather than at COLUMN_W + 32.
+    # A row separator is the only hairline drawn at ROW_RULE_OPACITY; the header
+    # and teaser band dividers are full-strength rules, which is what separates a
+    # structural edge from a repeated one.
     separators = [
         line
         for line in svg.splitlines()
-        if line.startswith("<line") and f'x1="{cards._n(cards.COLUMN_W + 32)}"' in line
+        if line.startswith("<line")
+        and 'x1="32"' in line
+        and f'stroke-opacity="{cards._n(cards.ROW_RULE_OPACITY)}"' in line
     ]
     assert len(separators) == 5, separators
     shapes = {re.sub(r'y[12]="[^"]*"', "", line) for line in separators}
@@ -1424,7 +1564,8 @@ def test_export_comparison_names_the_files_after_the_season_and_the_slug(
     written = cards.export_comparison(
         document, spec, tmp_path / "share", variant="comparison", png=False
     )
-    assert [p.name for p in written] == ["2026-ap-coaches-comparison.svg"]
+    (written_svg,) = written
+    assert re.fullmatch(r"2026-ap-coaches-comparison-[0-9a-f]{8}\.svg", written_svg.name)
 
 
 def test_the_comparison_svg_is_a_pure_function_of_its_two_documents() -> None:

@@ -6,7 +6,7 @@
 >
 > It is frozen. It will not be edited, quietly improved, or re-run when it starts to look bad. That is the deal.
 
-Recipe `projection-3.0.0` · source season 2025 · generated 2026-08-17T08:30:47+00:00 · `55c9729da4`
+Recipe `projection-3.0.0` · source season 2025 · generated 2026-08-18T21:02:28+00:00 · `e648927a76`
 
 ## The recipe, in full
 

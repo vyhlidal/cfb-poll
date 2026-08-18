@@ -1490,7 +1490,16 @@ def test_the_comparison_carries_its_key_and_never_puts_cyan_beside_it() -> None:
     ):
         assert cards.GAP_POS in svg and cards.GAP_NEG in svg
         assert cards.PALETTE["accent"] not in svg
-        assert "we rank them higher" in svg and "the boards agree" in svg
+        # THE KEY NAMES THE ACTOR, and it did not until 2026-08-18: it read "we
+        # rank them higher", which is corporate we by the standing taxonomy. The
+        # ruling is that the model is the actor and it can be named.
+        assert "the model ranks them higher" in svg and "the boards agree" in svg
+        # AND THE KEY IS NEVER CLIPPED. Naming the actor made the longest row
+        # eight characters longer, which pushed the compared boards' names off
+        # the end at the old fixed type size on every comparison card. A key
+        # that has run out of room for the names it is comparing has run out of
+        # room for the card's argument, so the type fits itself to the words.
+        assert "…" not in svg.split("the model ranks them higher")[1][:60]
 
 
 def test_the_comparison_colours_say_which_way_each_gap_runs() -> None:

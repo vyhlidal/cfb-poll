@@ -491,14 +491,32 @@ def _schedule_block(
                 f"{contrast.higher_team}'s.",
             ),
         }
+        # THREE RULED DEFECTS IN ONE GENERATED SENTENCE, fixed together because
+        # they shipped together (briefs/regeneration-queue.md item 5, and the SHIP
+        # block in voice/site-rewrite/page-1-the-poll.md §6).
+        #
+        #   "This board"  ->  "This projection". "Board" is out of the site's
+        #   vocabulary: two words and no third, the poll and the projection.
+        #
+        #   "wins on a median schedule"  ->  "projected wins against an average
+        #   schedule". Ruled in voice-thepoll-v2.md §6 pair 6. "Median" is a
+        #   statistics word doing an ordinary word's job on the surface a
+        #   stranger meets first.
+        #
+        #   "the 138 we rank"  ->  "the 138 the model rates". Corporate we, ruled
+        #   in §4's round-1 fix list. The model is the actor and it can be named.
+        #
+        # THE FIELD NAMES ARE UNCHANGED. `median_schedule_team`,
+        # `median_schedule_games` and `field_size` are the fixture contract and
+        # the site reads them; only the sentence built out of them moved.
         block["note"] = _assert_sentence(
             "schedule.note",
-            "This board ranks on projected power, so the win column beside it "
-            "will sometimes disagree with the order. The column that reconciles "
-            f"them is wins on a median schedule, which scores every team against "
-            f"{strength.median_schedule_team}'s calendar, the "
-            f"{strength.median_schedule_games} games sitting at the middle of the "
-            f"{strength.field_size} we rank.",
+            "This projection ranks on projected power, so the win column beside "
+            "it will sometimes disagree with the order. The column that "
+            "reconciles them is projected wins against an average schedule, "
+            f"which scores every team against {strength.median_schedule_team}'s "
+            f"calendar, the {strength.median_schedule_games} games sitting at "
+            f"the middle of the {strength.field_size} the model rates.",
         )
     return block
 

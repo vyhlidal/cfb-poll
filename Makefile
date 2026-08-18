@@ -21,7 +21,7 @@ JOBS ?= 4
         recipe-fixtures variants projection projection-audit projection-2025 \
         projection-chain projection-fixture projection-cards projection-all levers \
         lever-grid holdout-scorecard revision-numbers replay replay-tolerant grid \
-        challenge site guard preflight weekly-dry-run test lint clean
+        challenge site guard preflight weekly-dry-run strings test lint clean
 
 help:
 	@echo "cfb-poll — PARTIAL BUILD. 'rankings', 'archive', 'backtest', 'grid', 'demos' work."
@@ -54,6 +54,7 @@ help:
 	@echo "  make preflight        which verbs the Sunday job needs are still stubs"
 	@echo "  make weekly-dry-run   the whole job, printed, executing nothing"
 	@echo
+	@echo "  make strings          the retired-string gate, over the published fixtures"
 	@echo "  make test / make lint pytest / ruff"
 	@echo
 	@echo "VARIABLES, with their defaults. A default you did not know about is the"
@@ -544,6 +545,39 @@ preflight: .venv
 weekly-dry-run: .venv
 	DRY_RUN=true SKIP_SYNC=true PUBLISH=false TRIGGER=$(TRIGGER) \
 	  FIXTURES=$(FIXTURES) ops/bin/weekly.sh
+
+# ------------------------------------------------------- the string gate
+#
+# THE CHECK THAT BELONGS ON THIS SIDE OF THE FENCE, and it is here because the
+# defect it catches is made here.
+#
+# The string-provenance gate lives in the site repository, because that is where
+# the routes are and half of what it does is render them. But the half that
+# matters to THIS repository needs no server at all: it reads every string the
+# pipeline published into the fixture tree and every `<text>` in every published
+# share card, and it fails if a RETIRED string is in any of them.
+#
+# WHY THAT HALF HAS TO BE RUNNABLE FROM HERE. Two already-ruled defects shipped
+# for weeks - "wins on a median schedule" and "the 138 we rank" - because they
+# live in Python and every review pass was a copy pass. A generator fix that
+# rebuilds into a retired string is the precise failure the gate exists to
+# catch, so the command that regenerates the fixtures and the command that
+# checks them have to be reachable from the same Makefile. Run this AFTER
+# `make projection-all`, every time.
+#
+# IT SKIPS RATHER THAN FAILS WHEN THE SITE REPOSITORY IS NOT THERE. A fork has
+# the model and not the website, and a target that errors on a missing sibling
+# checkout would make `make` unusable for exactly the stranger this project is
+# built for. A skip says so in one line and exits 0.
+SITE ?= ../sandbox
+GATE  = $(SITE)/scripts/cfb-poll/string-provenance.mjs
+strings:
+	@if [ ! -f "$(GATE)" ]; then \
+	  echo "[skip] no site checkout at $(SITE); the string gate lives there."; \
+	  echo "       Override with: make strings SITE=/path/to/sandbox"; \
+	  exit 0; \
+	fi; \
+	FIXTURES_ONLY=1 DATA_DIR="$(abspath $(FIXTURES))" node "$(GATE)"
 
 test: .venv
 	$(UV) run pytest

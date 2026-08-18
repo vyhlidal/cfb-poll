@@ -476,7 +476,8 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
     else:
         press = (
             f"The model does not read the press: the AP left {feature_team} out of its "
-            "preseason top 25 and so did we, so nobody's hype got inherited here."
+            "preseason top 25 and so did the projection, so nobody's hype got "
+            "inherited here."
         )
     if control["Indiana"]["usage"] < float(row["returning_usage"]):
         control_clause = (
@@ -489,15 +490,37 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
             "counter-examples are the next sentence"
         )
 
+    # ================== THE RETIRED FORMS IN THIS PARAGRAPH ==================
+    #
+    # This is the court of record for story B11 and it ships straight into
+    # `2025/projection-grading.json` at `feature_story.paragraph`, so the wording
+    # here IS the wording a reader gets. Three retired forms lived in it, all
+    # named in briefs/step-4-implementation.md §3d and on the regeneration queue:
+    #
+    #   "We had"            corporate we. The projection is the actor and it has
+    #                       a name, so the sentence can say who.
+    #   "the season put them"  a season puts nobody anywhere. Teams finish where
+    #                       they finish; the sentence says that instead.
+    #   "priced it"         the trading word John removed himself. The model
+    #                       READS what left the roster.
+    #
+    # The corporate "we" is swept out of the whole paragraph rather than out of
+    # the one clause the brief names, because a paragraph that drops the pronoun
+    # in sentence one and keeps it in sentence four reads as a half-finished
+    # edit. Every judgment call in it is one person's and is "I", per the
+    # standing three-we taxonomy.
+    #
+    # NOT A NUMBER MOVED. Every figure below is the same measured field it was.
     paragraph = (
-        f"We had {feature_team} {_ordinal(projected_rank)} and the season put them "
-        f"{_ordinal(hindsight_rank)}. Of the {FEATURE_WINDOW} teams we projected "
-        "highest, that is the furthest any of them fell, and it is worth being "
-        f"precise about why, because the easy explanation is wrong. {press} What we "
-        f"read was {feature_team}'s own {SOURCE_SEASON}, where they were the "
-        f"{_ordinal(prior_rank)} best team in the country by our Power rating, and "
-        f"that one number was worth {float(row['contrib_prior_power']):.1f} points "
-        "to their projection. The model also saw what left and priced it. "
+        f"The projection had {feature_team} {_ordinal(projected_rank)} and they "
+        f"finished {_ordinal(hindsight_rank)}. Of the {FEATURE_WINDOW} teams the "
+        "projection put highest, that is the furthest any of them fell, and it is "
+        "worth being precise about why, because the easy explanation is wrong. "
+        f"{press} What the model read was {feature_team}'s own {SOURCE_SEASON}, "
+        f"where they were the {_ordinal(prior_rank)} best team in the country by "
+        "its power rating, and that one number was worth "
+        f"{float(row['contrib_prior_power']):.1f} points "
+        "to their projection. The model also read what left the roster. "
         f"{feature_team} returned {float(row['returning_usage']):.1%} of its offensive "
         f"usage, the {_ordinal(usage_rank_low)} lowest figure among the {n_usage} "
         "teams with a row, and "
@@ -515,11 +538,11 @@ def _feature_story(state: dict[str, Any], attribution: dict[str, Any]) -> dict[s
         "settles what to do about that, and this season it settled it the dull "
         f"way: across the {int(attribution['n_teams'])} teams the poll ranked, all "
         "four terms come back priced about right, the furthest of them "
-        f"{biggest_z:.1f} standard errors from the value we published. No "
+        f"{biggest_z:.1f} standard errors from the published value. No "
         "coefficient here was wrong. The ratio is a property of the design, and "
-        f"{TARGET_SEASON} is the first season that made it cost something. What we "
-        "are not going to do is turn the returning-production dial up until "
-        f"{feature_team} looks right. We checked: {control_clause}. Penn State and "
+        f"{TARGET_SEASON} is the first season that made it cost something. What I "
+        "am not going to do is turn the returning-production dial up until "
+        f"{feature_team} looks right. I checked: {control_clause}. Penn State and "
         "Baylor returned more production than almost "
         f"anyone in the country, {_ordinal(control['Penn State']['usage_rank_high'])}"
         f" and {_ordinal(control['Baylor']['usage_rank_high'])} of {n_usage}, and "

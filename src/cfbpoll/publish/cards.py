@@ -390,6 +390,13 @@ GAP_NEG = "#9c8fd6"  # 6.53:1. We rank it LOWER.
 #: 138-team model is noise, and colouring it would make every row a story.
 AGREEMENT_BAND = 2
 
+#: The floor the comparison legend's type may shrink to before it would rather
+#: clip than keep shrinking. Below this the key stops being readable at the size
+#: a card is actually looked at, and an unreadable key is the same failure as a
+#: missing one. It has never been reached: the longest legend row today needs
+#: 11.5 against a 13 start.
+_LEGEND_MIN_SIZE = 10.0
+
 #: How solid that plate is. NOT "subtle" in the sense of nearly invisible: the
 #: plate exists to deliver contrast a near-black mark cannot get from the ground, and
 #: a 15% white wash over a near-black ground is still a near-black ground. At 0.92
@@ -2995,14 +3002,45 @@ def _comparison_legend(
     key has run out of room for its argument.
     """
     names = " and ".join(str(b.get("name") or "?") for b in boards)
+    # THE LEGEND SAID "WE" AND THE ACTOR IS THE MODEL. Corporate we under the
+    # standing three-we taxonomy, recorded at host/telling-data-stories.md:61-62
+    # and ruled 2026-08-18 (briefs/regeneration-queue.md item 2). It is the same
+    # swap already ruled for the sibling string in the projection's schedule note,
+    # where "the 138 we rank" became "the 138 the model rates": the pronoun goes
+    # and the model is named, and nothing else in the phrase moves.
+    #
+    # THE ACTOR IS "THE MODEL" RATHER THAN THE DOCUMENT'S OWN NAME on purpose.
+    # This legend is handed only the boards being compared against, not the
+    # `spec["ours"]` block that carries our side's name, and a legend that has to
+    # be re-plumbed every time the card compares a different pair is a legend that
+    # goes stale. One engine produces both rankings, so "the model" is true of
+    # this card whichever of them it is drawing.
     entries = [
-        (GAP_POS, f"we rank them higher than {names}"),
-        (GAP_NEG, "we rank them lower"),
+        (GAP_POS, f"the model ranks them higher than {names}"),
+        (GAP_NEG, "the model ranks them lower"),
         (PALETTE["ink"], f"within {AGREEMENT_BAND}: the boards agree"),
     ]
     parts: list[str] = []
+
+    # THE KEY IS NEVER CLIPPED, AND THAT IS THIS FUNCTION'S OWN STANDING RULE:
+    # a card that runs out of room for its own key has run out of room for its
+    # argument. Naming the actor cost eight characters over the corporate "we"
+    # it replaced, which was enough to push "AP and Coaches" off the end of the
+    # longest row on every comparison card at the old fixed size. So the size
+    # steps down until the longest entry fits, and only then. Nothing about the
+    # legend moves on a card where the old size already fitted, and the words
+    # are never the thing that gives way: they are a ruling, and the type is not.
+    def _fit(available: float, longest: str, start: float) -> float:
+        step = start
+        while step > _LEGEND_MIN_SIZE and len(longest) * step * 0.5 > available:
+            step -= 0.5
+        return step
+
+    longest = max((text for _, text in entries), key=len)
+
     if horizontal:
         cell = width / len(entries)
+        size = _fit(cell - size * 2.4, longest, size)
         for index, (colour, text) in enumerate(entries):
             cx = x + cell * index
             parts.append(_slab(cx, y - size * 0.7, size * 1.3, size * 0.62, colour))
@@ -3011,6 +3049,8 @@ def _comparison_legend(
                       size=size, fill=PALETTE["ink_dim"], family=FONT_DISPLAY)
             )
         return parts
+
+    size = _fit(width - size * 2, longest, size)
     for index, (colour, text) in enumerate(entries):
         row_y = y + index * (size * 1.7)
         parts.append(_slab(x, row_y - size * 0.7, size * 1.3, size * 0.62, colour))

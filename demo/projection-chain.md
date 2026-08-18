@@ -2,7 +2,7 @@
 
 > This page replaces the gate. The gate was a pass/fail ceremony against a threshold, and its verdict was a boolean. This is the scoreboard: what the model said in August, what happened, and how often it was right, beside the same figure for the sportswriters and for doing nothing at all.
 
-`projection-3.0.0` · generated 2026-08-17T18:52:49+00:00 · `9f52506cac`
+`projection-3.0.0` · generated 2026-08-18T21:03:54+00:00 · `e648927a76`
 
 ## The protocol, which is the whole of the honesty
 

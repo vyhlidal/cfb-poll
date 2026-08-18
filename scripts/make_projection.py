@@ -1006,9 +1006,12 @@ def _verdict(summary: dict[str, Any], early: dict[str, Any]) -> list[str]:
     elif mae_gap > 0.005:
         headline = "**We match the naive floor on hits and beat it on rank error.**"
         tail = (
+            # "where the season put them" is a retired form: a season puts
+            # nobody anywhere. briefs/step-4-implementation.md §3d. The teams are
+            # the subject of their own finish and the sentence says so.
             "The offseason terms did not put a single extra team in the top 25 "
-            "over these three seasons. They moved teams closer to where the "
-            "season put them, which is a smaller claim, and it is the one the "
+            "over these three seasons. They moved teams closer to where those "
+            "teams finished, which is a smaller claim, and it is the one the "
             "numbers support."
         )
     else:

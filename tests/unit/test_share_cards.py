@@ -355,7 +355,17 @@ def test_every_variant_has_a_builder_a_canvas_and_a_row_count() -> None:
     top five.
     """
     assert set(cards.VARIANTS) == set(cards.BUILDERS)
-    canvases = (cards.CARD_HEIGHT, cards.TALL_HEIGHT, cards.SQUARE_HEIGHT)
+    # FOUR HEIGHTS AND ONE WIDTH. The width is the family: every card this
+    # project publishes is 1200 across, so a reader who has seen one recognises
+    # the next. The heights are the surfaces - 1.91:1 for a link preview, 4:5 for
+    # a feed, 1:1 for a carousel slide, and 2:3 for the all-teams poster, which is
+    # the one canvas here that is not feed-native and says why in its own comment.
+    canvases = (
+        cards.CARD_HEIGHT,
+        cards.TALL_HEIGHT,
+        cards.SQUARE_HEIGHT,
+        cards.POSTER_HEIGHT,
+    )
     for name, (_builder, width, height, rows) in cards.BUILDERS.items():
         assert width == cards.CARD_WIDTH, name
         assert height in canvases, name
@@ -843,51 +853,119 @@ def test_export_projection_names_the_files_after_the_season_and_no_week(
     assert [p.name for p in written] == ["2026-projection-top25.svg"]
 
 
-# ------------------------------------------------------------------- the grid
+# ------------------------------------------------------------------ the tiles
 
 
 def test_the_grid_fills_down_each_column_before_it_moves_across() -> None:
-    """A poll is read top to bottom, so the grid is filled top to bottom.
+    """A poll is read top to bottom, so a tile card is filled top to bottom.
 
     The first version of this card ran the ranks ACROSS the rows, which put 1 to 7
     along the top and 8 under 1. A reader scanning the left edge for the twenties
     found 15 there and read a board that did not say what they thought it said.
+
+    THE COLUMN COUNT IS READ OFF THE MODULE, not typed in here. It went from 7 to
+    14 when the rows became tiles and the arithmetic did not change; a test that
+    pinned the old number would have failed for the wrong reason and taught the
+    next reader that the rule was about seven columns.
     """
-    cells = cards._grid_cells(138, 7)
+    columns = cards.GRID_COLUMNS
+    cells = cards._grid_cells(138, columns)
     assert len(cells) == 138
     assert len(set(cells)) == 138
-    # 2 sits directly under 1, and 21 tops the next column rather than following 20.
+    depth = -(-138 // columns)
+    # 2 sits directly under 1, and the first team of the second column tops it
+    # rather than following the last team of the first.
     assert cells[0] == (0, 0)
     assert cells[1] == (0, 1)
-    assert cells[19] == (0, 19)
-    assert cells[20] == (1, 0)
-    # Twenty deep, and the two teams that do not divide evenly leave the hole at
-    # the bottom of the RIGHTMOST columns rather than at the bottom of the first.
-    depths = [sum(1 for column, _line in cells if column == index) for index in range(7)]
-    assert depths == [20, 20, 20, 20, 20, 19, 19]
+    assert cells[depth - 1] == (0, depth - 1)
+    assert cells[depth] == (1, 0)
+    # The columns that do not divide evenly leave the hole at the bottom of the
+    # RIGHTMOST ones rather than at the bottom of the first, which is what lets
+    # the caller rule each line off column 0 alone.
+    depths = [sum(1 for column, _line in cells if column == index) for index in range(columns)]
+    assert sum(depths) == 138
+    assert depths[0] == depth
+    assert set(depths) <= {depth, depth - 1}
+    assert depths == sorted(depths, reverse=True)
     # A board shorter than one row per column still fills left to right.
     assert cards._grid_cells(5, 7) == [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
 
 
-def test_the_drawn_grid_puts_rank_two_under_rank_one() -> None:
+#: The two cards that draw tiles, with the columns each declares. Both rules
+#: below are properties of the FORMAT rather than of the poster, so both cards
+#: are held to them: the 25 and the 138 are one layout at two densities and a
+#: change that lands on one and misses the other is the defect this catches.
+_TILE_CARDS = (
+    ("projection_top25", 25, "TOP25_COLUMNS"),
+    ("projection_grid", 138, "GRID_COLUMNS"),
+)
+
+
+@pytest.mark.parametrize(("variant", "count", "columns_name"), _TILE_CARDS)
+def test_the_drawn_tiles_put_rank_two_under_rank_one(
+    variant: str, count: int, columns_name: str
+) -> None:
     """The same rule, asserted on the artifact rather than on the arithmetic."""
-    svg = cards.grid_svg(_projection_document(rows=138))
+    columns = getattr(cards, columns_name)
+    depth = -(-count // columns)
+    svg = cards.BUILDERS[variant][0](_projection_document(rows=138))
     placed = {
         int(match.group(3)): (float(match.group(1)), float(match.group(2)))
         for match in re.finditer(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>(\d+)</text>', svg)
     }
-    assert len(placed) == 138
+    assert len(placed) == count
     assert placed[2][0] == placed[1][0]
     assert placed[2][1] > placed[1][1]
-    assert placed[21][0] > placed[1][0]
-    assert placed[21][1] == placed[1][1]
-    # Every column runs downwards, and each starts higher than the one it follows.
-    for first, last in ((1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 119)):
-        column_x = placed[first][0]
-        assert [placed[rank][0] for rank in range(first, last + 1)] == [column_x] * (
-            last - first + 1
-        )
-        assert placed[last][1] > placed[first][1]
+    # The team that opens the second column sits beside rank 1, not under rank
+    # `depth`, which is the whole of the top-to-bottom rule.
+    assert placed[depth + 1][0] > placed[1][0]
+    assert placed[depth + 1][1] == placed[1][1]
+    # EVERY column runs downwards and each starts to the right of the last, and
+    # the membership comes from `_grid_cells` rather than from `depth`: the last
+    # columns of a board that does not divide evenly are one shorter, so a loop
+    # that stepped by `depth` would straddle a column boundary and fail on the
+    # geometry being right.
+    by_column: dict[int, list[int]] = {}
+    for index, (column, _line) in enumerate(cards._grid_cells(count, columns)):
+        by_column.setdefault(column, []).append(index + 1)
+    previous_x = None
+    for column in sorted(by_column):
+        ranks = by_column[column]
+        column_x = placed[ranks[0]][0]
+        assert [placed[rank][0] for rank in ranks] == [column_x] * len(ranks)
+        assert placed[ranks[-1]][1] > placed[ranks[0]][1]
+        if previous_x is not None:
+            assert column_x > previous_x
+        previous_x = column_x
+
+
+@pytest.mark.parametrize(("variant", "count", "columns_name"), _TILE_CARDS)
+def test_a_tile_card_draws_its_mark_larger_than_its_own_numeral(
+    variant: str, count: int, columns_name: str
+) -> None:
+    """THE OWNER'S RULING, MEASURED. "The 25 and the full list must MAXIMIZE logo
+    and rank-number size for at-a-glance reading" (2026-08-18).
+
+    The check is a RATIO rather than a pixel count, because a pixel count is a
+    number somebody would update to match whatever the card happened to draw. A
+    tile exists so the mark is the biggest thing in the cell; if the numeral ever
+    catches it, the card has quietly gone back to being a row with the parts
+    stacked, which is the regression this exists to catch. The floor is generous
+    on purpose - it fails on a change of KIND, not on a tweak.
+    """
+    svg = cards.BUILDERS[variant][0](_projection_document(rows=138))
+    marks = [float(m) for m in re.findall(r'<circle [^>]*r="([\d.]+)"', svg)]
+    assert len(marks) == count, "every row draws a mark"
+    diameter = min(marks) * 2
+    numerals = {
+        float(m)
+        for m in re.findall(r'<text [^>]*font-size="([\d.]+)"[^>]*>\d+</text>', svg)
+    }
+    assert len(numerals) == 1, "one rank size on the card; rank 1 is drawn like rank 138"
+    assert diameter > numerals.pop() * 1.5, variant
+    # And the mark is bigger than it was as a row, which is what the ruling asked
+    # for. The retired row layout gave the 25 an 18px mark and the 138 a 29px one.
+    assert diameter > 60, variant
 
 
 # -------------------------------------------------------------- the billboard

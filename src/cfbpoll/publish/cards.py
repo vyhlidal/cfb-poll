@@ -55,7 +55,7 @@ DETERMINISM, precisely, because the honest claim is narrower than "deterministic
 WHICH VARIANTS THIS BUILDS. `connectivity` is the weeks 1-4 launch product, the
 schedule graph and its diagnostics, and no other poll's share image shows you the
 graph its ranking is standing on. `top5`, `top10` and the two `top25` canvases are
-the board itself, and the projection has its own three. The top five is the hero:
+the board itself, and the projection has its own four. The top five is the hero:
 five rows means the rank numeral and the mark can be drawn at a size that reads at
 thumbnail scale, which is where most of these are actually seen. The three
 `comparison` canvases put our board beside one or two NAMED EXTERNAL BOARDS, which
@@ -65,6 +65,28 @@ the newest and they invert the usual assumption: every other card here is built
 to be READ by somebody who stopped scrolling, and a billboard is built to survive
 being scrolled PAST by a stranger, which is why the ranks are drawn at twice the
 hero card's scale and why it is the only card carrying a line of marketing copy.
+
+THE SHAREABLE SET IS FOUR CARDS AND THE OWNER NAMED THEM on 2026-08-18: the top
+five, the top ten, the top 25 and the whole 138. TWO OF THEM ARE ROWS AND TWO OF
+THEM ARE TILES, and the split is the ruling rather than a preference - "the 25 and
+the full list must MAXIMIZE logo and rank-number size for at-a-glance reading".
+
+  - `projection_top5` and `projection_top10` are ROWS on 1.91:1, unchanged. Five
+    and ten rows already buy a 52px numeral and a 52px mark, and the wide canvas
+    is the one a link preview and an embed are cut to. They keep the masthead
+    column, which runs the document's own headline beside the board.
+  - `projection_top25` (4:5) and `projection_grid` (2:3) are TILES: the mark
+    centred and as large as the cell allows, the rank under it, the name a
+    caption. A row caps the mark at the row's height while the rank lane and the
+    name eat its width, which is how a 25 ended up with an 18px logo. Stacking
+    frees the width and the same board area draws 105px and 65px marks.
+  - THERE IS NO SINGLE-TEAM HERO CARD IN THE SET. `billboard_team` still exists as
+    a season template; it is not one of the four, by ruling: "not that
+    interesting".
+
+The two tile cards are also the only boards that carry `BILLBOARD_TEASER`, for
+the reason `TEASER_HEIGHT` gives: they are the cards posted to be LOOKED at, so
+they meet the same stranger the billboards were written for.
 
 THE BRAND IS THE MASTHEAD, AND THE ACCENT RULE IS A DISCIPLINE RATHER THAN A
 COLOUR. The gold-on-near-black palette this module shipped through 2026-08-17 is
@@ -130,10 +152,12 @@ __all__ = [
     "PALETTE",
     "PLATE_OPACITY",
     "PNG_ALLOWED_CHUNKS",
+    "POSTER_HEIGHT",
     "PROJECTION_VARIANTS",
     "SAFE_TOP",
     "SQUARE_HEIGHT",
     "TALL_HEIGHT",
+    "TEASER_HEIGHT",
     "VARIANTS",
     "billboard_team_svg",
     "billboard_top5_svg",
@@ -182,6 +206,20 @@ TALL_HEIGHT = 1500
 #: every platform crops least: Instagram shows it whole, X shows it whole, and a
 #: LinkedIn or Reddit thumbnail does not letterbox it.
 SQUARE_HEIGHT = 1200
+
+#: 1200x1800 is 2:3, and it is the ALL-TEAMS POSTER. It is the one canvas here
+#: that is not native to a feed, and that is the honest trade rather than an
+#: oversight: 138 teams drawn large enough to recognise from a logo do not fit in
+#: a feed-native ratio at 1200px wide, and a card nobody can read at a glance has
+#: already failed whatever ratio it is cut to.
+#:
+#: THE ARITHMETIC IS WHY, AND IT IS NOT NEGOTIABLE BY TASTE. The drawable board on
+#: the 4:5 canvas is 1120x1088, which is 8,800 square pixels per team. A school
+#: mark and a rank numeral that read at arm's length need roughly twice that. 2:3
+#: buys the second half. It is still one file, still self-contained, still under
+#: the 5 MB ceiling by three orders of magnitude, and it is the artifact somebody
+#: taps to expand rather than the one that has to survive being scrolled past.
+POSTER_HEIGHT = 1800
 
 #: X crops the top and bottom on mobile, so the essential content lives in the
 #: middle ~60% (report 05 §6.2). The title band and the constants footer sit
@@ -1414,6 +1452,20 @@ def _card_open(width: float, height: float, label: str) -> list[str]:
     ]
 
 
+#: How much of a row's height a school's mark takes on the two SHAREABLE ROW
+#: CARDS, and it is a fraction rather than a size because the two rows differ.
+#:
+#: 0.42 IS THE CEILING THAT GRID ALLOWS, not a taste. A row's separator is drawn
+#: at its foot, so a mark of more than 0.42 of the row height starts touching the
+#: rule under it, and at 0.5 it crosses into the neighbouring row. The old 0.35
+#: left 15% of every row empty above and below the mark, which cost the top ten a
+#: third of its logo for nothing. Neither the row heights nor the mobile safe band
+#: moved to buy this: the block is the same block and the marks fill it.
+#:
+#: THE 25 AND THE 138 DO NOT USE THIS. They are tiles, where the mark is capped by
+#: the CELL rather than by a row, which is the entire reason they became tiles.
+BOARD_MARK_RATIO = 0.42
+
 #: The hero card's row grid, and every number on it is one decision.
 #:
 #: FIVE ROWS OF 75 STARTING AT `SAFE_TOP` END AT 501, ONE PIXEL INSIDE
@@ -1628,6 +1680,212 @@ def top25_instagram_svg(bundle: Bundle) -> str:
     return "\n".join(parts) + "\n"
 
 
+# ------------------------------------------------------------------- the tiles
+#
+# WHAT A TILE IS AND WHY TWO CARDS NOW SHARE ONE. A ROW is built to be read: the
+# eye runs left to right along it and collects a rank, a mark, a name and a
+# number. A TILE is built to be recognised: the mark is the biggest thing in the
+# cell, the rank sits under it, and the name is a caption rather than the label.
+#
+# THE OWNER RULED FOR TILES ON THE 25 AND THE 138, on 2026-08-18: those two "must
+# MAXIMIZE logo and rank-number size for at-a-glance reading". A row cannot do
+# that and the reason is arithmetic rather than taste. On a row, the mark's
+# diameter is capped by the row's HEIGHT while the rank lane and the name eat the
+# row's WIDTH, so at 25 rows on the wide canvas the mark had 18px and at 138 it
+# had 29px - a smudge and a stamp. Stacking the same three things frees the whole
+# cell width for the mark, and the same board area draws it at 105px and 65px.
+#
+# WHAT DOES NOT CHANGE, because it is the brand rather than the layout. We never
+# flood a cell with a school's colour: the reference graphics do, and a card of
+# 138 team-coloured tiles belongs to the schools rather than to the poll that made
+# it. Ours keeps our own ground, sets the numeral in the board face, and gives the
+# school's colour the same 3px stripe every row on every other card here gets.
+# Rank 1 is drawn exactly like rank 138, and there is no cut line.
+
+#: How many teams sit across each tile card, and both numbers are the answer to
+#: the same optimisation rather than a preference.
+#:
+#: A tile's mark is capped by its cell in both directions: by the width outright,
+#: and by the height minus the two lines of caption under it. Columns trade one
+#: against the other - more columns give shorter, narrower cells with more of them
+#: stacked, fewer give the reverse - so the mark is largest where the two caps
+#: meet. On the 2:3 poster that is 14 columns and a 65px mark; at 7 columns the
+#: cells are wide and squat and the mark is back to 40px, and at 20 they are too
+#: narrow to hold a five-character abbreviation.
+#:
+#: FOURTEEN ALSO READS AS DECADES, which is a free property rather than the
+#: reason: ten deep means a column is 1-10, the next is 11-20, and a reader
+#: hunting the fifties goes to the sixth column instead of counting.
+GRID_COLUMNS = 14
+TOP25_COLUMNS = 5
+
+#: The caption under the mark, as fractions of the cell's height. The rank is
+#: more than twice the name because the rank is the number the card is FOR and
+#: the name is the confirmation a reader checks after the mark has already told
+#: them who it is.
+TILE_RANK_RATIO = 0.26
+TILE_NAME_RATIO = 0.11
+#: Breathing room inside a cell, on every side. Small on purpose: every pixel
+#: spent here comes off the mark's diameter.
+TILE_PAD = 6.0
+
+
+def _grid_cells(total: int, columns: int) -> list[tuple[int, int]]:
+    """Where each rank sits on the grid, as `(column, line)`, in rank order.
+
+    THE ORDER IS DOWN EACH COLUMN AND THEN ACROSS, WHICH IS A CORRECTION. The
+    first version of this card filled the grid across the rows: 1 to 7 along the
+    top, 8 to 14 under it. Every poll a football fan has ever read runs
+    top-to-bottom, so a reader looking for the teams around 20th scanned the
+    left edge, found 15, and read a board that did not mean what they thought it
+    meant. Filling down the columns puts 1 to 20 under each other and moves 21 to
+    the top of the next column, which is a newspaper agate page.
+
+    THE SHORT COLUMNS ARE ON THE RIGHT AND THE HOLE IS AT THE BOTTOM. 138 teams
+    over fourteen columns is 10 rows with two short of a full grid, so the first
+    twelve columns carry 10 and the last two carry 9. Column 0 is always one of
+    the full ones, which is what lets the caller draw a horizontal rule per line
+    off that column alone.
+    """
+    lines = -(-total // columns)
+    tall = total - columns * (lines - 1)
+    return [
+        (column, line)
+        for column in range(columns)
+        for line in range(lines if column < tall else lines - 1)
+    ]
+
+
+def _tile(
+    row: dict[str, Any],
+    cx: float,
+    cy: float,
+    cell_w: float,
+    cell_h: float,
+    *,
+    mark_r: float,
+    rank_size: float,
+    name_size: float,
+    use_abbreviation: bool,
+) -> list[str]:
+    """One team in one cell: the stripe, the mark, the rank under it, the name.
+
+    THE MARK IS CENTRED AND SO IS THE NUMERAL, WHICH SUSPENDS THE RIGHT-ANCHOR
+    RULE AND ONLY HERE. Everywhere else on this card set a rank is right-anchored
+    in a fixed lane, because that is the fallback for a renderer that ignores
+    `tnum` and it is what makes 1 and 25 end in the same column down a row block.
+    A tile has no such column: the thing a reader lines up on is the mark's own
+    axis, and a numeral pinned to a lane while the mark above it is centred reads
+    as a misprint. Centred on the same axis as the mark, 1 and 138 both sit under
+    their school.
+    """
+    mid = cx + cell_w / 2
+    parts: list[str] = [
+        _slab(cx, cy + 3, 3, cell_h - 6, stripe_colour(row.get("mark_bg"))),
+        *(_mark(mid, cy + TILE_PAD + mark_r, mark_r, row),),
+    ]
+
+    rank_y = cy + TILE_PAD + mark_r * 2 + rank_size
+    parts.append(
+        _num(mid, rank_y, str(int(row["rank"])), size=rank_size,
+             fill=PALETTE["ink"], anchor="middle")
+    )
+
+    name = str(row.get("abbreviation") if use_abbreviation else row.get("team") or "")
+    budget = max(3, int((cell_w - TILE_PAD * 2) / (name_size * 0.52)))
+    parts.append(
+        _text(mid, rank_y + name_size * 1.2, _clip(name, budget), size=name_size,
+              fill=PALETTE["ink_dim"], weight="600", anchor="middle", family=FONT_DISPLAY)
+    )
+    return parts
+
+
+def _tile_block(
+    rows: list[dict[str, Any]],
+    x: float,
+    top: float,
+    width: float,
+    height: float,
+    *,
+    columns: int,
+    use_abbreviation: bool,
+) -> list[str]:
+    """A tile grid filling the box, sized so the marks are as large as it allows.
+
+    NOTHING HERE IS A TYPE SIZE SOMEBODY CHOSE. The caller hands over a box and a
+    column count; the cell falls out of those, the caption falls out of the cell,
+    and the mark takes whatever the cell has left in its tighter direction. That
+    is what makes "maximise the logo" a property of the function rather than a
+    number a later edit can quietly walk back.
+    """
+    cells = _grid_cells(len(rows), columns)
+    lines = max(line for _column, line in cells) + 1
+    cell_w = width / columns
+    cell_h = height / lines
+
+    rank_size = cell_h * TILE_RANK_RATIO
+    name_size = cell_h * TILE_NAME_RATIO
+    caption = rank_size * 1.12 + name_size * 1.30
+    mark_r = max(
+        6.0,
+        min(cell_w - TILE_PAD * 2, cell_h - caption - TILE_PAD * 2) / 2,
+    )
+
+    parts: list[str] = []
+    for index, row in enumerate(rows):
+        column, line = cells[index]
+        cx, cy = x + column * cell_w, top + line * cell_h
+        parts.extend(
+            _tile(row, cx, cy, cell_w, cell_h, mark_r=mark_r, rank_size=rank_size,
+                  name_size=name_size, use_abbreviation=use_abbreviation)
+        )
+        if column < columns - 1:
+            parts.append(
+                f'<line x1="{_n(cx + cell_w)}" y1="{_n(cy + 4)}" x2="{_n(cx + cell_w)}" '
+                f'y2="{_n(cy + cell_h - 4)}" stroke="{PALETTE["rule"]}" stroke-width="1" '
+                f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
+            )
+        if column == 0 and line:
+            parts.append(_rule(x, cy, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY))
+    return parts
+
+
+#: The band the tagline sits in, between the board and the signature strip, on
+#: the two cards whose layout has room for a sentence.
+#:
+#: THIS IS THE BILLBOARD'S LINE ON A CARD THAT IS NOT A BILLBOARD, and it is the
+#: owner's call of 2026-08-18: the teaser goes "where the layout carries copy".
+#: The reasoning transfers cleanly. A tile card is the one somebody posts to be
+#: looked at rather than read, so it meets the same stranger the billboards were
+#: written for, and that stranger needs one sentence telling him what he is
+#: looking at and where to go next. The wide cards keep their masthead column,
+#: which already runs the document's own headline, and get no teaser: a second
+#: piece of prose beside the first would be two arguments in one corner.
+#:
+#: WHAT DOES NOT COME WITH IT IS THE CLARITY LINE OR THE BILLBOARD'S FOOTER. The
+#: counts sentence is 200 characters and belongs to a card with nothing else on
+#: it, and the constants footer stays exactly where `AGENTS.md` puts it, because
+#: these are cards built to be READ and the owner's "no stat nerd shit" ruling was
+#: confined to the billboards by name.
+TEASER_HEIGHT = 68.0
+TEASER_SIZE = 22.0
+
+
+def _teaser(width: float, height: float) -> list[str]:
+    """The tagline, above the signature strip. Drawn from the module constant."""
+    top = footer_top(height) - TEASER_HEIGHT
+    parts = [_rule(40, top, width - 80, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)]
+    y = top + 32
+    budget = max(24, int((width - 80) / (TEASER_SIZE * 0.44)))
+    for line in _wrap(BILLBOARD_TEASER, budget, 2):
+        parts.append(
+            _text(40, y, line, size=TEASER_SIZE, fill=PALETTE["ink"],
+                  family=FONT_DISPLAY, weight="600")
+        )
+        y += TEASER_SIZE * 1.28
+    return parts
+
+
 # ------------------------------------------------------------------ the projection
 
 
@@ -1649,6 +1907,22 @@ def _projection_rows(document: dict[str, Any], top_n: int) -> list[dict[str, Any
     if not rows:
         raise ValueError("the projection carries no rows to draw")
     return rows[:top_n]
+
+
+def _field_size(document: dict[str, Any]) -> int:
+    """HOW MANY TEAMS THE MODEL RANKS. Read from the document, never counted off
+    the slice a card happens to be drawing.
+
+    This exists because the sentence it feeds is the one the project keeps
+    getting wrong in both directions. A card showing 25 rows that says "25 teams"
+    has told a stranger the model ranks a quarter of the sport; the truth is that
+    it ranks the whole of it and shows the top of it. `schedule.field_size` is the
+    published field for exactly this and is preferred; the row count is the
+    fallback for a document written before that field existed, and it is right
+    only because the full document carries every ranked team.
+    """
+    size = (document.get("schedule") or {}).get("field_size")
+    return int(size) if size else len(document.get("rows") or [])
 
 
 #: WHAT THE PROJECTION CARD CALLS ITSELF, in the dateline, on every canvas.
@@ -1751,6 +2025,7 @@ def projection_top5_svg(document: dict[str, Any]) -> str:
             value_size=32,
             use_abbreviation=False,
             value_of=_projected_wins,
+            mark_ratio=BOARD_MARK_RATIO,
         )
     )
     parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
@@ -1783,6 +2058,7 @@ def projection_top10_svg(document: dict[str, Any]) -> str:
             value_size=24,
             use_abbreviation=False,
             value_of=_projected_wins,
+            mark_ratio=BOARD_MARK_RATIO,
         )
     )
     parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
@@ -1790,49 +2066,94 @@ def projection_top10_svg(document: dict[str, Any]) -> str:
     return "\n".join(parts) + "\n"
 
 
-def projection_top25_svg(document: dict[str, Any]) -> str:
-    """The projected top 25, two columns of 13 and 12 on the 1200x628 canvas.
+#: Where a tile card's board begins and how tall its header band is. Shared by
+#: the 25 and the 138 so the two read as one format at two densities: same
+#: banner, same first line of tiles, same tagline band, same signature strip.
+TILE_BANNER_H = 300.0
+TILE_BOARD_TOP = 336.0
 
-    ONE top 25 rather than the poll's two, and it is the `summary_large_image`
-    ratio rather than the 4:5 one. The poll publishes both because it ships every
-    week and each canvas is a surface it posts to; the projection ships once a
-    year and its job is to be the image that embeds anywhere, which the 16:9 card
-    does and the portrait card does not.
+
+def _tile_card(
+    document: dict[str, Any],
+    rows: list[dict[str, Any]],
+    *,
+    height: float,
+    columns: int,
+    label: str,
+    thesis: str,
+    use_abbreviation: bool,
+) -> str:
+    """A tile card end to end: banner, tiles, tagline, signature. Both callers.
+
+    The 25 and the 138 differ in three arguments and in nothing else, which is
+    the point: a reader who has learned to read one of them has learned the
+    other, and a change to the format cannot land on one card and miss its twin.
+    """
+    season = int(document["season"])
+    parts = _card_open(CARD_WIDTH, height, label)
+    parts.extend(
+        _top_banner(
+            CARD_WIDTH,
+            TILE_BANNER_H,
+            eyebrow=PROJECTION_EYEBROW.format(season=season),
+            label=str(document.get("label") or "") or None,
+            thesis=thesis,
+            thesis_size=26,
+            thesis_lines=1,
+            accent=PALETTE["accent"],
+        )
+    )
+    board_bottom = footer_top(height) - TEASER_HEIGHT - 12
+    parts.extend(
+        _tile_block(
+            rows,
+            40.0,
+            TILE_BOARD_TOP,
+            CARD_WIDTH - 80,
+            board_bottom - TILE_BOARD_TOP,
+            columns=columns,
+            use_abbreviation=use_abbreviation,
+        )
+    )
+    parts.extend(_teaser(CARD_WIDTH, height))
+    parts.extend(_projection_footer(document, CARD_WIDTH, height))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
+
+
+def projection_top25_svg(document: dict[str, Any]) -> str:
+    """The projected top 25 as a 5x5 tile grid on the 1200x1500 canvas.
+
+    IT LEFT THE 16:9 CANVAS AND THAT IS A REVERSAL WITH A PRICE. The previous
+    version of this card argued for `summary_large_image` because "its job is to
+    be the image that embeds anywhere", and it drew 25 rows of 26px to get there:
+    a 21px rank numeral and an 18px school mark, on the card the owner named as
+    the one that has to read at a glance. Both jobs do not fit on one canvas. The
+    ruling of 2026-08-18 chose the glance, so the 25 goes portrait and the top
+    ten - same board, same brand, native to 1.91:1 - is what the link preview
+    picks up. See `share.ts`, which selects the widest ranking rather than a
+    variant name, so nothing had to be told about this.
+
+    WHAT THE CANVAS BOUGHT: the mark goes from 18px to about 105px and the rank
+    numeral from 21px to about 49px. That is the whole change. Same rows, same
+    fields, same uniform treatment, same footer.
+
+    THE FULL SCHOOL NAME RATHER THAN THE ABBREVIATION, unlike the 138. A 224px
+    cell holds `Mississippi State` at caption size and the mark has already done
+    the identifying anyway; the poster's 80px cells have room for four letters and
+    no more, which is the only reason that card abbreviates.
     """
     rows = _projection_rows(document, 25)
     season = int(document["season"])
-    split = (13, 12)
-
-    parts = _card_open(CARD_WIDTH, CARD_HEIGHT, f"The Projection top 25, {season} preseason")
-    parts.extend(_projection_column(document, COLUMN_W, CARD_HEIGHT, thesis_size=19))
-
-    area_x, area_w = COLUMN_W + 24, CARD_WIDTH - COLUMN_W - 48
-    gutter = 16.0
-    col_w = (area_w - gutter * (len(split) - 1)) / len(split)
-
-    start = 0
-    for index, count in enumerate(split):
-        chunk = rows[start : start + count]
-        x = area_x + index * (col_w + gutter)
-        parts.extend(
-            _row_block(
-                chunk, x, 150.0, col_w, height=26.0,
-                rank_size=21, name_size=19, value_size=18,
-                use_abbreviation=True, value_of=_projected_wins,
-            )
-        )
-        if index < len(split) - 1:
-            gx = x + col_w + gutter / 2
-            parts.append(
-                f'<line x1="{_n(gx)}" y1="150" x2="{_n(gx)}" '
-                f'y2="{_n(150.0 + max(split) * 26.0)}" stroke="{PALETTE["rule"]}" '
-                f'stroke-width="1" stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
-            )
-        start += count
-
-    parts.extend(_projection_footer(document, CARD_WIDTH, CARD_HEIGHT))
-    parts.append("</svg>")
-    return "\n".join(parts) + "\n"
+    return _tile_card(
+        document,
+        rows,
+        height=TALL_HEIGHT,
+        columns=TOP25_COLUMNS,
+        label=f"The Projection top 25, {season} preseason",
+        thesis=f"The top {len(rows)} of the {_field_size(document)} teams the model ranks.",
+        use_abbreviation=False,
+    )
 
 
 #: THE ONLY PNG CHUNKS A PUBLISHED CARD MAY CARRY. Everything else is stripped,
@@ -1903,40 +2224,7 @@ def strip_png_metadata(raw: bytes) -> bytes:
     return bytes(out)
 
 
-# --------------------------------------------------------------------- the grid
-
-#: How many teams sit across the all-teams grid. Seven, because 1200px of width
-#: at seven columns leaves 160 per cell, which holds a two-digit rank, a mark big
-#: enough to identify a school and a four-character abbreviation without any of
-#: the three touching. Six columns wastes the width and eight puts the mark and
-#: the letters in the same 20 pixels.
-GRID_COLUMNS = 7
-
-
-def _grid_cells(total: int, columns: int) -> list[tuple[int, int]]:
-    """Where each rank sits on the grid, as `(column, line)`, in rank order.
-
-    THE ORDER IS DOWN EACH COLUMN AND THEN ACROSS, WHICH IS A CORRECTION. The
-    first version of this card filled the grid across the rows: 1 to 7 along the
-    top, 8 to 14 under it. Every poll a football fan has ever read runs
-    top-to-bottom, so a reader looking for the teams around 20th scanned the
-    left edge, found 15, and read a board that did not mean what they thought it
-    meant. Filling down the columns puts 1 to 20 under each other and moves 21 to
-    the top of the next column, which is a newspaper agate page.
-
-    THE SHORT COLUMNS ARE ON THE RIGHT AND THE HOLE IS AT THE BOTTOM. 138 teams
-    over seven columns is 20 rows with two teams left over, so the first five
-    columns carry 20 and the last two carry 19. Column 0 is always one of the
-    full ones, which is what lets the caller draw a horizontal rule per line off
-    that column alone.
-    """
-    lines = -(-total // columns)
-    tall = total - columns * (lines - 1)
-    return [
-        (column, line)
-        for column in range(columns)
-        for line in range(lines if column < tall else lines - 1)
-    ]
+# ------------------------------------------------------------------- the poster
 
 
 def grid_svg(document: dict[str, Any]) -> str:
@@ -1947,13 +2235,22 @@ def grid_svg(document: dict[str, Any]) -> str:
     borrowed from fill every tile with team colours, and the result belongs to the
     schools rather than to the poll that made it - 138 colour schemes fighting,
     and a card that could be any conference's promo. Ours keeps our own ground,
-    sets the rank numeral in the board face, draws the school's mark small for
-    identification, and gives the school's colour exactly the 3px stripe every
-    other board on this card set already gives it.
+    sets the rank numeral in the board face, draws the school's mark as the
+    biggest thing in the cell, and gives the school's colour exactly the 3px
+    stripe every board on this card set already gives it.
 
     That is what keeps the card ours, and it is the same independence promise the
     site prints above the board: a poll with no favourites does not wear
     anybody's palette, not even 138 of them at once.
+
+    IT IS A POSTER NOW AND IT USED TO BE AN AGATE PAGE. Until 2026-08-18 this drew
+    138 rows of rank-mark-name across seven columns of the 4:5 canvas, which put
+    the mark at 29px: identifiable if you already knew which logo you were looking
+    for, and a smudge if you did not. The owner's ruling was to maximise the mark
+    and the numeral, so the row became a tile, the seven columns became fourteen,
+    and the canvas went to 2:3. The mark is about 65px and the numeral about 34px.
+    `_tile_block` derives both from the box rather than naming them, so the claim
+    survives the next edit.
 
     ORDERED BY RANK, DOWN EACH COLUMN AND THEN ACROSS, which is how a poll is
     read. `_grid_cells` holds that arithmetic and says why. An alphabetical grid
@@ -1962,66 +2259,15 @@ def grid_svg(document: dict[str, Any]) -> str:
     """
     rows = _projection_rows(document, 138)
     season = int(document["season"])
-
-    parts = _card_open(CARD_WIDTH, TALL_HEIGHT, f"All {len(rows)} teams, {season} preseason")
-    parts.extend(
-        _top_banner(
-            CARD_WIDTH,
-            300.0,
-            eyebrow=PROJECTION_EYEBROW.format(season=season),
-            label=str(document.get("label") or "") or None,
-            thesis=f"Every one of the {len(rows)} teams the model rates, in order.",
-            thesis_size=26,
-            accent=PALETTE["accent"],
-        )
+    return _tile_card(
+        document,
+        rows,
+        height=POSTER_HEIGHT,
+        columns=GRID_COLUMNS,
+        label=f"All {len(rows)} teams, {season} preseason",
+        thesis=f"Every one of the {len(rows)} teams the model ranks, in order.",
+        use_abbreviation=True,
     )
-
-    x, top = 40.0, 336.0
-    width = CARD_WIDTH - 80
-    cell_w = width / GRID_COLUMNS
-    cells = _grid_cells(len(rows), GRID_COLUMNS)
-    lines = max(line for _column, line in cells) + 1
-    cell_h = min(56.0, (TALL_HEIGHT - FOOTER_HEIGHT - 20 - top) / lines)
-
-    for index, row in enumerate(rows):
-        column, line = cells[index]
-        cx, cy = x + column * cell_w, top + line * cell_h
-        mid = cy + cell_h / 2
-        parts.append(_slab(cx, cy + 3, 3, cell_h - 6, stripe_colour(row.get("mark_bg"))))
-        # THE LANE IS SIZED FOR THREE DIGITS BECAUSE THIS CARD HAS THREE-DIGIT
-        # RANKS. Every other board on this card set tops out at 25 and a 1.32
-        # lane is right for it; here the lane has to hold 138, and the first
-        # version of this grid ran the numeral into the school's mark from rank
-        # 100 down.
-        rank_size = cell_h * 0.42
-        rank_lane = rank_size * 1.95
-        parts.append(
-            _num(cx + 10 + rank_lane, mid + rank_size * 0.34, str(int(row["rank"])),
-                 size=rank_size, fill=PALETTE["ink"])
-        )
-        mark_r = cell_h * 0.27
-        mark_cx = cx + 16 + rank_lane + mark_r
-        parts.append(_mark(mark_cx, mid, mark_r, row))
-        name_size = cell_h * 0.30
-        parts.append(
-            _text(mark_cx + mark_r + 7, mid + name_size * 0.34,
-                  _clip(str(row.get("abbreviation") or row.get("team") or ""), 5),
-                  size=name_size, fill=PALETTE["ink"], weight="600", family=FONT_DISPLAY)
-        )
-        if column < GRID_COLUMNS - 1:
-            parts.append(
-                f'<line x1="{_n(cx + cell_w)}" y1="{_n(cy + 4)}" x2="{_n(cx + cell_w)}" '
-                f'y2="{_n(cy + cell_h - 4)}" stroke="{PALETTE["rule"]}" stroke-width="1" '
-                f'stroke-opacity="{_n(ROW_RULE_OPACITY)}"/>'
-            )
-        if column == 0 and line:
-            parts.append(
-                _rule(x, cy, width, stroke=PALETTE["rule"], opacity=ROW_RULE_OPACITY)
-            )
-
-    parts.extend(_projection_footer(document, CARD_WIDTH, TALL_HEIGHT))
-    parts.append("</svg>")
-    return "\n".join(parts) + "\n"
 
 
 # ---------------------------------------------------------------- the billboard
@@ -3090,14 +3336,18 @@ BUILDERS: dict[str, Any] = {
     # argument to hand the builder.
     "projection_top5": (lambda d: projection_top5_svg(d), CARD_WIDTH, CARD_HEIGHT, 5),
     "projection_top10": (lambda d: projection_top10_svg(d), CARD_WIDTH, CARD_HEIGHT, 10),
-    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, CARD_HEIGHT, 25),
+    # THE TWO TILE CARDS ARE THE ONES THAT LEFT 1.91:1, and each went to the
+    # shortest canvas that holds its marks at a size somebody can recognise
+    # across a room: 4:5 for 25 tiles, 2:3 for 138. The top ten is still on the
+    # wide canvas and is what a link preview picks up.
+    "projection_top25": (lambda d: projection_top25_svg(d), CARD_WIDTH, TALL_HEIGHT, 25),
     # 138, AND THE COST IS ACCEPTED RATHER THAN AVOIDED. The row count is what
     # the export path warms the cache from, and a grid warmed to 25 draws the top
     # of the board with real marks and the rest with generated discs - which reads
     # as a card that failed to load rather than as a design. The owner's rule is
     # real school logos everywhere, so this variant pays for a hundred-odd extra
     # fetches, once, into a cache every later card reuses.
-    "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, TALL_HEIGHT, 138),
+    "projection_grid": (lambda d: grid_svg(d), CARD_WIDTH, POSTER_HEIGHT, 138),
     # The billboards read the same document and draw on the square canvas. The
     # single-team one declares ONE row, which is the truth: `export_billboard`
     # warms the cache for the row it was asked for rather than for the top of the
